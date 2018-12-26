@@ -1,3 +1,23 @@
 required = [
-    "k8s.io/code-generator/cmd/client-gen"
+    "k8s.io/code-generator/cmd/client-gen",
 ]
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  branch = "release-9.0"
+
+
+[[constraint]]
+  branch = "release-1.12"
+  name = "k8s.io/api"
+
+
+# To use reference package:
+#   vendor/k8s.io/kubernetes/pkg/util/parsers/parsers.go:36:16: undefined: reference.ParseNormalizedNamed
+[[override]]
+  name = "github.com/docker/distribution"
+  branch = "master"
+
+[[override]]
+  name = "k8s.io/apiserver"
+  branch = "release-1.12"

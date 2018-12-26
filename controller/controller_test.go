@@ -1,41 +1,29 @@
-/*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
-	"fmt"
+	"encoding/json"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
-	apps "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/diff"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/controller"
 
-	samplecontroller "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
-	"k8s.io/sample-controller/pkg/client/clientset/versioned/fake"
-	informers "k8s.io/sample-controller/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 var (
@@ -49,8 +37,9 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	fooLister        []*samplecontroller.Foo
-	deploymentLister []*apps.Deployment
+	rolloutLister    []*v1alpha1.Rollout
+	replicaSetLister []*appsv1.ReplicaSet
+	serviceLister    []*corev1.Service
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -67,18 +56,90 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func newFoo(name string, replicas *int32) *samplecontroller.Foo {
-	return &samplecontroller.Foo{
-		TypeMeta: metav1.TypeMeta{APIVersion: samplecontroller.SchemeGroupVersion.String()},
+func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
+			UID:       uuid.NewUUID(),
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
+			Annotations: map[string]string{
+				annotations.RevisionAnnotation: "1",
+			},
 		},
-		Spec: samplecontroller.FooSpec{
-			DeploymentName: fmt.Sprintf("%s-deployment", name),
-			Replicas:       replicas,
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Type: v1alpha1.BlueGreenRolloutStrategyType,
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+					ActiveService:  activeSvc,
+					PreviewService: previewSvc,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "foo/bar",
+						},
+					},
+				},
+			},
+			RevisionHistoryLimit: revisionHistoryLimit,
+			Replicas:             func() *int32 { i := int32(replicas); return &i }(),
+			Selector:             &metav1.LabelSelector{MatchLabels: selector},
 		},
 	}
+}
+
+func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, availableReplicas int) *appsv1.ReplicaSet {
+	rs := newReplicaSet(r, name, replicas)
+	rs.Status.AvailableReplicas = int32(availableReplicas)
+	return rs
+}
+
+func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.ReplicaSet {
+	newRSTemplate := *r.Spec.Template.DeepCopy()
+	rsLabels := map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount),
+	}
+	for k, v := range r.Spec.Selector.MatchLabels {
+		rsLabels[k] = v
+	}
+	return &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			UID:       uuid.NewUUID(),
+			Namespace: metav1.NamespaceDefault,
+			Labels:    rsLabels,
+			Annotations: map[string]string{
+				annotations.DesiredReplicasAnnotation: strconv.Itoa(replicas),
+				annotations.RevisionAnnotation:        r.Annotations[annotations.RevisionAnnotation],
+			},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Selector: r.Spec.Selector,
+			Replicas: func() *int32 { i := int32(replicas); return &i }(),
+			Template: r.Spec.Template,
+		},
+	}
+}
+
+func newImage(rs *appsv1.ReplicaSet, newImage string) *appsv1.ReplicaSet {
+	rsCopy := rs.DeepCopy()
+	rsCopy.Spec.Template.Spec.Containers[0].Image = newImage
+	rsCopy.ObjectMeta.Name = controller.ComputeHash(&rsCopy.Spec.Template, nil)
+	return rsCopy
+}
+
+func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(rollout)
+	if err != nil {
+		t.Errorf("Unexpected error getting key for rollout %v: %v", rollout.Name, err)
+		return ""
+	}
+	return key
 }
 
 func (f *fixture) newController() (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
@@ -89,32 +150,39 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
 
 	c := NewController(f.kubeclient, f.client,
-		k8sI.Apps().V1().Deployments(), i.Samplecontroller().V1alpha1().Foos())
+		k8sI.Apps().V1().ReplicaSets(),
+		k8sI.Core().V1().Services(),
+		i.Argoproj().V1alpha1().Rollouts())
 
-	c.foosSynced = alwaysReady
-	c.deploymentsSynced = alwaysReady
+	c.rolloutsSynced = alwaysReady
+	c.replicaSetSynced = alwaysReady
+	c.serviceSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
+	c.enqueueRollout = c.enqueue
 
-	for _, f := range f.fooLister {
-		i.Samplecontroller().V1alpha1().Foos().Informer().GetIndexer().Add(f)
+	for _, r := range f.rolloutLister {
+		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(r)
 	}
 
-	for _, d := range f.deploymentLister {
-		k8sI.Apps().V1().Deployments().Informer().GetIndexer().Add(d)
+	for _, r := range f.replicaSetLister {
+		k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
+	}
+	for _, s := range f.serviceLister {
+		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
 	}
 
 	return c, i, k8sI
 }
 
-func (f *fixture) run(fooName string) {
-	f.runController(fooName, true, false)
+func (f *fixture) run(rolloutName string) {
+	f.runController(rolloutName, true, false)
 }
 
-func (f *fixture) runExpectError(fooName string) {
-	f.runController(fooName, true, true)
+func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
+	f.runController(rolloutName, startInformers, true)
 }
 
-func (f *fixture) runController(fooName string, startInformers bool, expectError bool) {
+func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool) {
 	c, i, k8sI := f.newController()
 	if startInformers {
 		stopCh := make(chan struct{})
@@ -123,11 +191,11 @@ func (f *fixture) runController(fooName string, startInformers bool, expectError
 		k8sI.Start(stopCh)
 	}
 
-	err := c.syncHandler(fooName)
+	err := c.syncHandler(rolloutName)
 	if !expectError && err != nil {
-		f.t.Errorf("error syncing foo: %v", err)
+		f.t.Errorf("error syncing rollout: %v", err)
 	} else if expectError && err == nil {
-		f.t.Error("expected error syncing foo, got nil")
+		f.t.Error("expected error syncing rollout, got nil")
 	}
 
 	actions := filterInformerActions(f.client.Actions())
@@ -161,8 +229,7 @@ func (f *fixture) runController(fooName string, startInformers bool, expectError
 	}
 }
 
-// checkAction verifies that expected and actual actions are equal and both have
-// same attached resources
+// checkAction verifies that expected and actual actions are equal
 func checkAction(expected, actual core.Action, t *testing.T) {
 	if !(expected.Matches(actual.GetVerb(), actual.GetResource().Resource) && actual.GetSubresource() == expected.GetSubresource()) {
 		t.Errorf("Expected\n\t%#v\ngot\n\t%#v", expected, actual)
@@ -173,49 +240,20 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 		t.Errorf("Action has wrong type. Expected: %t. Got: %t", expected, actual)
 		return
 	}
-
-	switch a := actual.(type) {
-	case core.CreateAction:
-		e, _ := expected.(core.CreateAction)
-		expObject := e.GetObject()
-		object := a.GetObject()
-
-		if !reflect.DeepEqual(expObject, object) {
-			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
-		}
-	case core.UpdateAction:
-		e, _ := expected.(core.UpdateAction)
-		expObject := e.GetObject()
-		object := a.GetObject()
-
-		if !reflect.DeepEqual(expObject, object) {
-			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
-		}
-	case core.PatchAction:
-		e, _ := expected.(core.PatchAction)
-		expPatch := e.GetPatch()
-		patch := a.GetPatch()
-
-		if !reflect.DeepEqual(expPatch, patch) {
-			t.Errorf("Action %s %s has wrong patch\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expPatch, patch))
-		}
-	}
 }
 
-// filterInformerActions filters list and watch actions for testing resources.
-// Since list and watch don't change resource state we can filter it to lower
+// filterInformerActions filters list, and watch actions for testing resources.
+// Since list, and watch don't change resource state we can filter it to lower
 // nose level in our tests.
 func filterInformerActions(actions []core.Action) []core.Action {
 	ret := []core.Action{}
 	for _, action := range actions {
-		if len(action.GetNamespace()) == 0 &&
-			(action.Matches("list", "foos") ||
-				action.Matches("watch", "foos") ||
-				action.Matches("list", "deployments") ||
-				action.Matches("watch", "deployments")) {
+		if action.Matches("list", "rollouts") ||
+			action.Matches("watch", "rollouts") ||
+			action.Matches("list", "replicaSets") ||
+			action.Matches("watch", "replicaSets") ||
+			action.Matches("list", "services") ||
+			action.Matches("watch", "services") {
 			continue
 		}
 		ret = append(ret, action)
@@ -224,90 +262,57 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectCreateDeploymentAction(d *apps.Deployment) {
-	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d))
+func (f *fixture) expectGetServiceAction(s *corev1.Service) {
+	serviceSchema := schema.GroupVersionResource{
+		Resource: "services",
+		Version:  "v1",
+	}
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(serviceSchema, s.Namespace, s.Name))
 }
 
-func (f *fixture) expectUpdateDeploymentAction(d *apps.Deployment) {
-	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d))
+func (f *fixture) expectPatchServiceAction(s *corev1.Service, rs *appsv1.ReplicaSet) {
+	patch := corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]},
+		},
+	}
+	patchBytes, _ := json.Marshal(patch)
+	serviceSchema := schema.GroupVersionResource{
+		Resource: "services",
+		Version:  "v1",
+	}
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, patchBytes))
 }
 
-func (f *fixture) expectUpdateFooStatusAction(foo *samplecontroller.Foo) {
-	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "foos"}, foo.Namespace, foo)
-	// TODO: Until #38113 is merged, we can't use Subresource
-	//action.Subresource = "status"
+func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) {
+	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
+}
+
+func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) {
+	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
+}
+
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) {
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
+}
+
+func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) {
+	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
 	f.actions = append(f.actions, action)
 }
 
-func getKey(foo *samplecontroller.Foo, t *testing.T) string {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(foo)
-	if err != nil {
-		t.Errorf("Unexpected error getting key for foo %v: %v", foo.Name, err)
-		return ""
-	}
-	return key
+func (f *fixture) expectUpdateRolloutStatusAction(rollout *v1alpha1.Rollout) {
+	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
+	action.Subresource = "status"
+	f.actions = append(f.actions, action)
 }
 
-func TestCreatesDeployment(t *testing.T) {
+func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
-	foo := newFoo("test", int32Ptr(1))
 
-	f.fooLister = append(f.fooLister, foo)
-	f.objects = append(f.objects, foo)
+	r := newRollout("foo", 1, nil, nil, "", "")
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	expDeployment := newDeployment(foo)
-	f.expectCreateDeploymentAction(expDeployment)
-	f.expectUpdateFooStatusAction(foo)
-
-	f.run(getKey(foo, t))
+	f.run(getKey(r, t))
 }
-
-func TestDoNothing(t *testing.T) {
-	f := newFixture(t)
-	foo := newFoo("test", int32Ptr(1))
-	d := newDeployment(foo)
-
-	f.fooLister = append(f.fooLister, foo)
-	f.objects = append(f.objects, foo)
-	f.deploymentLister = append(f.deploymentLister, d)
-	f.kubeobjects = append(f.kubeobjects, d)
-
-	f.expectUpdateFooStatusAction(foo)
-	f.run(getKey(foo, t))
-}
-
-func TestUpdateDeployment(t *testing.T) {
-	f := newFixture(t)
-	foo := newFoo("test", int32Ptr(1))
-	d := newDeployment(foo)
-
-	// Update replicas
-	foo.Spec.Replicas = int32Ptr(2)
-	expDeployment := newDeployment(foo)
-
-	f.fooLister = append(f.fooLister, foo)
-	f.objects = append(f.objects, foo)
-	f.deploymentLister = append(f.deploymentLister, d)
-	f.kubeobjects = append(f.kubeobjects, d)
-
-	f.expectUpdateFooStatusAction(foo)
-	f.expectUpdateDeploymentAction(expDeployment)
-	f.run(getKey(foo, t))
-}
-
-func TestNotControlledByUs(t *testing.T) {
-	f := newFixture(t)
-	foo := newFoo("test", int32Ptr(1))
-	d := newDeployment(foo)
-
-	d.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
-
-	f.fooLister = append(f.fooLister, foo)
-	f.objects = append(f.objects, foo)
-	f.deploymentLister = append(f.deploymentLister, d)
-	f.kubeobjects = append(f.kubeobjects, d)
-
-	f.runExpectError(getKey(foo, t))
-}
-
-func int32Ptr(i int32) *int32 { return &i }
