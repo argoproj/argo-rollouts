@@ -314,10 +314,81 @@ func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
 	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
+	s := newService("bar", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, s)
 
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 
 	f.expectCreateReplicaSetAction(rs)
+	f.expectGetServiceAction(s)
+	f.run(getKey(r, t))
+}
+
+func TestSyncRolloutSetPreviewService(t *testing.T) {
+	f := newFixture(t)
+
+	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, "foo-895c6c4f9", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	previewSvc := newService("preview", 80, nil)
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "test"}
+	activeSvc := newService("active", 80, selector)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+
+	f.expectGetServiceAction(activeSvc)
+	f.expectGetServiceAction(previewSvc)
+	f.expectPatchServiceAction(previewSvc, rs)
+	f.expectUpdateRolloutAction(r)
+	f.run(getKey(r, t))
+}
+
+func TestSyncRolloutVerifyPreviewNoActions(t *testing.T) {
+	f := newFixture(t)
+
+	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r.Status.VerifyingPreview = func(boolean bool) *bool { return &boolean }(true)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, "foo-895c6c4f9", 1, 1)
+	rs2 := newImage(rs, "foo/bar2.0")
+	f.kubeobjects = append(f.kubeobjects, rs, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs, rs2)
+
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "895c6c4f9"}
+	previewSvc := newService("preview", 80, previewSelector)
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2.Name}
+	activeSvc := newService("active", 80, activeSelector)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+
+	f.expectGetServiceAction(activeSvc)
+	f.expectGetServiceAction(previewSvc)
+	f.run(getKey(r, t))
+}
+
+func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
+	f := newFixture(t)
+
+	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, "foo-895c6c4f9", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	previewSvc := newService("preview", 80, nil)
+	activeSvc := newService("active", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+
+	f.expectGetServiceAction(activeSvc)
+	f.expectGetServiceAction(previewSvc)
+	f.expectPatchServiceAction(activeSvc, rs)
 	f.run(getKey(r, t))
 }
 
@@ -350,8 +421,13 @@ func TestSyncRolloutsScaleDownOldRS(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "6479c8f85c"}
+	s := newService("bar", 80, serviceSelector)
+	f.kubeobjects = append(f.kubeobjects, s)
+
 	expRS := rs2.DeepCopy()
 	expRS.Annotations[annotations.DesiredReplicasAnnotation] = "0"
+	f.expectGetServiceAction(s)
 	f.expectUpdateReplicaSetAction(expRS)
 
 	f.run(getKey(r2, t))

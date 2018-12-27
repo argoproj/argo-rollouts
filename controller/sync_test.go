@@ -52,9 +52,10 @@ func rs(name string, replicas int, selector map[string]string, timestamp metav1.
 }
 
 func TestScale(t *testing.T) {
-	newTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
-	oldTimestamp := metav1.Date(2016, 5, 20, 1, 0, 0, 0, time.UTC)
-	olderTimestamp := metav1.Date(2016, 5, 20, 0, 0, 0, 0, time.UTC)
+	newTimestamp := metav1.Date(2016, 5, 20, 3, 0, 0, 0, time.UTC)
+	oldTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
+	olderTimestamp := metav1.Date(2016, 5, 20, 1, 0, 0, 0, time.UTC)
+	oldestTimestamp := metav1.Date(2016, 5, 20, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name       string
@@ -68,6 +69,9 @@ func TestScale(t *testing.T) {
 		expectedOld  []*appsv1.ReplicaSet
 		wasntUpdated map[string]bool
 
+		previewSvc *corev1.Service
+		activeSvc  *corev1.Service
+
 		desiredReplicasAnnotations map[string]int32
 	}{
 		{
@@ -80,6 +84,8 @@ func TestScale(t *testing.T) {
 
 			expectedNew: rs("foo-v1", 12, nil, newTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{},
+			previewSvc:  nil,
+			activeSvc:   nil,
 		},
 		{
 			name:       "normal scaling event: 10 -> 5",
@@ -91,6 +97,8 @@ func TestScale(t *testing.T) {
 
 			expectedNew: rs("foo-v1", 5, nil, newTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{},
+			previewSvc:  nil,
+			activeSvc:   nil,
 		},
 		{
 			name:       "Scale up non-active latest Replicaset",
@@ -102,6 +110,8 @@ func TestScale(t *testing.T) {
 
 			expectedNew: rs("foo-v2", 5, nil, newTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{rs("foo-v1", 0, nil, newTimestamp, nil)},
+			previewSvc:  nil,
+			activeSvc:   nil,
 		},
 		{
 			name:       "Scale down older active replica sets",
@@ -110,32 +120,38 @@ func TestScale(t *testing.T) {
 
 			newRS: rs("foo-v2", 5, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v1", 5, nil, oldTimestamp, nil),
+				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, oldTimestamp, nil),
 				rs("foo-v0", 5, nil, olderTimestamp, nil),
 			},
 
 			expectedNew: rs("foo-v2", 5, nil, newTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v1", 0, nil, oldTimestamp, nil),
+				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, oldTimestamp, nil),
 				rs("foo-v0", 0, nil, olderTimestamp, nil),
 			},
+			previewSvc: nil,
+			activeSvc:  newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}),
 		},
 		{
 			name:       "No updates",
 			rollout:    newRolloutWithStatus("foo", 5, nil, nil),
 			oldRollout: newRolloutWithStatus("foo", 5, nil, nil),
 
-			newRS: rs("foo-v2", 5, nil, newTimestamp, nil),
+			newRS: rs("foo-v3", 5, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v1", 0, nil, oldTimestamp, nil),
-				rs("foo-v0", 0, nil, olderTimestamp, nil),
+				rs("foo-v2", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v2"}, oldTimestamp, nil),
+				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, olderTimestamp, nil),
+				rs("foo-v0", 0, nil, oldestTimestamp, nil),
 			},
 
-			expectedNew: rs("foo-v2", 5, nil, newTimestamp, nil),
+			expectedNew: rs("foo-v3", 5, nil, newTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v1", 0, nil, oldTimestamp, nil),
-				rs("foo-v0", 0, nil, olderTimestamp, nil),
+				rs("foo-v2", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v2"}, oldTimestamp, nil),
+				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, olderTimestamp, nil),
+				rs("foo-v0", 0, nil, oldestTimestamp, nil),
 			},
+			previewSvc: newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v2"}),
+			activeSvc:  newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}),
 		},
 	}
 
@@ -169,7 +185,7 @@ func TestScale(t *testing.T) {
 				annotations.SetReplicasAnnotations(rs, desiredReplicas)
 			}
 
-			if err := c.scale(test.rollout, test.newRS, test.oldRSs); err != nil {
+			if err := c.scale(test.rollout, test.newRS, test.oldRSs, test.previewSvc, test.activeSvc); err != nil {
 				t.Errorf("%s: unexpected error: %v", test.name, err)
 				return
 			}

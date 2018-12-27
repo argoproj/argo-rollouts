@@ -76,30 +76,6 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 			expectedSelectedRSs: []*appsv1.ReplicaSet{},
 			expectedError:       nil,
 		},
-		// {
-		// 	name:                "Can not list replicas",
-		// 	existingRSs:         []*appsv1.ReplicaSet{},
-		// 	expectedSelectedRSs: []*appsv1.ReplicaSet{},
-		// 	expectedError:       nil,
-		// },
-		// {
-		// 	name:                "Invalid selector",
-		// 	existingRSs:         []*appsv1.ReplicaSet{},
-		// 	expectedSelectedRSs: []*appsv1.ReplicaSet{},
-		// 	expectedError:       nil,
-		// },
-		// {
-		// 	name:                "Prevent adopting deleted rs",
-		// 	existingRSs:         []*appsv1.ReplicaSet{},
-		// 	expectedSelectedRSs: []*appsv1.ReplicaSet{},
-		// 	expectedError:       nil,
-		// },
-		// {
-		// 	name:                "Prevent adopting of RS with different UID",
-		// 	existingRSs:         []*appsv1.ReplicaSet{},
-		// 	expectedSelectedRSs: []*appsv1.ReplicaSet{},
-		// 	expectedError:       nil,
-		// },
 		{
 			name: "Orphan RS with different selector",
 			existingRSs: []*appsv1.ReplicaSet{

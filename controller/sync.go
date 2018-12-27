@@ -179,7 +179,11 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 	if err != nil {
 		return err
 	}
-	if err := c.scale(r, newRS, oldRSs); err != nil {
+	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+	if err != nil {
+		return nil
+	}
+	if err := c.scale(r, newRS, oldRSs, previewSvc, activeSvc); err != nil {
 		// If we get an error while trying to scale, the rollout will be requeued
 		// so we can abort this resync
 		return err
@@ -188,8 +192,27 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 }
 
 // Should run only on scaling events and not during the normal rollout process.
-func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) error {
+func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
 
+	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	if !ok {
+		previewSelector = ""
+	}
+	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	if !ok {
+		activeSelector = ""
+	}
+	for _, rs := range append([]*appsv1.ReplicaSet{newRS}, oldRSs...) {
+		rsLabel := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if rsLabel == activeSelector || rsLabel == previewSelector {
+			if *(rs.Spec.Replicas) == *(rollout.Spec.Replicas) {
+				continue
+			}
+			_, _, err := c.scaleReplicaSetAndRecordEvent(rs, *(rollout.Spec.Replicas), rollout)
+			return err
+		}
+
+	}
 	// If there is only one replica set with pods, then we should scale that up to the full count of the
 	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
 	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
@@ -203,8 +226,11 @@ func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, 
 	// Old replica sets should be fully scaled down if they aren't receiving traffic from the active or
 	// preview service. This case handles replica set adoption during a saturated new replica set.
 	for _, old := range controller.FilterActiveReplicaSets(oldRSs) {
-		if _, _, err := c.scaleReplicaSetAndRecordEvent(old, 0, rollout); err != nil {
-			return err
+		oldLabel, ok := old.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if !ok || (oldLabel != activeSelector && oldLabel != previewSelector) {
+			if _, _, err := c.scaleReplicaSetAndRecordEvent(old, 0, rollout); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

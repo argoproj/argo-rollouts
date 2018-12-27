@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
@@ -29,6 +30,32 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if scaledUp {
 		return nil
 	}
+	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+	if err != nil {
+		return err
+	}
+	if previewSvc != nil {
+		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
+		if err != nil {
+			return err
+		}
+		if switchPreviewSvc {
+			return nil
+		}
+
+		verfyingPreview := c.reconcileVerifyingPreview(activeSvc, r)
+		if verfyingPreview {
+			return nil
+		}
+	}
+
+	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
+	if err != nil {
+		return err
+	}
+	if switchActiveSvc {
+		return nil
+	}
 	// Scale down, if we can.
 	scaledDown, err := c.reconcileOldReplicaSets(allRSs, controller.FilterActiveReplicaSets(oldRSs), newRS, r)
 	if err != nil {
@@ -39,6 +66,21 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 
 	return nil
+}
+
+func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService == "" {
+		return false
+	}
+	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
+		return false
+	}
+
+	if rollout.Status.VerifyingPreview == nil {
+		return false
+	}
+
+	return *rollout.Status.VerifyingPreview
 }
 
 func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
@@ -70,6 +112,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	if !annotations.IsSaturated(rollout, newRS) {
 		return false, nil
 	}
+	// Add check for active service
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block deployment
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
@@ -153,4 +196,11 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 	}
 
 	return totalScaledDown, nil
+}
+
+func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
+	verifyPreprod := true
+	r.Status.VerifyingPreview = &verifyPreprod
+	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+	return err
 }
