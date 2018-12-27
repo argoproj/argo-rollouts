@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -273,10 +274,25 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
+	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
+	// through adoption/orphaning.
+	rsList, err := c.getReplicaSetsForRollouts(r)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	scalingEvent, err := c.isScalingEvent(r, rsList)
+	if err != nil {
+		return err
+	}
+	if scalingEvent {
+		return c.sync(r, rsList)
+	}
+	switch r.Spec.Strategy.Type {
+	case v1alpha1.BlueGreenRolloutStrategyType:
+		return c.rolloutBlueGreen(r, rsList)
+	}
+	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
 }
 
 func (c *Controller) enqueue(obj interface{}) {
