@@ -1,0 +1,6 @@
+bases:
+- ../namespace-install
+
+resources:
+- rollout-controller-clusterrole.yaml
+- rollout-controller-clusterrolebinding.yaml

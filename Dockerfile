@@ -31,8 +31,18 @@ COPY . .
 ARG MAKE_TARGET="controller"
 RUN make ${MAKE_TARGET}
 
-FROM debian:9.4
+FROM debian:9.5-slim
 
-COPY dist/rollouts-controller /bin/
+COPY --from=builder /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+
+RUN groupadd -g 999 rollout-controller && \
+    useradd -r -u 999 -g rollout-controller rollout-controller && \
+    mkdir -p /home/rollout-controller && \
+    chown rollout-controller:rollout-controller /home/rollout-controller
+
+
+USER rollout-controller
+
+WORKDIR /home/rollout-controller
 
 ENTRYPOINT [ "/bin/rollouts-controller" ]
