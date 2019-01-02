@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -188,7 +189,8 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 		// so we can abort this resync
 		return err
 	}
-	return nil
+	allRSs := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
+	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 }
 
 // Should run only on scaling events and not during the normal rollout process.
@@ -292,4 +294,38 @@ func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, roll
 		}
 	}
 	return scaled, rs, err
+}
+
+func (c *Controller) syncRolloutStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout) error {
+	newStatus := c.calculateStatus(allRSs, newRS, previewSvc, activeSvc, r)
+
+	if reflect.DeepEqual(r.Status, newStatus) {
+		return nil
+	}
+
+	r.Status = newStatus
+	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+	return err
+}
+
+// calculateStatus calculates the latest status for the provided rollout by looking into the provided replica sets.
+func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
+
+	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	if !ok {
+		previewSelector = ""
+	}
+	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	if !ok {
+		activeSelector = ""
+	}
+
+	status := v1alpha1.RolloutStatus{
+		PreviewSelector:  previewSelector,
+		ActiveSelector:   activeSelector,
+		CollisionCount:   rollout.Status.CollisionCount,
+		VerifyingPreview: rollout.Status.VerifyingPreview,
+	}
+
+	return status
 }

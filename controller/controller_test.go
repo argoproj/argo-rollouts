@@ -344,6 +344,7 @@ func TestSyncRolloutSetPreviewService(t *testing.T) {
 	f.expectGetServiceAction(previewSvc)
 	f.expectPatchServiceAction(previewSvc, rs)
 	f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -368,6 +369,7 @@ func TestSyncRolloutVerifyPreviewNoActions(t *testing.T) {
 
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
+	f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -429,6 +431,7 @@ func TestSyncRolloutsScaleDownOldRS(t *testing.T) {
 	expRS.Annotations[annotations.DesiredReplicasAnnotation] = "0"
 	f.expectGetServiceAction(s)
 	f.expectUpdateReplicaSetAction(expRS)
+	f.expectUpdateRolloutAction(r1)
 
 	f.run(getKey(r2, t))
 }

@@ -20,6 +20,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if err != nil {
 		return err
 	}
+	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+	if err != nil {
+		return err
+	}
 	allRSs := append(oldRSs, newRS)
 
 	// Scale up, if we can.
@@ -28,24 +32,21 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return err
 	}
 	if scaledUp {
-		return nil
+		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
-	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
-	if err != nil {
-		return err
-	}
+
 	if previewSvc != nil {
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
 			return err
 		}
 		if switchPreviewSvc {
-			return nil
+			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 
 		verfyingPreview := c.reconcileVerifyingPreview(activeSvc, r)
 		if verfyingPreview {
-			return nil
+			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 	}
 
@@ -54,7 +55,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return err
 	}
 	if switchActiveSvc {
-		return nil
+		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	// Scale down, if we can.
 	scaledDown, err := c.reconcileOldReplicaSets(allRSs, controller.FilterActiveReplicaSets(oldRSs), newRS, r)
@@ -62,10 +63,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return err
 	}
 	if scaledDown {
-		return nil
+		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
-	return nil
+	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 }
 
 func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {

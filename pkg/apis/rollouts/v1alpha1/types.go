@@ -76,8 +76,14 @@ type BlueGreenStrategy struct {
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
-	// Indicates the rollout is verifying the replicas set being served traffic from the preview service.
-	// User will need to edit this field to continue the rollout.
+	// PreviewSelector indicates which replicas set the preview service is serving traffic to
+	// +optional
+	PreviewSelector string `json:"previewSelector"`
+	// ActiveSelector indicates which replicas set the active service is serving traffic to
+	// +optional
+	ActiveSelector string `json:"activeSelector"`
+	// VerifyingPreview indicates the rollout is verifying the replicas set being served
+	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
 	VerifyingPreview *bool `json:"verifyingPreview"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
