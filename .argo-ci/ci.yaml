@@ -1,0 +1,87 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: rollout-controller-ci-
+spec:
+  entrypoint: rollout-controller-ci
+  arguments:
+    parameters:
+    - name: revision
+      value: master
+    - name: repo
+      value: https://github.com/argoproj/rollout-controller.git
+
+  templates:
+  - name: rollout-controller-ci
+    steps:
+    - - name: build
+        template: ci-dind
+        arguments:
+          parameters:
+          - name: cmd
+            value: make image
+      - name: test
+        template: ci-builder
+        arguments:
+          parameters:
+          - name: cmd
+            value: "dep ensure && make lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
+
+  - name: ci-builder
+    inputs:
+      parameters:
+      - name: cmd
+      artifacts:
+      - name: code
+        path: /go/src/github.com/argoproj/rollout-controller
+        git:
+          repo: "{{workflow.parameters.repo}}"
+          revision: "{{workflow.parameters.revision}}"
+    container:
+      image: argoproj/rollout-controller-ci-builder:latest
+      command: [bash, -c]
+      args: ["{{inputs.parameters.cmd}}"]
+      workingDir: /go/src/github.com/argoproj/rollout-controller
+      env:
+      - name: CODECOV_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: rollout-controller-codecov-token
+            key: codecov-token
+      resources:
+        requests:
+          memory: 1024Mi
+          cpu: 200m
+    archiveLocation:
+      archiveLogs: true
+
+  - name: ci-dind
+    inputs:
+      parameters:
+      - name: cmd
+      artifacts:
+      - name: code
+        path: /go/src/github.com/argoproj/rollout-controller
+        git:
+          repo: "{{workflow.parameters.repo}}"
+          revision: "{{workflow.parameters.revision}}"
+    container:
+      image: argoproj/rollout-controller-ci-builder:latest
+      command: [sh, -c]
+      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
+      workingDir: /go/src/github.com/argoproj/rollout-controller
+      env:
+      - name: DOCKER_HOST
+        value: 127.0.0.1
+      resources:
+        requests:
+          memory: 1024Mi
+          cpu: 200m
+    sidecars:
+    - name: dind
+      image: docker:18.09-dind
+      securityContext:
+        privileged: true
+      mirrorVolumeMounts: true
+    archiveLocation:
+      archiveLogs: true
