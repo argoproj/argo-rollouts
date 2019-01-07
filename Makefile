@@ -49,6 +49,10 @@ clientgen:
 controller: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
+.PHONY: builder-image
+builder-image:
+	docker build  -t $(IMAGE_PREFIX)rollout-controller-ci-builder:$(IMAGE_TAG) --target builder .
+
 .PHONY: image
 image:
 	docker build -t $(IMAGE_PREFIX)rollout-controller:$(IMAGE_TAG)  .

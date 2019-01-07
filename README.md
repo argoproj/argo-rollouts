@@ -1,4 +1,8 @@
 # Rollout-Controller
+[![codecov](https://codecov.io/gh/argoproj/rollout-controller/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/rollout-controller)
+[![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
+
+
 
 Kubernetes users have two deployment options when they leverage the Kubernetes resources that come out of the Box.  They can manually manage the replicasSets and do their own orchestruction to achieve various deployment strageties 
 
