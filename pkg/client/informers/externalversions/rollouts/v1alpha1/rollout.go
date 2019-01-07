@@ -21,10 +21,10 @@ package v1alpha1
 import (
 	time "time"
 
-	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	rolloutsv1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	versioned "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/argoproj/rollout-controller/pkg/client/listers/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

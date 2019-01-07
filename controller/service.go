@@ -11,8 +11,8 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/annotations"
 )
 
 // switchSelector switch the selector on an existing service to a new value

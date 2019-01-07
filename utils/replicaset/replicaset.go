@@ -11,8 +11,8 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
+	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/annotations"
 )
 
 // FindNewReplicaSet returns the new RS this given rollout targets.

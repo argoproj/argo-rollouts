@@ -9,9 +9,9 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/annotations"
+	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
