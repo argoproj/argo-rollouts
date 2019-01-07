@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	rollouts "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+	rollouts "github.com/argoproj/rollout-controller/pkg/apis/rollouts"
 )
 
 // SchemeGroupVersion is group version used to register these objects

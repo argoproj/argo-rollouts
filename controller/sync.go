@@ -13,10 +13,10 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/argoproj/rollout-controller/utils/conditions"
+	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.

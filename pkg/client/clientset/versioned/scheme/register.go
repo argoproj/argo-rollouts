@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	argoprojv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	argoprojv1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

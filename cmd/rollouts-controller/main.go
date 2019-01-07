@@ -13,10 +13,10 @@ import (
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
-	"github.com/argoproj/argo-rollouts/controller"
-	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-rollouts/pkg/signals"
+	"github.com/argoproj/rollout-controller/controller"
+	clientset "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned"
+	informers "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions"
+	"github.com/argoproj/rollout-controller/pkg/signals"
 )
 
 var (

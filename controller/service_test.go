@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 )
 
 func newService(name string, port int, selector map[string]string) *corev1.Service {

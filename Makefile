@@ -1,7 +1,6 @@
-PACKAGE=github.com/argoproj/argo-rollouts
+PACKAGE=github.com/argoproj/rollout-controller
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
-CLI_NAME=argo-rollouts
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')

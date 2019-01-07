@@ -26,14 +26,14 @@ RUN cd ${GOPATH}/src/dummy && \
     rmdir vendor
 
 # Perform the build
-WORKDIR /go/src/github.com/argoproj/argo-rollouts
+WORKDIR /go/src/github.com/argoproj/rollout-controller
 COPY . .
 ARG MAKE_TARGET="controller"
 RUN make ${MAKE_TARGET}
 
 FROM debian:9.5-slim
 
-COPY --from=builder /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+COPY --from=builder /go/src/github.com/argoproj/rollout-controller/dist/rollouts-controller /bin/
 
 RUN groupadd -g 999 rollout-controller && \
     useradd -r -u 999 -g rollout-controller rollout-controller && \
