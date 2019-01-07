@@ -52,8 +52,8 @@ controller: clean-debug
 
 .PHONY: image
 image:
-	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
+	docker build -t $(IMAGE_PREFIX)rollout-controller:$(IMAGE_TAG)  .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)rollout-controller:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:
@@ -63,6 +63,9 @@ lint:
 test:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./...`
 
+.PHONY: manifests
+manifests:
+	./hack/update-manifests.sh
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug

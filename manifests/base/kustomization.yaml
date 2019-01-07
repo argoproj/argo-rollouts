@@ -1,0 +1,9 @@
+resources:
+- rollout-controller-sa.yaml
+- rollout-controller-role.yaml
+- rollout-controller-rolebinding.yaml
+- rollout-controller-deployment.yaml
+
+imageTags:
+- name: argoproj/rollout-controlller
+  newTag: latest

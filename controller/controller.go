@@ -1,78 +1,73 @@
-/*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/controller"
 
-	samplev1alpha1 "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
-	clientset "k8s.io/sample-controller/pkg/client/clientset/versioned"
-	samplescheme "k8s.io/sample-controller/pkg/client/clientset/versioned/scheme"
-	informers "k8s.io/sample-controller/pkg/client/informers/externalversions/samplecontroller/v1alpha1"
-	listers "k8s.io/sample-controller/pkg/client/listers/samplecontroller/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 )
 
-const controllerAgentName = "sample-controller"
+const controllerAgentName = "rollouts-controller"
 
 const (
-	// SuccessSynced is used as part of the Event 'reason' when a Foo is synced
+	// SuccessSynced is used as part of the Event 'reason' when a Rollout is synced
 	SuccessSynced = "Synced"
-	// ErrResourceExists is used as part of the Event 'reason' when a Foo fails
-	// to sync due to a Deployment of the same name already existing.
+	// ErrResourceExists is used as part of the Event 'reason' when a Rollout fails
+	// to sync due to a Replica of the same name already existing.
 	ErrResourceExists = "ErrResourceExists"
 
 	// MessageResourceExists is the message used for Events when a resource
-	// fails to sync due to a Deployment already existing
-	MessageResourceExists = "Resource %q already exists and is not managed by Foo"
-	// MessageResourceSynced is the message used for an Event fired when a Foo
+	// fails to sync due to a Replica already existing
+	MessageResourceExists = "Resource %q already exists and is not managed by Rollout"
+	// MessageResourceSynced is the message used for an Event fired when a Rollout
 	// is synced successfully
-	MessageResourceSynced = "Foo synced successfully"
+	MessageResourceSynced = "Rollout synced successfully"
 )
 
-// Controller is the controller implementation for Foo resources
+// Controller is the controller implementation for Rollout resources
 type Controller struct {
+	// rsControl is used for adopting/releasing replica sets.
+	replicaSetControl controller.RSControlInterface
+
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
-	// sampleclientset is a clientset for our own API group
-	sampleclientset clientset.Interface
+	// rolloutsclientset is a clientset for our own API group
+	rolloutsclientset clientset.Interface
 
-	deploymentsLister appslisters.DeploymentLister
-	deploymentsSynced cache.InformerSynced
-	foosLister        listers.FooLister
-	foosSynced        cache.InformerSynced
+	replicaSetLister appslisters.ReplicaSetLister
+	replicaSetSynced cache.InformerSynced
+	serviceLister    corelisters.ServiceLister
+	serviceSynced    cache.InformerSynced
+	rolloutsLister   listers.RolloutLister
+	rolloutsSynced   cache.InformerSynced
+
+	// used for unit testing
+	enqueueRollout func(obj interface{})
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -85,61 +80,70 @@ type Controller struct {
 	recorder record.EventRecorder
 }
 
-// NewController returns a new sample controller
+// NewController returns a new rollout controller
 func NewController(
 	kubeclientset kubernetes.Interface,
-	sampleclientset clientset.Interface,
-	deploymentInformer appsinformers.DeploymentInformer,
-	fooInformer informers.FooInformer) *Controller {
+	rolloutsclientset clientset.Interface,
+	replicaSetInformer appsinformers.ReplicaSetInformer,
+	serviceInformer coreinformers.ServiceInformer,
+	rolloutsInformer informers.RolloutInformer) *Controller {
 
 	// Create event broadcaster
-	// Add sample-controller types to the default Kubernetes Scheme so Events can be
-	// logged for sample-controller types.
-	utilruntime.Must(samplescheme.AddToScheme(scheme.Scheme))
+	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
+	// logged for rollout-controller types.
+	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	klog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
+	replicaSetControl := controller.RealRSControl{
+		KubeClient: kubeclientset,
+		Recorder:   recorder,
+	}
 
 	controller := &Controller{
 		kubeclientset:     kubeclientset,
-		sampleclientset:   sampleclientset,
-		deploymentsLister: deploymentInformer.Lister(),
-		deploymentsSynced: deploymentInformer.Informer().HasSynced,
-		foosLister:        fooInformer.Lister(),
-		foosSynced:        fooInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Foos"),
+		rolloutsclientset: rolloutsclientset,
+		replicaSetControl: replicaSetControl,
+		replicaSetLister:  replicaSetInformer.Lister(),
+		replicaSetSynced:  replicaSetInformer.Informer().HasSynced,
+		serviceLister:     serviceInformer.Lister(),
+		serviceSynced:     serviceInformer.Informer().HasSynced,
+		rolloutsLister:    rolloutsInformer.Lister(),
+		rolloutsSynced:    rolloutsInformer.Informer().HasSynced,
+		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
 		recorder:          recorder,
 	}
+	controller.enqueueRollout = controller.enqueueRateLimited
 
 	klog.Info("Setting up event handlers")
-	// Set up an event handler for when Foo resources change
-	fooInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueFoo,
+	// Set up an event handler for when rollout resources change
+	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueRollout,
 		UpdateFunc: func(old, new interface{}) {
-			controller.enqueueFoo(new)
+			controller.enqueueRollout(new)
 		},
 	})
-	// Set up an event handler for when Deployment resources change. This
-	// handler will lookup the owner of the given Deployment, and if it is
-	// owned by a Foo resource will enqueue that Foo resource for
-	// processing. This way, we don't need to implement custom logic for
-	// handling Deployment resources. More info on this pattern:
-	// https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md
-	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.handleObject,
 		UpdateFunc: func(old, new interface{}) {
-			newDepl := new.(*appsv1.Deployment)
-			oldDepl := old.(*appsv1.Deployment)
-			if newDepl.ResourceVersion == oldDepl.ResourceVersion {
-				// Periodic resync will send update events for all known Deployments.
-				// Two different versions of the same Deployment will always have different RVs.
+			newRS := new.(*appsv1.ReplicaSet)
+			oldRS := old.(*appsv1.ReplicaSet)
+			if newRS.ResourceVersion == oldRS.ResourceVersion {
+				// Periodic resync will send update events for all known replicas.
+				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
 			controller.handleObject(new)
 		},
 		DeleteFunc: controller.handleObject,
+	})
+
+	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.handleService,
+		UpdateFunc: controller.updateService,
+		DeleteFunc: controller.handleService,
 	})
 
 	return controller
@@ -154,16 +158,16 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.workqueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	klog.Info("Starting Foo controller")
+	klog.Info("Starting Rollout controller")
 
 	// Wait for the caches to be synced before starting workers
 	klog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.deploymentsSynced, c.foosSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
 	klog.Info("Starting workers")
-	// Launch two workers to process Foo resources
+	// Launch two workers to process Rollout resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
@@ -217,7 +221,7 @@ func (c *Controller) processNextWorkItem() bool {
 			return nil
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
-		// Foo resource to be synced.
+		// Rollout resource to be synced.
 		if err := c.syncHandler(key); err != nil {
 			// Put the item back on the workqueue to handle any transient errors.
 			c.workqueue.AddRateLimited(key)
@@ -239,104 +243,69 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Foo resource
+// converge the two. It then updates the Status block of the Rollout resource
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
-	// Convert the namespace/name string into a distinct namespace and name
+	startTime := time.Now()
+	klog.V(4).Infof("Started syncing rollout %q (%v)", key, startTime)
+	defer func() {
+		klog.V(4).Infof("Finished syncing rollout %q (%v)", key, time.Since(startTime))
+	}()
+
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
-		return nil
-	}
-
-	// Get the Foo resource with this namespace/name
-	foo, err := c.foosLister.Foos(namespace).Get(name)
-	if err != nil {
-		// The Foo resource may no longer exist, in which case we stop
-		// processing.
-		if errors.IsNotFound(err) {
-			runtime.HandleError(fmt.Errorf("foo '%s' in work queue no longer exists", key))
-			return nil
-		}
-
 		return err
 	}
-
-	deploymentName := foo.Spec.DeploymentName
-	if deploymentName == "" {
-		// We choose to absorb the error here as the worker would requeue the
-		// resource otherwise. Instead, the next time the resource is updated
-		// the resource will be queued again.
-		runtime.HandleError(fmt.Errorf("%s: deployment name must be specified", key))
-		return nil
-	}
-
-	// Get the deployment with the name specified in Foo.spec
-	deployment, err := c.deploymentsLister.Deployments(foo.Namespace).Get(deploymentName)
-	// If the resource doesn't exist, we'll create it
+	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if errors.IsNotFound(err) {
-		deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Create(newDeployment(foo))
+		klog.V(2).Infof("Rollout %v has been deleted", key)
+		return nil
 	}
-
-	// If an error occurs during Get/Create, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
 	if err != nil {
 		return err
 	}
 
-	// If the Deployment is not controlled by this Foo resource, we should log
-	// a warning to the event recorder and ret
-	if !metav1.IsControlledBy(deployment, foo) {
-		msg := fmt.Sprintf(MessageResourceExists, deployment.Name)
-		c.recorder.Event(foo, corev1.EventTypeWarning, ErrResourceExists, msg)
-		return fmt.Errorf(msg)
+	// Deep-copy otherwise we are mutating our cache.
+	r := rollout.DeepCopy()
+
+	everything := metav1.LabelSelector{}
+	if reflect.DeepEqual(r.Spec.Selector, &everything) {
+		c.recorder.Eventf(r, corev1.EventTypeWarning, "SelectingAll", "This rollout is selecting all pods. A non-empty selector is required.")
+		return nil
 	}
 
-	// If this number of the replicas on the Foo resource is specified, and the
-	// number does not equal the current desired replicas on the Deployment, we
-	// should update the Deployment resource.
-	if foo.Spec.Replicas != nil && *foo.Spec.Replicas != *deployment.Spec.Replicas {
-		klog.V(4).Infof("Foo %s replicas: %d, deployment replicas: %d", name, *foo.Spec.Replicas, *deployment.Spec.Replicas)
-		deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Update(newDeployment(foo))
-	}
-
-	// If an error occurs during Update, we'll requeue the item so we can
-	// attempt processing again later. THis could have been caused by a
-	// temporary network failure, or any other transient reason.
+	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
+	// through adoption/orphaning.
+	rsList, err := c.getReplicaSetsForRollouts(r)
 	if err != nil {
 		return err
 	}
 
-	// Finally, we update the status block of the Foo resource to reflect the
-	// current state of the world
-	err = c.updateFooStatus(foo, deployment)
+	scalingEvent, err := c.isScalingEvent(r, rsList)
 	if err != nil {
 		return err
 	}
-
-	c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
-	return nil
+	if scalingEvent {
+		return c.sync(r, rsList)
+	}
+	switch r.Spec.Strategy.Type {
+	case v1alpha1.BlueGreenRolloutStrategyType:
+		return c.rolloutBlueGreen(r, rsList)
+	}
+	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
 }
 
-func (c *Controller) updateFooStatus(foo *samplev1alpha1.Foo, deployment *appsv1.Deployment) error {
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// You can use DeepCopy() to make a deep copy of original object and modify this copy
-	// Or create a copy manually for better performance
-	fooCopy := foo.DeepCopy()
-	fooCopy.Status.AvailableReplicas = deployment.Status.AvailableReplicas
-	// If the CustomResourceSubresources feature gate is not enabled,
-	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
-	// UpdateStatus will not allow changes to the Spec of the resource,
-	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.sampleclientset.SamplecontrollerV1alpha1().Foos(foo.Namespace).Update(fooCopy)
-	return err
+func (c *Controller) enqueue(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	c.workqueue.Add(key)
 }
 
-// enqueueFoo takes a Foo resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Foo.
-func (c *Controller) enqueueFoo(obj interface{}) {
+func (c *Controller) enqueueRateLimited(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -347,9 +316,9 @@ func (c *Controller) enqueueFoo(obj interface{}) {
 }
 
 // handleObject will take any resource implementing metav1.Object and attempt
-// to find the Foo resource that 'owns' it. It does this by looking at the
+// to find the Rollout resource that 'owns' it. It does this by looking at the
 // objects metadata.ownerReferences field for an appropriate OwnerReference.
-// It then enqueues that Foo resource to be processed. If the object does not
+// It then enqueues that Rollout resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 func (c *Controller) handleObject(obj interface{}) {
 	var object metav1.Object
@@ -369,61 +338,19 @@ func (c *Controller) handleObject(obj interface{}) {
 	}
 	klog.V(4).Infof("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
-		// If this object is not owned by a Foo, we should not do anything more
+		// If this object is not owned by a Rollout, we should not do anything more
 		// with it.
-		if ownerRef.Kind != "Foo" {
+		if ownerRef.Kind != "Rollout" {
 			return
 		}
 
-		foo, err := c.foosLister.Foos(object.GetNamespace()).Get(ownerRef.Name)
+		rollout, err := c.rolloutsLister.Rollouts(object.GetNamespace()).Get(ownerRef.Name)
 		if err != nil {
-			klog.V(4).Infof("ignoring orphaned object '%s' of foo '%s'", object.GetSelfLink(), ownerRef.Name)
+			klog.V(4).Infof("ignoring orphaned object '%s' of rollout '%s'", object.GetSelfLink(), ownerRef.Name)
 			return
 		}
 
-		c.enqueueFoo(foo)
+		c.enqueueRollout(rollout)
 		return
-	}
-}
-
-// newDeployment creates a new Deployment for a Foo resource. It also sets
-// the appropriate OwnerReferences on the resource so handleObject can discover
-// the Foo resource that 'owns' it.
-func newDeployment(foo *samplev1alpha1.Foo) *appsv1.Deployment {
-	labels := map[string]string{
-		"app":        "nginx",
-		"controller": foo.Name,
-	}
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      foo.Spec.DeploymentName,
-			Namespace: foo.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(foo, schema.GroupVersionKind{
-					Group:   samplev1alpha1.SchemeGroupVersion.Group,
-					Version: samplev1alpha1.SchemeGroupVersion.Version,
-					Kind:    "Foo",
-				}),
-			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: foo.Spec.Replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "nginx",
-							Image: "nginx:latest",
-						},
-					},
-				},
-			},
-		},
 	}
 }

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-controller
+spec:
+  selector:
+    matchLabels:
+      app: rollout-controller
+  template:
+    metadata:
+      labels:
+        app: rollout-controller
+    spec:
+      serviceAccountName: rollout-controller
+      containers:
+      - command:
+        - "/bin/rollouts-controller"
+        image: argoproj/rollout-controller:latest
+        imagePullPolicy: Always
+        name: rollout-controller
