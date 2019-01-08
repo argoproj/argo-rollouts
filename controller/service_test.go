@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -259,4 +260,29 @@ func TestUpdateServiceSameService(t *testing.T) {
 
 	c.updateService(s, s)
 	assert.Equal(t, c.workqueue.Len(), 0)
+}
+
+func TestGetActiveReplicaSet(t *testing.T) {
+	rolloutNoActiveSelector := &v1alpha1.Rollout{}
+	assert.Nil(t, GetActiveReplicaSet(rolloutNoActiveSelector, nil))
+
+	rollout := &v1alpha1.Rollout{
+		Status: v1alpha1.RolloutStatus{
+			ActiveSelector: "1234",
+		},
+	}
+	rs1 := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
+		},
+	}
+	assert.Nil(t, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{rs1}))
+
+	rs2 := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
+		},
+	}
+	assert.Equal(t, rs2, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{rs1, rs2}))
+
 }

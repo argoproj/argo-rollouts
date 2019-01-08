@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,6 +17,7 @@ import (
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/annotations"
 	"github.com/argoproj/rollout-controller/utils/conditions"
+	"github.com/argoproj/rollout-controller/utils/defaults"
 	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
@@ -195,7 +197,7 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 
 // Should run only on scaling events and not during the normal rollout process.
 func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
-
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""
@@ -207,10 +209,10 @@ func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, 
 	for _, rs := range append([]*appsv1.ReplicaSet{newRS}, oldRSs...) {
 		rsLabel := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		if rsLabel == activeSelector || rsLabel == previewSelector {
-			if *(rs.Spec.Replicas) == *(rollout.Spec.Replicas) {
+			if *(rs.Spec.Replicas) == rolloutReplicas {
 				continue
 			}
-			_, _, err := c.scaleReplicaSetAndRecordEvent(rs, *(rollout.Spec.Replicas), rollout)
+			_, _, err := c.scaleReplicaSetAndRecordEvent(rs, rolloutReplicas, rollout)
 			return err
 		}
 
@@ -218,10 +220,10 @@ func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, 
 	// If there is only one replica set with pods, then we should scale that up to the full count of the
 	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
 	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
-		if *(activeOrLatest.Spec.Replicas) == *(rollout.Spec.Replicas) {
+		if *(activeOrLatest.Spec.Replicas) == rolloutReplicas {
 			return nil
 		}
-		_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, *(rollout.Spec.Replicas), rollout)
+		_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
 		return err
 	}
 
@@ -253,7 +255,7 @@ func (c *Controller) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.
 		if !ok {
 			continue
 		}
-		if desired != *(rollout.Spec.Replicas) {
+		if desired != defaults.GetRolloutReplicasOrDefault(rollout) {
 			return true, nil
 		}
 	}
@@ -278,15 +280,15 @@ func (c *Controller) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newSca
 func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
 
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
-
-	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, *(rollout.Spec.Replicas))
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
 	scaled := false
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
-		annotations.SetReplicasAnnotations(rsCopy, *(rollout.Spec.Replicas))
+		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(rsCopy)
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
@@ -310,7 +312,6 @@ func (c *Controller) syncRolloutStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv
 
 // calculateStatus calculates the latest status for the provided rollout by looking into the provided replica sets.
 func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
-
 	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""
@@ -319,13 +320,72 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 	if !ok {
 		activeSelector = ""
 	}
+	prevStatus := rollout.Status
 
-	status := v1alpha1.RolloutStatus{
-		PreviewSelector:  previewSelector,
-		ActiveSelector:   activeSelector,
-		CollisionCount:   rollout.Status.CollisionCount,
-		VerifyingPreview: rollout.Status.VerifyingPreview,
+	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
+	invalidSpecCond := conditions.VerifyRolloutSpec(rollout, prevCond)
+	if prevCond != nil && invalidSpecCond == nil {
+		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
 	}
 
-	return status
+	activeRS := GetActiveReplicaSet(rollout, allRSs)
+	if activeRS != nil && annotations.IsSaturated(rollout, activeRS) {
+		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, "available", "")
+		conditions.SetRolloutCondition(&prevStatus, *availability)
+	} else {
+		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, "Available", "")
+		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
+	}
+
+	return v1alpha1.RolloutStatus{
+		ObservedGeneration: rollout.Generation,
+		VerifyingPreview:   rollout.Status.VerifyingPreview,
+		PreviewSelector:    previewSelector,
+		ActiveSelector:     activeSelector,
+		Replicas:           replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
+		UpdatedReplicas:    replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
+		ReadyReplicas:      replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
+		AvailableReplicas:  replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs),
+		CollisionCount:     rollout.Status.CollisionCount,
+		Conditions:         prevStatus.Conditions,
+	}
+}
+
+// cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
+// where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
+// around by default 1) for historical reasons.
+func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+	if !conditions.HasRevisionHistoryLimit(rollout) {
+		return nil
+	}
+
+	// Avoid deleting replica set with deletion timestamp set
+	aliveFilter := func(rs *appsv1.ReplicaSet) bool {
+		return rs != nil && rs.ObjectMeta.DeletionTimestamp == nil
+	}
+	cleanableRSes := controller.FilterReplicaSets(oldRSs, aliveFilter)
+
+	diff := int32(len(cleanableRSes)) - *rollout.Spec.RevisionHistoryLimit
+	if diff <= 0 {
+		return nil
+	}
+
+	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
+	klog.V(4).Infof("Looking to cleanup old replica sets for rollout %q", rollout.Name)
+
+	for i := int32(0); i < diff; i++ {
+		rs := cleanableRSes[i]
+		// Avoid delete replica set with non-zero replica counts
+		if rs.Status.Replicas != 0 || *(rs.Spec.Replicas) != 0 || rs.Generation > rs.Status.ObservedGeneration || rs.DeletionTimestamp != nil {
+			continue
+		}
+		klog.V(4).Infof("Trying to cleanup replica set %q for rollout %q", rs.Name, rollout.Name)
+		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, nil); err != nil && !errors.IsNotFound(err) {
+			// Return error instead of aggregating and continuing DELETEs on the theory
+			// that we may be overloading the api server.
+			return err
+		}
+	}
+
+	return nil
 }

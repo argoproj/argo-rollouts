@@ -7,6 +7,7 @@ import (
 
 // +genclient
 // +genclient:skipVerbs=patch
+// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Rollout is a specification for a Rollout resource
@@ -40,7 +41,8 @@ type RolloutSpec struct {
 	Strategy RolloutStrategy `json:"strategy"`
 	// The number of old ReplicaSets to retain.
 	// This is a pointer to distinguish between explicit zero and not specified.
-	// +optional
+	// This is set to the max value of int32 (i.e. 2147483647) by default, which means
+	// "retaining all old ReplicaSets".
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 }
 
@@ -86,6 +88,18 @@ type RolloutStatus struct {
 	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
 	VerifyingPreview *bool `json:"verifyingPreview"`
+	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+	// Total number of non-terminated pods targeted by this rollout that have the desired template spec.
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	// Total number of ready pods targeted by this rollout.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	// Total number of available pods (ready for at least minReadySeconds) targeted by this rollout.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.
@@ -94,6 +108,38 @@ type RolloutStatus struct {
 	// The generation observed by the rollout controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// Conditions a list of conditions a rollout can have.
+	// +optional
+	Conditions []RolloutCondition `json:"conditions,omitempty"`
+}
+
+// RolloutConditionType defines the conditions of Rolloutd
+type RolloutConditionType string
+
+// These are valid conditions of a rollout.
+const (
+	// InvalidSpec means the rollout has an invalid spec and will not progress until
+	// the spec is fixed.
+	InvalidSpec RolloutConditionType = "InvalidSpec"
+	// Available means the rollout is available, ie. the active service is pointing at a
+	// replicaset with the required replicas up and running for at least minReadySeconds.
+	RolloutAvailable RolloutConditionType = "Available"
+)
+
+// RolloutCondition describes the state of a rollout at a certain point.
+type RolloutCondition struct {
+	// Type of deployment condition.
+	Type RolloutConditionType
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus
+	// The last time this condition was updated.
+	LastUpdateTime metav1.Time
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time
+	// The reason for the condition's last transition.
+	Reason string
+	// A human readable message indicating details about the transition.
+	Message string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
