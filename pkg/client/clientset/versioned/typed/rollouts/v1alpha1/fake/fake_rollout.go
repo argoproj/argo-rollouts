@@ -99,18 +99,6 @@ func (c *FakeRollouts) Update(rollout *v1alpha1.Rollout) (result *v1alpha1.Rollo
 	return obj.(*v1alpha1.Rollout), err
 }
 
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRollouts) UpdateStatus(rollout *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(rolloutsResource, "status", c.ns, rollout), &v1alpha1.Rollout{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.Rollout), err
-}
-
 // Delete takes name of the rollout and deletes it. Returns an error if one occurs.
 func (c *FakeRollouts) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.

@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/defaults"
 )
 
 const (
@@ -128,7 +129,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	}
 	// If the new replica set is about to be created, we need to add replica annotations to it.
 	//TODO: look at implementation due to surge
-	if !exists && SetReplicasAnnotations(newRS, *(rollout.Spec.Replicas)) {
+	if !exists && SetReplicasAnnotations(newRS, defaults.GetRolloutReplicasOrDefault(rollout)) {
 		annotationChanged = true
 	}
 	return annotationChanged
@@ -180,7 +181,8 @@ func IsSaturated(rollout *v1alpha1.Rollout, rs *appsv1.ReplicaSet) bool {
 	if err != nil {
 		return false
 	}
-	return *(rs.Spec.Replicas) == *(rollout.Spec.Replicas) &&
-		int32(desired) == *(rollout.Spec.Replicas) &&
-		rs.Status.AvailableReplicas == *(rollout.Spec.Replicas)
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	return *(rs.Spec.Replicas) == rolloutReplicas &&
+		int32(desired) == rolloutReplicas &&
+		rs.Status.AvailableReplicas == rolloutReplicas
 }

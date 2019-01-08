@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/stretchr/testify/assert"
 )
 
 func intOrStrP(num int) *intstr.IntOrString {
@@ -223,6 +224,122 @@ func TestScale(t *testing.T) {
 				if *(expected.Spec.Replicas) != nameToSize[rs.Name] {
 					t.Errorf("%s: expected old (%s) replicas: %d, got: %d", test.name, rs.Name, *(expected.Spec.Replicas), nameToSize[rs.Name])
 				}
+			}
+		})
+	}
+}
+
+func TestCleanupRollouts(t *testing.T) {
+	now := metav1.Now()
+	before := metav1.Time{Time: now.Add(-time.Minute)}
+
+	tests := []struct {
+		name                 string
+		revisionHistoryLimit *int32
+		replicaSets          []*appsv1.ReplicaSet
+		expectedDeleted      map[string]bool
+	}{
+		{
+			name:                 "No Revision History Limit",
+			revisionHistoryLimit: nil,
+			replicaSets: []*appsv1.ReplicaSet{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "foo",
+					CreationTimestamp: now,
+				},
+			}},
+		},
+		{
+			name:                 "Avoid deleting RS with deletion timestamp",
+			revisionHistoryLimit: int32Ptr(1),
+			replicaSets: []*appsv1.ReplicaSet{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "foo",
+					DeletionTimestamp: &now,
+				},
+			}},
+		},
+		// {
+		// 	name:                 "Return early on failed replicaset delete attempt.",
+		// 	revisionHistoryLimit: int32Ptr(1),
+		// },
+		{
+			name:                 "Delete extra replicasets",
+			revisionHistoryLimit: int32Ptr(1),
+			replicaSets: []*appsv1.ReplicaSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "foo",
+						CreationTimestamp: before,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(1),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(1),
+					},
+				}, {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "bar",
+						CreationTimestamp: now,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(1),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(1),
+					},
+				},
+			},
+			expectedDeleted: map[string]bool{"foo": true},
+		},
+		{
+			name: "Do not delete any replicasets",
+			replicaSets: []*appsv1.ReplicaSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "foo",
+						CreationTimestamp: before,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(1),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(1),
+					},
+				}, {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "bar",
+						CreationTimestamp: now,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(1),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(1),
+					},
+				},
+			},
+			revisionHistoryLimit: int32Ptr(2),
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			r := newRollout("baz", 1, test.revisionHistoryLimit, nil, "", "")
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+			c := &Controller{
+				rolloutsclientset: &fake,
+				kubeclientset:     &k8sfake,
+				recorder:          &record.FakeRecorder{},
+			}
+			err := c.cleanupRollouts(test.replicaSets, r)
+			assert.Nil(t, err)
+
+			for _, action := range k8sfake.Actions() {
+				rsName := action.(testclient.DeleteAction).GetName()
+				assert.True(t, test.expectedDeleted[rsName])
 			}
 		})
 	}

@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	"github.com/stretchr/testify/assert"
 )
 
 // generateRollout creates a rollout, with the input image as its template
@@ -120,41 +121,58 @@ func TestFindOldReplicaSets(t *testing.T) {
 func TestGetReplicaCountForReplicaSets(t *testing.T) {
 	rs1 := generateRS(generateRollout("foo"))
 	*(rs1.Spec.Replicas) = 1
-	rs1.Status.AvailableReplicas = 2
+	rs1.Status.Replicas = 2
 	rs2 := generateRS(generateRollout("bar"))
 	*(rs2.Spec.Replicas) = 2
-	rs2.Status.AvailableReplicas = 3
+	rs2.Status.Replicas = 3
+	rs2.Status.ReadyReplicas = 1
+
+	rs3 := generateRS(generateRollout("baz"))
+	*(rs3.Spec.Replicas) = 3
+	rs3.Status.Replicas = 4
+	rs3.Status.ReadyReplicas = 2
+	rs3.Status.AvailableReplicas = 1
 
 	tests := []struct {
-		Name                    string
-		sets                    []*appsv1.ReplicaSet
-		expectedCount           int32
-		expectedActualAvailable int32
+		Name                   string
+		sets                   []*appsv1.ReplicaSet
+		expectedCount          int32
+		expectedActualCount    int32
+		expectedReadyCount     int32
+		expectedAvailableCount int32
 	}{
 		{
-			"1:2 Replicas",
+			"1 Spec, 2 Actual, 0 Ready, 0 Available",
 			[]*appsv1.ReplicaSet{&rs1},
 			1,
 			2,
+			0,
+			0,
 		},
 		{
-			"3:5 Replicas",
+			"3 Spec, 5 Actual, 1 Ready, 0 Available",
 			[]*appsv1.ReplicaSet{&rs1, &rs2},
 			3,
 			5,
+			1,
+			0,
+		},
+		{
+			"6 Spec, 9 Actual, 3 Ready, 1 Available",
+			[]*appsv1.ReplicaSet{&rs1, &rs2, &rs3},
+			6,
+			9,
+			3,
+			1,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			rs := GetReplicaCountForReplicaSets(test.sets)
-			if rs != test.expectedCount {
-				t.Errorf("In test case %s, expectedCount %+v, got %+v", test.Name, test.expectedCount, rs)
-			}
-			rs = GetAvailableReplicaCountForReplicaSets(test.sets)
-			if rs != test.expectedActualAvailable {
-				t.Errorf("In test case %s, expectedActual %+v, got %+v", test.Name, test.expectedActualAvailable, rs)
-			}
+			assert.Equal(t, test.expectedCount, GetReplicaCountForReplicaSets(test.sets))
+			assert.Equal(t, test.expectedActualCount, GetActualReplicaCountForReplicaSets(test.sets))
+			assert.Equal(t, test.expectedReadyCount, GetReadyReplicaCountForReplicaSets(test.sets))
+			assert.Equal(t, test.expectedAvailableCount, GetAvailableReplicaCountForReplicaSets(test.sets))
 		})
 	}
 }

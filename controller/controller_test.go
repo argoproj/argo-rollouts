@@ -321,6 +321,7 @@ func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	f.expectGetServiceAction(s)
+	f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -391,6 +392,7 @@ func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
 	f.expectPatchServiceAction(activeSvc, rs)
+	f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -401,6 +403,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 }
 

@@ -13,6 +13,7 @@ import (
 
 	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/argoproj/rollout-controller/utils/defaults"
 )
 
 // FindNewReplicaSet returns the new RS this given rollout targets.
@@ -49,7 +50,7 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
 	switch rollout.Spec.Strategy.Type {
 	case v1alpha1.BlueGreenRolloutStrategyType:
-		return *(rollout.Spec.Replicas), nil
+		return defaults.GetRolloutReplicasOrDefault(rollout), nil
 	default:
 		return 0, fmt.Errorf("rollout strategy type %v isn't supported", rollout.Spec.Strategy.Type)
 	}
@@ -106,6 +107,17 @@ func FindActiveOrLatest(newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) *
 	}
 }
 
+// GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
+func GetReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
+	totalReplicas := int32(0)
+	for _, rs := range replicaSets {
+		if rs != nil {
+			totalReplicas += *(rs.Spec.Replicas)
+		}
+	}
+	return totalReplicas
+}
+
 // GetAvailableReplicaCountForReplicaSets returns the number of available pods corresponding to the given replica sets.
 func GetAvailableReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
 	totalAvailableReplicas := int32(0)
@@ -117,13 +129,24 @@ func GetAvailableReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) in
 	return totalAvailableReplicas
 }
 
-// GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
-func GetReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
-	totalReplicas := int32(0)
+// GetActualReplicaCountForReplicaSets returns the sum of actual replicas of the given replica sets.
+func GetActualReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
+	totalActualReplicas := int32(0)
 	for _, rs := range replicaSets {
 		if rs != nil {
-			totalReplicas += *(rs.Spec.Replicas)
+			totalActualReplicas += rs.Status.Replicas
 		}
 	}
-	return totalReplicas
+	return totalActualReplicas
+}
+
+// GetReadyReplicaCountForReplicaSets returns the number of ready pods corresponding to the given replica sets.
+func GetReadyReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
+	totalReadyReplicas := int32(0)
+	for _, rs := range replicaSets {
+		if rs != nil {
+			totalReadyReplicas += rs.Status.ReadyReplicas
+		}
+	}
+	return totalReadyReplicas
 }

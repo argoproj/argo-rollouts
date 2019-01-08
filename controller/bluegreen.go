@@ -11,6 +11,8 @@ import (
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/argoproj/rollout-controller/utils/conditions"
+	"github.com/argoproj/rollout-controller/utils/defaults"
 	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
@@ -66,6 +68,12 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
+	if conditions.RolloutComplete(r, &r.Status) {
+		if err := c.cleanupRollouts(oldRSs, r); err != nil {
+			return err
+		}
+	}
+
 	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 }
 
@@ -85,13 +93,14 @@ func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollou
 }
 
 func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
-	if *(newRS.Spec.Replicas) == *(rollout.Spec.Replicas) {
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	if *(newRS.Spec.Replicas) == rolloutReplicas {
 		// Scaling not required.
 		return false, nil
 	}
-	if *(newRS.Spec.Replicas) > *(rollout.Spec.Replicas) {
+	if *(newRS.Spec.Replicas) > rolloutReplicas {
 		// Scale down.
-		scaled, _, err := c.scaleReplicaSetAndRecordEvent(newRS, *(rollout.Spec.Replicas), rollout)
+		scaled, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
 		return scaled, err
 	}
 	newReplicasCount, err := replicasetutil.NewRSNewReplicas(rollout, allRSs, newRS)
@@ -171,7 +180,7 @@ func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollo
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
 func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
 	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
-	if availablePodCount <= *(rollout.Spec.Replicas) {
+	if availablePodCount <= defaults.GetRolloutReplicasOrDefault(rollout) {
 		// Cannot scale down.
 		return 0, nil
 	}

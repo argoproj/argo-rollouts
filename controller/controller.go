@@ -30,6 +30,7 @@ import (
 	rolloutscheme "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned/scheme"
 	informers "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/rollout-controller/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/rollout-controller/utils/conditions"
 )
 
 const controllerAgentName = "rollouts-controller"
@@ -268,9 +269,15 @@ func (c *Controller) syncHandler(key string) error {
 	// Deep-copy otherwise we are mutating our cache.
 	r := rollout.DeepCopy()
 
-	everything := metav1.LabelSelector{}
-	if reflect.DeepEqual(r.Spec.Selector, &everything) {
-		c.recorder.Eventf(r, corev1.EventTypeWarning, "SelectingAll", "This rollout is selecting all pods. A non-empty selector is required.")
+	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
+	invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
+	if invalidSpecCond != nil {
+		generation := conditions.ComputeGenerationHash(r.Spec)
+		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+			r.Status.ObservedGeneration = generation
+			conditions.SetRolloutCondition(&r.Status, *invalidSpecCond)
+			c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+		}
 		return nil
 	}
 
