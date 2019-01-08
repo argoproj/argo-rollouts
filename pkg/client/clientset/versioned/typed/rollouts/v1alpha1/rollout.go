@@ -24,6 +24,7 @@ import (
 	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	scheme "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
 )
@@ -43,6 +44,7 @@ type RolloutInterface interface {
 	Get(name string, options v1.GetOptions) (*v1alpha1.Rollout, error)
 	List(opts v1.ListOptions) (*v1alpha1.RolloutList, error)
 	Watch(opts v1.ListOptions) (watch.Interface, error)
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Rollout, err error)
 	RolloutExpansion
 }
 
@@ -155,4 +157,18 @@ func (c *rollouts) DeleteCollection(options *v1.DeleteOptions, listOptions v1.Li
 		Body(options).
 		Do().
 		Error()
+}
+
+// Patch applies the patch and returns the patched rollout.
+func (c *rollouts) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Rollout, err error) {
+	result = &v1alpha1.Rollout{}
+	err = c.client.Patch(pt).
+		Namespace(c.ns).
+		Resource("rollouts").
+		SubResource(subresources...).
+		Name(name).
+		Body(data).
+		Do().
+		Into(result)
+	return
 }

@@ -90,6 +90,7 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 			Replicas:             func() *int32 { i := int32(replicas); return &i }(),
 			Selector:             &metav1.LabelSelector{MatchLabels: selector},
 		},
+		Status: v1alpha1.RolloutStatus{},
 	}
 }
 
@@ -234,6 +235,14 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 func checkAction(expected, actual core.Action, t *testing.T) {
 	if !(expected.Matches(actual.GetVerb(), actual.GetResource().Resource) && actual.GetSubresource() == expected.GetSubresource()) {
 		t.Errorf("Expected\n\t%#v\ngot\n\t%#v", expected, actual)
+		if patch, ok := actual.(core.PatchAction); ok {
+			patchBytes := patch.GetPatch()
+			t.Errorf("Patch Received: %s", string(patchBytes))
+		}
+		if patch, ok := expected.(core.PatchAction); ok {
+			patchBytes := patch.GetPatch()
+			t.Errorf("Expected Patch: %s", string(patchBytes))
+		}
 		return
 	}
 
@@ -302,10 +311,12 @@ func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) {
 	f.actions = append(f.actions, action)
 }
 
-func (f *fixture) expectUpdateRolloutStatusAction(rollout *v1alpha1.Rollout) {
-	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
-	action.Subresource = "status"
-	f.actions = append(f.actions, action)
+func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) {
+	serviceSchema := schema.GroupVersionResource{
+		Resource: "rollouts",
+		Version:  "v1alpha1",
+	}
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, nil))
 }
 
 func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
@@ -321,7 +332,7 @@ func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	f.expectGetServiceAction(s)
-	f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -344,8 +355,8 @@ func TestSyncRolloutSetPreviewService(t *testing.T) {
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
 	f.expectPatchServiceAction(previewSvc, rs)
-	f.expectUpdateRolloutAction(r)
-	f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
+	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -370,7 +381,7 @@ func TestSyncRolloutVerifyPreviewNoActions(t *testing.T) {
 
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
-	f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -392,7 +403,7 @@ func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
 	f.expectPatchServiceAction(activeSvc, rs)
-	f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -403,7 +414,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -434,7 +445,7 @@ func TestSyncRolloutsScaleDownOldRS(t *testing.T) {
 	expRS.Annotations[annotations.DesiredReplicasAnnotation] = "0"
 	f.expectGetServiceAction(s)
 	f.expectUpdateReplicaSetAction(expRS)
-	f.expectUpdateRolloutAction(r1)
+	f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
 }

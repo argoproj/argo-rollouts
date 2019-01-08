@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
@@ -209,8 +211,17 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 }
 
 func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
-	verifyPreprod := true
-	r.Status.VerifyingPreview = &verifyPreprod
-	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+	verifyPreview := true
+	patch := v1alpha1.Rollout{
+		Status: v1alpha1.RolloutStatus{
+			VerifyingPreview: &verifyPreview,
+		},
+	}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, patchBytes)
 	return err
 }
