@@ -1,8 +1,8 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 
@@ -10,6 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
@@ -300,14 +302,7 @@ func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, roll
 
 func (c *Controller) syncRolloutStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout) error {
 	newStatus := c.calculateStatus(allRSs, newRS, previewSvc, activeSvc, r)
-
-	if reflect.DeepEqual(r.Status, newStatus) {
-		return nil
-	}
-
-	r.Status = newStatus
-	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
-	return err
+	return c.persistRolloutStatus(r, &newStatus)
 }
 
 // calculateStatus calculates the latest status for the provided rollout by looking into the provided replica sets.
@@ -387,5 +382,45 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 		}
 	}
 
+	return nil
+}
+
+// CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)
+func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, newBytes, dataStruct)
+	if err != nil {
+		return nil, false, err
+	}
+	return patch, string(patch) != "{}", nil
+}
+
+// persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
+func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) error {
+	patch, modified, err := CreateTwoWayMergePatch(
+		&v1alpha1.Rollout{Status: orig.Status},
+		&v1alpha1.Rollout{Status: *newStatus}, v1alpha1.Rollout{})
+	if err != nil {
+		klog.Errorf("Error constructing app status patch: %v", err)
+		return err
+	}
+	if !modified {
+		klog.V(2).Infof("No status changes. Skipping patch")
+		return nil
+	}
+	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	if err != nil {
+		klog.Warningf("Error updating application: %v", err)
+		return err
+	} else {
+		klog.V(2).Infof("Update successful")
+	}
 	return nil
 }

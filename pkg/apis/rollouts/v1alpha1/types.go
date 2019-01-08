@@ -6,7 +6,6 @@ import (
 )
 
 // +genclient
-// +genclient:skipVerbs=patch
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

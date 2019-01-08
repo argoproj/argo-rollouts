@@ -274,9 +274,13 @@ func (c *Controller) syncHandler(key string) error {
 	if invalidSpecCond != nil {
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			r.Status.ObservedGeneration = generation
-			conditions.SetRolloutCondition(&r.Status, *invalidSpecCond)
-			c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+			newStatus := r.Status
+			newStatus.ObservedGeneration = generation
+			conditions.SetRolloutCondition(&newStatus, *invalidSpecCond)
+			err := c.persistRolloutStatus(r, &newStatus)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
