@@ -338,7 +338,7 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 	}
 
 	return v1alpha1.RolloutStatus{
-		ObservedGeneration: rollout.Generation,
+		ObservedGeneration: conditions.ComputeGenerationHash(rollout.Spec),
 		VerifyingPreview:   rollout.Status.VerifyingPreview,
 		PreviewSelector:    previewSelector,
 		ActiveSelector:     activeSelector,

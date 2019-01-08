@@ -2,13 +2,16 @@ package conditions
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/kubernetes/pkg/controller"
+	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/defaults"
@@ -103,7 +106,15 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		newStatus.Replicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
 		newStatus.ActiveSelector == podHash &&
-		newStatus.ObservedGeneration >= rollout.Generation
+		newStatus.ObservedGeneration == ComputeGenerationHash(rollout.Spec)
+}
+
+// ComputeGenerationHash returns a hash value calculated from the Rollout Spec. The hash will
+// be safe encoded to avoid bad words.
+func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
+	rolloutSpecHasher := fnv.New32a()
+	hashutil.DeepHashObject(rolloutSpecHasher, spec)
+	return rand.SafeEncodeString(fmt.Sprint(rolloutSpecHasher.Sum32()))
 }
 
 // used for ing
