@@ -659,8 +659,8 @@
   revision = "02f343fb27038ed2f570c9ecb2484fb11f2a59a9"
 
 [[projects]]
-  branch = "master"
-  digest = "1:d809e6c8dfa3448ae10f5624eff4ed1ebdc906755e7cea294c44e8b7ac0b077a"
+  branch = "release-1.12"
+  digest = "1:8108815d1aef9159daabdb3f0fcef04a88765536daf0c0cd29a31fdba135ee54"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/client-gen",
@@ -674,7 +674,7 @@
     "pkg/util",
   ]
   pruneopts = ""
-  revision = "405721ab9678fde04d78961eec9498820d80408d"
+  revision = "b1289fc74931d4b6b04bd1a259acfc88a2cb0a66"
 
 [[projects]]
   branch = "master"
@@ -771,6 +771,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/golang/glog",
     "github.com/stretchr/testify/assert",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
@@ -783,7 +784,9 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/rand",
     "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/uuid",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
@@ -809,8 +812,8 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/client-gen",
-    "k8s.io/klog",
     "k8s.io/kubernetes/pkg/controller",
+    "k8s.io/kubernetes/pkg/util/hash",
     "k8s.io/kubernetes/pkg/util/labels",
   ]
   solver-name = "gps-cdcl"

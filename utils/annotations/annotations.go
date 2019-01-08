@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/defaults"
@@ -38,7 +38,7 @@ func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, b
 	}
 	intValue, err := strconv.Atoi(annotationValue)
 	if err != nil {
-		klog.V(2).Infof("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
+		glog.V(2).Infof("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
 		return int32(0), false
 	}
 	return int32(intValue), true
@@ -98,7 +98,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
 	if err != nil {
 		if oldRevision != "" {
-			klog.Warningf("Updating replica set revision OldRevision not int %s", err)
+			glog.Warningf("Updating replica set revision OldRevision not int %s", err)
 			return false
 		}
 		//If the RS annotation is empty then initialise it to 0
@@ -106,13 +106,13 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
 	if err != nil {
-		klog.Warningf("Updating replica set revision NewRevision not int %s", err)
+		glog.Warningf("Updating replica set revision NewRevision not int %s", err)
 		return false
 	}
 	if oldRevisionInt < newRevisionInt {
 		newRS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
-		klog.V(4).Infof("Updating replica set %q revision to %s", newRS.Name, newRevision)
+		glog.V(4).Infof("Updating replica set %q revision to %s", newRS.Name, newRevision)
 	}
 	// If a revision annotation already existed and this replica set was updated with a new revision
 	// then that means we are rolling back to this replica set. We need to preserve the old revisions

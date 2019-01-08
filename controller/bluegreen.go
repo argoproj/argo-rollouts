@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
@@ -120,7 +120,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 		return false, nil
 	}
 
-	klog.V(4).Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
+	glog.V(4).Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
 	if !annotations.IsSaturated(rollout, newRS) {
 		return false, nil
 	}
@@ -132,7 +132,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	if err != nil {
 		return false, nil
 	}
-	klog.V(4).Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
+	glog.V(4).Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
 
 	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
 	allRSs = append(oldRSs, newRS)
@@ -140,7 +140,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	if err != nil {
 		return false, nil
 	}
-	klog.V(4).Infof("Scaled down old RSes of deployment %s by %d", rollout.Name, scaledDownCount)
+	glog.V(4).Infof("Scaled down old RSes of deployment %s by %d", rollout.Name, scaledDownCount)
 
 	totalScaledDown := cleanupCount + scaledDownCount
 	return totalScaledDown > 0, nil
@@ -158,7 +158,7 @@ func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollo
 			// cannot scale down this replica set.
 			continue
 		}
-		klog.V(4).Infof("Found %d available pods in old RS %s/%s", targetRS.Status.AvailableReplicas, targetRS.Namespace, targetRS.Name)
+		glog.V(4).Infof("Found %d available pods in old RS %s/%s", targetRS.Status.AvailableReplicas, targetRS.Namespace, targetRS.Name)
 		if *(targetRS.Spec.Replicas) == targetRS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
@@ -186,7 +186,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 		// Cannot scale down.
 		return 0, nil
 	}
-	klog.V(4).Infof("Found %d available pods in rollout %s, scaling down old RSes", availablePodCount, rollout.Name)
+	glog.V(4).Infof("Found %d available pods in rollout %s, scaling down old RSes", availablePodCount, rollout.Name)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 

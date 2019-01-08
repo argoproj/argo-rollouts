@@ -9,6 +9,10 @@ required = [
 
 [[constraint]]
   branch = "release-1.12"
+  name = "k8s.io/code-generator"
+
+[[constraint]]
+  branch = "release-1.12"
   name = "k8s.io/api"
 
 
