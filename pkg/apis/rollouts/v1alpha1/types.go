@@ -105,9 +105,9 @@ type RolloutStatus struct {
 	// newest ReplicaSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount"`
-	// The generation observed by the rollout controller.
+	// The generation observed by the rollout controller by taking a hash of the spec.
 	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	ObservedGeneration string `json:"observedGeneration,omitempty"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty"`

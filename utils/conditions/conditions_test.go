@@ -226,7 +226,7 @@ func TestHasRevisionHistoryLimit(t *testing.T) {
 }
 
 func TestRolloutComplete(t *testing.T) {
-	rollout := func(desired, current, updated, available int32, pointActiveAtPodHash bool) *v1alpha1.Rollout {
+	rollout := func(desired, current, updated, available int32, pointActiveAtPodHash bool, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas: &desired,
@@ -237,6 +237,9 @@ func TestRolloutComplete(t *testing.T) {
 				AvailableReplicas: available,
 			},
 		}
+		if correctObservedGeneration {
+			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
+		}
 		if pointActiveAtPodHash {
 			r.Status.ActiveSelector = controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 		}
@@ -244,36 +247,40 @@ func TestRolloutComplete(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-
+		name     string
 		r        *v1alpha1.Rollout
 		expected bool
 	}{
 		{
 			name: "complete",
 
-			r:        rollout(5, 5, 5, 5, true),
+			r:        rollout(5, 5, 5, 5, true, true),
 			expected: true,
 		},
 		{
 			name: "not complete: min but not all pods become available",
 
-			r:        rollout(5, 5, 5, 4, true),
+			r:        rollout(5, 5, 5, 4, true, true),
 			expected: false,
 		},
 		{
 			name:     "not complete: all pods are available but not all active",
-			r:        rollout(5, 5, 4, 5, true),
+			r:        rollout(5, 5, 4, 5, true, true),
 			expected: false,
 		},
 		{
 			name:     "not complete: still running old pods",
-			r:        rollout(1, 2, 1, 1, true),
+			r:        rollout(1, 2, 1, 1, true, true),
+			expected: false,
+		},
+		{
+			name:     "not complete: Mismatching ObservedGeneration",
+			r:        rollout(1, 2, 1, 1, true, false),
 			expected: false,
 		},
 		{
 			name:     "not complete: active service does not point at updated rs",
-			r:        rollout(1, 1, 1, 1, false),
+			r:        rollout(1, 1, 1, 1, false, true),
 			expected: false,
 		},
 	}
