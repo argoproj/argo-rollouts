@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
 	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
@@ -62,7 +62,7 @@ func MaxRevision(allRSs []*appsv1.ReplicaSet) int64 {
 	for _, rs := range allRSs {
 		if v, err := Revision(rs); err != nil {
 			// Skip the replica sets when it failed to parse their revision information
-			klog.V(4).Infof("Error: %v. Couldn't parse revision for replica set %#v, deployment controller will skip it when reconciling revisions.", err, rs)
+			glog.V(4).Infof("Error: %v. Couldn't parse revision for replica set %#v, deployment controller will skip it when reconciling revisions.", err, rs)
 		} else if v > max {
 			max = v
 		}

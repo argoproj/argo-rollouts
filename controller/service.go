@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/annotations"
@@ -26,7 +26,7 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 	if err != nil {
 		return err
 	}
-	klog.V(2).Info("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	glog.V(2).Info("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
 	_, err = c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, patchBytes)
 	return err
 }
@@ -119,7 +119,7 @@ func (c *Controller) getRolloutsForService(service *corev1.Service) ([]*v1alpha1
 		}
 	}
 	if len(rollouts) > 1 {
-		klog.V(4).Infof("user error! more than one rollout is selecting replica set %s/%s with labels: %#v",
+		glog.V(4).Infof("user error! more than one rollout is selecting replica set %s/%s with labels: %#v",
 			service.Namespace, service.Name, service.Labels, rollouts[0].Namespace, rollouts[0].Name)
 	}
 	return rollouts, nil
@@ -156,7 +156,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 		previewSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				klog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+				glog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
 			}
 			return nil, nil, err
 		}
@@ -167,7 +167,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	activeSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+			glog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
 		}
 		return nil, nil, err
 	}

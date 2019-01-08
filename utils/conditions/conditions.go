@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 	"math"
 	"reflect"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,9 +115,6 @@ func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
 	hashutil.DeepHashObject(rolloutSpecHasher, spec)
 	return rand.SafeEncodeString(fmt.Sprint(rolloutSpecHasher.Sum32()))
 }
-
-// used for ing
-var nowFn = func() time.Time { return time.Now() }
 
 func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason string, message string) *v1alpha1.RolloutCondition {
 	if prevCond != nil && prevCond.Message == message {

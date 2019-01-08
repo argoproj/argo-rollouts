@@ -6,13 +6,13 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
@@ -159,7 +159,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		// error.
 		_, roErr := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 		if roErr == nil {
-			klog.V(2).Infof("Found a hash collision for rollout %q - bumping collisionCount (%d->%d) to resolve it", rollout.Name, preCollisionCount, *rollout.Status.CollisionCount)
+			glog.V(2).Infof("Found a hash collision for rollout %q - bumping collisionCount (%d->%d) to resolve it", rollout.Name, preCollisionCount, *rollout.Status.CollisionCount)
 		}
 		return nil, err
 	case err != nil:
@@ -366,7 +366,7 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 	}
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	klog.V(4).Infof("Looking to cleanup old replica sets for rollout %q", rollout.Name)
+	glog.V(4).Infof("Looking to cleanup old replica sets for rollout %q", rollout.Name)
 
 	for i := int32(0); i < diff; i++ {
 		rs := cleanableRSes[i]
@@ -374,7 +374,7 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 		if rs.Status.Replicas != 0 || *(rs.Spec.Replicas) != 0 || rs.Generation > rs.Status.ObservedGeneration || rs.DeletionTimestamp != nil {
 			continue
 		}
-		klog.V(4).Infof("Trying to cleanup replica set %q for rollout %q", rs.Name, rollout.Name)
+		glog.V(4).Infof("Trying to cleanup replica set %q for rollout %q", rs.Name, rollout.Name)
 		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, nil); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
@@ -408,19 +408,19 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 		&v1alpha1.Rollout{Status: orig.Status},
 		&v1alpha1.Rollout{Status: *newStatus}, v1alpha1.Rollout{})
 	if err != nil {
-		klog.Errorf("Error constructing app status patch: %v", err)
+		glog.Errorf("Error constructing app status patch: %v", err)
 		return err
 	}
 	if !modified {
-		klog.V(2).Infof("No status changes. Skipping patch")
+		glog.V(2).Infof("No status changes. Skipping patch")
 		return nil
 	}
 	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
-		klog.Warningf("Error updating application: %v", err)
+		glog.Warningf("Error updating application: %v", err)
 		return err
 	} else {
-		klog.V(2).Infof("Update successful")
+		glog.V(2).Infof("Update successful")
 	}
 	return nil
 }

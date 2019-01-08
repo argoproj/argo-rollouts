@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
@@ -93,9 +93,9 @@ func NewController(
 	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
 	// logged for rollout-controller types.
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
-	klog.V(4).Info("Creating event broadcaster")
+	glog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	replicaSetControl := controller.RealRSControl{
@@ -118,7 +118,7 @@ func NewController(
 	}
 	controller.enqueueRollout = controller.enqueueRateLimited
 
-	klog.Info("Setting up event handlers")
+	glog.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueRollout,
@@ -159,23 +159,23 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.workqueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	klog.Info("Starting Rollout controller")
+	glog.Info("Starting Rollout controller")
 
 	// Wait for the caches to be synced before starting workers
-	klog.Info("Waiting for informer caches to sync")
+	glog.Info("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	klog.Info("Starting workers")
+	glog.Info("Starting workers")
 	// Launch two workers to process Rollout resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
-	klog.Info("Started workers")
+	glog.Info("Started workers")
 	<-stopCh
-	klog.Info("Shutting down workers")
+	glog.Info("Shutting down workers")
 
 	return nil
 }
@@ -231,7 +231,7 @@ func (c *Controller) processNextWorkItem() bool {
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.workqueue.Forget(obj)
-		klog.Infof("Successfully synced '%s'", key)
+		glog.Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
@@ -248,9 +248,9 @@ func (c *Controller) processNextWorkItem() bool {
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
-	klog.V(4).Infof("Started syncing rollout %q (%v)", key, startTime)
+	glog.V(4).Infof("Started syncing rollout %q (%v)", key, startTime)
 	defer func() {
-		klog.V(4).Infof("Finished syncing rollout %q (%v)", key, time.Since(startTime))
+		glog.V(4).Infof("Finished syncing rollout %q (%v)", key, time.Since(startTime))
 	}()
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -259,7 +259,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if errors.IsNotFound(err) {
-		klog.V(2).Infof("Rollout %v has been deleted", key)
+		glog.V(2).Infof("Rollout %v has been deleted", key)
 		return nil
 	}
 	if err != nil {
@@ -345,9 +345,9 @@ func (c *Controller) handleObject(obj interface{}) {
 			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
 			return
 		}
-		klog.V(4).Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+		glog.V(4).Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	klog.V(4).Infof("Processing object: %s", object.GetName())
+	glog.V(4).Infof("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		// If this object is not owned by a Rollout, we should not do anything more
 		// with it.
@@ -357,7 +357,7 @@ func (c *Controller) handleObject(obj interface{}) {
 
 		rollout, err := c.rolloutsLister.Rollouts(object.GetNamespace()).Get(ownerRef.Name)
 		if err != nil {
-			klog.V(4).Infof("ignoring orphaned object '%s' of rollout '%s'", object.GetSelfLink(), ownerRef.Name)
+			glog.V(4).Infof("ignoring orphaned object '%s' of rollout '%s'", object.GetSelfLink(), ownerRef.Name)
 			return
 		}
 
