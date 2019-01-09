@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 )
 
-var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollouts")
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
 func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
