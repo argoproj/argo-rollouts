@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 
@@ -16,6 +15,14 @@ import (
 	"github.com/argoproj/rollout-controller/utils/conditions"
 	"github.com/argoproj/rollout-controller/utils/defaults"
 	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
+)
+
+const (
+	verifyingPreviewPatch = `{
+	"status": {
+		"verifyingPreview": true
+	}
+}`
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
@@ -211,17 +218,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 }
 
 func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
-	verifyPreview := true
-	patch := v1alpha1.Rollout{
-		Status: v1alpha1.RolloutStatus{
-			VerifyingPreview: &verifyPreview,
-		},
-	}
-	patchBytes, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, patchBytes)
+	glog.V(2).Infof("Patching Rollout '%s' to setVerifyingPreview to true", r.Name)
+	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(verifyingPreviewPatch))
 	return err
 }

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -15,19 +14,22 @@ import (
 	"github.com/argoproj/rollout-controller/utils/annotations"
 )
 
+const (
+	switchSelectorPatch = `{
+	"spec": {
+		"selector": {
+			"%s": "%s"
+		}
+	}
+}
+`
+)
+
 // switchSelector switch the selector on an existing service to a new value
 func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string) error {
-	patch := corev1.Service{
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRolloutUniqueLabelValue},
-		},
-	}
-	patchBytes, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	glog.V(2).Info("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
-	_, err = c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, patchBytes)
+	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
+	glog.V(2).Infof("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	return err
 }
 
