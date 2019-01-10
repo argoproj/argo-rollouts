@@ -80,11 +80,7 @@ spec:
         app: rollout-controller
     spec:
       containers:
-      - args:
-        - -logtostderr
-        - -v
-        - "4"
-        command:
+      - command:
         - /bin/rollouts-controller
         image: argoproj/rollout-controller:latest
         imagePullPolicy: Always
