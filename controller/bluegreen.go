@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -14,6 +13,7 @@ import (
 	"github.com/argoproj/rollout-controller/utils/annotations"
 	"github.com/argoproj/rollout-controller/utils/conditions"
 	"github.com/argoproj/rollout-controller/utils/defaults"
+	logutil "github.com/argoproj/rollout-controller/utils/log"
 	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
@@ -121,25 +121,26 @@ func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *
 }
 
 func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+	logCtx := logutil.WithRollout(rollout)
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
 		// Can't scale down further
 		return false, nil
 	}
 
-	glog.V(4).Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
+	logCtx.Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
 	if !annotations.IsSaturated(rollout, newRS) {
 		return false, nil
 	}
 	// Add check for active service
 
-	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block deployment
+	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
 	oldRSs, cleanupCount, err := c.cleanupUnhealthyReplicas(oldRSs, rollout)
 	if err != nil {
 		return false, nil
 	}
-	glog.V(4).Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
+	logCtx.Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
 
 	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
 	allRSs = append(oldRSs, newRS)
@@ -147,7 +148,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	if err != nil {
 		return false, nil
 	}
-	glog.V(4).Infof("Scaled down old RSes of deployment %s by %d", rollout.Name, scaledDownCount)
+	logCtx.Infof("Scaled down old RSes by %d", scaledDownCount)
 
 	totalScaledDown := cleanupCount + scaledDownCount
 	return totalScaledDown > 0, nil
@@ -155,6 +156,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
 func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, int32, error) {
+	logCtx := logutil.WithRollout(rollout)
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
@@ -165,7 +167,7 @@ func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollo
 			// cannot scale down this replica set.
 			continue
 		}
-		glog.V(4).Infof("Found %d available pods in old RS %s/%s", targetRS.Status.AvailableReplicas, targetRS.Namespace, targetRS.Name)
+		logCtx.Infof("Found %d available pods in old RS %s/%s", targetRS.Status.AvailableReplicas, targetRS.Namespace, targetRS.Name)
 		if *(targetRS.Spec.Replicas) == targetRS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
@@ -193,7 +195,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 		// Cannot scale down.
 		return 0, nil
 	}
-	glog.V(4).Infof("Found %d available pods in rollout %s, scaling down old RSes", availablePodCount, rollout.Name)
+	logutil.WithRollout(rollout).Infof("Found %d available pods, scaling down old RSes", availablePodCount)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
@@ -218,7 +220,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 }
 
 func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
-	glog.V(2).Infof("Patching Rollout '%s' to setVerifyingPreview to true", r.Name)
+	logutil.WithRollout(r).Infof("Patching setVerifyingPreview to true")
 	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(verifyingPreviewPatch))
 	return err
 }

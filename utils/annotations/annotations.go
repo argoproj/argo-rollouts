@@ -5,12 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/defaults"
+	logutil "github.com/argoproj/rollout-controller/utils/log"
 )
 
 const (
@@ -38,7 +39,7 @@ func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, b
 	}
 	intValue, err := strconv.Atoi(annotationValue)
 	if err != nil {
-		glog.V(2).Infof("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
+		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
 		return int32(0), false
 	}
 	return int32(intValue), true
@@ -84,6 +85,7 @@ func ReplicasAnnotationsNeedUpdate(rs *appsv1.ReplicaSet, desiredReplicas int32)
 // SetNewReplicaSetAnnotations sets new replica set's annotations appropriately by updating its revision and
 // copying required rollout annotations to it; it returns true if replica set's annotation is changed.
 func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, newRevision string, exists bool) bool {
+	logCtx := logutil.WithRollout(rollout)
 	// First, copy rollout's annotations (except for apply and revision annotations)
 	annotationChanged := copyRolloutAnnotationsToReplicaSet(rollout, newRS)
 	// Then, update replica set's revision annotation
@@ -98,7 +100,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
 	if err != nil {
 		if oldRevision != "" {
-			glog.Warningf("Updating replica set revision OldRevision not int %s", err)
+			logCtx.Warnf("Updating replica set '%s' revision: OldRevision not int '%s'", newRS.Name, err)
 			return false
 		}
 		//If the RS annotation is empty then initialise it to 0
@@ -106,13 +108,13 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
 	if err != nil {
-		glog.Warningf("Updating replica set revision NewRevision not int %s", err)
+		logCtx.Warnf("Updating replica set '%s' revision: NewRevision not int %s", newRS.Name, err)
 		return false
 	}
 	if oldRevisionInt < newRevisionInt {
 		newRS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
-		glog.V(4).Infof("Updating replica set %q revision to %s", newRS.Name, newRevision)
+		logCtx.Infof("Updating replica set '%s' revision to %s", newRS.Name, newRevision)
 	}
 	// If a revision annotation already existed and this replica set was updated with a new revision
 	// then that means we are rolling back to this replica set. We need to preserve the old revisions

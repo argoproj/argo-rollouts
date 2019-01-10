@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/rollout-controller/utils/annotations"
+	logutil "github.com/argoproj/rollout-controller/utils/log"
 )
 
 const (
@@ -26,9 +27,9 @@ const (
 )
 
 // switchSelector switch the selector on an existing service to a new value
-func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string) error {
+func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
-	glog.V(2).Infof("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	logutil.WithRollout(r).Infof("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
 	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	return err
 }
@@ -61,7 +62,7 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 		return false, err
 	}
 
-	err = c.switchServiceSelector(previewSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	err = c.switchServiceSelector(previewSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
 	if err != nil {
 		return false, err
 	}
@@ -82,7 +83,7 @@ func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.R
 		}
 	}
 	if switchActiveSvc {
-		err := c.switchServiceSelector(activeSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+		err := c.switchServiceSelector(activeSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
 		if err != nil {
 			return false, err
 		}
@@ -98,7 +99,7 @@ func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.R
 	}
 
 	if switchPreviewSvc {
-		err := c.switchServiceSelector(previewSvc, "")
+		err := c.switchServiceSelector(previewSvc, "", r)
 		if err != nil {
 			return false, err
 		}
@@ -121,8 +122,8 @@ func (c *Controller) getRolloutsForService(service *corev1.Service) ([]*v1alpha1
 		}
 	}
 	if len(rollouts) > 1 {
-		glog.V(4).Infof("user error! more than one rollout is selecting replica set %s/%s with labels: %#v",
-			service.Namespace, service.Name, service.Labels, rollouts[0].Namespace, rollouts[0].Name)
+		log.Errorf("More than one rollout is selecting sevice %s/%s with labels: %#v",
+			service.Namespace, service.Name, service.Labels)
 	}
 	return rollouts, nil
 }
@@ -154,11 +155,12 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
+	logCtx := logutil.WithRollout(r)
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
 		previewSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				glog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+				logCtx.Warnf("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
 			}
 			return nil, nil, err
 		}
@@ -169,7 +171,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	activeSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			glog.V(2).Infof("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+			logCtx.Warnf("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
 		}
 		return nil, nil, err
 	}
