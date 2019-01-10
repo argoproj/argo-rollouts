@@ -36,6 +36,7 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 
 func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
 	if !annotations.IsSaturated(r, newRS) {
+		logutil.WithRollout(r).Infof("New RS %s is not fully saturated", newRS.Name)
 		return true, nil
 	}
 
@@ -122,8 +123,10 @@ func (c *Controller) getRolloutsForService(service *corev1.Service) ([]*v1alpha1
 		}
 	}
 	if len(rollouts) > 1 {
-		log.Errorf("More than one rollout is selecting sevice %s/%s with labels: %#v",
+		errMessage := fmt.Sprintf("More tha one rollout is selecting replica set %s/%s with labels: %#v",
 			service.Namespace, service.Name, service.Labels)
+		log.Error(errMessage)
+		return nil, fmt.Errorf(errMessage)
 	}
 	return rollouts, nil
 }
@@ -134,10 +137,10 @@ func (c *Controller) handleService(obj interface{}) {
 	if err != nil {
 		return
 	}
-	for i := range rollouts {
-		c.enqueueRollout(rollouts[i])
+	if len(rollouts) != 1 {
+		return
 	}
-
+	c.enqueueRollout(rollouts[0])
 }
 
 func (c *Controller) updateService(old, cur interface{}) {

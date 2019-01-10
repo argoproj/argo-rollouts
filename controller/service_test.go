@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
@@ -284,5 +285,54 @@ func TestGetActiveReplicaSet(t *testing.T) {
 		},
 	}
 	assert.Equal(t, rs2, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{rs1, rs2}))
+
+}
+
+func TestGetPreviewAndActiveServices(t *testing.T) {
+
+	f := newFixture(t)
+	expActive := newService("active", 80, nil)
+	expPreview := newService("preview", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, expActive)
+	f.kubeobjects = append(f.kubeobjects, expPreview)
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+					PreviewService: "preview",
+					ActiveService:  "active",
+				},
+			},
+		},
+	}
+	c, _, _ := f.newController()
+	t.Run("Get Both", func(t *testing.T) {
+		preview, active, err := c.getPreviewAndActiveServices(rollout)
+		assert.Nil(t, err)
+		assert.Equal(t, expPreview, preview)
+		assert.Equal(t, expActive, active)
+	})
+	t.Run("Preview not found", func(t *testing.T) {
+		noPreviewSvcRollout := rollout.DeepCopy()
+		noPreviewSvcRollout.Spec.Strategy.BlueGreenStrategy.PreviewService = "not-preview"
+		_, _, err := c.getPreviewAndActiveServices(noPreviewSvcRollout)
+		assert.NotNil(t, err)
+		assert.True(t, errors.IsNotFound(err))
+	})
+	t.Run("Active not found", func(t *testing.T) {
+		noActiveSvcRollout := rollout.DeepCopy()
+		noActiveSvcRollout.Spec.Strategy.BlueGreenStrategy.ActiveService = "not-active"
+		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
+		assert.NotNil(t, err)
+		assert.True(t, errors.IsNotFound(err))
+	})
+
+	t.Run("Invalid Spec: No Active Svc", func(t *testing.T) {
+		noActiveSvcRollout := rollout.DeepCopy()
+		noActiveSvcRollout.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
+		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
+	})
 
 }

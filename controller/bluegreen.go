@@ -27,6 +27,7 @@ const (
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
 func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+	logCtx := logutil.WithRollout(r)
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, true)
 	if err != nil {
 		return err
@@ -38,51 +39,59 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	allRSs := append(oldRSs, newRS)
 
 	// Scale up, if we can.
+	logCtx.Info("Reconciling new ReplicaSet")
 	scaledUp, err := c.reconcileNewReplicaSet(allRSs, newRS, r)
 	if err != nil {
 		return err
 	}
 	if scaledUp {
+		logCtx.Info("Not finished reconciling new ReplicaSet")
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
 	if previewSvc != nil {
+		logCtx.Info("Reconciling preview service")
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
 			return err
 		}
 		if switchPreviewSvc {
+			logCtx.Info("Not finished reconciling preview service")
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
-
+		logCtx.Info("Reconciling verifying preview service")
 		verfyingPreview := c.reconcileVerifyingPreview(activeSvc, r)
 		if verfyingPreview {
+			logCtx.Info("Not finished reconciling verifying preview service")
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 	}
-
+	logCtx.Info("Reconciling active service")
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
 		return err
 	}
 	if switchActiveSvc {
+		logCtx.Info("Not Finished reconciling active service")
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	// Scale down, if we can.
+	logCtx.Info("Reconciling old replica sets")
 	scaledDown, err := c.reconcileOldReplicaSets(allRSs, controller.FilterActiveReplicaSets(oldRSs), newRS, r)
 	if err != nil {
 		return err
 	}
 	if scaledDown {
+		logCtx.Info("Not finished reconciling old replica sets")
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
-
+	logCtx.Infof("Confirming Rollout is complete")
 	if conditions.RolloutComplete(r, &r.Status) {
+		logCtx.Info("Cleaning up old Rollouts")
 		if err := c.cleanupRollouts(oldRSs, r); err != nil {
 			return err
 		}
 	}
-
 	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 }
 

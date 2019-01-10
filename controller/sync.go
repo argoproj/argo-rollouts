@@ -52,6 +52,7 @@ func (c *Controller) getAllReplicaSetsAndSyncRevision(rollout *v1alpha1.Rollout,
 // 3. If there's no existing new RS and createIfNotExisted is true, create one with appropriate revision number (maxOldRevision + 1) and replicas.
 // Note that the pod-template-hash will be added to adopted RSes and pods.
 func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
+	logCtx := logutil.WithRollout(rollout)
 	existingNewRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 
 	// Calculate the max revision number among all old RSes
@@ -78,7 +79,9 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		needsUpdate := annotations.SetRolloutRevision(rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
 		if needsUpdate {
 			var err error
+			logCtx.Info("Setting revision annotation after creating a new replicaset")
 			if rollout, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout); err != nil {
+				logCtx.WithError(err).Errorf("Error: Setting rollout revision annotation after creating a new replicaset")
 				return nil, err
 			}
 		}
@@ -159,7 +162,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		// error.
 		_, roErr := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 		if roErr == nil {
-			logutil.WithRollout(rollout).Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *rollout.Status.CollisionCount)
+			logCtx.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *rollout.Status.CollisionCount)
 		}
 		return nil, err
 	case err != nil:
@@ -173,6 +176,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 
 	needsUpdate := annotations.SetRolloutRevision(rollout, newRevision)
 	if needsUpdate {
+		logCtx.Info("Setting rollout revision annotation after creating new replicaset")
 		_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 	}
 	return createdRS, err
@@ -421,8 +425,7 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 	if err != nil {
 		logCtx.Warningf("Error updating application: %v", err)
 		return err
-	} else {
-		logCtx.Infof("Update successful")
 	}
+	logCtx.Infof("Patch Rollout status successfully")
 	return nil
 }
