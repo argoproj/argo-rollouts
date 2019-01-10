@@ -15,10 +15,6 @@ spec:
       containers:
       - command:
         - "/bin/rollouts-controller"
-        args:
-        - "-logtostderr"
-        - "-v"
-        - "4"
         image: argoproj/rollout-controller:latest
         imagePullPolicy: Always
         name: rollout-controller

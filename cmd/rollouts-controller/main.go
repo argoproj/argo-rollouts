@@ -2,8 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/spf13/cobra"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -11,6 +15,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/argoproj/rollout-controller/controller"
@@ -19,51 +24,101 @@ import (
 	"github.com/argoproj/rollout-controller/pkg/signals"
 )
 
-var (
-	masterURL  string
-	kubeconfig string
+const (
+	// CLIName is the name of the CLI
+	cliName = "rollout-controller"
+	// Default time in seconds for rollout resync period
+	defaultRolloutResyncPeriod = 30
 )
 
+func newCommand() *cobra.Command {
+	var (
+		clientConfig        clientcmd.ClientConfig
+		rolloutResyncPeriod int64
+		logLevel            string
+		glogLevel           int
+	)
+	var command = cobra.Command{
+		Use:   cliName,
+		Short: "rollout-controller is a controller to operate on rollout CRD",
+		RunE: func(c *cobra.Command, args []string) error {
+			setLogLevel(logLevel)
+			setGLogLevel(glogLevel)
+
+			// set up signals so we handle the first shutdown signal gracefully
+			stopCh := signals.SetupSignalHandler()
+
+			// cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+			config, err := clientConfig.ClientConfig()
+			checkError(err)
+
+			kubeClient, err := kubernetes.NewForConfig(config)
+			checkError(err)
+
+			rolloutClient, err := clientset.NewForConfig(config)
+			checkError(err)
+			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
+			kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, resyncDuration)
+			rolloutInformerFactory := informers.NewSharedInformerFactory(rolloutClient, resyncDuration)
+
+			controller := controller.NewController(kubeClient, rolloutClient,
+				kubeInformerFactory.Apps().V1().ReplicaSets(),
+				kubeInformerFactory.Core().V1().Services(),
+				rolloutInformerFactory.Argoproj().V1alpha1().Rollouts())
+
+			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
+			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
+			kubeInformerFactory.Start(stopCh)
+			rolloutInformerFactory.Start(stopCh)
+
+			if err = controller.Run(2, stopCh); err != nil {
+				glog.Fatalf("Error running controller: %s", err.Error())
+			}
+			return nil
+		},
+	}
+	clientConfig = addKubectlFlagsToCmd(&command)
+	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", defaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
+	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	return &command
+}
+
 func main() {
-	flag.Parse()
-
-	// set up signals so we handle the first shutdown signal gracefully
-	stopCh := signals.SetupSignalHandler()
-
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		glog.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		glog.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
-	rolloutClient, err := clientset.NewForConfig(cfg)
-	if err != nil {
-		glog.Fatalf("Error building example clientset: %s", err.Error())
-	}
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	rolloutInformerFactory := informers.NewSharedInformerFactory(rolloutClient, time.Second*30)
-
-	controller := controller.NewController(kubeClient, rolloutClient,
-		kubeInformerFactory.Apps().V1().ReplicaSets(),
-		kubeInformerFactory.Core().V1().Services(),
-		rolloutInformerFactory.Argoproj().V1alpha1().Rollouts())
-
-	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
-	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-	kubeInformerFactory.Start(stopCh)
-	rolloutInformerFactory.Start(stopCh)
-
-	if err = controller.Run(2, stopCh); err != nil {
-		glog.Fatalf("Error running controller: %s", err.Error())
+	if err := newCommand().Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
-func init() {
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+func addKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	kflags := clientcmd.RecommendedConfigOverrideFlags("")
+	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+}
+
+// setLogLevel parses and sets a logrus log level
+func setLogLevel(logLevel string) {
+	level, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetLevel(level)
+}
+
+// setGLogLevel set the glog level for the k8s go-client
+func setGLogLevel(glogLevel int) {
+	_ = flag.CommandLine.Parse([]string{})
+	_ = flag.Lookup("logtostderr").Value.Set("true")
+	_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+}
+
+func checkError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
