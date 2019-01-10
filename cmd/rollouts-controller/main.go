@@ -43,6 +43,10 @@ func newCommand() *cobra.Command {
 		Short: "rollout-controller is a controller to operate on rollout CRD",
 		RunE: func(c *cobra.Command, args []string) error {
 			setLogLevel(logLevel)
+			formatter := &log.TextFormatter{
+				FullTimestamp: true,
+			}
+			log.SetFormatter(formatter)
 			setGLogLevel(glogLevel)
 
 			// set up signals so we handle the first shutdown signal gracefully

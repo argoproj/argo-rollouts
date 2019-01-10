@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,6 +19,7 @@ import (
 	"github.com/argoproj/rollout-controller/utils/annotations"
 	"github.com/argoproj/rollout-controller/utils/conditions"
 	"github.com/argoproj/rollout-controller/utils/defaults"
+	logutil "github.com/argoproj/rollout-controller/utils/log"
 	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
 )
 
@@ -159,7 +159,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		// error.
 		_, roErr := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 		if roErr == nil {
-			glog.V(2).Infof("Found a hash collision for rollout %q - bumping collisionCount (%d->%d) to resolve it", rollout.Name, preCollisionCount, *rollout.Status.CollisionCount)
+			logutil.WithRollout(rollout).Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *rollout.Status.CollisionCount)
 		}
 		return nil, err
 	case err != nil:
@@ -350,6 +350,7 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
 func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+	logCtx := logutil.WithRollout(rollout)
 	if !conditions.HasRevisionHistoryLimit(rollout) {
 		return nil
 	}
@@ -366,7 +367,7 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 	}
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	glog.V(4).Infof("Looking to cleanup old replica sets for rollout %q", rollout.Name)
+	logCtx.Info("Looking to cleanup old replica sets")
 
 	for i := int32(0); i < diff; i++ {
 		rs := cleanableRSes[i]
@@ -374,7 +375,7 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 		if rs.Status.Replicas != 0 || *(rs.Spec.Replicas) != 0 || rs.Generation > rs.Status.ObservedGeneration || rs.DeletionTimestamp != nil {
 			continue
 		}
-		glog.V(4).Infof("Trying to cleanup replica set %q for rollout %q", rs.Name, rollout.Name)
+		logCtx.Infof("Trying to cleanup replica set %q", rs.Name)
 		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, nil); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
@@ -404,23 +405,24 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) error {
+	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{Status: orig.Status},
 		&v1alpha1.Rollout{Status: *newStatus}, v1alpha1.Rollout{})
 	if err != nil {
-		glog.Errorf("Error constructing app status patch: %v", err)
+		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return err
 	}
 	if !modified {
-		glog.V(2).Infof("No status changes. Skipping patch")
+		logCtx.Infof("No status changes. Skipping patch")
 		return nil
 	}
 	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
-		glog.Warningf("Error updating application: %v", err)
+		logCtx.Warningf("Error updating application: %v", err)
 		return err
 	} else {
-		glog.V(2).Infof("Update successful")
+		logCtx.Infof("Update successful")
 	}
 	return nil
 }
