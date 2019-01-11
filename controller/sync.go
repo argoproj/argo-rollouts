@@ -426,6 +426,6 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 		logCtx.Warningf("Error updating application: %v", err)
 		return err
 	}
-	logCtx.Infof("Patch Rollout status successfully")
+	logCtx.Infof("Patch status successfully")
 	return nil
 }

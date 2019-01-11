@@ -39,24 +39,24 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	allRSs := append(oldRSs, newRS)
 
 	// Scale up, if we can.
-	logCtx.Info("Reconciling new ReplicaSet")
+	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
 	scaledUp, err := c.reconcileNewReplicaSet(allRSs, newRS, r)
 	if err != nil {
 		return err
 	}
 	if scaledUp {
-		logCtx.Info("Not finished reconciling new ReplicaSet")
+		logCtx.Info("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
 	if previewSvc != nil {
-		logCtx.Info("Reconciling preview service")
+		logCtx.Info("Reconciling preview service '%s'", previewSvc.Name)
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
 			return err
 		}
 		if switchPreviewSvc {
-			logCtx.Info("Not finished reconciling preview service")
+			logCtx.Info("Not finished reconciling preview service' %s'", previewSvc.Name)
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 		logCtx.Info("Reconciling verifying preview service")
@@ -66,13 +66,13 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 	}
-	logCtx.Info("Reconciling active service")
+	logCtx.Info("Reconciling active service '%s'", activeSvc.Name)
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
 		return err
 	}
 	if switchActiveSvc {
-		logCtx.Info("Not Finished reconciling active service")
+		logCtx.Info("Not Finished reconciling active service '%s'", activeSvc.Name)
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	// Scale down, if we can.
@@ -85,9 +85,9 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		logCtx.Info("Not finished reconciling old replica sets")
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
-	logCtx.Infof("Confirming Rollout is complete")
+	logCtx.Infof("Confirming rollout is complete")
 	if conditions.RolloutComplete(r, &r.Status) {
-		logCtx.Info("Cleaning up old Rollouts")
+		logCtx.Info("Cleaning up old replicasets")
 		if err := c.cleanupRollouts(oldRSs, r); err != nil {
 			return err
 		}

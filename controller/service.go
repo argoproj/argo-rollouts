@@ -29,14 +29,17 @@ const (
 // switchSelector switch the selector on an existing service to a new value
 func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
-	logutil.WithRollout(r).Infof("Switching selector for service %s to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	logutil.WithRollout(r).Infof("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
 	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	return err
 }
 
 func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+	if previewSvc == nil {
+		return false, nil
+	}
 	if !annotations.IsSaturated(r, newRS) {
-		logutil.WithRollout(r).Infof("New RS %s is not fully saturated", newRS.Name)
+		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
 		return true, nil
 	}
 
@@ -45,8 +48,15 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 	if activeSvc.Spec.Selector == nil {
 		return false, nil
 	}
-	currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if !ok || currentSelectorValue == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+	curActiveSelector, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if !ok || curActiveSelector == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+		curPreviewSelector, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if !ok || curPreviewSelector != "" {
+			err := c.switchServiceSelector(previewSvc, "", r)
+			if err != nil {
+				return false, err
+			}
+		}
 		return false, nil
 	}
 
