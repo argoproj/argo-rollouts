@@ -21,7 +21,7 @@ var (
 	noTimestamp = metav1.Time{}
 )
 
-func TestController_reconcileVerifyingPreview(t *testing.T) {
+func TestReconcileVerifyingPreview(t *testing.T) {
 	boolPtr := func(boolean bool) *bool { return &boolean }
 	tests := []struct {
 		name                 string
@@ -84,7 +84,7 @@ func TestController_reconcileVerifyingPreview(t *testing.T) {
 	}
 }
 
-func TestController_reconcileNewReplicaSet(t *testing.T) {
+func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                string
 		rolloutReplicas     int
@@ -154,7 +154,7 @@ func TestController_reconcileNewReplicaSet(t *testing.T) {
 	}
 }
 
-func TestController_reconcileOldReplicaSet(t *testing.T) {
+func TestReconcileOldReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                string
 		rolloutReplicas     int
@@ -239,4 +239,36 @@ func TestController_reconcileOldReplicaSet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandlePreviewWhenActiveSet(t *testing.T) {
+	f := newFixture(t)
+
+	r1 := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "preview", "active")
+
+	r2 := r1.DeepCopy()
+	annotations.SetRolloutRevision(r2, "2")
+	r2.Spec.Template.Spec.Containers[0].Image = "foo/bar2.0"
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-6479c8f85c", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "895c6c4f9"})
+	f.kubeobjects = append(f.kubeobjects, previewSvc)
+
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "6479c8f85c"})
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+
+	f.expectGetServiceAction(previewSvc)
+	f.expectGetServiceAction(activeSvc)
+	f.expectPatchServiceAction(previewSvc, "")
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
 }

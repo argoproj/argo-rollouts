@@ -280,10 +280,10 @@ func (f *fixture) expectGetServiceAction(s *corev1.Service) {
 	f.kubeactions = append(f.kubeactions, core.NewGetAction(serviceSchema, s.Namespace, s.Name))
 }
 
-func (f *fixture) expectPatchServiceAction(s *corev1.Service, rs *appsv1.ReplicaSet) {
+func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) {
 	patch := corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]},
+			Selector: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newLabel},
 		},
 	}
 	patchBytes, _ := json.Marshal(patch)
@@ -354,7 +354,7 @@ func TestSyncRolloutSetPreviewService(t *testing.T) {
 
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
-	f.expectPatchServiceAction(previewSvc, rs)
+	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -402,7 +402,7 @@ func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
 
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
-	f.expectPatchServiceAction(activeSvc, rs)
+	f.expectPatchServiceAction(activeSvc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
