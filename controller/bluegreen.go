@@ -45,18 +45,18 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return err
 	}
 	if scaledUp {
-		logCtx.Info("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
+		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
 	if previewSvc != nil {
-		logCtx.Info("Reconciling preview service '%s'", previewSvc.Name)
+		logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
 			return err
 		}
 		if switchPreviewSvc {
-			logCtx.Info("Not finished reconciling preview service' %s'", previewSvc.Name)
+			logCtx.Infof("Not finished reconciling preview service' %s'", previewSvc.Name)
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 		logCtx.Info("Reconciling verifying preview service")
@@ -66,13 +66,13 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 	}
-	logCtx.Info("Reconciling active service '%s'", activeSvc.Name)
+	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
 		return err
 	}
 	if switchActiveSvc {
-		logCtx.Info("Not Finished reconciling active service '%s'", activeSvc.Name)
+		logCtx.Infof("Not Finished reconciling active service '%s'", activeSvc.Name)
 		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	// Scale down, if we can.

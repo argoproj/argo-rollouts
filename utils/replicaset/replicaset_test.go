@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/rollout-controller/utils/annotations"
 )
 
 // generateRollout creates a rollout, with the input image as its template
@@ -175,4 +176,136 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 			assert.Equal(t, test.expectedAvailableCount, GetAvailableReplicaCountForReplicaSets(test.sets))
 		})
 	}
+}
+
+func TestNewRSNewReplicas(t *testing.T) {
+	ro := generateRollout("test")
+	ro.Spec.Strategy.Type = v1alpha1.BlueGreenRolloutStrategyType
+	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
+
+	ro.Spec.Strategy.Type = ""
+	_, err = NewRSNewReplicas(&ro, nil, nil)
+	assert.Error(t, err, fmt.Sprintf("rollout strategy type %v isn't supported", ro.Spec.Strategy.Type))
+}
+
+func TestRevision(t *testing.T) {
+	rs := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				annotations.RevisionAnnotation: "1",
+			},
+		},
+	}
+	revisionValue, err := Revision(rs)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(1), revisionValue)
+
+	_, err = Revision(nil)
+	assert.Error(t, err, fmt.Sprintf("object does not implement the Object interfaces"))
+
+	delete(rs.Annotations, annotations.RevisionAnnotation)
+	revisionValue, err = Revision(rs)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(0), revisionValue)
+
+}
+
+func TestMaxRevision(t *testing.T) {
+	allRs := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: "1",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: "2",
+				},
+			},
+		},
+	}
+	assert.Equal(t, int64(2), MaxRevision(allRs))
+}
+
+func rs(replicas int32, creationTimestamp metav1.Time) *appsv1.ReplicaSet {
+	return &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			CreationTimestamp: creationTimestamp,
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: &replicas,
+		},
+	}
+}
+func TestFindActiveOrLatest(t *testing.T) {
+	now := metav1.Now()
+	before := metav1.Time{Time: now.Add(-time.Minute)}
+	tests := []struct {
+		name       string
+		newRS      *appsv1.ReplicaSet
+		oldRSs     []*appsv1.ReplicaSet
+		expectedRS *appsv1.ReplicaSet
+	}{
+		{
+			name: "No RS exist",
+		},
+		{
+			name:  "No active replicas return newRS",
+			newRS: rs(0, now),
+			oldRSs: []*appsv1.ReplicaSet{
+				rs(0, before),
+			},
+			expectedRS: rs(0, now),
+		},
+		{
+			name: "No active replicas and no newRS return newests old",
+			oldRSs: []*appsv1.ReplicaSet{
+				rs(0, before),
+				rs(0, now),
+			},
+			expectedRS: rs(0, now),
+		},
+		{
+			name:  "return old active rs",
+			newRS: rs(0, now),
+			oldRSs: []*appsv1.ReplicaSet{
+				rs(1, before),
+			},
+			expectedRS: rs(1, before),
+		},
+		{
+			name:  "return new active rs",
+			newRS: rs(1, now),
+			oldRSs: []*appsv1.ReplicaSet{
+				rs(0, before),
+			},
+			expectedRS: rs(1, now),
+		},
+		{
+			name:  "Multiple active rs, return nil",
+			newRS: rs(1, now),
+			oldRSs: []*appsv1.ReplicaSet{
+				rs(1, before),
+			},
+			expectedRS: nil,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			rs := FindActiveOrLatest(test.newRS, test.oldRSs)
+			assert.Equal(t, test.expectedRS, rs)
+		})
+	}
+
 }

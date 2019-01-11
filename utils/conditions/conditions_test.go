@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
@@ -49,24 +50,21 @@ func TestGetCondition(t *testing.T) {
 	exampleStatus := status()
 
 	tests := []struct {
-		name string
-
+		name     string
 		status   v1alpha1.RolloutStatus
 		condType v1alpha1.RolloutConditionType
 
 		expected bool
 	}{
 		{
-			name: "condition exists",
-
+			name:     "condition exists",
 			status:   *exampleStatus,
 			condType: v1alpha1.RolloutAvailable,
 
 			expected: true,
 		},
 		{
-			name: "condition does not exist",
-
+			name:     "condition does not exist",
 			status:   *exampleStatus,
 			condType: FailedRSCreateReason,
 
@@ -83,6 +81,8 @@ func TestGetCondition(t *testing.T) {
 	}
 }
 func TestSetCondition(t *testing.T) {
+	now := metav1.Now()
+	before := metav1.Time{Time: now.Add(-time.Minute)}
 	tests := []struct {
 		name string
 
@@ -92,24 +92,80 @@ func TestSetCondition(t *testing.T) {
 		expectedStatus *v1alpha1.RolloutStatus
 	}{
 		{
-			name: "set for the first time",
-
+			name:   "set for the first time",
 			status: &v1alpha1.RolloutStatus{},
 			cond:   condAvailable(),
 
 			expectedStatus: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condAvailable()}},
 		},
 		{
-			name: "simple set",
-
+			name:   "simple set",
 			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condInvalidSpec()}},
 			cond:   condAvailable(),
 
 			expectedStatus: status(),
 		},
 		{
-			name: "overwrite",
+			name:   "No Changes",
+			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condAvailable()}},
+			cond:   condAvailable(),
 
+			expectedStatus: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condAvailable()}},
+		},
+		{
+			name: "Status change",
+			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{
+				{
+					Type:           v1alpha1.RolloutAvailable,
+					Status:         v1.ConditionTrue,
+					Reason:         "AwesomeController",
+					LastUpdateTime: before,
+				},
+			}},
+			cond: v1alpha1.RolloutCondition{
+				Type:           v1alpha1.RolloutAvailable,
+				Status:         v1.ConditionFalse,
+				Reason:         "AwesomeController",
+				LastUpdateTime: now,
+			},
+
+			expectedStatus: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{
+				{
+					Type:           v1alpha1.RolloutAvailable,
+					Status:         v1.ConditionFalse,
+					Reason:         "AwesomeController",
+					LastUpdateTime: now,
+				},
+			}},
+		},
+		{
+			name: "No status change",
+			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{
+				{
+					Type:           v1alpha1.RolloutAvailable,
+					Status:         v1.ConditionTrue,
+					Reason:         "AwesomeController",
+					LastUpdateTime: before,
+				},
+			}},
+			cond: v1alpha1.RolloutCondition{
+				Type:           v1alpha1.RolloutAvailable,
+				Status:         v1.ConditionTrue,
+				Reason:         "AwesomeController",
+				LastUpdateTime: now,
+			},
+
+			expectedStatus: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{
+				{
+					Type:           v1alpha1.RolloutAvailable,
+					Status:         v1.ConditionTrue,
+					Reason:         "AwesomeController",
+					LastUpdateTime: before,
+				},
+			}},
+		},
+		{
+			name:   "overwrite",
 			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condInvalidSpec()}},
 			cond:   condInvalidSpec2(),
 
@@ -185,6 +241,13 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	}
 	assert.Nil(t, VerifyRolloutSpec(validRollout, nil))
 
+	selectorEverything := validRollout.DeepCopy()
+	selectorEverything.Spec.Selector = &metav1.LabelSelector{}
+	selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
+	assert.NotNil(t, selectorEverythingConf)
+	assert.Equal(t, SelectAllMessage, selectorEverythingConf.Message)
+	assert.Equal(t, InvalidSelectorReason, selectorEverythingConf.Reason)
+
 	noSelector := validRollout.DeepCopy()
 	noSelector.Spec.Selector = nil
 	noSelectorCond := VerifyRolloutSpec(noSelector, nil)
@@ -192,12 +255,12 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
 	assert.Equal(t, MissingSelectorReason, noSelectorCond.Reason)
 
-	noStrategy := validRollout.DeepCopy()
-	noStrategy.Spec.Strategy.BlueGreenStrategy = nil
-	noStrategyCond := VerifyRolloutSpec(noStrategy, nil)
-	assert.NotNil(t, noStrategyCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy"), noStrategyCond.Message)
-	assert.Equal(t, MissingBlueGreenStrategyReason, noStrategyCond.Reason)
+	noBlueGreenStrategy := validRollout.DeepCopy()
+	noBlueGreenStrategy.Spec.Strategy.BlueGreenStrategy = nil
+	noBlueGreenStrategyCond := VerifyRolloutSpec(noBlueGreenStrategy, nil)
+	assert.NotNil(t, noBlueGreenStrategyCond)
+	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy"), noBlueGreenStrategyCond.Message)
+	assert.Equal(t, MissingBlueGreenStrategyReason, noBlueGreenStrategyCond.Reason)
 
 	noActiveSvc := validRollout.DeepCopy()
 	noActiveSvc.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
@@ -212,6 +275,14 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.NotNil(t, sameSvcsCond)
 	assert.Equal(t, SameServicesMessage, sameSvcsCond.Message)
 	assert.Equal(t, SameServicesReason, sameSvcsCond.Reason)
+
+	noStrategy := validRollout.DeepCopy()
+	noStrategy.Spec.Strategy = v1alpha1.RolloutStrategy{}
+	noStrategyCond := VerifyRolloutSpec(noStrategy, nil)
+
+	assert.NotNil(t, noStrategyCond)
+	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type"), noStrategyCond.Message)
+	assert.Equal(t, MissingStrategyTypeReason, noStrategyCond.Reason)
 }
 
 func TestHasRevisionHistoryLimit(t *testing.T) {

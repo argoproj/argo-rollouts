@@ -43,11 +43,13 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 		return true, nil
 	}
 
-	//If the active service already points to the new RS or the active service selector does not
-	// point to any RS, we short-circuit changing the preview service.
+	//If the active service selector does not point to any RS,
+	// we short-circuit changing the preview service.
 	if activeSvc.Spec.Selector == nil {
 		return false, nil
 	}
+	// If the active service selector points at the new RS, the
+	// preview service should point at nothing
 	curActiveSelector, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 	if !ok || curActiveSelector == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
 		curPreviewSelector, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]

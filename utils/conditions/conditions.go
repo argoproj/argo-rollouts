@@ -150,7 +150,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 			return newInvalidSpecRolloutCondition(prevCond, SameServicesReason, SameServicesMessage)
 		}
 	case "":
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenRolloutStrategyType")
+		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type")
 		return newInvalidSpecRolloutCondition(prevCond, MissingStrategyTypeReason, message)
 	}
 
