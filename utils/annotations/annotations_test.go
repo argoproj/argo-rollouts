@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,7 +91,7 @@ func TestAnnotationUtils(t *testing.T) {
 	tRS := generateRS(&tRollout)
 	tRollout.Annotations[RevisionAnnotation] = "1"
 
-	//Test Case 0: Check if revision anotations can be set
+	// Check if revision anotations can be set
 	t.Run("SetRolloutRevision", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()
 		updated := SetRolloutRevision(copyRollout, "2")
@@ -103,7 +104,7 @@ func TestAnnotationUtils(t *testing.T) {
 	})
 	t.Run("SetRolloutRevisionNoAnnotations", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()
-		copyRollout.Labels = nil
+		copyRollout.Annotations = nil
 		updated := SetRolloutRevision(copyRollout, "2")
 		if !updated {
 			t.Errorf("SetRolloutRevision() Expected=True Obtained=False")
@@ -125,9 +126,10 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	//Test Case 1: Check if anotations are copied properly from rollout to RS
+	// Check if anotations are copied properly from rollout to RS
 	t.Run("SetNewReplicaSetAnnotations", func(t *testing.T) {
 		//Try to set the increment revision from 1 through 20
+		tRS.Annotations = nil
 		for i := 0; i < 20; i++ {
 
 			nextRevision := fmt.Sprintf("%d", i+1)
@@ -140,7 +142,28 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	//Test Case 2:  Check if annotations are set properly
+	t.Run("SetNewReplicaSetAnnotationsCopyAnnotations", func(t *testing.T) {
+		newRS := tRS.DeepCopy()
+		newRollout := tRollout.DeepCopy()
+		newRollout.Annotations["key"] = "value"
+		assert.True(t, SetNewReplicaSetAnnotations(newRollout, newRS, "20", false))
+		assert.Equal(t, newRS.Annotations[RevisionAnnotation], "20")
+		assert.Equal(t, "value", newRS.Annotations["key"])
+	})
+
+	t.Run("SetNewReplicaSetAnnotationsHandleBadOldRevison", func(t *testing.T) {
+		badRS := tRS.DeepCopy()
+		badRS.Annotations[RevisionAnnotation] = "Not an int"
+		assert.False(t, SetNewReplicaSetAnnotations(&tRollout, badRS, "not an int", true))
+		assert.Equal(t, tRollout.Annotations[RevisionAnnotation], "1")
+	})
+
+	t.Run("SetNewReplicaSetAnnotationsHandleBadNewRevison", func(t *testing.T) {
+		assert.False(t, SetNewReplicaSetAnnotations(&tRollout, &tRS, "not an int", true))
+		assert.Equal(t, tRS.Annotations[RevisionAnnotation], "20")
+	})
+
+	// Check if annotations are set properly
 	t.Run("SetReplicasAnnotations", func(t *testing.T) {
 		copyRS := tRS.DeepCopy()
 		updated := SetReplicasAnnotations(copyRS, 10)
@@ -156,9 +179,9 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	t.Run("SetReplicasAnnotationsNoLabels", func(t *testing.T) {
+	t.Run("SetReplicasAnnotationsNoAnnotations", func(t *testing.T) {
 		copyRS := tRS.DeepCopy()
-		copyRS.Labels = nil
+		copyRS.Annotations = nil
 		updated := SetReplicasAnnotations(copyRS, 10)
 		if !updated {
 			t.Errorf("SetReplicasAnnotations() failed")
@@ -188,7 +211,7 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	//Test Case 3:  Check if we can grab annotations from Replica Set
+	// Check if we can grab annotations from Replica Set
 	tRS.Annotations[DesiredReplicasAnnotation] = "1"
 	t.Run("GetDesiredReplicasAnnotation", func(t *testing.T) {
 		desired, ok := GetDesiredReplicasAnnotation(&tRS)
@@ -201,7 +224,7 @@ func TestAnnotationUtils(t *testing.T) {
 	})
 
 	tRS.Annotations[DesiredReplicasAnnotation] = "Not a number"
-	t.Run("GetDesiredReplicasAnnotationInvalidLabel", func(t *testing.T) {
+	t.Run("GetDesiredReplicasAnnotationInvalidAnnotations", func(t *testing.T) {
 		_, ok := GetDesiredReplicasAnnotation(&tRS)
 		if ok {
 			t.Errorf("IsSaturated Expected=false Obtained=true")
@@ -217,7 +240,7 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	//Test Case 4:  Check if annotations reflect rollouts state
+	//Check if annotations reflect rollouts state
 	tRS.Annotations[DesiredReplicasAnnotation] = "1"
 	tRS.Status.AvailableReplicas = 1
 	tRS.Spec.Replicas = new(int32)
@@ -237,7 +260,7 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	t.Run("IsSaturatedFalseInvalidLabel", func(t *testing.T) {
+	t.Run("IsSaturatedFalseInvalidAnnotations", func(t *testing.T) {
 		tRS.Annotations[DesiredReplicasAnnotation] = "Not a number"
 		saturated := IsSaturated(&tRollout, &tRS)
 		if saturated {

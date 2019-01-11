@@ -272,3 +272,37 @@ func TestHandlePreviewWhenActiveSet(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 }
+
+func TestHandleVerifyingPreviewSetButNotPreviewSvc(t *testing.T) {
+	f := newFixture(t)
+
+	r1 := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r2 := r1.DeepCopy()
+	annotations.SetRolloutRevision(r2, "2")
+	r2.Spec.Template.Spec.Containers[0].Image = "foo/bar2.0"
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-6479c8f85c", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
+	f.kubeobjects = append(f.kubeobjects, previewSvc)
+
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "895c6c4f9"})
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+
+	r2.Status.VerifyingPreview = func(boolean bool) *bool { return &boolean }(true)
+
+	f.expectGetServiceAction(previewSvc)
+	f.expectGetServiceAction(activeSvc)
+	f.expectPatchRolloutAction(r2)
+	f.expectPatchServiceAction(previewSvc, "")
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
