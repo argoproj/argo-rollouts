@@ -1,15 +1,17 @@
 required = [
     "k8s.io/code-generator/cmd/client-gen",
+    "github.com/emicklei/go-restful",
+    "github.com/go-openapi/spec",
+    "k8s.io/kube-openapi/cmd/openapi-gen",
 ]
 
 [[constraint]]
   name = "k8s.io/client-go"
   branch = "release-9.0"
 
-
 [[constraint]]
-  branch = "release-1.12"
   name = "k8s.io/code-generator"
+  branch = "release-1.12"
 
 [[constraint]]
   branch = "release-1.12"

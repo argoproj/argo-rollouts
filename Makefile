@@ -66,8 +66,13 @@ lint:
 test:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./...`
 
+.PHONY: openapi-gen
+openapi-gen: clientgen
+	./hack/update-openapigen.sh
+
 .PHONY: manifests
-manifests:
+manifests: openapi-gen
+	go run ./hack/gen-openapi-spec/main.go > ./manifests/crds/rollout-crd.yaml
 	./hack/update-manifests.sh
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes

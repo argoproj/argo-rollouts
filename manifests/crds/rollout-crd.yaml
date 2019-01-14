@@ -1,11 +1,152 @@
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
   name: rollouts.argoproj.io
 spec:
   group: argoproj.io
-  version: v1alpha1
   names:
     kind: Rollout
     plural: rollouts
+    shortNames:
+    - ro
   scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata: {}
+        spec:
+          description: RolloutSpec is the spec for a Rollout resource
+          properties:
+            minReadySeconds:
+              description: Minimum number of seconds for which a newly created pod
+                should be ready without any of its container crashing, for it to be
+                considered available. Defaults to 0 (pod will be considered available
+                as soon as it is ready)
+              format: int32
+              type: integer
+            replicas:
+              description: Number of desired pods. This is a pointer to distinguish
+                between explicit zero and not specified. Defaults to 1.
+              format: int32
+              type: integer
+            revisionHistoryLimit:
+              description: The number of old ReplicaSets to retain. This is a pointer
+                to distinguish between explicit zero and not specified. This is set
+                to the max value of int32 (i.e. 2147483647) by default, which means
+                "retaining all old ReplicaSets".
+              format: int32
+              type: integer
+            selector: {}
+            strategy:
+              description: RolloutStrategy defines stragtegy to apply during next
+                rollout
+              properties:
+                blueGreen:
+                  description: BlueGreenStrategy defines parameters for Blue Green
+                    deployment
+                  properties:
+                    activeService:
+                      description: Name of the service that the rollout modifies as
+                        the active service.
+                      type: string
+                    previewService:
+                      description: Name of the service that the rollout modifies as
+                        the preview service.
+                      type: string
+                  required:
+                  - activeService
+                type:
+                  type: string
+              required:
+              - type
+            template: {}
+          required:
+          - selector
+          - template
+        status:
+          description: RolloutStatus is the status for a Rollout resource
+          properties:
+            activeSelector:
+              description: ActiveSelector indicates which replicas set the active
+                service is serving traffic to
+              type: string
+            availableReplicas:
+              description: Total number of available pods (ready for at least minReadySeconds)
+                targeted by this rollout.
+              format: int32
+              type: integer
+            collisionCount:
+              description: Count of hash collisions for the Rollout. The Rollout controller
+                uses this field as a collision avoidance mechanism when it needs to
+                create the name for the newest ReplicaSet.
+              format: int32
+              type: integer
+            conditions:
+              description: Conditions a list of conditions a rollout can have.
+              items:
+                description: RolloutCondition describes the state of a rollout at
+                  a certain point.
+                properties:
+                  LastTransitionTime: {}
+                  LastUpdateTime: {}
+                  Message:
+                    description: A human readable message indicating details about
+                      the transition.
+                    type: string
+                  Reason:
+                    description: The reason for the condition's last transition.
+                    type: string
+                  Status:
+                    description: Status of the condition, one of True, False, Unknown.
+                    type: string
+                  Type:
+                    description: Type of deployment condition.
+                    type: string
+                required:
+                - Type
+                - Status
+                - LastUpdateTime
+                - LastTransitionTime
+                - Reason
+                - Message
+              type: array
+            observedGeneration:
+              description: The generation observed by the rollout controller by taking
+                a hash of the spec.
+              type: string
+            previewSelector:
+              description: PreviewSelector indicates which replicas set the preview
+                service is serving traffic to
+              type: string
+            readyReplicas:
+              description: Total number of ready pods targeted by this rollout.
+              format: int32
+              type: integer
+            replicas:
+              description: Total number of non-terminated pods targeted by this rollout
+                (their labels match the selector).
+              format: int32
+              type: integer
+            updatedReplicas:
+              description: Total number of non-terminated pods targeted by this rollout
+                that have the desired template spec.
+              format: int32
+              type: integer
+            verifyingPreview:
+              description: VerifyingPreview indicates the rollout is verifying the
+                replicas set being served traffic from the preview service. User will
+                need to edit this field to continue the rollout.
+              type: boolean
+  version: v1alpha1
