@@ -23,7 +23,7 @@ type RolloutSpec struct {
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 	// Label selector for pods. Existing ReplicaSets whose pods are
 	// selected by this will be the ones affected by this rollout.
 	// It must match the pod template's labels.
@@ -54,6 +54,7 @@ const (
 
 // RolloutStrategy defines stragtegy to apply during next rollout
 type RolloutStrategy struct {
+	// +optional
 	BlueGreenStrategy *BlueGreenStrategy  `json:"blueGreen,omitempty"`
 	Type              RolloutStrategyType `json:"type"`
 }
@@ -72,6 +73,7 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the active service.
 	ActiveService string `json:"activeService"`
 	// Name of the service that the rollout modifies as the preview service.
+	// +optional
 	PreviewService string `json:"previewService"`
 }
 
@@ -86,7 +88,7 @@ type RolloutStatus struct {
 	// VerifyingPreview indicates the rollout is verifying the replicas set being served
 	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
-	VerifyingPreview *bool `json:"verifyingPreview"`
+	VerifyingPreview *bool `json:"verifyingPreview,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
@@ -103,7 +105,7 @@ type RolloutStatus struct {
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.
 	// +optional
-	CollisionCount *int32 `json:"collisionCount"`
+	CollisionCount *int32 `json:"collisionCount,omitempty"`
 	// The generation observed by the rollout controller by taking a hash of the spec.
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty"`
