@@ -4,7 +4,7 @@
 [![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
 
 ## What is Argo-Rollouts?
-argo-rollouts intents to replace deployments by providing the same functionality as deployments along with more strategies like Blue Green and Canary
+Argo-Rollouts intents to replace deployments by providing the same functionality as deployments along with more strategies like Blue Green and Canary
 
 ## Why use Argo-Rollouts?
 Deployments resources offers two strategies to deploy changes: RollingUpdate and Recreate.  While these strategies can solve a wide number of use-cases, they are missing industry standards like blue green or canary.  In order to provide these strategies in Kubernetes, users are forced to build scripts on top of their deployments to replicate their intended behavior.  Instead of having the users worried about their scripts, the rollout controller provides these strategies as configurable options.  
