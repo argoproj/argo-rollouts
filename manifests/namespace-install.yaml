@@ -153,12 +153,12 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rollout-controller
+  name: argo-rollouts
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: rollout-controller-role
+  name: argo-rollouts-role
 rules:
 - apiGroups:
   - argoproj.io
@@ -196,32 +196,32 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: rollout-controller-role-binding
+  name: argo-rollouts-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: rollout-controller-role
+  name: argo-rollouts-role
 subjects:
 - kind: ServiceAccount
-  name: rollout-controller
+  name: argo-rollouts
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rollout-controller
+  name: argo-rollouts
 spec:
   selector:
     matchLabels:
-      app: rollout-controller
+      app: argo-rollouts
   template:
     metadata:
       labels:
-        app: rollout-controller
+        app: argo-rollouts
     spec:
       containers:
       - command:
         - /bin/rollouts-controller
-        image: argoproj/rollout-controller:latest
+        image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
-        name: rollout-controller
-      serviceAccountName: rollout-controller
+        name: argo-rollouts
+      serviceAccountName: argo-rollouts
