@@ -39,6 +39,8 @@ const (
 	InvalidSelectorReason = "InvalidSelector"
 	// SameServicesReason the reason to indicate that the rollout uses the same service for the active and preview services
 	SameServicesReason = "SameService"
+	// Available the reason to indicate that the rollout is serving traffic from the active service
+	Available = "Available"
 )
 
 // NewRolloutCondition creates a new rollout condition.

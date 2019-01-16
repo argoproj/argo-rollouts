@@ -154,6 +154,17 @@ func TestScale(t *testing.T) {
 			previewSvc: newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v2"}),
 			activeSvc:  newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}),
 		},
+		{
+			name:       "New RS not created yet",
+			rollout:    newRolloutWithStatus("foo", 6, nil, nil),
+			oldRollout: newRolloutWithStatus("foo", 5, nil, nil),
+
+			oldRSs: []*appsv1.ReplicaSet{rs("foo-v0", 5, nil, oldTimestamp, nil)},
+
+			expectedOld: []*appsv1.ReplicaSet{
+				rs("foo-v0", 6, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v0"}, oldTimestamp, nil),
+			},
+		},
 	}
 
 	for _, test := range tests {
