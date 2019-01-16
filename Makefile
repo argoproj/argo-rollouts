@@ -72,7 +72,7 @@ openapi-gen: clientgen
 
 .PHONY: manifests
 manifests: openapi-gen
-	go run ./hack/gen-openapi-spec/main.go > ./manifests/crds/rollout-crd.yaml
+	go run ./hack/gen-openapi-spec/main.go
 	./hack/update-manifests.sh
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes

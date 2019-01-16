@@ -1,11 +1,16 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"log"
 	"os"
 
 	crdutil "github.com/ant31/crd-validation/pkg"
+	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
 )
@@ -18,6 +23,8 @@ const (
 	shortName          = "ro"
 	specDefinitionName = "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1.Rollout"
 	scope              = "Namespaced"
+
+	crdPath = "manifests/crds/rollout-crd.yaml"
 )
 
 func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinition {
@@ -47,7 +54,32 @@ func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinitio
 // Generate OpenAPI spec definitions for Rollout Resource
 func main() {
 	crd := NewRolloutCustomResourceDefinition()
-	crdutil.MarshallCrd(crd, "yaml")
+
+	jsonBytes, err := json.Marshal(crd)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var r unstructured.Unstructured
+	if err := json.Unmarshal(jsonBytes, &r.Object); err != nil {
+		log.Fatal(err)
+	}
+
+	unstructured.RemoveNestedField(r.Object, "status")
+	unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
+	jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ioutil.WriteFile(crdPath, yamlBytes, 0644)
+	if err != nil {
+		panic(err)
+	}
 	os.Exit(0)
 
 }
