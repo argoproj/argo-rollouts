@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: active-service
+spec:
+  selector:
+    app: guestbook
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9011

@@ -6,15 +6,16 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      app: guestbook
   template:
     metadata:
       labels:
-        app: nginx
+        app: guestbook
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.15.4
+      - name: guestbook
+        # The image below can be flip from 0.1 to 0.2 
+        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
         ports:
         - containerPort: 80
   minReadySeconds: 30
@@ -22,5 +23,5 @@ spec:
   strategy:
     type: BlueGreenUpdate
     blueGreen: 
-      activeService: my-service
-      previewService: my-service-2
+      activeService: active-service
+      previewService: preview-service
