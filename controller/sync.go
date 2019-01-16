@@ -212,25 +212,21 @@ func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, 
 	if !ok {
 		activeSelector = ""
 	}
-	for _, rs := range append([]*appsv1.ReplicaSet{newRS}, oldRSs...) {
-		rsLabel := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if rsLabel == activeSelector || rsLabel == previewSelector {
-			if *(rs.Spec.Replicas) == rolloutReplicas {
-				continue
-			}
-			_, _, err := c.scaleReplicaSetAndRecordEvent(rs, rolloutReplicas, rollout)
+	allRS := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
+	activeRS := GetActiveReplicaSet(rollout, allRS)
+	if activeRS != nil {
+		if *(activeRS.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)
 			return err
 		}
-
 	}
 	// If there is only one replica set with pods, then we should scale that up to the full count of the
 	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
 	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
-		if *(activeOrLatest.Spec.Replicas) == rolloutReplicas {
-			return nil
+		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
+			return err
 		}
-		_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
-		return err
 	}
 
 	// Old replica sets should be fully scaled down if they aren't receiving traffic from the active or
@@ -329,10 +325,10 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 
 	activeRS := GetActiveReplicaSet(rollout, allRSs)
 	if activeRS != nil && annotations.IsSaturated(rollout, activeRS) {
-		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, "available", "")
+		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
 		conditions.SetRolloutCondition(&prevStatus, *availability)
 	} else {
-		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, "Available", "")
+		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.Available, "Rollout is not serving traffic from the active service.")
 		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
 	}
 

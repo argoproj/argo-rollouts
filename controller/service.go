@@ -210,6 +210,9 @@ func GetActiveReplicaSet(rollout *v1alpha1.Rollout, allRS []*appsv1.ReplicaSet) 
 		return nil
 	}
 	for _, rs := range allRS {
+		if rs == nil {
+			continue
+		}
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if podHash == rollout.Status.ActiveSelector {
 				return rs

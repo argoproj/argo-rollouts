@@ -284,7 +284,7 @@ func TestGetActiveReplicaSet(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
 		},
 	}
-	assert.Equal(t, rs2, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{rs1, rs2}))
+	assert.Equal(t, rs2, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{nil, rs1, rs2}))
 
 }
 
