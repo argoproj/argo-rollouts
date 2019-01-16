@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/rollout-controller
+PACKAGE=github.com/argoproj/argo-rollouts
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 
@@ -51,12 +51,12 @@ controller: clean-debug
 
 .PHONY: builder-image
 builder-image:
-	docker build  -t $(IMAGE_PREFIX)rollout-controller-ci-builder:$(IMAGE_TAG) --target builder .
+	docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
 
 .PHONY: image
 image:
-	docker build -t $(IMAGE_PREFIX)rollout-controller:$(IMAGE_TAG)  .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)rollout-controller:$(IMAGE_TAG) ; fi
+	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:

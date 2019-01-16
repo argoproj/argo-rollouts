@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 // generateRollout creates a rollout, with the input image as its template

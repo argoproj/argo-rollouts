@@ -10,9 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/rollout-controller/utils/annotations"
-	logutil "github.com/argoproj/rollout-controller/utils/log"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 const (

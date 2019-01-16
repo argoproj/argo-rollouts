@@ -19,8 +19,8 @@ limitations under the License.
 package argoproj
 
 import (
-	internalinterfaces "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 )
 
 // Interface provides access to each of this group's versions.

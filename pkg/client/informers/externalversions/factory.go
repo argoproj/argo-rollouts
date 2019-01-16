@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/internalinterfaces"
-	rollouts "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/rollouts"
+	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
+	rollouts "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

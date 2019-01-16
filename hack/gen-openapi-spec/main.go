@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	v1alpha1 "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 	version            = "v1alpha1"
 	kind               = "Rollout"
 	shortName          = "ro"
-	specDefinitionName = "github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1.Rollout"
+	specDefinitionName = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout"
 	scope              = "Namespaced"
 
 	crdPath = "manifests/crds/rollout-crd.yaml"

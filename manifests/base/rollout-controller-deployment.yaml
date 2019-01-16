@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rollout-controller
+  name: argo-rollouts
 spec:
   selector:
     matchLabels:
-      app: rollout-controller
+      app: argo-rollouts
   template:
     metadata:
       labels:
-        app: rollout-controller
+        app: argo-rollouts
     spec:
-      serviceAccountName: rollout-controller
+      serviceAccountName: argo-rollouts
       containers:
       - command:
         - "/bin/rollouts-controller"
-        image: argoproj/rollout-controller:latest
+        image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
-        name: rollout-controller
+        name: argo-rollouts

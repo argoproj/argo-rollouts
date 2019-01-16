@@ -26,13 +26,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	clientset "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned"
-	rolloutscheme "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned/scheme"
-	informers "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions/rollouts/v1alpha1"
-	listers "github.com/argoproj/rollout-controller/pkg/client/listers/rollouts/v1alpha1"
-	"github.com/argoproj/rollout-controller/utils/conditions"
-	logutil "github.com/argoproj/rollout-controller/utils/log"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 const controllerAgentName = "rollouts-controller"
@@ -93,7 +93,7 @@ func NewController(
 
 	// Create event broadcaster
 	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
-	// logged for rollout-controller types.
+	// logged for argo-rollouts types.
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()

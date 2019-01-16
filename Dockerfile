@@ -34,9 +34,9 @@ RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v2.0
 
 
 ####################################################################################################
-# Rollout Controller Build stage which performs the actual build of rollout-controller binaries
+# Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.10.3 as rollout-controller-build
+FROM golang:1.10.3 as argo-rollouts-build
 
 COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 
@@ -52,7 +52,7 @@ RUN cd ${GOPATH}/src/dummy && \
     rmdir vendor
 
 # Perform the build
-WORKDIR /go/src/github.com/argoproj/rollout-controller
+WORKDIR /go/src/github.com/argoproj/argo-rollouts
 COPY . .
 ARG MAKE_TARGET="controller"
 RUN make ${MAKE_TARGET}
@@ -63,16 +63,16 @@ RUN make ${MAKE_TARGET}
 ####################################################################################################
 FROM debian:9.5-slim
 
-COPY --from=rollout-controller-build /go/src/github.com/argoproj/rollout-controller/dist/rollouts-controller /bin/
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 
-RUN groupadd -g 999 rollout-controller && \
-    useradd -r -u 999 -g rollout-controller rollout-controller && \
-    mkdir -p /home/rollout-controller && \
-    chown rollout-controller:rollout-controller /home/rollout-controller
+RUN groupadd -g 999 argo-rollouts && \
+    useradd -r -u 999 -g argo-rollouts argo-rollouts && \
+    mkdir -p /home/argo-rollouts && \
+    chown argo-rollouts:argo-rollouts /home/argo-rollouts
 
 
-USER rollout-controller
+USER argo-rollouts
 
-WORKDIR /home/rollout-controller
+WORKDIR /home/argo-rollouts
 
 ENTRYPOINT [ "/bin/rollouts-controller" ]

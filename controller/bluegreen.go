@@ -9,12 +9,12 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/rollout-controller/utils/annotations"
-	"github.com/argoproj/rollout-controller/utils/conditions"
-	"github.com/argoproj/rollout-controller/utils/defaults"
-	logutil "github.com/argoproj/rollout-controller/utils/log"
-	replicasetutil "github.com/argoproj/rollout-controller/utils/replicaset"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 const (

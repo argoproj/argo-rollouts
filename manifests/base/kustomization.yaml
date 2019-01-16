@@ -1,8 +1,8 @@
 resources:
-- rollout-controller-sa.yaml
-- rollout-controller-role.yaml
-- rollout-controller-rolebinding.yaml
-- rollout-controller-deployment.yaml
+- argo-rollouts-sa.yaml
+- argo-rollouts-role.yaml
+- argo-rollouts-rolebinding.yaml
+- argo-rollouts-deployment.yaml
 
 imageTags:
 - name: argoproj/rollout-controlller

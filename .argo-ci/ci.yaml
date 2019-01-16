@@ -1,18 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: rollout-controller-ci-
+  generateName: argo-rollouts-ci-
 spec:
-  entrypoint: rollout-controller-ci
+  entrypoint: argo-rollouts-ci
   arguments:
     parameters:
     - name: revision
       value: master
     - name: repo
-      value: https://github.com/argoproj/rollout-controller.git
+      value: https://github.com/argoproj/argo-rollouts.git
 
   templates:
-  - name: rollout-controller-ci
+  - name: argo-rollouts-ci
     steps:
     - - name: build
         template: ci-dind
@@ -33,20 +33,20 @@ spec:
       - name: cmd
       artifacts:
       - name: code
-        path: /go/src/github.com/argoproj/rollout-controller
+        path: /go/src/github.com/argoproj/argo-rollouts
         git:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/rollout-controller-ci-builder:latest
+      image: argoproj/argo-rollouts-ci-builder:latest
       command: [bash, -c]
       args: ["{{inputs.parameters.cmd}}"]
-      workingDir: /go/src/github.com/argoproj/rollout-controller
+      workingDir: /go/src/github.com/argoproj/argo-rollouts
       env:
       - name: CODECOV_TOKEN
         valueFrom:
           secretKeyRef:
-            name: rollout-controller-codecov-token
+            name: argo-rollouts-codecov-token
             key: codecov-token
       resources:
         requests:
@@ -61,15 +61,15 @@ spec:
       - name: cmd
       artifacts:
       - name: code
-        path: /go/src/github.com/argoproj/rollout-controller
+        path: /go/src/github.com/argoproj/argo-rollouts
         git:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/rollout-controller-ci-builder:latest
+      image: argoproj/argo-rollouts-ci-builder:latest
       command: [sh, -c]
       args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
-      workingDir: /go/src/github.com/argoproj/rollout-controller
+      workingDir: /go/src/github.com/argoproj/argo-rollouts
       env:
       - name: DOCKER_HOST
         value: 127.0.0.1

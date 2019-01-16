@@ -18,15 +18,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
-	"github.com/argoproj/rollout-controller/controller"
-	clientset "github.com/argoproj/rollout-controller/pkg/client/clientset/versioned"
-	informers "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions"
-	"github.com/argoproj/rollout-controller/pkg/signals"
+	"github.com/argoproj/argo-rollouts/controller"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/pkg/signals"
 )
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "rollout-controller"
+	cliName = "argo-rollouts"
 	// Default time in seconds for rollout resync period
 	defaultRolloutResyncPeriod = 30
 )
@@ -40,7 +40,7 @@ func newCommand() *cobra.Command {
 	)
 	var command = cobra.Command{
 		Use:   cliName,
-		Short: "rollout-controller is a controller to operate on rollout CRD",
+		Short: "argo-rollouts is a controller to operate on rollout CRD",
 		RunE: func(c *cobra.Command, args []string) error {
 			setLogLevel(logLevel)
 			formatter := &log.TextFormatter{

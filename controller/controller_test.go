@@ -20,10 +20,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
 
-	"github.com/argoproj/rollout-controller/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/rollout-controller/pkg/client/clientset/versioned/fake"
-	informers "github.com/argoproj/rollout-controller/pkg/client/informers/externalversions"
-	"github.com/argoproj/rollout-controller/utils/annotations"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 var (

@@ -7,13 +7,13 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 update_image () {
   if [ ! -z "${IMAGE_NAMESPACE}" ]; then
-    sed 's| image: \(.*\)/\(rollout-controller.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' "${1}" > "${1}.bak"
+    sed 's| image: \(.*\)/\(argo-rollouts.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' "${1}" > "${1}.bak"
     mv "${1}.bak" "${1}"
   fi
 }
 
 if [ ! -z "${IMAGE_TAG}" ]; then
-  (cd ${SRCROOT}/manifests/base && kustomize edit set imagetag argoproj/rollout-controller:${IMAGE_TAG})
+  (cd ${SRCROOT}/manifests/base && kustomize edit set imagetag argoproj/argo-rollouts:${IMAGE_TAG})
 fi
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"

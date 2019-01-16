@@ -906,6 +906,7 @@
   input-imports = [
     "github.com/ant31/crd-validation/pkg",
     "github.com/emicklei/go-restful",
+    "github.com/ghodss/yaml",
     "github.com/go-openapi/spec",
     "github.com/golang/glog",
     "github.com/sirupsen/logrus",
@@ -917,6 +918,7 @@
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",

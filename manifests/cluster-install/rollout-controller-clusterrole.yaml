@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: rollout-controller-clusterrole
+  name: argo-rollouts-clusterrole
 rules:
 - apiGroups:
   - apps

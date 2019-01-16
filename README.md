@@ -1,12 +1,12 @@
 
-# Rollout-Controller - Advanced Kubernetes Deployment Controller
-[![codecov](https://codecov.io/gh/argoproj/rollout-controller/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/rollout-controller)
+# Argo-Rollouts - Advanced Kubernetes Deployment Controller
+[![codecov](https://codecov.io/gh/argoproj/argo-rollouts/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-rollouts)
 [![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
 
-## What is the rollout-controller?
-Rollout-controller intents to replace deployments by providing the same functionality as deployments along with more strategies like Blue Green and Canary
+## What is Argo-Rollouts?
+argo-rollouts intents to replace deployments by providing the same functionality as deployments along with more strategies like Blue Green and Canary
 
-## Why the rollout-controller
+## Why use Argo-Rollouts?
 Deployments resources offers two strategies to deploy changes: RollingUpdate and Recreate.  While these strategies can solve a wide number of use-cases, they are missing industry standards like blue green or canary.  In order to provide these strategies in Kubernetes, users are forced to build scripts on top of their deployments to replicate their intended behavior.  Instead of having the users worried about their scripts, the rollout controller provides these strategies as configurable options.  
 
 ## Spec
@@ -44,13 +44,13 @@ spec:
 ```
 
 ## Deployment Strategies
-While the industry has agreed upon high-level definitions of various deployment strategies, the implementations of these strategies tend to differ across tooling.  To make it clear how the rollout-controller will behave, here are the descriptions of the various deployment strategies implementations offered by the rollout-controller.
+While the industry has agreed upon high-level definitions of various deployment strategies, the implementations of these strategies tend to differ across tooling.  To make it clear how the argo-rollouts will behave, here are the descriptions of the various deployment strategies implementations offered by the argo-rollouts.
 
 ### Rolling Update
 The `RollingUpdate` is still in development, but the intent is have the same behavior as the deployment's `RollingUpdate` strategy.
 
 ### Blue Green Update
-In addition to managing replicasets, the rollout-controller will modify service resources during the `BlueGreenUpdate` strategy.  In the rollout spec, users will specify an active service and optionally a preview service. The active and preview service are references to existing services in the same namespace as the rollout.  The rollout-controller will modify the services' selectors to add a label that points them at the replicasets created by the rollout controller.  This allows the rollout to define an active and preview stack and a process to migrate replicasets from the preview to the active.  To achieve this process, the rollout controller constantly runs the following reconciliation:
+In addition to managing replicasets, the argo-rollouts will modify service resources during the `BlueGreenUpdate` strategy.  In the rollout spec, users will specify an active service and optionally a preview service. The active and preview service are references to existing services in the same namespace as the rollout.  The argo-rollouts will modify the services' selectors to add a label that points them at the replicasets created by the rollout controller.  This allows the rollout to define an active and preview stack and a process to migrate replicasets from the preview to the active.  To achieve this process, the rollout controller constantly runs the following reconciliation:
 
 1. Reconcile if the rollout has created a replicaset from its pod spec, and the new replicaset is fully available (all the pods are ready).
 1. Reconcile if the preview service is serving traffic to the new replicaset.
@@ -67,7 +67,7 @@ In addition to managing replicasets, the rollout-controller will modify service 
         * Set the active service's selector to the new replica set
 1. Scale down the old replica set that previously received traffic from the active service.
 
-The rollout-controller will continuously run through these steps for any rollout resources.
+The argo-rollouts will continuously run through these steps for any rollout resources.
 
 
 ### Canary
@@ -77,8 +77,8 @@ A Canary strategy is still in development and will likely leverage a service mes
 
 Two sets of installation manifests are provided:
 
-* manfiest/install.yaml - Standard rollout-controller installation with cluster access. Use this manifest set if you plan to use the rollout-controller to deploy applications through the entire cluster.
+* manfiest/install.yaml - Standard argo-rollouts installation with cluster access. Use this manifest set if you plan to use the argo-rollouts to deploy applications through the entire cluster.
 
-* manfiest/namespace-install.yaml - Installation of rollout-controller which requires only namespace level privileges (does not need cluster roles). Use this manifest set if you want to only manage rollouts in a specific namespace.
+* manfiest/namespace-install.yaml - Installation of argo-rollouts which requires only namespace level privileges (does not need cluster roles). Use this manifest set if you want to only manage rollouts in a specific namespace.
 
-You can install the rollout-controller using either of these manifests by using kubectl apply or leveraging a GitOps tool like [argo-cd](https://github.com/argoproj/argo-cd) to deploy the rollout-controller
+You can install the argo-rollouts using either of these manifests by using kubectl apply or leveraging a GitOps tool like [argo-cd](https://github.com/argoproj/argo-cd) to deploy the argo-rollouts
