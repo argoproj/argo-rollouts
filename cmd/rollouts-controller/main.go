@@ -16,6 +16,7 @@ import (
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/argoproj/argo-rollouts/controller"
@@ -55,16 +56,28 @@ func newCommand() *cobra.Command {
 			// cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
+			namespace := metav1.NamespaceAll
+			configNS, modified, err := clientConfig.Namespace()
+			checkError(err)
+			if modified {
+				namespace = configNS
+				log.Infof("Using namespace %s", namespace)
+			}
+
 
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)
-
 			rolloutClient, err := clientset.NewForConfig(config)
 			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
-			kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, resyncDuration)
-			rolloutInformerFactory := informers.NewSharedInformerFactory(rolloutClient, resyncDuration)
-
+			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient, 
+				resyncDuration, 
+				kubeinformers.WithNamespace(namespace))
+			rolloutInformerFactory := informers.NewSharedInformerFactoryWithOptions(
+				rolloutClient, 
+				resyncDuration, 
+				informers.WithNamespace(namespace))
 			controller := controller.NewController(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
