@@ -8,6 +8,7 @@ rules:
   resources:
   - replicasets
   verbs:
+  - watch
   - get
   - list
   - create
@@ -18,6 +19,7 @@ rules:
   resources:
   - services
   verbs:
+  - watch
   - get
   - list
   - patch
@@ -29,3 +31,5 @@ rules:
   - get
   - list
   - update
+  - watch
+  - patch
