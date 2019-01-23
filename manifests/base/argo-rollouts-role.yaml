@@ -8,9 +8,11 @@ rules:
   resources:
   - rollouts
   verbs:
+  - watch
   - get
   - list
   - update
+  - patch
 - apiGroups:
   - apps
   resources:
@@ -21,6 +23,7 @@ rules:
   - create
   - update
   - delete
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -29,6 +32,7 @@ rules:
   - get
   - list
   - patch
+  - watch
 - apiGroups:
   - ""
   resources:

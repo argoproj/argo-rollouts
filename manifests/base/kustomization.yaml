@@ -3,6 +3,7 @@ resources:
 - argo-rollouts-role.yaml
 - argo-rollouts-rolebinding.yaml
 - argo-rollouts-deployment.yaml
+- argo-rollouts-aggregate-roles.yaml
 
 imageTags:
 - name: argoproj/rollout-controlller
