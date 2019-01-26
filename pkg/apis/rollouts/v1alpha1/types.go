@@ -79,6 +79,9 @@ type BlueGreenStrategy struct {
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
+	// CurrentPodHash the hash of the current pod template
+	// +optional
+	CurrentPodHash string `json:"currentPodHash"`
 	// PreviewSelector indicates which replicas set the preview service is serving traffic to
 	// +optional
 	PreviewSelector string `json:"previewSelector"`
@@ -91,16 +94,16 @@ type RolloutStatus struct {
 	VerifyingPreview *bool `json:"verifyingPreview,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
 	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas"`
 	// Total number of non-terminated pods targeted by this rollout that have the desired template spec.
 	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	UpdatedReplicas int32 `json:"updatedReplicas"`
 	// Total number of ready pods targeted by this rollout.
 	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	ReadyReplicas int32 `json:"readyReplicas"`
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this rollout.
 	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+	AvailableReplicas int32 `json:"availableReplicas"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.

@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/kubernetes/pkg/controller"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -102,11 +101,10 @@ func filterOutCondition(conditions []v1alpha1.RolloutCondition, condType v1alpha
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
 func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	replicas := defaults.GetRolloutReplicasOrDefault(rollout)
-	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.Replicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
-		newStatus.ActiveSelector == podHash &&
+		newStatus.ActiveSelector == newStatus.CurrentPodHash &&
 		newStatus.ObservedGeneration == ComputeGenerationHash(rollout.Spec)
 }
 
