@@ -335,6 +335,7 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 	return v1alpha1.RolloutStatus{
 		ObservedGeneration: conditions.ComputeGenerationHash(rollout.Spec),
 		VerifyingPreview:   rollout.Status.VerifyingPreview,
+		CurrentPodHash:     controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
 		PreviewSelector:    previewSelector,
 		ActiveSelector:     activeSelector,
 		Replicas:           replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),

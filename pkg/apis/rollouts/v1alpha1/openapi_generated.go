@@ -272,6 +272,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStatus is the status for a Rollout resource",
 				Properties: map[string]spec.Schema{
+					"currentPodHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentPodHash the hash of the current pod template",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"previewSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PreviewSelector indicates which replicas set the preview service is serving traffic to",

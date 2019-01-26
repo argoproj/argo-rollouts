@@ -308,11 +308,13 @@ func TestRolloutComplete(t *testing.T) {
 				AvailableReplicas: available,
 			},
 		}
+		podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+		r.Status.CurrentPodHash = podHash
 		if correctObservedGeneration {
 			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
 		}
 		if pointActiveAtPodHash {
-			r.Status.ActiveSelector = controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+			r.Status.ActiveSelector = podHash
 		}
 		return r
 	}

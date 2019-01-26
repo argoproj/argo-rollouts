@@ -120,6 +120,9 @@ spec:
                 - Reason
                 - Message
               type: array
+            currentPodHash:
+              description: CurrentPodHash the hash of the current pod template
+              type: string
             observedGeneration:
               description: The generation observed by the rollout controller by taking
                 a hash of the spec.
