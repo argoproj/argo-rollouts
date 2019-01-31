@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -180,6 +182,93 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
 			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
 				t.Errorf("expected update to %d replicas, got %d", e, a)
+			}
+		})
+	}
+}
+
+func TestReconcileOldReplicaSet(t *testing.T) {
+	tests := []struct {
+		name                string
+		rolloutReplicas     int
+		oldReplicas         int
+		newReplicas         int
+		readyPodsFromOldRS  int
+		readyPodsFromNewRS  int
+		scaleExpected       bool
+		expectedOldReplicas int
+	}{
+		{
+			name:               "No pods to scale down",
+			rolloutReplicas:    10,
+			oldReplicas:        0,
+			newReplicas:        10,
+			readyPodsFromOldRS: 0,
+			readyPodsFromNewRS: 0,
+			scaleExpected:      false,
+		},
+		{
+			name:               "New ReplicaSet is not fully healthy",
+			rolloutReplicas:    10,
+			oldReplicas:        10,
+			newReplicas:        10,
+			readyPodsFromOldRS: 10,
+			readyPodsFromNewRS: 9,
+			scaleExpected:      false,
+		},
+		{
+			name:                "Clean up unhealthy pods",
+			rolloutReplicas:     10,
+			oldReplicas:         10,
+			newReplicas:         10,
+			readyPodsFromOldRS:  8,
+			readyPodsFromNewRS:  10,
+			scaleExpected:       true,
+			expectedOldReplicas: 0,
+		},
+		{
+			name:                "Normal scale down when new ReplicaSet is healthy",
+			rolloutReplicas:     10,
+			oldReplicas:         10,
+			newReplicas:         10,
+			readyPodsFromOldRS:  10,
+			readyPodsFromNewRS:  10,
+			scaleExpected:       true,
+			expectedOldReplicas: 0,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			newSelector := map[string]string{"foo": "new"}
+			oldSelector := map[string]string{"foo": "old"}
+			newRS := rs("foo-new", test.newReplicas, newSelector, noTimestamp, nil)
+			newRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.newReplicas)}
+			newRS.Status.AvailableReplicas = int32(test.readyPodsFromNewRS)
+			oldRS := rs("foo-old", test.oldReplicas, oldSelector, noTimestamp, nil)
+			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
+			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
+			oldRSs := []*appsv1.ReplicaSet{oldRS}
+			allRSs := []*appsv1.ReplicaSet{oldRS, newRS}
+			rollout := newRollout("foo", test.rolloutReplicas, nil, newSelector, "", "")
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+			controller := &Controller{
+				rolloutsclientset: &fake,
+				kubeclientset:     &k8sfake,
+				recorder:          &record.FakeRecorder{},
+			}
+			scaled, err := controller.reconcileOldReplicaSets(allRSs, oldRSs, newRS, rollout)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if !test.scaleExpected && scaled {
+				t.Errorf("unexpected scaling: %v", k8sfake.Actions())
+			}
+			if test.scaleExpected && !scaled {
+				t.Errorf("expected scaling to occur")
+				return
 			}
 		})
 	}
