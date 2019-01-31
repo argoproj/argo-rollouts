@@ -117,40 +117,40 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutCondition describes the state of a rollout at a certain point.",
 				Properties: map[string]spec.Schema{
-					"Type": {
+					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of deployment condition.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"Status": {
+					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of the condition, one of True, False, Unknown.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"LastUpdateTime": {
+					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The last time this condition was updated.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"LastTransitionTime": {
+					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"Reason": {
+					"reason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The reason for the condition's last transition.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"Message": {
+					"message": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A human readable message indicating details about the transition.",
 							Type:        []string{"string"},
@@ -158,7 +158,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"Type", "Status", "LastUpdateTime", "LastTransitionTime", "Reason", "Message"},
+				Required: []string{"type", "status", "lastUpdateTime", "lastTransitionTime", "reason", "message"},
 			},
 		},
 		Dependencies: []string{

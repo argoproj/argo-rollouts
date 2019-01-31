@@ -98,28 +98,28 @@ spec:
                 description: RolloutCondition describes the state of a rollout at
                   a certain point.
                 properties:
-                  LastTransitionTime: {}
-                  LastUpdateTime: {}
-                  Message:
+                  lastTransitionTime: {}
+                  lastUpdateTime: {}
+                  message:
                     description: A human readable message indicating details about
                       the transition.
                     type: string
-                  Reason:
+                  reason:
                     description: The reason for the condition's last transition.
                     type: string
-                  Status:
+                  status:
                     description: Status of the condition, one of True, False, Unknown.
                     type: string
-                  Type:
+                  type:
                     description: Type of deployment condition.
                     type: string
                 required:
-                - Type
-                - Status
-                - LastUpdateTime
-                - LastTransitionTime
-                - Reason
-                - Message
+                - type
+                - status
+                - lastUpdateTime
+                - lastTransitionTime
+                - reason
+                - message
               type: array
             currentPodHash:
               description: CurrentPodHash the hash of the current pod template
