@@ -7,8 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	core "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -109,4 +113,74 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 		})
 	}
 
+}
+
+func TestReconcileNewReplicaSet(t *testing.T) {
+	tests := []struct {
+		name                string
+		rolloutReplicas     int
+		newReplicas         int
+		scaleExpected       bool
+		expectedNewReplicas int
+	}{
+		{
+			name:            "New Replica Set matches rollout replica: No scale",
+			rolloutReplicas: 10,
+			newReplicas:     10,
+			scaleExpected:   false,
+		},
+		{
+			name:                "New Replica Set higher than rollout replica: Scale down",
+			rolloutReplicas:     10,
+			newReplicas:         12,
+			scaleExpected:       true,
+			expectedNewReplicas: 10,
+		},
+		{
+			name:                "New Replica Set lower than rollout replica: Scale up",
+			rolloutReplicas:     10,
+			newReplicas:         8,
+			scaleExpected:       true,
+			expectedNewReplicas: 10,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			test := tests[i]
+			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
+			allRSs := []*appsv1.ReplicaSet{newRS}
+			rollout := newRollout("foo", test.rolloutReplicas, nil, map[string]string{"foo": "bar"}, "", "")
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+			controller := &Controller{
+				rolloutsclientset: &fake,
+				kubeclientset:     &k8sfake,
+				recorder:          &record.FakeRecorder{},
+			}
+			scaled, err := controller.reconcileNewReplicaSet(allRSs, newRS, rollout)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if !test.scaleExpected {
+				if scaled || len(fake.Actions()) > 0 {
+					t.Errorf("unexpected scaling: %v", fake.Actions())
+				}
+				return
+			}
+			if test.scaleExpected && !scaled {
+				t.Errorf("expected scaling to occur")
+				return
+			}
+			if len(k8sfake.Actions()) != 1 {
+				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
+				return
+			}
+			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
+				t.Errorf("expected update to %d replicas, got %d", e, a)
+			}
+		})
+	}
 }

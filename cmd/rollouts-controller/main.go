@@ -64,19 +64,18 @@ func newCommand() *cobra.Command {
 				log.Infof("Using namespace %s", namespace)
 			}
 
-
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)
 			rolloutClient, err := clientset.NewForConfig(config)
 			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-				kubeClient, 
-				resyncDuration, 
+				kubeClient,
+				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
 			rolloutInformerFactory := informers.NewSharedInformerFactoryWithOptions(
-				rolloutClient, 
-				resyncDuration, 
+				rolloutClient,
+				resyncDuration,
 				informers.WithNamespace(namespace))
 			controller := controller.NewController(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
