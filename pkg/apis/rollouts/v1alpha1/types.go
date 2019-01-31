@@ -133,17 +133,17 @@ const (
 // RolloutCondition describes the state of a rollout at a certain point.
 type RolloutCondition struct {
 	// Type of deployment condition.
-	Type RolloutConditionType
+	Type RolloutConditionType `json:"type"`
 	// Status of the condition, one of True, False, Unknown.
-	Status corev1.ConditionStatus
+	Status corev1.ConditionStatus `json:"status"`
 	// The last time this condition was updated.
-	LastUpdateTime metav1.Time
+	LastUpdateTime metav1.Time `json:"lastUpdateTime"`
 	// Last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 	// The reason for the condition's last transition.
-	Reason string
+	Reason string `json:"reason"`
 	// A human readable message indicating details about the transition.
-	Message string
+	Message string `json:"message"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
