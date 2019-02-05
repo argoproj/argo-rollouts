@@ -64,7 +64,7 @@ func TestReconcileVerifyingPreview(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			rollout := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "", test.previewSvcName)
+			rollout := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "", test.previewSvcName)
 			rollout.Status = v1alpha1.RolloutStatus{
 				VerifyingPreview: test.verifyingPreviewFlag,
 			}
@@ -84,7 +84,7 @@ func TestReconcileVerifyingPreview(t *testing.T) {
 func TestHandlePreviewWhenActiveSet(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "preview", "active")
+	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "preview", "active")
 
 	r2 := r1.DeepCopy()
 	annotations.SetRolloutRevision(r2, "2")
@@ -116,7 +116,7 @@ func TestHandlePreviewWhenActiveSet(t *testing.T) {
 func TestHandleVerifyingPreviewSetButNotPreviewSvc(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
 	r2 := r1.DeepCopy()
 	annotations.SetRolloutRevision(r2, "2")
 	r2.Spec.Template.Spec.Containers[0].Image = "foo/bar2.0"
