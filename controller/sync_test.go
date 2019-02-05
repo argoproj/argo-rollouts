@@ -25,7 +25,7 @@ func intOrStrP(num int) *intstr.IntOrString {
 }
 
 func newRolloutWithStatus(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
-	rollout := newRollout(name, replicas, revisionHistoryLimit, selector, "", "")
+	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
 	return rollout
 }
 
@@ -77,8 +77,8 @@ func TestScale(t *testing.T) {
 	}{
 		{
 			name:       "normal scaling event: 10 -> 12",
-			rollout:    newRollout("foo", 12, nil, nil, "", ""),
-			oldRollout: newRollout("foo", 10, nil, nil, "", ""),
+			rollout:    newBlueGreenRollout("foo", 12, nil, nil, "", ""),
+			oldRollout: newBlueGreenRollout("foo", 10, nil, nil, "", ""),
 
 			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{},
@@ -90,8 +90,8 @@ func TestScale(t *testing.T) {
 		},
 		{
 			name:       "normal scaling event: 10 -> 5",
-			rollout:    newRollout("foo", 5, nil, nil, "", ""),
-			oldRollout: newRollout("foo", 10, nil, nil, "", ""),
+			rollout:    newBlueGreenRollout("foo", 5, nil, nil, "", ""),
+			oldRollout: newBlueGreenRollout("foo", 10, nil, nil, "", ""),
 
 			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{},
@@ -103,8 +103,8 @@ func TestScale(t *testing.T) {
 		},
 		{
 			name:       "Scale up non-active latest Replicaset",
-			rollout:    newRollout("foo", 5, nil, nil, "", ""),
-			oldRollout: newRollout("foo", 5, nil, nil, "", ""),
+			rollout:    newBlueGreenRollout("foo", 5, nil, nil, "", ""),
+			oldRollout: newBlueGreenRollout("foo", 5, nil, nil, "", ""),
 
 			newRS:  rs("foo-v2", 0, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{rs("foo-v1", 0, nil, oldTimestamp, nil)},
@@ -337,7 +337,7 @@ func TestCleanupRollouts(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			r := newRollout("baz", 1, test.revisionHistoryLimit, nil, "", "")
+			r := newBlueGreenRollout("baz", 1, test.revisionHistoryLimit, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			c := &Controller{

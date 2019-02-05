@@ -89,7 +89,7 @@ func TestReconcilePreviewService(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			ro := newRollout("foo", 5, nil, nil, "", "")
+			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, "bar", test.newRSDesiredReplicas, test.newRSAvailableReplicas)
 			f := newFixture(t)
 
@@ -135,7 +135,7 @@ func TestReconcileActiveService(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			ro := newRollout("foo", 5, nil, nil, "", "")
+			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, "bar", 5, 5)
 			f := newFixture(t)
 
@@ -157,9 +157,9 @@ func TestGetRolloutsForService(t *testing.T) {
 	f := newFixture(t)
 
 	s := newService("foo", 80, nil)
-	ro1 := newRollout("bar", 0, nil, nil, "", "")
+	ro1 := newBlueGreenRollout("bar", 0, nil, nil, "active", "")
 	ro1.Spec.Strategy.BlueGreenStrategy.ActiveService = "foo"
-	ro2 := newRollout("baz", 0, nil, nil, "", "")
+	ro2 := newBlueGreenRollout("baz", 0, nil, nil, "active", "")
 	ro2.Spec.Strategy.BlueGreenStrategy.ActiveService = "foo2"
 	f.rolloutLister = append(f.rolloutLister, ro1, ro2)
 	f.objects = append(f.objects, ro1, ro2)
@@ -179,9 +179,9 @@ func TestHandleServiceEnqueueRollout(t *testing.T) {
 	f := newFixture(t)
 
 	s := newService("foo", 80, nil)
-	ro1 := newRollout("bar", 0, nil, nil, "", "")
+	ro1 := newBlueGreenRollout("bar", 0, nil, nil, "active", "")
 	ro1.Spec.Strategy.BlueGreenStrategy.ActiveService = "foo"
-	ro2 := newRollout("baz", 0, nil, nil, "", "")
+	ro2 := newBlueGreenRollout("baz", 0, nil, nil, "active", "")
 	ro2.Spec.Strategy.BlueGreenStrategy.ActiveService = "foo2"
 	f.objects = append(f.objects, ro1, ro2)
 
@@ -203,7 +203,7 @@ func TestHandleServiceNoAdditions(t *testing.T) {
 	f := newFixture(t)
 
 	s := newService("foo", 80, nil)
-	ro1 := newRollout("bar", 0, nil, nil, "", "")
+	ro1 := newBlueGreenRollout("bar", 0, nil, nil, "active", "")
 	ro1.Spec.Strategy.BlueGreenStrategy.ActiveService = "notFoo"
 	f.objects = append(f.objects, ro1)
 
@@ -233,7 +233,7 @@ func TestUpdateServiceEnqueueRollout(t *testing.T) {
 	oldSvc := newService("foo", 80, nil)
 	newSvc := oldSvc.DeepCopy()
 	newSvc.ResourceVersion = "2"
-	ro1 := newRollout("bar", 0, nil, nil, "", "")
+	ro1 := newBlueGreenRollout("bar", 0, nil, nil, "active", "")
 	ro1.Spec.Strategy.BlueGreenStrategy.ActiveService = "foo"
 	f.objects = append(f.objects, ro1)
 	// Create the fixture but don't start it,

@@ -38,8 +38,8 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 	diffSelector := map[string]string{
 		"app": "ngnix2",
 	}
-	rollout := newRollout("foo", 1, int32Ptr(1), selector, "", "")
-	diffRollout := newRollout("bar", 1, int32Ptr(1), selector, "", "")
+	rollout := newRollout("foo", 1, int32Ptr(1), selector)
+	diffRollout := newRollout("bar", 1, int32Ptr(1), selector)
 	tests := []struct {
 		name        string
 		existingRSs []*appsv1.ReplicaSet
@@ -152,7 +152,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			test := tests[i]
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			allRSs := []*appsv1.ReplicaSet{newRS}
-			rollout := newRollout("foo", test.rolloutReplicas, nil, map[string]string{"foo": "bar"}, "", "")
+			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, map[string]string{"foo": "bar"}, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			controller := &Controller{
@@ -250,7 +250,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			allRSs := []*appsv1.ReplicaSet{oldRS, newRS}
-			rollout := newRollout("foo", test.rolloutReplicas, nil, newSelector, "", "")
+			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, newSelector, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			controller := &Controller{

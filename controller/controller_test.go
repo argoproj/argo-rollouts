@@ -55,8 +55,17 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	return f
 }
+func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
+	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
+	rollout.Spec.Strategy.Type = v1alpha1.BlueGreenRolloutStrategyType
+	rollout.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{
+		ActiveService:  activeSvc,
+		PreviewService: previewSvc,
+	}
+	return rollout
+}
 
-func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
+func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -67,13 +76,6 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 			},
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Type: v1alpha1.BlueGreenRolloutStrategyType,
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
-					ActiveService:  activeSvc,
-					PreviewService: previewSvc,
-				},
-			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector,
@@ -322,7 +324,7 @@ func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) {
 func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
 
-	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
+	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 	s := newService("bar", 80, nil)
@@ -339,7 +341,7 @@ func TestSyncRolloutCreatesReplicaSet(t *testing.T) {
 func TestSyncRolloutSetPreviewService(t *testing.T) {
 	f := newFixture(t)
 
-	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -363,7 +365,7 @@ func TestSyncRolloutSetPreviewService(t *testing.T) {
 func TestSyncRolloutVerifyPreviewNoActions(t *testing.T) {
 	f := newFixture(t)
 
-	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
 	r.Status.VerifyingPreview = func(boolean bool) *bool { return &boolean }(true)
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
@@ -388,7 +390,7 @@ func TestSyncRolloutVerifyPreviewNoActions(t *testing.T) {
 func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
 	f := newFixture(t)
 
-	r := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -410,7 +412,7 @@ func TestSyncRolloutSkipPreviewUpdateActive(t *testing.T) {
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 
-	r := newRollout("foo", 1, nil, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, nil, "", "")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -421,7 +423,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 func TestSyncRolloutsScaleDownOldRS(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
+	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
 
 	r2 := r1.DeepCopy()
 	annotations.SetRolloutRevision(r2, "2")
