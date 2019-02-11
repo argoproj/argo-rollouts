@@ -56,9 +56,10 @@ const (
 // RolloutStrategy defines strategy to apply during next rollout
 type RolloutStrategy struct {
 	// +optional
-	BlueGreenStrategy *BlueGreenStrategy  `json:"blueGreen,omitempty"`
-	CanaryStrategy    *CanaryStrategy     `json:"canary,omitempty"`
-	Type              RolloutStrategyType `json:"type"`
+	BlueGreenStrategy *BlueGreenStrategy `json:"blueGreen,omitempty"`
+	// +optional
+	CanaryStrategy *CanaryStrategy     `json:"canary,omitempty"`
+	Type           RolloutStrategyType `json:"type"`
 }
 
 //RolloutStrategyType defines a type that holds all the different rollout straegies
@@ -69,7 +70,7 @@ const (
 	// i.e Wait until a new stack is completely health before switching the service
 	BlueGreenRolloutStrategyType RolloutStrategyType = "BlueGreenUpdate"
 	// CanaryRolloutStrategyType fun!
-	CanaryRolloutStrategyType RolloutStrategyType = "Canary"
+	CanaryRolloutStrategyType RolloutStrategyType = "CanaryUpdate"
 )
 
 // BlueGreenStrategy defines parameters for Blue Green deployment
@@ -118,10 +119,9 @@ type CanaryStep struct {
 	// Wait the amount of time to run the canary instance before moving to the next step.
 	// +optional
 	Wait *int32 `json:"wait,omitempty"`
-	// SetWeight sets what percentage of
+	// SetWeight sets what percentage of the newRS should receive
 	SetWeight *int32 `json:"setWeight,omitempty"`
-	// Pause freezes the rollout until a user sets the spec.pause to false
-	// TODO: add guard to confirm controller set pause
+	// Pause freezes the rollout until a user sets the status.setPause to false
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 }
@@ -172,7 +172,7 @@ type RolloutStatus struct {
 	Conditions []RolloutCondition `json:"conditions,omitempty"`
 }
 
-// RolloutConditionType defines the conditions of Rolloutd
+// RolloutConditionType defines the conditions of Rollout
 type RolloutConditionType string
 
 // These are valid conditions of a rollout.
