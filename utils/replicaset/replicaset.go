@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubernetes/pkg/controller"
+	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
+
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -54,6 +56,28 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	default:
 		return 0, fmt.Errorf("rollout strategy type %v isn't supported", rollout.Spec.Strategy.Type)
 	}
+}
+
+func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
+	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
+		return 100
+	}
+	currentCanaryStep := int32(0)
+	if rollout.Status.CurrentStepIndex != nil {
+		currentCanaryStep = *rollout.Status.CurrentStepIndex
+	}
+
+	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == int(currentCanaryStep) {
+		return 100
+	}
+
+	for i := currentCanaryStep; i >= 0; i-- {
+		step := rollout.Spec.Strategy.CanaryStrategy.Steps[i]
+		if step.SetWeight != nil {
+			return *step.SetWeight
+		}
+	}
+	return 100
 }
 
 // MaxRevision finds the highest revision in the replica sets
@@ -149,4 +173,60 @@ func GetReadyReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 
 		}
 	}
 	return totalReadyReplicas
+}
+
+// ResolveFenceposts resolves both maxSurge and maxUnavailable. This needs to happen in one
+// step. For example:
+//
+// 2 desired, max unavailable 1%, surge 0% - should scale old(-1), then new(+1), then old(-1), then new(+1)
+// 1 desired, max unavailable 1%, surge 0% - should scale old(-1), then new(+1)
+// 2 desired, max unavailable 25%, surge 1% - should scale new(+1), then old(-1), then new(+1), then old(-1)
+// 1 desired, max unavailable 25%, surge 1% - should scale new(+1), then old(-1)
+// 2 desired, max unavailable 0%, surge 1% - should scale new(+1), then old(-1), then new(+1), then old(-1)
+// 1 desired, max unavailable 0%, surge 1% - should scale new(+1), then old(-1)
+func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired int32) (int32, int32, error) {
+	surge, err := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(maxSurge, intstrutil.FromInt(0)), int(desired), true)
+	if err != nil {
+		return 0, 0, err
+	}
+	unavailable, err := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(maxUnavailable, intstrutil.FromInt(0)), int(desired), false)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if surge == 0 && unavailable == 0 {
+		// Validation should never allow the user to explicitly use zero values for both maxSurge
+		// maxUnavailable. Due to rounding down maxUnavailable though, it may resolve to zero.
+		// If both fenceposts resolve to zero, then we should set maxUnavailable to 1 on the
+		// theory that surge might not workf due to quota.
+		unavailable = 1
+	}
+
+	return int32(surge), int32(unavailable), nil
+}
+
+// MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
+func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	if rollout.Spec.Strategy.Type != v1alpha1.CanaryRolloutStrategyType || rolloutReplicas == 0 {
+		return int32(0)
+	}
+
+	// Error caught by validation
+	_, maxUnavailable, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	if maxUnavailable > rolloutReplicas {
+		return rolloutReplicas
+	}
+	return maxUnavailable
+}
+
+// MaxSurge returns the maximum surge pods a rolling deployment can take.
+func MaxSurge(rollout *v1alpha1.Rollout) int32 {
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	if rollout.Spec.Strategy.Type != v1alpha1.CanaryRolloutStrategyType {
+		return int32(0)
+	}
+	// Error caught by validation
+	maxSurge, _, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	return maxSurge
 }

@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -308,4 +309,180 @@ func TestFindActiveOrLatest(t *testing.T) {
 		})
 	}
 
+}
+
+
+func newString(s string) *string {
+	return &s
+}
+
+func TestResolveFenceposts(t *testing.T) {
+	tests := []struct {
+		maxSurge          *string
+		maxUnavailable    *string
+		desired           int32
+		expectSurge       int32
+		expectUnavailable int32
+		expectError       bool
+	}{
+		{
+			maxSurge:          newString("0%"),
+			maxUnavailable:    newString("0%"),
+			desired:           0,
+			expectSurge:       0,
+			expectUnavailable: 1,
+			expectError:       false,
+		},
+		{
+			maxSurge:          newString("39%"),
+			maxUnavailable:    newString("39%"),
+			desired:           10,
+			expectSurge:       4,
+			expectUnavailable: 3,
+			expectError:       false,
+		},
+		{
+			maxSurge:          newString("oops"),
+			maxUnavailable:    newString("39%"),
+			desired:           10,
+			expectSurge:       0,
+			expectUnavailable: 0,
+			expectError:       true,
+		},
+		{
+			maxSurge:          newString("55%"),
+			maxUnavailable:    newString("urg"),
+			desired:           10,
+			expectSurge:       0,
+			expectUnavailable: 0,
+			expectError:       true,
+		},
+		{
+			maxSurge:          nil,
+			maxUnavailable:    newString("39%"),
+			desired:           10,
+			expectSurge:       0,
+			expectUnavailable: 3,
+			expectError:       false,
+		},
+		{
+			maxSurge:          newString("39%"),
+			maxUnavailable:    nil,
+			desired:           10,
+			expectSurge:       4,
+			expectUnavailable: 0,
+			expectError:       false,
+		},
+		{
+			maxSurge:          nil,
+			maxUnavailable:    nil,
+			desired:           10,
+			expectSurge:       0,
+			expectUnavailable: 1,
+			expectError:       false,
+		},
+	}
+
+	for num, test := range tests {
+		t.Run(fmt.Sprintf("%d", num), func(t *testing.T) {
+			var maxSurge, maxUnavail *intstr.IntOrString
+			if test.maxSurge != nil {
+				surge := intstr.FromString(*test.maxSurge)
+				maxSurge = &surge
+			}
+			if test.maxUnavailable != nil {
+				unavail := intstr.FromString(*test.maxUnavailable)
+				maxUnavail = &unavail
+			}
+			surge, unavail, err := resolveFenceposts(maxSurge, maxUnavail, test.desired)
+			if err != nil && !test.expectError {
+				t.Errorf("unexpected error %v", err)
+			}
+			if err == nil && test.expectError {
+				t.Error("expected error")
+			}
+			if surge != test.expectSurge || unavail != test.expectUnavailable {
+				t.Errorf("#%v got %v:%v, want %v:%v", num, surge, unavail, test.expectSurge, test.expectUnavailable)
+			}
+		})
+	}
+}
+
+func TestMaxUnavailable(t *testing.T) {
+	rollout := func(replicas int32, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Replicas: func(i int32) *int32 { return &i }(replicas),
+				Strategy: v1alpha1.RolloutStrategy{
+					CanaryStrategy: &v1alpha1.CanaryStrategy{
+						MaxSurge:       func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
+						MaxUnavailable: &maxUnavailable,
+					},
+					Type: v1alpha1.CanaryRolloutStrategyType,
+				},
+			},
+		}
+	}
+	tests := []struct {
+		name     string
+		rollout  *v1alpha1.Rollout
+		expected int32
+	}{
+		{
+			name:     "maxUnavailable less than replicas",
+			rollout:  rollout(10, intstr.FromInt(5)),
+			expected: int32(5),
+		},
+		{
+			name:     "maxUnavailable equal replicas",
+			rollout:  rollout(10, intstr.FromInt(10)),
+			expected: int32(10),
+		},
+		{
+			name:     "maxUnavailable greater than replicas",
+			rollout:  rollout(5, intstr.FromInt(10)),
+			expected: int32(5),
+		},
+		{
+			name:     "maxUnavailable with replicas is 0",
+			rollout:  rollout(0, intstr.FromInt(10)),
+			expected: int32(0),
+		},
+		{
+			name: "maxUnavailable with BlueGreen deployment strategy",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Type: v1alpha1.BlueGreenRolloutStrategyType,
+					},
+				},
+			},
+			expected: int32(0),
+		},
+		{
+			name:     "maxUnavailable less than replicas with percents",
+			rollout:  rollout(10, intstr.FromString("50%")),
+			expected: int32(5),
+		},
+		{
+			name:     "maxUnavailable equal replicas with percents",
+			rollout:  rollout(10, intstr.FromString("100%")),
+			expected: int32(10),
+		},
+		{
+			name:     "maxUnavailable greater than replicas with percents",
+			rollout:  rollout(5, intstr.FromString("100%")),
+			expected: int32(5),
+		},
+	}
+
+	for _, test := range tests {
+		t.Log(test.name)
+		t.Run(test.name, func(t *testing.T) {
+			maxUnavailable := MaxUnavailable(test.rollout)
+			if test.expected != maxUnavailable {
+				t.Fatalf("expected:%v, got:%v", test.expected, maxUnavailable)
+			}
+		})
+	}
 }

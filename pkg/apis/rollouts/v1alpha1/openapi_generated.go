@@ -85,14 +85,14 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 					},
 					"setWeight": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SetWeight sets what percentage of",
+							Description: "SetWeight sets what percentage of the newRS should receive",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"pause": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pause freezes the rollout until a user sets the spec.pause to false",
+							Description: "Pause freezes the rollout until a user sets the status.setPause to false",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"),
 						},
 					},

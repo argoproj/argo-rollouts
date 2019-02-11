@@ -84,7 +84,8 @@ spec:
                         properties:
                           pause: {}
                           setWeight:
-                            description: SetWeight sets what percentage of
+                            description: SetWeight sets what percentage of the newRS
+                              should receive
                             format: int32
                             type: integer
                           wait:
