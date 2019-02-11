@@ -48,8 +48,7 @@ spec:
               type: integer
             selector: {}
             strategy:
-              description: RolloutStrategy defines stragtegy to apply during next
-                rollout
+              description: RolloutStrategy defines strategy to apply during next rollout
               properties:
                 blueGreen:
                   description: BlueGreenStrategy defines parameters for Blue Green
@@ -65,6 +64,35 @@ spec:
                       type: string
                   required:
                   - activeService
+                canary:
+                  description: ReplicaBasedCanaryStrategy defines parameters for a
+                    Replica Based Canary
+                  properties:
+                    maxSurge:
+                      anyOf:
+                      - type: string
+                      - type: integer
+                    maxUnavailable:
+                      anyOf:
+                      - type: string
+                      - type: integer
+                    steps:
+                      description: Steps define the order of phases to execute the
+                        canary deployment
+                      items:
+                        description: CanaryStep defines a step of a canary deployment.
+                        properties:
+                          pause: {}
+                          setWeight:
+                            description: SetWeight sets what percentage of
+                            format: int32
+                            type: integer
+                          wait:
+                            description: Wait the amount of time to run the canary
+                              instance before moving to the next step.
+                            format: int32
+                            type: integer
+                      type: array
                 type:
                   type: string
               required:
@@ -123,6 +151,12 @@ spec:
             currentPodHash:
               description: CurrentPodHash the hash of the current pod template
               type: string
+            currentStepIndex:
+              description: CurrentStepIndex defines the current step of the rollout
+                is on. If the current step index is null, the controller will execute
+                the rollout.
+              format: int32
+              type: integer
             observedGeneration:
               description: The generation observed by the rollout controller by taking
                 a hash of the spec.
