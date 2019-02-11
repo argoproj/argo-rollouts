@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // +genclient
@@ -52,10 +53,11 @@ const (
 	DefaultRolloutUniqueLabelKey string = "rollouts-pod-template-hash"
 )
 
-// RolloutStrategy defines stragtegy to apply during next rollout
+// RolloutStrategy defines strategy to apply during next rollout
 type RolloutStrategy struct {
 	// +optional
 	BlueGreenStrategy *BlueGreenStrategy  `json:"blueGreen,omitempty"`
+	CanaryStrategy    *CanaryStrategy     `json:"canary,omitempty"`
 	Type              RolloutStrategyType `json:"type"`
 }
 
@@ -66,6 +68,8 @@ const (
 	// BlueGreenRolloutStrategyType Replace the old ReplicaSets by using a blue green update
 	// i.e Wait until a new stack is completely health before switching the service
 	BlueGreenRolloutStrategyType RolloutStrategyType = "BlueGreenUpdate"
+	// CanaryRolloutStrategyType fun!
+	CanaryRolloutStrategyType RolloutStrategyType = "Canary"
 )
 
 // BlueGreenStrategy defines parameters for Blue Green deployment
@@ -76,6 +80,53 @@ type BlueGreenStrategy struct {
 	// +optional
 	PreviewService string `json:"previewService"`
 }
+
+// ReplicaBasedCanaryStrategy defines parameters for a Replica Based Canary
+type CanaryStrategy struct {
+	// Steps define the order of phases to execute the canary deployment
+	// +optional
+	Steps []CanaryStep `json:"steps,omitempty"`
+	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+	// Absolute number is calculated from percentage by rounding down.
+	// This can not be 0 if MaxSurge is 0.
+	// By default, a fixed value of 1 is used.
+	// Example: when this is set to 30%, the old RC can be scaled down by 30%
+	// immediately when the rolling update starts. Once new pods are ready, old RC
+	// can be scaled down further, followed by scaling up the new RC, ensuring
+	// that at least 70% of original number of pods are available at all times
+	// during the update.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable"`
+
+	// MaxSurge The maximum number of pods that can be scheduled above the original number of
+	// pods.
+	// Value can be an absolute number (ex: 5) or a percentage of total pods at
+	// the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
+	// Absolute number is calculated from percentage by rounding up.
+	// By default, a value of 1 is used.
+	// Example: when this is set to 30%, the new RC can be scaled up by 30%
+	// immediately when the rolling update starts. Once old pods have been killed,
+	// new RC can be scaled up further, ensuring that total number of pods running
+	// at any time during the update is atmost 130% of original pods.
+	// +optional
+	MaxSurge *intstr.IntOrString `json:"maxSurge"`
+}
+
+// CanaryStep defines a step of a canary deployment.
+type CanaryStep struct {
+	// Wait the amount of time to run the canary instance before moving to the next step.
+	// +optional
+	Wait *int32 `json:"wait,omitempty"`
+	// SetWeight sets what percentage of
+	SetWeight *int32 `json:"setWeight,omitempty"`
+	// Pause freezes the rollout until a user sets the spec.pause to false
+	// TODO: add guard to confirm controller set pause
+	// +optional
+	Pause *RolloutPause `json:"pause,omitempty"`
+}
+
+type RolloutPause struct{}
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
@@ -104,6 +155,10 @@ type RolloutStatus struct {
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this rollout.
 	// +optional
 	AvailableReplicas int32 `json:"availableReplicas"`
+	// CurrentStepIndex defines the current step of the rollout is on. If the current step index is null, the
+	// controller will execute the rollout.
+	// +optional
+	CurrentStepIndex *int32 `json:"currentStepIndex,omitempty"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.
