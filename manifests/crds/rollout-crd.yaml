@@ -114,6 +114,13 @@ spec:
                 targeted by this rollout.
               format: int32
               type: integer
+            canaryStatus:
+              description: CanaryStatus fields that only pertain to the canary rollout
+              properties:
+                stableRS:
+                  description: StableRS indicates the last replicaset that walked
+                    through all the canary steps or was the only replicaset
+                  type: string
             collisionCount:
               description: Count of hash collisions for the Rollout. The Rollout controller
                 uses this field as a collision avoidance mechanism when it needs to
@@ -175,6 +182,10 @@ spec:
                 (their labels match the selector).
               format: int32
               type: integer
+            setPause:
+              description: Indicates if the controller set the Spec.Pause field or
+                if the user did
+              type: boolean
             updatedReplicas:
               description: Total number of non-terminated pods targeted by this rollout
                 that have the desired template spec.

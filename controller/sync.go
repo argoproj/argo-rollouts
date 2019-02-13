@@ -266,6 +266,9 @@ func (c *Controller) scale(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, 
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *Controller) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) (bool, error) {
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
+		return false, nil
+	}
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 	if err != nil {
 		return false, err

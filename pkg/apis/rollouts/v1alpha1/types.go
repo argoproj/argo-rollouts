@@ -173,6 +173,16 @@ type RolloutStatus struct {
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty"`
+	//CanaryStatus describes the state of the canary rollout
+	// +optional
+	CanaryStatus CanaryStatus `json:"canaryStatus,omitempty"`
+}
+
+// CanaryStatus fields that only pertain to the canary rollout
+type CanaryStatus struct {
+	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
+	// +optional
+	StableRS string `json:"stableRS,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

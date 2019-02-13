@@ -129,7 +129,7 @@ func (c *Controller) getRolloutsForService(service *corev1.Service) ([]*v1alpha1
 	}
 	rollouts := []*v1alpha1.Rollout{}
 	for _, rollout := range allROs.Items {
-		if rollout.Spec.Strategy.Type == v1alpha1.BlueGreenRolloutStrategyType && rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == service.Name {
+		if rollout.Spec.Strategy.BlueGreenStrategy != nil && rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == service.Name {
 			copyRO := rollout.DeepCopy()
 			rollouts = append(rollouts, copyRO)
 		}

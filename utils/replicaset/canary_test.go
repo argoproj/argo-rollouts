@@ -1,4 +1,4 @@
-package canary
+package replicaset
 
 import (
 	"testing"
@@ -27,7 +27,9 @@ func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.I
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			ActiveSelector: stablePodHash,
+			CanaryStatus: v1alpha1.CanaryStatus{
+				StableRS: stablePodHash,
+			},
 			CurrentPodHash: currentPodHash,
 		},
 	}
