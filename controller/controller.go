@@ -305,6 +305,8 @@ func (c *Controller) syncHandler(key string) error {
 	switch r.Spec.Strategy.Type {
 	case v1alpha1.BlueGreenRolloutStrategyType:
 		return c.rolloutBlueGreen(r, rsList)
+	case v1alpha1.CanaryRolloutStrategyType:
+		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
 }

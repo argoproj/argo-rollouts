@@ -3,22 +3,22 @@ package canary
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.IntOrString, currentPodHash, stablePodHash string ) *v1alpha1.Rollout {
+func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.IntOrString, currentPodHash, stablePodHash string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: &specReplicas,
 			Strategy: v1alpha1.RolloutStrategy{
 				CanaryStrategy: &v1alpha1.CanaryStrategy{
 					MaxUnavailable: &maxUnavailable,
-					MaxSurge: &maxSurge,
+					MaxSurge:       &maxSurge,
 					Steps: []v1alpha1.CanaryStep{{
 						SetWeight: &setWeight,
 					}},
@@ -37,7 +37,7 @@ func newRS(podHashLabel string, specReplicas, availableReplicas int32) *appsv1.R
 	return &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: podHashLabel},
-			Name: podHashLabel,
+			Name:   podHashLabel,
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: &specReplicas,
@@ -49,264 +49,262 @@ func newRS(podHashLabel string, specReplicas, availableReplicas int32) *appsv1.R
 }
 
 func TestCalculateReplicaCountsForCanary(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		name string
 
 		rolloutSpecReplicas int32
-		setWeight int32
-		maxSurge intstr.IntOrString
-		maxUnavailable intstr.IntOrString
+		setWeight           int32
+		maxSurge            intstr.IntOrString
+		maxUnavailable      intstr.IntOrString
 
-		stableSpecReplica int32
+		stableSpecReplica      int32
 		stableAvailableReplica int32
 
-		canarySpecReplica int32
+		canarySpecReplica      int32
 		canaryAvailableReplica int32
 
 		expectedStableReplicaCount int32
 		expectedCanaryReplicaCount int32
 
 		olderRS *appsv1.ReplicaSet
-
 	}{
 		{
-			name: "Use max surge int to scale up canary",
+			name:                "Use max surge int to scale up canary",
 			rolloutSpecReplicas: 10,
-			setWeight: 20,
-			maxSurge: intstr.FromInt(2),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           20,
+			maxSurge:            intstr.FromInt(2),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
 		},
 		{
-			name: "Use max surge percentage to scale up canary",
+			name:                "Use max surge percentage to scale up canary",
 			rolloutSpecReplicas: 10,
-			setWeight: 20,
-			maxSurge: intstr.FromString("20%"),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           20,
+			maxSurge:            intstr.FromString("20%"),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
 		},
 		{
-			name: "Scale down extra stable replicas",
+			name:                "Scale down extra stable replicas",
 			rolloutSpecReplicas: 10,
-			setWeight: 20,
-			maxSurge: intstr.FromString("20%"),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           20,
+			maxSurge:            intstr.FromString("20%"),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 2,
+			canarySpecReplica:      2,
 			canaryAvailableReplica: 2,
 
 			expectedStableReplicaCount: 8,
 			expectedCanaryReplicaCount: 2,
 		},
 		{
-			name: "Do not go past max surge",
+			name:                "Do not go past max surge",
 			rolloutSpecReplicas: 10,
-			setWeight: 30,
-			maxSurge: intstr.FromInt(2),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(2),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
-
 		},
 		{
-			name: "Use max unavailable int to scale down stableRS",
+			name:                "Use max unavailable int to scale down stableRS",
 			rolloutSpecReplicas: 10,
-			setWeight: 20,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromInt(2),
+			setWeight:           20,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 8,
 			expectedCanaryReplicaCount: 0,
 		},
 		{
-			name: "Use max surge percentage to scale down stableRS",
+			name:                "Use max surge percentage to scale down stableRS",
 			rolloutSpecReplicas: 10,
-			setWeight: 20,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromString("20%"),
+			setWeight:           20,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromString("20%"),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 8,
 			expectedCanaryReplicaCount: 0,
 		},
 		{
-			name: "Do not go past max unavailable",
+			name:                "Do not go past max unavailable",
 			rolloutSpecReplicas: 10,
-			setWeight: 30,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromInt(2),
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 8,
 			expectedCanaryReplicaCount: 0,
 		},
 		{
-			name: "Use Max Surge and Max Unavailable",
+			name:                "Use Max Surge and Max Unavailable",
 			rolloutSpecReplicas: 10,
-			setWeight: 50,
-			maxSurge: intstr.FromInt(2),
-			maxUnavailable: intstr.FromInt(1),
+			setWeight:           50,
+			maxSurge:            intstr.FromInt(2),
+			maxUnavailable:      intstr.FromInt(1),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 9,
 			expectedCanaryReplicaCount: 2,
 		},
 		{
-			name: "Scale canaryRS to zero on setWeight of 0%",
+			name:                "Scale canaryRS to zero on setWeight of 0%",
 			rolloutSpecReplicas: 10,
-			setWeight: 0,
-			maxSurge: intstr.FromInt(1),
-			maxUnavailable: intstr.FromInt(1),
+			setWeight:           0,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(1),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 1,
+			canarySpecReplica:      1,
 			canaryAvailableReplica: 1,
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 0,
 		},
 		{
-			name: "Scale stable to zero on setWeight of 100%",
+			name:                "Scale stable to zero on setWeight of 100%",
 			rolloutSpecReplicas: 10,
-			setWeight: 100,
-			maxSurge: intstr.FromInt(1),
-			maxUnavailable: intstr.FromInt(1),
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(1),
 
-			stableSpecReplica: 1,
+			stableSpecReplica:      1,
 			stableAvailableReplica: 1,
 
-			canarySpecReplica: 10,
+			canarySpecReplica:      10,
 			canaryAvailableReplica: 10,
 
 			expectedStableReplicaCount: 0,
 			expectedCanaryReplicaCount: 10,
 		},
 		{
-			name: "Do not scale newRS down to zero on non-zero weight",
+			name:                "Do not scale newRS down to zero on non-zero weight",
 			rolloutSpecReplicas: 1,
-			setWeight: 20,
-			maxSurge: intstr.FromInt(1),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           20,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 1,
+			stableSpecReplica:      1,
 			stableAvailableReplica: 1,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 1,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name: "Do not scale canaryRS down to zero on non-100 weight",
+			name:                "Do not scale canaryRS down to zero on non-100 weight",
 			rolloutSpecReplicas: 1,
-			setWeight: 90,
-			maxSurge: intstr.FromInt(1),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           90,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 1,
+			stableSpecReplica:      1,
 			stableAvailableReplica: 1,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 1,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name: "Scale up Stable before newRS",
+			name:                "Scale up Stable before newRS",
 			rolloutSpecReplicas: 10,
-			setWeight: 30,
-			maxSurge: intstr.FromInt(1),
-			maxUnavailable: intstr.FromInt(0),
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
 
-			stableSpecReplica: 1,
+			stableSpecReplica:      1,
 			stableAvailableReplica: 1,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 7,
 			expectedCanaryReplicaCount: 1,
 
-			olderRS: newRS("older",3,3),
+			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name: "Scale down newRS and stable",
+			name:                "Scale down newRS and stable",
 			rolloutSpecReplicas: 10,
-			setWeight: 30,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromInt(3),
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(3),
 
-			stableSpecReplica: 8,
+			stableSpecReplica:      8,
 			stableAvailableReplica: 4,
 
-			canarySpecReplica: 4,
+			canarySpecReplica:      4,
 			canaryAvailableReplica: 4,
 
 			expectedStableReplicaCount: 7,
 			expectedCanaryReplicaCount: 3,
 		},
 		{
-			name: "Do not scale down newRS or stable when older RS count >= minAvailable",
+			name:                "Do not scale down newRS or stable when older RS count >= minAvailable",
 			rolloutSpecReplicas: 10,
-			setWeight: 30,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromInt(1),
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
 
-			stableSpecReplica: 8,
+			stableSpecReplica:      8,
 			stableAvailableReplica: 6,
 
-			canarySpecReplica: 4,
+			canarySpecReplica:      4,
 			canaryAvailableReplica: 2,
 
 			expectedStableReplicaCount: 8,
@@ -315,43 +313,42 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name: "Add an extra replica to surge when the setWeight rounding adds another instance",
+			name:                "Add an extra replica to surge when the setWeight rounding adds another instance",
 			rolloutSpecReplicas: 10,
-			setWeight: 5,
-			maxSurge: intstr.FromInt(0),
-			maxUnavailable: intstr.FromInt(1),
+			setWeight:           5,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name: "Use maxUnavailable of 1 when percentage of maxUnavailable and maxSurge result in 0 replicas",
+			name:                "Use maxUnavailable of 1 when percentage of maxUnavailable and maxSurge result in 0 replicas",
 			rolloutSpecReplicas: 10,
-			setWeight: 10,
-			maxSurge: intstr.FromString("0%"),
-			maxUnavailable: intstr.FromString("0%"),
+			setWeight:           10,
+			maxSurge:            intstr.FromString("0%"),
+			maxUnavailable:      intstr.FromString("0%"),
 
-			stableSpecReplica: 10,
+			stableSpecReplica:      10,
 			stableAvailableReplica: 10,
 
-			canarySpecReplica: 0,
+			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 9,
 			expectedCanaryReplicaCount: 0,
 		},
-
 	}
 	for i := range tests {
 		test := tests[i]
-		t.Run(test.name, func(t *testing.T){
-			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge,test.maxUnavailable,"canary","stable")
+		t.Run(test.name, func(t *testing.T) {
+			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable")
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount, err := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
@@ -374,4 +371,38 @@ func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
+}
+
+func TestGetCurrentCanaryStep(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
+	rollout.Spec.Strategy.CanaryStrategy.Steps = nil
+	noCurrentSteps, _ := GetCurrentCanaryStep(rollout)
+	assert.Nil(t, noCurrentSteps)
+
+	rollout.Spec.Strategy.CanaryStrategy.Steps = []v1alpha1.CanaryStep{{
+		Pause: &v1alpha1.RolloutPause{},
+	}}
+	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(0)
+
+	currentStep, index := GetCurrentCanaryStep(rollout)
+	assert.NotNil(t, currentStep)
+	assert.Equal(t, int32(0), index)
+
+	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(1)
+	noMoreStep, _ := GetCurrentCanaryStep(rollout)
+	assert.Nil(t, noMoreStep)
+}
+
+func TestGetCurrentSetWeight(t *testing.T) {
+	stepIndex := int32(1)
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
+	rollout.Status.CurrentStepIndex = &stepIndex
+
+	setWeight := GetCurrentSetWeight(rollout)
+	assert.Equal(t, setWeight, int32(100))
+
+	stepIndex = 0
+	setWeight = GetCurrentSetWeight(rollout)
+	assert.Equal(t, setWeight, int32(10))
+
 }

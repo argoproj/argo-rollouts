@@ -11,9 +11,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -311,7 +311,6 @@ func TestFindActiveOrLatest(t *testing.T) {
 
 }
 
-
 func newString(s string) *string {
 	return &s
 }
@@ -408,6 +407,57 @@ func TestResolveFenceposts(t *testing.T) {
 	}
 }
 
+func TestMaxSurge(t *testing.T) {
+	rollout := func(replicas int32, maxSurge intstr.IntOrString) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Replicas: func(i int32) *int32 { return &i }(replicas),
+				Strategy: v1alpha1.RolloutStrategy{
+					CanaryStrategy: &v1alpha1.CanaryStrategy{
+						MaxUnavailable: func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
+						MaxSurge:       &maxSurge,
+					},
+					Type: v1alpha1.CanaryRolloutStrategyType,
+				},
+			},
+		}
+	}
+	tests := []struct {
+		name     string
+		rollout  *v1alpha1.Rollout
+		expected int32
+	}{
+		{
+			name:     "maxSurge with int",
+			rollout:  rollout(10, intstr.FromInt(5)),
+			expected: int32(5),
+		},
+		{
+			name: "maxSurge with BlueGreen deployment strategy",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Type: v1alpha1.BlueGreenRolloutStrategyType,
+					},
+				},
+			},
+			expected: int32(0),
+		},
+		{
+			name:     "maxSurge with percents",
+			rollout:  rollout(10, intstr.FromString("50%")),
+			expected: int32(5),
+		},
+	}
+
+	for _, test := range tests {
+		t.Log(test.name)
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, MaxSurge(test.rollout))
+		})
+	}
+}
+
 func TestMaxUnavailable(t *testing.T) {
 	rollout := func(replicas int32, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 		return &v1alpha1.Rollout{
@@ -485,4 +535,14 @@ func TestMaxUnavailable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckPodSpecChange(t *testing.T) {
+	ro := generateRollout("ngnix")
+	assert.False(t, CheckPodSpecChange(&ro))
+	ro.Status.CurrentPodHash = "7b7b57dd84"
+	assert.False(t, CheckPodSpecChange(&ro))
+
+	ro.Status.CurrentPodHash = "different-hash"
+	assert.True(t, CheckPodSpecChange(&ro))
 }

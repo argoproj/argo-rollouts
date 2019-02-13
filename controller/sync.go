@@ -23,6 +23,25 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
+const (
+	setPausePatch = `{
+	"status": {
+		"setPause": %s
+	}
+}`
+)
+
+func (c *Controller) PatchSetPause(r *v1alpha1.Rollout, boolValue *bool) error {
+	boolPtrStr := "null"
+	if boolValue != nil {
+		boolPtrStr = strconv.FormatBool(*boolValue)
+	}
+	logutil.WithRollout(r).Infof("Patching setVerifyingPreview to %s", boolPtrStr)
+	patchStr := fmt.Sprintf(setPausePatch, boolPtrStr)
+	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(patchStr))
+	return err
+}
+
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
 //
 // rsList should come from getReplicaSetsForRollout(r).
@@ -198,7 +217,7 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 		return err
 	}
 	allRSs := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
-	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 }
 
 // Should run only on scaling events and not during the normal rollout process.
@@ -300,21 +319,8 @@ func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, roll
 	return scaled, rs, err
 }
 
-func (c *Controller) syncRolloutStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout) error {
-	newStatus := c.calculateStatus(allRSs, newRS, previewSvc, activeSvc, r)
-	return c.persistRolloutStatus(r, &newStatus)
-}
-
 // calculateStatus calculates the latest status for the provided rollout by looking into the provided replica sets.
-func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
-	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
-	if !ok {
-		previewSelector = ""
-	}
-	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
-	if !ok {
-		activeSelector = ""
-	}
+func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
 	prevStatus := rollout.Status
 
 	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
@@ -323,21 +329,9 @@ func (c *Controller) calculateStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.
 		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
 	}
 
-	activeRS := GetActiveReplicaSet(rollout, allRSs)
-	if activeRS != nil && annotations.IsSaturated(rollout, activeRS) {
-		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
-		conditions.SetRolloutCondition(&prevStatus, *availability)
-	} else {
-		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.Available, "Rollout is not serving traffic from the active service.")
-		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
-	}
-
 	return v1alpha1.RolloutStatus{
 		ObservedGeneration: conditions.ComputeGenerationHash(rollout.Spec),
-		VerifyingPreview:   rollout.Status.VerifyingPreview,
 		CurrentPodHash:     controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
-		PreviewSelector:    previewSelector,
-		ActiveSelector:     activeSelector,
 		Replicas:           replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
 		UpdatedReplicas:    replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
 		ReadyReplicas:      replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),

@@ -159,6 +159,9 @@ type RolloutStatus struct {
 	// controller will execute the rollout.
 	// +optional
 	CurrentStepIndex *int32 `json:"currentStepIndex,omitempty"`
+	// Indicates if the controller set the Spec.Pause field or if the user did
+	// +optional
+	SetPause *bool `json:"setPause,omitempty"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.

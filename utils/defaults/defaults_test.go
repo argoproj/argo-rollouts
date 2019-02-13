@@ -35,7 +35,6 @@ func TestGetRevisionHistoryOrDefault(t *testing.T) {
 	assert.Equal(t, DefaultRevisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
 }
 
-
 func TestGetMaxSurgeOrDefault(t *testing.T) {
 	maxSurge := intstr.FromInt(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
@@ -52,8 +51,6 @@ func TestGetMaxSurgeOrDefault(t *testing.T) {
 	rolloutDefaultValue := &v1alpha1.Rollout{}
 	assert.Equal(t, intstr.FromInt(DefaultMaxSurge), *GetMaxSurgeOrDefault(rolloutDefaultValue))
 }
-
-
 
 func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	maxUnavailable := intstr.FromInt(2)

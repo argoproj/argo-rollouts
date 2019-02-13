@@ -33,7 +33,6 @@ func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 	return *rollout.Spec.RevisionHistoryLimit
 }
 
-
 func GetMaxSurgeOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.CanaryStrategy.MaxSurge != nil {
 		return rollout.Spec.Strategy.CanaryStrategy.MaxSurge
