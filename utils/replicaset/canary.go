@@ -1,4 +1,4 @@
-package canary
+package replicaset
 
 import (
 	"math"
@@ -8,9 +8,24 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
+//DesiredReplicaCountsForCanary calculates the desired endstate replica count for the new and stable replicasets
+func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) (int32, int32) {
+	rolloutSpecReplica := defaults.GetRolloutReplicasOrDefault(rollout)
+	setWeight := GetCurrentSetWeight(rollout)
+
+	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(setWeight) / 100))))
+	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(setWeight) / 100)))
+	if !CheckStableRSExists(newRS, stableRS) {
+		// If there is no stableRS or it is the same as the newRS, then the rollout does not follow the canary steps.
+		// Instead the controller tries to get the newRS to 100% traffic.
+		desiredNewRSReplicaCount = rolloutSpecReplica
+		desiredStableRSReplicaCount = 0
+	}
+	return desiredNewRSReplicaCount, desiredStableRSReplicaCount
+
+}
 
 // CalculateReplicaCountsForCanary calculates the number of replicas for the newRS and the stableRS.  The function
 // calculates the desired number of replicas for the new and stable RS using the following equations:
@@ -56,7 +71,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := *newRS.Spec.Replicas
 
-	scaleStableRS := checkStableRSExists(newRS, stableRS)
+	scaleStableRS := CheckStableRSExists(newRS, stableRS)
 	if scaleStableRS {
 		stableRSReplicaCount = *stableRS.Spec.Replicas
 	} else {
@@ -66,7 +81,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		desiredStableRSReplicaCount = 0
 	}
 
-	maxSurge := replicasetutil.MaxSurge(rollout)
+	maxSurge := MaxSurge(rollout)
 
 	if extraReplicaAdded(rolloutSpecReplica, setWeight) {
 		// In the case where the weight of the stable and canary replica counts cannot be divided evenly,
@@ -80,9 +95,8 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		allRSs = append(allRSs, stableRS)
 	}
 
-	totalCurrentReplicaCount := replicasetutil.GetReplicaCountForReplicaSets(allRSs)
+	totalCurrentReplicaCount := GetReplicaCountForReplicaSets(allRSs)
 	scaleUpCount := maxReplicaCountAllowed - totalCurrentReplicaCount
-
 
 	if scaleStableRS && *stableRS.Spec.Replicas < desiredStableRSReplicaCount {
 		if scaleUpCount > 0 {
@@ -102,15 +116,15 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		}
 	}
 
-	minAvailableReplicaCount := rolloutSpecReplica - replicasetutil.MaxUnavailable(rollout)
-	totalCurrentAvailableReplicaCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
+	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
+	totalCurrentAvailableReplicaCount := GetAvailableReplicaCountForReplicaSets(allRSs)
 	scaleDownCount := totalCurrentAvailableReplicaCount - minAvailableReplicaCount
 	if scaleDownCount <= 0 {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
 	}
 
-	totalAvailableOlderReplicaCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(oldRSs)
+	totalAvailableOlderReplicaCount := GetAvailableReplicaCountForReplicaSets(oldRSs)
 
 	if scaleDownCount <= totalAvailableOlderReplicaCount {
 		//Need to scale down older replicas before scaling down the newRS or stableRS.
@@ -139,8 +153,8 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	return newRSReplicaCount, stableRSReplicaCount
 }
 
-// checkStableRS checks if the stableRS exists and is different than the newRS
-func checkStableRSExists(newRS, stableRS *appsv1.ReplicaSet) bool {
+// CheckStableRSExists checks if the stableRS exists and is different than the newRS
+func CheckStableRSExists(newRS, stableRS *appsv1.ReplicaSet) bool {
 	if stableRS == nil {
 		return false
 	}
@@ -174,7 +188,6 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, int3
 	return &rollout.Spec.Strategy.CanaryStrategy.Steps[currentStepIndex], currentStepIndex
 }
 
-
 // GetCurrentSetWeight grabs the current setWeight used by the rollout by iterating backwards from the current step
 // until it finds a setWeight step. The controller defaults to 100 if it iterates through all the steps with no
 // setWeight or if there is no current step (i.e. the controller has already stepped through all the steps).
@@ -191,4 +204,23 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 		}
 	}
 	return 100
+}
+
+func GetStableRS(rollout *v1alpha1.Rollout, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
+	if rollout.Status.CanaryStatus.StableRS == "" {
+		return nil, rslist
+	}
+	olderRSs := []*appsv1.ReplicaSet{}
+	var stableRS *appsv1.ReplicaSet
+	for i := range rslist {
+		rs := rslist[i]
+		if rs != nil {
+			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.CanaryStatus.StableRS {
+				stableRS = rs
+				continue
+			}
+			olderRSs = append(olderRSs, rs)
+		}
+	}
+	return stableRS, olderRSs
 }

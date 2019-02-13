@@ -52,6 +52,10 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	switch rollout.Spec.Strategy.Type {
 	case v1alpha1.BlueGreenRolloutStrategyType:
 		return defaults.GetRolloutReplicasOrDefault(rollout), nil
+	case v1alpha1.CanaryRolloutStrategyType:
+		stableRS, olderRSs := GetStableRS(rollout, allRSs)
+		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
+		return newRSReplicaCount, nil
 	default:
 		return 0, fmt.Errorf("rollout strategy type %v isn't supported", rollout.Spec.Strategy.Type)
 	}

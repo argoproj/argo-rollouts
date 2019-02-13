@@ -451,7 +451,6 @@ func TestMaxSurge(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Log(test.name)
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expected, MaxSurge(test.rollout))
 		})
@@ -527,12 +526,8 @@ func TestMaxUnavailable(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Log(test.name)
 		t.Run(test.name, func(t *testing.T) {
-			maxUnavailable := MaxUnavailable(test.rollout)
-			if test.expected != maxUnavailable {
-				t.Fatalf("expected:%v, got:%v", test.expected, maxUnavailable)
-			}
+			assert.Equal(t, test.expected, MaxUnavailable(test.rollout))
 		})
 	}
 }
