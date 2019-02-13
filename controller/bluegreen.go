@@ -9,6 +9,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -44,7 +45,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledUp {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
-		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 
 	if previewSvc != nil {
@@ -55,13 +56,13 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		}
 		if switchPreviewSvc {
 			logCtx.Infof("Not finished reconciling preview service' %s'", previewSvc.Name)
-			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 		logCtx.Info("Reconciling verifying preview service")
 		verfyingPreview := c.reconcileVerifyingPreview(activeSvc, r)
 		if verfyingPreview {
 			logCtx.Info("Not finished reconciling verifying preview service")
-			return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 		}
 	}
 	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
@@ -71,7 +72,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if switchActiveSvc {
 		logCtx.Infof("Not Finished reconciling active service '%s'", activeSvc.Name)
-		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	// Scale down, if we can.
 	logCtx.Info("Reconciling old replica sets")
@@ -81,7 +82,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledDown {
 		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 	}
 	logCtx.Infof("Confirming rollout is complete")
 	if conditions.RolloutComplete(r, &r.Status) {
@@ -90,7 +91,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 			return err
 		}
 	}
-	return c.syncRolloutStatus(allRSs, newRS, previewSvc, activeSvc, r)
+	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 }
 
 func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
@@ -143,4 +144,33 @@ func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
 	logutil.WithRollout(r).Infof("Patching setVerifyingPreview to true")
 	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(verifyingPreviewPatch))
 	return err
+}
+
+func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout) error {
+	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
+	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	if !ok {
+		previewSelector = ""
+	}
+	newStatus.ActiveSelector = previewSelector
+	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	if !ok {
+		activeSelector = ""
+	}
+	newStatus.ActiveSelector = activeSelector
+
+	prevStatus := r.Status
+
+	activeRS := GetActiveReplicaSet(r, allRSs)
+	if activeRS != nil && annotations.IsSaturated(r, activeRS) {
+		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
+		conditions.SetRolloutCondition(&prevStatus, *availability)
+	} else {
+		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.Available, "Rollout is not serving traffic from the active service.")
+		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
+	}
+	newStatus.Conditions = prevStatus.Conditions
+	newStatus.VerifyingPreview = r.Status.VerifyingPreview
+
+	return c.persistRolloutStatus(r, &newStatus)
 }

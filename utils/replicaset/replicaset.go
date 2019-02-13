@@ -9,9 +9,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/controller"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
-
+	"k8s.io/kubernetes/pkg/controller"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -56,28 +55,6 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	default:
 		return 0, fmt.Errorf("rollout strategy type %v isn't supported", rollout.Spec.Strategy.Type)
 	}
-}
-
-func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
-		return 100
-	}
-	currentCanaryStep := int32(0)
-	if rollout.Status.CurrentStepIndex != nil {
-		currentCanaryStep = *rollout.Status.CurrentStepIndex
-	}
-
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == int(currentCanaryStep) {
-		return 100
-	}
-
-	for i := currentCanaryStep; i >= 0; i-- {
-		step := rollout.Spec.Strategy.CanaryStrategy.Steps[i]
-		if step.SetWeight != nil {
-			return *step.SetWeight
-		}
-	}
-	return 100
 }
 
 // MaxRevision finds the highest revision in the replica sets
@@ -229,4 +206,13 @@ func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 	// Error caught by validation
 	maxSurge, _, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
 	return maxSurge
+}
+
+// CheckSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
+// currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
+func CheckPodSpecChange(rollout *v1alpha1.Rollout) bool {
+	if rollout.Status.CurrentPodHash == "" {
+		return false
+	}
+	return rollout.Status.CurrentPodHash != controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 }
