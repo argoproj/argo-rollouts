@@ -20,13 +20,12 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 		if err != nil {
 			return err
 		}
-		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, previousRSs)
-		allRSs := append(oldRSs, newRS)
-		return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 
 	newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, true)
-	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, previousRSs)
+	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,17 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 	if scaledStableRS {
 		logCtx.Infof("Not finished reconciling stableRS")
-		return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
+	}
+
+	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
+	scaledUp, err := c.reconcileNewReplicaSet(allRSs, newRS, rollout)
+	if err != nil {
+		return err
+	}
+	if scaledUp {
+		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 
 	logCtx.Info("Reconciling old replica sets")
@@ -52,19 +61,19 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 	if scaledDown {
 		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 
 	logCtx.Info("Reconciling Canary Step")
 	stillReconciling, err := c.reconcileCanarySteps(rollout, rsList)
 	if err != nil {
-		return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 	if stillReconciling {
 		logCtx.Infof("Not finished reconciling new Canary Steps")
-		return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
-	return c.syncRolloutStatusCanary(allRSs, newRS, stableRS, rollout)
+	return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 }
 
 func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
@@ -198,6 +207,10 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	} else if currentStep != nil && currentStep.Pause != nil && r.Status.SetPause != nil && !*r.Status.SetPause {
 		currentStepIndex++
 		logCtx.Infof("Incrementing the Current Step Index to %d", currentStepIndex)
+	}
+
+	if currentStep != nil && currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs){
+		currentStepIndex++
 	}
 
 	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
