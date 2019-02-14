@@ -10,6 +10,21 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
+// AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
+func AtDesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) bool {
+	desiredNewRSReplicaCount, desiredStableRSReplicaCount := DesiredReplicaCountsForCanary(rollout, newRS, stableRS)
+	if newRS == nil || desiredNewRSReplicaCount != *newRS.Spec.Replicas || desiredNewRSReplicaCount != newRS.Status.AvailableReplicas {
+		return false
+	}
+	if stableRS == nil || desiredStableRSReplicaCount != *stableRS.Spec.Replicas || desiredStableRSReplicaCount != stableRS.Status.AvailableReplicas {
+		return false
+	}
+	if GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
+		return false
+	}
+	return true
+}
+
 //DesiredReplicaCountsForCanary calculates the desired endstate replica count for the new and stable replicasets
 func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetRolloutReplicasOrDefault(rollout)
@@ -158,6 +173,9 @@ func CheckStableRSExists(newRS, stableRS *appsv1.ReplicaSet) bool {
 	if stableRS == nil {
 		return false
 	}
+	if newRS == nil {
+		return true
+	}
 	if newRS.Name == stableRS.Name {
 		return false
 	}
@@ -206,7 +224,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	return 100
 }
 
-func GetStableRS(rollout *v1alpha1.Rollout, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
+func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
 	if rollout.Status.CanaryStatus.StableRS == "" {
 		return nil, rslist
 	}
@@ -217,6 +235,9 @@ func GetStableRS(rollout *v1alpha1.Rollout, rslist []*appsv1.ReplicaSet) (*appsv
 		if rs != nil {
 			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.CanaryStatus.StableRS {
 				stableRS = rs
+				continue
+			}
+			if newRS != nil && rs.Name == newRS.Name {
 				continue
 			}
 			olderRSs = append(olderRSs, rs)

@@ -53,7 +53,7 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	case v1alpha1.BlueGreenRolloutStrategyType:
 		return defaults.GetRolloutReplicasOrDefault(rollout), nil
 	case v1alpha1.CanaryRolloutStrategyType:
-		stableRS, olderRSs := GetStableRS(rollout, allRSs)
+		stableRS, olderRSs := GetStableRS(rollout, newRS, allRSs)
 		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
 		return newRSReplicaCount, nil
 	default:
