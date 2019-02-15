@@ -28,8 +28,6 @@ import (
 const (
 	// CLIName is the name of the CLI
 	cliName = "argo-rollouts"
-	// Default time in seconds for rollout resync period
-	defaultRolloutResyncPeriod = 30
 )
 
 func newCommand() *cobra.Command {
@@ -94,7 +92,7 @@ func newCommand() *cobra.Command {
 		},
 	}
 	clientConfig = addKubectlFlagsToCmd(&command)
-	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", defaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
+	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	return &command
