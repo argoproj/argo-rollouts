@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
@@ -31,7 +33,7 @@ func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, st
 	return rollout
 }
 
-func bumpVersion(rollout *v1alpha1.Rollout, newVersion string) *v1alpha1.Rollout {
+func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRollout := rollout.DeepCopy()
 	revision := rollout.Annotations[annotations.RevisionAnnotation]
 	newRevision, _ := strconv.Atoi(revision)
@@ -53,7 +55,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 	// Handle case with no steps
 	r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	stepResult, err := controller.reconcileCanarySteps(r, nil)
+	stepResult, err := controller.reconcileCanarySteps(nil, nil, nil, r)
 	assert.Nil(t, err)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
@@ -61,7 +63,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	//Handle case where currentStepIndex is greater than the list of steps
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
-	stepResult, err = controller.reconcileCanarySteps(r2, nil)
+	stepResult, err = controller.reconcileCanarySteps(nil, nil, nil, r2)
 	assert.Nil(t, err)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
@@ -129,7 +131,7 @@ func TestReconcileCanaryStepsHandlePause(t *testing.T) {
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}
-			stepResult, err := controller.reconcileCanarySteps(r, nil)
+			stepResult, err := controller.reconcileCanarySteps(nil, nil, nil, r)
 			assert.Nil(t, err)
 			assert.True(t, stepResult)
 			if test.expectPatch {
@@ -158,7 +160,7 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	"status": {
 		"currentPodHash":"5f79b78d7f",
 		"currentStepIndex":0,
-		"observedGeneration":"6577859b4dgs"
+		"observedGeneration":"6577859b4d"
 	}
 }`)
 
@@ -173,7 +175,7 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	r1.Status.CurrentPodHash = "895c6c4f9"
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 	r1.Status.AvailableReplicas = 10
-	r2 := bumpVersion(r1, "2")
+	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -226,7 +228,7 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
-	r2 := bumpVersion(r1, "2")
+	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -252,7 +254,7 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
-	r2 := bumpVersion(r1, "1")
+	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -281,7 +283,7 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
-	r2 := bumpVersion(r1, "2")
+	r2 := bumpVersion(r1)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -311,9 +313,9 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
-	r2 := bumpVersion(r1, "2")
+	r2 := bumpVersion(r1)
 
-	r3 := bumpVersion(r2, "3")
+	r3 := bumpVersion(r2)
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
@@ -359,9 +361,9 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
-	r2 := bumpVersion(r1, "2")
+	r2 := bumpVersion(r1)
 
-	r3 := bumpVersion(r2, "3")
+	r3 := bumpVersion(r2)
 	r3.Status.CurrentPodHash = "8cdf7bbb4"
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
@@ -380,6 +382,177 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
+func TestSyncRolloutsSetWaitStartTime(t *testing.T) {
+	expectedPatch := removeWhiteSpace(`{
+	"status":{
+		"canaryStatus":{
+			"waitStartTime": "%s"
+		},
+		"observedGeneration":"7c5dcf976c"
+	}
+}`)
+	expectedPatch = fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		}, {
+			Wait: int32Ptr(10),
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	r2.Status.AvailableReplicas = 10
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
+func TestSyncRolloutWaitAddToQueue(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		}, {
+			Wait: int32Ptr(10),
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	r2.Status.AvailableReplicas = 10
+	r2.Status.ObservedGeneration = "7c5dcf976c"
+
+	now := metav1.Now()
+	r2.Status.CanaryStatus.WaitStartTime = &now
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.run(getKey(r2, t))
+	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
+	//When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
+	assert.Equal(t, 2, f.enqueuedObjects[key])
+
+}
+
+func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		}, {
+			Wait: int32Ptr(int32((60 * time.Hour).Seconds())),
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	now := metav1.Now()
+	r2.Status.CanaryStatus.WaitStartTime = &now
+	r2.Status.ObservedGeneration = "cbb66d86f"
+	r2.Status.AvailableReplicas = 10
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.run(getKey(r2, t))
+	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
+	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	assert.Equal(t, 1, f.enqueuedObjects[key])
+
+}
+
+func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
+	expectedPatch := removeWhiteSpace(`{
+	"status":{
+		"canaryStatus":{
+			"waitStartTime": null
+		},
+		"currentStepIndex":2,
+		"observedGeneration":"b64bd68c6"
+	}
+}`)
+
+	f := newFixture(t)
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		}, {
+			Wait: int32Ptr(5),
+		}, {
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	earlier := metav1.Now()
+	earlier.Time = earlier.Add(-10 * time.Second)
+	r2.Status.CanaryStatus.WaitStartTime = &earlier
+	r2.Status.ObservedGeneration = "6dff5cffc5"
+	r2.Status.AvailableReplicas = 10
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
+	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	assert.Equal(t, 1, f.enqueuedObjects[key])
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	assert.Equal(t, expectedPatch, string(patchBytes))

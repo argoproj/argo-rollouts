@@ -46,6 +46,7 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	kubeobjects []runtime.Object
 	objects     []runtime.Object
+	enqueuedObjects map[string]int
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -53,8 +54,10 @@ func newFixture(t *testing.T) *fixture {
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
+	f.enqueuedObjects = make(map[string]int)
 	return f
 }
+
 func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
 	rollout.Spec.Strategy.Type = v1alpha1.BlueGreenRolloutStrategyType
@@ -162,7 +165,24 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 	c.replicaSetSynced = alwaysReady
 	c.serviceSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
-	c.enqueueRollout = c.enqueue
+	c.enqueueRollout = func(obj interface{}) {
+		var key string
+		var err error
+		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+			panic(err)
+			return
+		}
+		count, ok := f.enqueuedObjects[key]
+		if !ok {
+			count = 0
+		}
+		count++
+		f.enqueuedObjects[key] = count
+		c.enqueue(obj)
+	}
+	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+		c.enqueueRollout(obj)
+	}
 
 	for _, r := range f.rolloutLister {
 		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(r)
@@ -179,15 +199,16 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 }
 
 func (f *fixture) run(rolloutName string) {
-	f.runController(rolloutName, true, false)
+	c, i, k8sI := f.newController()
+	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
-	f.runController(rolloutName, startInformers, true)
+	c, i, k8sI := f.newController()
+	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool) {
-	c, i, k8sI := f.newController()
+func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
@@ -231,6 +252,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	if len(f.kubeactions) > len(k8sActions) {
 		f.t.Errorf("%d additional expected actions:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
+	return c
 }
 
 // checkAction verifies that expected and actual actions are equal

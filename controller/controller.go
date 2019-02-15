@@ -50,6 +50,9 @@ const (
 	// MessageResourceSynced is the message used for an Event fired when a Rollout
 	// is synced successfully
 	MessageResourceSynced = "Rollout synced successfully"
+
+	// DefaultRolloutResyncPeriod Default time in seconds for rollout resync period
+	DefaultRolloutResyncPeriod = 30
 )
 
 // Controller is the controller implementation for Rollout resources
@@ -71,6 +74,7 @@ type Controller struct {
 
 	// used for unit testing
 	enqueueRollout func(obj interface{})
+	enqueueRolloutAfter func(obj interface{}, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -119,6 +123,7 @@ func NewController(
 		recorder:          recorder,
 	}
 	controller.enqueueRollout = controller.enqueueRateLimited
+	controller.enqueueRolloutAfter = controller.enqueueAfter
 
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
@@ -329,6 +334,16 @@ func (c *Controller) enqueueRateLimited(obj interface{}) {
 		return
 	}
 	c.workqueue.AddRateLimited(key)
+}
+
+func (c *Controller) enqueueAfter(obj interface{}, duration time.Duration) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	c.workqueue.AddAfter(key, duration)
 }
 
 // handleObject will take any resource implementing metav1.Object and attempt

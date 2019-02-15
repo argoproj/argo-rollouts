@@ -183,6 +183,9 @@ type CanaryStatus struct {
 	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
+	//WaitStartTime this field is set when the rollout is in a wait step and indicates the time the wait started at
+	// +optional
+	WaitStartTime *metav1.Time `json:"waitStartTime,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout
