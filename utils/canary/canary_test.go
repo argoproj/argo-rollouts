@@ -351,8 +351,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable")
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
-			newRSReplicaCount, stableRSReplicaCount, err := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
-			assert.Nil(t, err)
+			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
 			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount)
 			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount)
 		})
@@ -362,13 +361,11 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
 	newRS := newRS("stable", 9, 9)
-	newRSReplicaCount, stableRSReplicaCount, err := CalculateReplicaCountsForCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
-	assert.Nil(t, err)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 
-	newRSReplicaCount, stableRSReplicaCount, err = CalculateReplicaCountsForCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
-	assert.Nil(t, err)
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 }
