@@ -550,10 +550,6 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
-	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
-	assert.Equal(t, 1, f.enqueuedObjects[key])
-
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }

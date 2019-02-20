@@ -12,9 +12,9 @@ const (
 	// DefaultRevisionHistoryLimit default number of revisions to keep if .Spec.RevisionHistoryLimit is nil
 	DefaultRevisionHistoryLimit = int32(10)
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
-	DefaultMaxSurge = 1
+	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
-	DefaultMaxUnavailable = 1
+	DefaultMaxUnavailable = 0
 )
 
 // GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
@@ -37,7 +37,7 @@ func GetMaxSurgeOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.CanaryStrategy.MaxSurge != nil {
 		return rollout.Spec.Strategy.CanaryStrategy.MaxSurge
 	}
-	defaultValue := intstr.FromInt(DefaultMaxSurge)
+	defaultValue := intstr.FromString(DefaultMaxSurge)
 	return &defaultValue
 }
 
