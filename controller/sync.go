@@ -322,7 +322,7 @@ func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, roll
 	return scaled, rs, err
 }
 
-// calculateStatus calculates the latest status for the provided rollout by looking into the provided replica sets.
+// calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
 func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
 	prevStatus := rollout.Status
 

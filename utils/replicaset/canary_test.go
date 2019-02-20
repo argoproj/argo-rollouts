@@ -288,7 +288,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			maxUnavailable:      intstr.FromInt(3),
 
 			stableSpecReplica:      8,
-			stableAvailableReplica: 4,
+			stableAvailableReplica: 5,
 
 			canarySpecReplica:      4,
 			canaryAvailableReplica: 4,

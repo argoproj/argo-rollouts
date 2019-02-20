@@ -4,7 +4,6 @@ import (
 	"math"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/client-go/util/integer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -113,21 +112,27 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	totalCurrentReplicaCount := GetReplicaCountForReplicaSets(allRSs)
 	scaleUpCount := maxReplicaCountAllowed - totalCurrentReplicaCount
 
-	if scaleStableRS && *stableRS.Spec.Replicas < desiredStableRSReplicaCount {
-		if scaleUpCount > 0 {
-			// The controller is scaling up the stableRS to reach the overall max surge or the desired replica
-			// count for the stableRS. It picks the min to ensure that the max surge upper bound is upheld and it does
-			// not scale the stableRS above the desired replica count.
-			stableRSReplicaCount = integer.Int32Min(*stableRS.Spec.Replicas+scaleUpCount, desiredStableRSReplicaCount)
-			// The ensures that the scaleUpCount is never less than 0
-			scaleUpCount = integer.Int32Max(0, scaleUpCount-(desiredStableRSReplicaCount-*stableRS.Spec.Replicas))
+	if scaleStableRS && *stableRS.Spec.Replicas < desiredStableRSReplicaCount && scaleUpCount > 0 {
+		// if the controller doesn't have to use every replica to achieve the desired count, it only scales up to the
+		// desired count.
+		if *stableRS.Spec.Replicas+scaleUpCount < desiredStableRSReplicaCount {
+			// The controller is using every replica it can to get closer to desired state.
+			stableRSReplicaCount = *stableRS.Spec.Replicas + scaleUpCount
+			scaleUpCount = 0
+		} else {
+			stableRSReplicaCount = desiredStableRSReplicaCount
+			// Calculating how many replicas were used to scale up to the desired count
+			scaleUpCount = scaleUpCount - (desiredStableRSReplicaCount - *stableRS.Spec.Replicas)
 		}
 	}
 
-	if *newRS.Spec.Replicas < desiredNewRSReplicaCount {
-		if scaleUpCount > 0 {
-			//This follows the same logic as scaling up the stableRS except with the newRS
-			newRSReplicaCount = integer.Int32Min(*newRS.Spec.Replicas+scaleUpCount, desiredNewRSReplicaCount)
+	if *newRS.Spec.Replicas < desiredNewRSReplicaCount && scaleUpCount > 0 {
+		// This follows the same logic as scaling up the stable except with the newRS and it does not need to
+		// set the scaleDownCount again since it's not used again
+		if *newRS.Spec.Replicas + scaleUpCount < desiredNewRSReplicaCount {
+			newRSReplicaCount = *newRS.Spec.Replicas + scaleUpCount
+		} else {
+			newRSReplicaCount = desiredNewRSReplicaCount
 		}
 	}
 
@@ -147,21 +152,27 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 	scaleDownCount = scaleDownCount - totalAvailableOlderReplicaCount
 
-	if *newRS.Spec.Replicas > desiredNewRSReplicaCount {
-		if scaleDownCount > 0 {
-			// The controller is scaling down the newRS to reach the overall min available count or the desired replica
-			// count for the newRS. It picks the max to ensure that the min available count is upheld and it does not
-			// scale the newRS below the desired replica count.
-			newRSReplicaCount = integer.Int32Max(*newRS.Spec.Replicas-scaleDownCount, desiredNewRSReplicaCount)
-			// The ensures that the scaleDownCount is never less than 0
-			scaleDownCount = integer.Int32Max(0, scaleDownCount-(desiredNewRSReplicaCount-*newRS.Spec.Replicas))
+	if *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
+		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
+		// desired count.
+		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
+			newRSReplicaCount = desiredNewRSReplicaCount
+			// Calculating how many replicas were used to scale down to the desired count
+			scaleDownCount = scaleDownCount - (desiredNewRSReplicaCount - *newRS.Spec.Replicas)
+		} else {
+			// The controller is using every replica it can to get closer to desired state.
+			newRSReplicaCount = *newRS.Spec.Replicas - scaleDownCount
+			scaleDownCount = 0
 		}
 	}
 
-	if scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount {
-		if scaleDownCount > 0 {
-			//This follows the same logic as scaling down the newRS except with the stableRS
-			stableRSReplicaCount = integer.Int32Max(*stableRS.Spec.Replicas-scaleDownCount, desiredStableRSReplicaCount)
+	if scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount && scaleDownCount > 0 {
+		// This follows the same logic as scaling down the newRS except with the stableRS and it does not need to
+		// set the scaleDownCount again since it's not used again
+		if *stableRS.Spec.Replicas-scaleDownCount < desiredStableRSReplicaCount {
+			stableRSReplicaCount = desiredStableRSReplicaCount
+		} else {
+			stableRSReplicaCount = *stableRS.Spec.Replicas-scaleDownCount
 		}
 	}
 

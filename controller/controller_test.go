@@ -159,7 +159,8 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 	c := NewController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
-		i.Argoproj().V1alpha1().Rollouts())
+		i.Argoproj().V1alpha1().Rollouts(),
+		time.Minute)
 
 	c.rolloutsSynced = alwaysReady
 	c.replicaSetSynced = alwaysReady

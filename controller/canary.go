@@ -47,11 +47,11 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 
 	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
-	scaledUp, err := c.reconcileNewReplicaSet(allRSs, newRS, rollout)
+	scaledNewRS, err := c.reconcileNewReplicaSet(allRSs, newRS, rollout)
 	if err != nil {
 		return err
 	}
-	if scaledUp {
+	if scaledNewRS {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
@@ -67,7 +67,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 
 	logCtx.Info("Reconciling Canary Step")
-	stillReconciling, err := c.reconcileCanarySteps(oldRSs, newRS, stableRS, rollout)
+	stillReconciling, err := c.reconcilePause(oldRSs, newRS, stableRS, rollout)
 	if err != nil {
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
@@ -89,7 +89,7 @@ func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *app
 	return scaled, err
 }
 
-func (c *Controller) reconcileCanarySteps(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
 		return false, nil
@@ -123,7 +123,7 @@ func (c *Controller) reconcileCanarySteps(oldRSs []*appsv1.ReplicaSet, newRS *ap
 		now := metav1.Now()
 		if rollout.Status.CanaryStatus.WaitStartTime != nil {
 			expiredTime := rollout.Status.CanaryStatus.WaitStartTime.Add(time.Duration(*currentStep.Wait) * time.Second)
-			nextResync := now.Add(time.Duration(DefaultRolloutResyncPeriod) * time.Second)
+			nextResync := now.Add(time.Duration(c.resyncPeriod) * time.Second)
 			if nextResync.After(expiredTime) && expiredTime.After(now.Time){
 				timeRemaining := expiredTime.Sub(now.Time)
 				c.enqueueRolloutAfter(rollout, timeRemaining)
