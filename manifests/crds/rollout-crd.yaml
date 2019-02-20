@@ -121,6 +121,7 @@ spec:
                   description: StableRS indicates the last replicaset that walked
                     through all the canary steps or was the only replicaset
                   type: string
+                waitStartTime: {}
             collisionCount:
               description: Count of hash collisions for the Rollout. The Rollout controller
                 uses this field as a collision avoidance mechanism when it needs to

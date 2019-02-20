@@ -3,7 +3,7 @@ kind: Rollout
 metadata:
   name: example-rollout
 spec:
-  replicas: 1
+  replicas: 5
   selector:
     matchLabels:
       app: guestbook
@@ -24,5 +24,7 @@ spec:
     type: CanaryUpdate 
     canary:
       steps:
-      - pause: true
-      - pause: true
+      - setWeight: 20 
+      - wait: 20
+      - setWeight: 40
+      - pause: {}

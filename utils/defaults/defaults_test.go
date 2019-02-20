@@ -49,7 +49,7 @@ func TestGetMaxSurgeOrDefault(t *testing.T) {
 
 	assert.Equal(t, maxSurge, *GetMaxSurgeOrDefault(rolloutNonDefaultValue))
 	rolloutDefaultValue := &v1alpha1.Rollout{}
-	assert.Equal(t, intstr.FromInt(DefaultMaxSurge), *GetMaxSurgeOrDefault(rolloutDefaultValue))
+	assert.Equal(t, intstr.FromString(DefaultMaxSurge), *GetMaxSurgeOrDefault(rolloutDefaultValue))
 }
 
 func TestGetMaxUnavailableOrDefault(t *testing.T) {

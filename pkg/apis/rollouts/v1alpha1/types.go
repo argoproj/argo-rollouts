@@ -98,7 +98,7 @@ type CanaryStrategy struct {
 	// that at least 70% of original number of pods are available at all times
 	// during the update.
 	// +optional
-	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable"`
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 
 	// MaxSurge The maximum number of pods that can be scheduled above the original number of
 	// pods.
@@ -111,7 +111,7 @@ type CanaryStrategy struct {
 	// new RC can be scaled up further, ensuring that total number of pods running
 	// at any time during the update is atmost 130% of original pods.
 	// +optional
-	MaxSurge *intstr.IntOrString `json:"maxSurge"`
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 
 // CanaryStep defines a step of a canary deployment.
