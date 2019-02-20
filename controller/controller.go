@@ -85,6 +85,7 @@ type Controller struct {
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder record.EventRecorder
+	resyncPeriod time.Duration
 }
 
 // NewController returns a new rollout controller
@@ -93,7 +94,8 @@ func NewController(
 	rolloutsclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	serviceInformer coreinformers.ServiceInformer,
-	rolloutsInformer informers.RolloutInformer) *Controller {
+	rolloutsInformer informers.RolloutInformer,
+	resyncPeriod time.Duration) *Controller {
 
 	// Create event broadcaster
 	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
@@ -121,6 +123,7 @@ func NewController(
 		rolloutsSynced:    rolloutsInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
 		recorder:          recorder,
+		resyncPeriod:      resyncPeriod,
 	}
 	controller.enqueueRollout = controller.enqueueRateLimited
 	controller.enqueueRolloutAfter = controller.enqueueAfter

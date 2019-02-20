@@ -55,7 +55,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 	// Handle case with no steps
 	r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	stepResult, err := controller.reconcileCanarySteps(nil, nil, nil, r)
+	stepResult, err := controller.reconcilePause(nil, nil, nil, r)
 	assert.Nil(t, err)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
@@ -63,7 +63,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	//Handle case where currentStepIndex is greater than the list of steps
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
-	stepResult, err = controller.reconcileCanarySteps(nil, nil, nil, r2)
+	stepResult, err = controller.reconcilePause(nil, nil, nil, r2)
 	assert.Nil(t, err)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
@@ -131,7 +131,7 @@ func TestReconcileCanaryStepsHandlePause(t *testing.T) {
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}
-			stepResult, err := controller.reconcileCanarySteps(nil, nil, nil, r)
+			stepResult, err := controller.reconcilePause(nil, nil, nil, r)
 			assert.Nil(t, err)
 			assert.True(t, stepResult)
 			if test.expectPatch {
