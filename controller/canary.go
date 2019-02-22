@@ -253,3 +253,104 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.SetPause = setPause
 	return c.persistRolloutStatus(r, &newStatus)
 }
+
+// scaleCanary scales the rollout with a canary strategy on a scaling event. First, it checks if there is only one
+// replicaset with more than 0 replicas. If there is only one replicas with more than 0 replicas, it scales that
+// replicaset to the rollout's replica value.  Afterwards, it checks if the newRS or the stableRS are at the desired
+// number of replicas. If either of them are at the desired state, the function will scale down the rest of the older
+// replicas. This will prevent the deadlock in the next steps due to old replicasets taking available replicas.
+// Afterwards, the function calculates the number of replicas to add, which can be negative.  From there, the function
+// starts to scale the replicasets until they are at the desired state or it cannot scale down any more.
+func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	// If there is only one active replica set, then we should scale that up to the full count of the
+	// rollout. If there are no active replica sets, and there is only one RS with replicas, then we
+	// should scale up the newest replica set.
+	previousRS := oldRSs
+	if stableRS != nil {
+		previousRS = append(previousRS, stableRS)
+	}
+
+	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, previousRS); activeOrLatest != nil {
+		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
+			return err
+		}
+	}
+
+	desiredNewRSReplicaCount, desiredStableRSReplicaCount := replicasetutil.DesiredReplicaCountsForCanary(rollout, newRS, stableRS)
+
+	// If the newRS and/or stableRS are at their desired state, the old replica sets should be fully scaled down.
+	// This case handles replica set adoption during a saturated new replica set.
+	newRSAtDesired := newRS == nil || desiredNewRSReplicaCount == *newRS.Spec.Replicas
+	stableRSAtDesired := stableRS == nil || desiredStableRSReplicaCount == *stableRS.Spec.Replicas
+	if newRSAtDesired || stableRSAtDesired {
+		for _, old := range controller.FilterActiveReplicaSets(oldRSs) {
+			if _, _, err := c.scaleReplicaSetAndRecordEvent(old, 0, rollout); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	allRSs := controller.FilterActiveReplicaSets(append(oldRSs, newRS, stableRS))
+	allRSsReplicas := replicasetutil.GetReplicaCountForReplicaSets(allRSs)
+
+	rolloutSpecReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	allowedSize := rolloutSpecReplicas + replicasetutil.MaxSurge(rollout)
+
+	// Number of additional replicas that can be either added or removed from the total
+	// replicas count. These replicas should be distributed proportionally to the active
+	// replica sets.
+	rolloutReplicasToAdd := allowedSize - allRSsReplicas
+
+	// The additional replicas should be distributed proportionally amongst the active
+	// replica sets from the larger to the smaller in size replica set. Scaling direction
+	// drives what happens in case we are trying to scale replica sets of the same size.
+	// In such a case when scaling up, we should scale up stable replica set first, and
+	// when scaling down, we should scale down older replica sets and newRS first.
+	var scalingOperation string
+	switch {
+	case rolloutReplicasToAdd > 0:
+		sort.Sort(controller.ReplicaSetsBySizeNewer(oldRSs))
+		allRSs = append([]*appsv1.ReplicaSet{stableRS, newRS}, oldRSs...)
+		scalingOperation = "up"
+
+	case rolloutReplicasToAdd < 0:
+		sort.Sort(controller.ReplicaSetsBySizeOlder(oldRSs))
+		allRSs = append(oldRSs, newRS, stableRS)
+		scalingOperation = "down"
+	}
+
+	// Iterate over all active replica sets and estimate proportions for each of them.
+	// The absolute value of rolloutReplicasAdded should never exceed the absolute
+	// value of rolloutReplicasToAdd.
+	rolloutReplicasAdded := int32(0)
+
+	// Update all replica sets
+	for i := range allRSs {
+		rs := allRSs[i]
+		if rs == nil {
+			continue
+		}
+
+		desiredNewReplicaCount := int32(0)
+		if stableRS != nil && rs != nil && stableRS.Name == rs.Name {
+			desiredNewReplicaCount = desiredStableRSReplicaCount
+		}
+
+		if newRS != nil && rs != nil && newRS.Name == rs.Name {
+			desiredNewReplicaCount = desiredNewRSReplicaCount
+		}
+
+		proportion := replicasetutil.GetProportion(rs, rolloutReplicasToAdd, rolloutReplicasAdded, desiredNewReplicaCount)
+		rolloutReplicasAdded = rolloutReplicasAdded + proportion
+
+		if _, _, err := c.scaleReplicaSet(rs, *rs.Spec.Replicas+proportion, rollout, scalingOperation); err != nil {
+			// Return as soon as we fail, the rollout is requeued
+			return err
+		}
+	}
+
+	return nil
+}

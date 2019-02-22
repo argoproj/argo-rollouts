@@ -223,6 +223,13 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
+	t.Run("GetDesiredReplicasAnnotationNoReplicaSet", func(t *testing.T) {
+		replicas, ok := GetDesiredReplicasAnnotation(nil)
+		assert.False(t, ok)
+		assert.Equal(t, int32(0), replicas)
+	})
+
+
 	tRS.Annotations[DesiredReplicasAnnotation] = "Not a number"
 	t.Run("GetDesiredReplicasAnnotationInvalidAnnotations", func(t *testing.T) {
 		_, ok := GetDesiredReplicasAnnotation(&tRS)

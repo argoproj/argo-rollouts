@@ -52,7 +52,7 @@ func rs(name string, replicas int, selector map[string]string, timestamp metav1.
 	}
 }
 
-func TestScale(t *testing.T) {
+func TestScaleBlueGreen(t *testing.T) {
 	newTimestamp := metav1.Date(2016, 5, 20, 3, 0, 0, 0, time.UTC)
 	oldTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
 	olderTimestamp := metav1.Date(2016, 5, 20, 1, 0, 0, 0, time.UTC)
@@ -197,7 +197,7 @@ func TestScale(t *testing.T) {
 				annotations.SetReplicasAnnotations(rs, desiredReplicas)
 			}
 
-			if err := c.scale(test.rollout, test.newRS, test.oldRSs, test.previewSvc, test.activeSvc); err != nil {
+			if err := c.scaleBlueGreen(test.rollout, test.newRS, test.oldRSs, test.previewSvc, test.activeSvc); err != nil {
 				t.Errorf("%s: unexpected error: %v", test.name, err)
 				return
 			}
@@ -354,4 +354,9 @@ func TestCleanupRollouts(t *testing.T) {
 			}
 		})
 	}
+}
+
+
+func TestIsScalingEventCanary(t *testing.T) {
+
 }
