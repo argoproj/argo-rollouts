@@ -33,6 +33,9 @@ func GetDesiredReplicasAnnotation(rs *appsv1.ReplicaSet) (int32, bool) {
 }
 
 func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, bool) {
+	if rs == nil {
+		return 0, false
+	}
 	annotationValue, ok := rs.Annotations[annotationKey]
 	if !ok {
 		return int32(0), false

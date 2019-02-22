@@ -174,3 +174,44 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 
 	return c.persistRolloutStatus(r, &newStatus)
 }
+
+// Should run only on scaling events and not during the normal rollout process.
+func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
+	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	if !ok {
+		previewSelector = ""
+	}
+	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	if !ok {
+		activeSelector = ""
+	}
+	allRS := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
+	activeRS := GetActiveReplicaSet(rollout, allRS)
+	if activeRS != nil {
+		if *(activeRS.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)
+			return err
+		}
+	}
+	// If there is only one replica set with pods, then we should scale that up to the full count of the
+	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
+	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
+		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
+			return err
+		}
+	}
+
+	// Old replica sets should be fully scaled down if they aren't receiving traffic from the active or
+	// preview service. This case handles replica set adoption during a saturated new replica set.
+	for _, old := range controller.FilterActiveReplicaSets(oldRSs) {
+		oldLabel, ok := old.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if !ok || (oldLabel != activeSelector && oldLabel != previewSelector) {
+			if _, _, err := c.scaleReplicaSetAndRecordEvent(old, 0, rollout); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

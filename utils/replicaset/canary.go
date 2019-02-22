@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"k8s.io/client-go/util/integer"
 )
 
 // AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
@@ -83,7 +84,10 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(setWeight) / 100)))
 
 	stableRSReplicaCount := int32(0)
-	newRSReplicaCount := *newRS.Spec.Replicas
+	newRSReplicaCount := int32(0)
+	if newRS != nil {
+		newRSReplicaCount = *newRS.Spec.Replicas
+	}
 
 	scaleStableRS := CheckStableRSExists(newRS, stableRS)
 	if scaleStableRS {
@@ -126,7 +130,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		}
 	}
 
-	if *newRS.Spec.Replicas < desiredNewRSReplicaCount && scaleUpCount > 0 {
+	if newRS != nil && *newRS.Spec.Replicas < desiredNewRSReplicaCount && scaleUpCount > 0 {
 		// This follows the same logic as scaling up the stable except with the newRS and it does not need to
 		// set the scaleDownCount again since it's not used again
 		if *newRS.Spec.Replicas+scaleUpCount < desiredNewRSReplicaCount {
@@ -152,7 +156,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 	scaleDownCount = scaleDownCount - totalAvailableOlderReplicaCount
 
-	if *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
+	if newRS != nil &&  *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
 		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
@@ -255,4 +259,25 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 		}
 	}
 	return stableRS, olderRSs
+}
+
+// GetProportion will estimate the proportion for the provided replica set using the replica count that needs be added
+// on the replica sets of the rollout and the total replicas added in the replica sets of the rollout so far.
+func GetProportion(rs *appsv1.ReplicaSet, rolloutReplicasToAdd, rolloutReplicasAdded, desiredNewReplicaCount int32) int32 {
+	if rs == nil || *(rs.Spec.Replicas) == 0 || rolloutReplicasToAdd == 0 || rolloutReplicasToAdd == rolloutReplicasAdded {
+		return int32(0)
+	}
+
+	allowed := rolloutReplicasToAdd - rolloutReplicasAdded
+
+	if rolloutReplicasToAdd > 0 {
+		// Use the minimum between the difference to the desired state and current rs count, and the maximum allowed
+		// replicas when scaling up. This way we ensure we will not scale up more than the allowed
+		// replicas we can add.
+		return integer.Int32Min(desiredNewReplicaCount - *rs.Spec.Replicas, allowed)
+	}
+	// Use the maximum between the difference of the desired state and current rs count and the maximum allowed replicas
+	// when scaling down. This way we ensure we will not scale down more than the allowed
+	// replicas we can remove.
+	return integer.Int32Max(desiredNewReplicaCount - *rs.Spec.Replicas, allowed)
 }

@@ -121,7 +121,7 @@ func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.Repli
 			Labels:          rsLabels,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 			Annotations: map[string]string{
-				annotations.DesiredReplicasAnnotation: strconv.Itoa(replicas),
+				annotations.DesiredReplicasAnnotation: strconv.Itoa(int(*r.Spec.Replicas)),
 				annotations.RevisionAnnotation:        r.Annotations[annotations.RevisionAnnotation],
 			},
 		},
