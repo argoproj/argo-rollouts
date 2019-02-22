@@ -335,7 +335,7 @@ spec:
       containers:
       - command:
         - /bin/rollouts-controller
-        image: argoproj/argo-rollouts:latest
+        image: argoproj/argo-rollouts:v0.1.0
         imagePullPolicy: Always
         name: argo-rollouts
       serviceAccountName: argo-rollouts

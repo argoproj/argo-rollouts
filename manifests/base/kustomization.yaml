@@ -7,4 +7,4 @@ resources:
 
 imageTags:
 - name: argoproj/rollout-controlller
-  newTag: latest
+  newTag: v0.1.0 
