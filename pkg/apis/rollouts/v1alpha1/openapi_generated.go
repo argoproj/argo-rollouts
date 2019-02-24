@@ -84,7 +84,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
-					"waitStartTime": {
+					"pauseStartTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WaitStartTime this field is set when the rollout is in a wait step and indicates the time the wait started at",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
@@ -104,13 +104,6 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 			SchemaProps: spec.SchemaProps{
 				Description: "CanaryStep defines a step of a canary deployment.",
 				Properties: map[string]spec.Schema{
-					"wait": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Wait the amount of time to run the canary instance before moving to the next step.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
 					"setWeight": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SetWeight sets what percentage of the newRS should receive",
@@ -120,7 +113,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 					},
 					"pause": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pause freezes the rollout until a user sets the status.setPause to false",
+							Description: "Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"),
 						},
 					},
@@ -320,7 +313,15 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Properties: map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration the amount of time to wait before moving to the next step.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
 			},
 		},
 		Dependencies: []string{},
@@ -370,6 +371,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 							Description: "The number of old ReplicaSets to retain. This is a pointer to distinguish between explicit zero and not specified. This is set to the max value of int32 (i.e. 2147483647) by default, which means \"retaining all old ReplicaSets\".",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"pause": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pause pauses the rollout at its current step.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

@@ -407,14 +407,16 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
-func TestSyncRolloutsSetWaitStartTime(t *testing.T) {
+func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	f := newFixture(t)
 
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: int32Ptr(10),
 		}, {
-			Wait: int32Ptr(10),
+			Pause: &v1alpha1.RolloutPause{
+				Duration: int32Ptr(10),
+			},
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -441,7 +443,7 @@ func TestSyncRolloutsSetWaitStartTime(t *testing.T) {
 	expectedPatch := calculatePatch(r2, `{
 	"status":{
 		"canaryStatus":{
-			"waitStartTime": "%s"
+			"pauseStartTime": "%s"
 		}
 	}
 }`)
@@ -456,7 +458,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 		{
 			SetWeight: int32Ptr(10),
 		}, {
-			Wait: int32Ptr(10),
+			Pause: &v1alpha1.RolloutPause{
+				Duration: int32Ptr(10),
+			},
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -468,7 +472,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
 	now := metav1.Now()
-	r2.Status.CanaryStatus.WaitStartTime = &now
+	r2.Status.CanaryStatus.PauseStartTime = &now
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -495,8 +499,11 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: int32Ptr(10),
-		}, {
-			Wait: int32Ptr(int32(3600)), //1 hour
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: int32Ptr(int32(3600)), //1 hour
+			},
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -505,7 +512,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Status.CurrentPodHash = "5f79b78d7f"
 	now := metav1.Now()
-	r2.Status.CanaryStatus.WaitStartTime = &now
+	r2.Status.CanaryStatus.PauseStartTime = &now
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -533,8 +540,11 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: int32Ptr(10),
-		}, {
-			Wait: int32Ptr(5),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: int32Ptr(5),
+			},
 		}, {
 			Pause: &v1alpha1.RolloutPause{},
 		},
@@ -546,7 +556,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	r2.Status.CurrentPodHash = "5f79b78d7f"
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
-	r2.Status.CanaryStatus.WaitStartTime = &earlier
+	r2.Status.CanaryStatus.PauseStartTime = &earlier
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -566,7 +576,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	expectedPatch := calculatePatch(r2, `{
 	"status":{
 		"canaryStatus":{
-			"waitStartTime": null
+			"pauseStartTime": null
 		},
 		"currentStepIndex":2
 	}
