@@ -304,14 +304,13 @@ func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *app
 	}
 
 	return v1alpha1.RolloutStatus{
-		ObservedGeneration: conditions.ComputeGenerationHash(rollout.Spec),
-		CurrentPodHash:     controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
-		Replicas:           replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
-		UpdatedReplicas:    replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
-		ReadyReplicas:      replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
-		AvailableReplicas:  replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs),
-		CollisionCount:     rollout.Status.CollisionCount,
-		Conditions:         prevStatus.Conditions,
+		CurrentPodHash:    controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
+		Replicas:          replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
+		UpdatedReplicas:   replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
+		ReadyReplicas:     replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
+		AvailableReplicas: replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs),
+		CollisionCount:    rollout.Status.CollisionCount,
+		Conditions:        prevStatus.Conditions,
 	}
 }
 
@@ -373,11 +372,25 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
-func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) error {
+func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, pause *bool) error {
+	specCopy := orig.Spec.DeepCopy()
+	specCopy.Pause = pause
+	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
+
 	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := CreateTwoWayMergePatch(
-		&v1alpha1.Rollout{Status: orig.Status},
-		&v1alpha1.Rollout{Status: *newStatus}, v1alpha1.Rollout{})
+		&v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Pause: orig.Spec.Pause,
+			},
+			Status: orig.Status,
+		},
+		&v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Pause: pause,
+			},
+			Status: *newStatus,
+		}, v1alpha1.Rollout{})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return err

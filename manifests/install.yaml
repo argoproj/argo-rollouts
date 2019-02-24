@@ -188,10 +188,6 @@ spec:
                 (their labels match the selector).
               format: int32
               type: integer
-            setPause:
-              description: Indicates if the controller set the Spec.Pause field or
-                if the user did
-              type: boolean
             updatedReplicas:
               description: Total number of non-terminated pods targeted by this rollout
                 that have the desired template spec.
