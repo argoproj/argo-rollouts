@@ -288,7 +288,7 @@ func (c *Controller) syncHandler(key string) error {
 			newStatus := r.Status
 			newStatus.ObservedGeneration = generation
 			conditions.SetRolloutCondition(&newStatus, *invalidSpecCond)
-			err := c.persistRolloutStatus(r, &newStatus)
+			err := c.persistRolloutStatus(r, &newStatus, r.Spec.Pause)
 			if err != nil {
 				return err
 			}

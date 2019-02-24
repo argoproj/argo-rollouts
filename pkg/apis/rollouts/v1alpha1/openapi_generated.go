@@ -458,13 +458,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "int32",
 						},
 					},
-					"setPause": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Indicates if the controller set the Spec.Pause field or if the user did",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"collisionCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Count of hash collisions for the Rollout. The Rollout controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",

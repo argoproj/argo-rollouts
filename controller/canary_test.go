@@ -16,6 +16,7 @@ import (
 	core "k8s.io/client-go/testing"
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -100,83 +101,125 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 }
 
-func TestReconcileCanaryStepsHandlePause(t *testing.T) {
-	boolPtr := func(b bool) *bool { return &b }
-	tests := []struct {
-		name             string
-		setPauseValue    *bool
-		steps            []v1alpha1.CanaryStep
-		currentStepIndex int32
+func TestCanaryRolloutEnterPauseState(t *testing.T) {
+	f := newFixture(t)
 
-		expectPatch           bool
-		expectedSetPauseValue *bool
-	}{
+	steps := []v1alpha1.CanaryStep{
 		{
-			name:          "Put Canary into pause",
-			setPauseValue: nil,
-			steps: []v1alpha1.CanaryStep{
-				{
-					Pause: &v1alpha1.RolloutPause{},
-				},
-			},
-
-			expectPatch:           true,
-			expectedSetPauseValue: boolPtr(true),
-		},
-		{
-			name:          "Do nothing if the canary is paused",
-			setPauseValue: boolPtr(true),
-			steps: []v1alpha1.CanaryStep{
-				{
-					Pause: &v1alpha1.RolloutPause{},
-				},
-			},
-
-			expectPatch: false,
-		},
-		{
-			name:          "Progress Canary after unpausing",
-			setPauseValue: boolPtr(false),
-			steps: []v1alpha1.CanaryStep{
-				{
-					Pause: &v1alpha1.RolloutPause{},
-				},
-			},
-
-			expectPatch:           true,
-			expectedSetPauseValue: nil,
+			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	for i := range tests {
-		test := tests[i]
-		t.Run(test.name, func(t *testing.T) {
-			r := newCanaryRollout("test", 1, nil, test.steps, nil, intstr.FromInt(0), intstr.FromInt(1))
-			r.Status.CurrentStepIndex = &test.currentStepIndex
-			r.Status.SetPause = test.setPauseValue
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-			fake := fake.Clientset{}
-			k8sfake := k8sfake.Clientset{}
-			controller := &Controller{
-				rolloutsclientset: &fake,
-				kubeclientset:     &k8sfake,
-				recorder:          &record.FakeRecorder{},
-			}
-			stepResult, err := controller.reconcilePause(nil, nil, nil, r)
-			assert.Nil(t, err)
-			assert.True(t, stepResult)
-			if test.expectPatch {
-				patchRollout := fake.Actions()[0].(core.PatchAction).GetPatch()
-				if test.expectedSetPauseValue == nil {
-					assert.Equal(t, fmt.Sprintf(setPausePatch, "null"), string(patchRollout))
-				} else {
-					assert.Equal(t, fmt.Sprintf(setPausePatch, "true"), string(patchRollout))
-				}
-			} else {
-				assert.Len(t, fake.Actions(), 0)
-			}
+	r2 := bumpVersion(r1)
+	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	r2.Status.AvailableReplicas = 10
 
-		})
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatchTemplate := `{
+    "spec":{
+        "pause": true
+    },
+	"status":{
+		"canaryStatus": {
+			"pauseStartTime":"%s"
+		}
 	}
+}`
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339))
+	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
+func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r2 := bumpVersion(r1)
+	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	r2.Status.AvailableReplicas = 10
+
+	r2.Spec.Pause = pointer.BoolPtr(true)
+	now := metav1.Now()
+	r2.Status.CanaryStatus.PauseStartTime = &now
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
+
+func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r2 := bumpVersion(r1)
+	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
+	r2.Status.CurrentPodHash = "5f79b78d7f"
+	r2.Status.AvailableReplicas = 10
+
+	r2.Spec.Pause = pointer.BoolPtr(false)
+	now := metav1.Now()
+	r2.Status.CanaryStatus.PauseStartTime = &now
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	expectedPatchTemplate := `{
+    "spec":{
+        "pause": null
+    },
+	"status":{
+		"canaryStatus": {
+			"pauseStartTime": null
+		},
+		"currentStepIndex": 1
+	}
+}`
+	expectedPatch := calculatePatch(r2, expectedPatchTemplate)
+	assert.Equal(t, expectedPatch, expectedPatch)
 }
 
 func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
@@ -238,7 +281,6 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 	}
 }`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
-
 }
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
@@ -441,6 +483,9 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r2, `{
+    "spec" :{
+		"pause": true
+	},
 	"status":{
 		"canaryStatus":{
 			"pauseStartTime": "%s"

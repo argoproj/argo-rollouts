@@ -7,6 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -107,20 +108,6 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 	}
 
 	if currentStep.Pause.Duration == nil {
-		if rollout.Status.SetPause == nil {
-			logCtx.Infof("Pausing the canary for step %d in the canary steps", currentStepIndex)
-			boolValue := true
-			err := c.PatchSetPause(rollout, &boolValue)
-			return true, err
-		}
-
-		if rollout.Status.SetPause != nil && !*rollout.Status.SetPause {
-			currentStepIndex++
-			logCtx.Infof("Status.SetPause is false. Canary is ready for step %d", currentStepIndex)
-			err := c.PatchSetPause(rollout, nil)
-			return true, err
-		}
-
 		return true, nil
 	}
 
@@ -220,7 +207,7 @@ func checkIncrementCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Repli
 			}
 		}
 	}
-	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Status.SetPause != nil && !*r.Status.SetPause {
+	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Spec.Pause != nil && !*r.Spec.Pause {
 		return true
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
@@ -241,10 +228,9 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
 
 	if replicasetutil.CheckPodSpecChange(r) {
-		currentStepIndex = 0
-		newStatus.CurrentStepIndex = &currentStepIndex
+		newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
 		logCtx.Info("Resetting the Current Step Index to 0 on pod spec change")
-		return c.persistRolloutStatus(r, &newStatus)
+		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
 	if r.Status.CanaryStatus.StableRS == "" || int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
@@ -258,21 +244,22 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		if int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
 			newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		}
-		return c.persistRolloutStatus(r, &newStatus)
+		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
 	pauseStartTime := r.Status.CanaryStatus.PauseStartTime
-	if currentStep != nil && currentStep.Pause != nil && currentStep.Pause.Duration != nil {
+	paused := r.Spec.Pause
+	if currentStep != nil && currentStep.Pause != nil {
 		now := metav1.Now()
 		if r.Status.CanaryStatus.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 			pauseStartTime = &now
+			paused = pointer.BoolPtr(true)
 		}
 	}
 
 	newStatus.CanaryStatus.PauseStartTime = pauseStartTime
 	newStatus.CurrentStepIndex = &currentStepIndex
-	newStatus.SetPause = r.Status.SetPause
-	return c.persistRolloutStatus(r, &newStatus)
+	return c.persistRolloutStatus(r, &newStatus, paused)
 }
 
 // scaleCanary scales the rollout with a canary strategy on a scaling event. First, it checks if there is only one

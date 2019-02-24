@@ -236,7 +236,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 			return *step.SetWeight
 		}
 	}
-	return 100
+	return 0
 }
 
 func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {

@@ -172,7 +172,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 	newStatus.Conditions = prevStatus.Conditions
 	newStatus.VerifyingPreview = r.Status.VerifyingPreview
 
-	return c.persistRolloutStatus(r, &newStatus)
+	return c.persistRolloutStatus(r, &newStatus, nil)
 }
 
 // Should run only on scaling events and not during the normal rollout process.
