@@ -206,6 +206,29 @@ func (c *Controller) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSe
 	return totalScaledDown, nil
 }
 
+func checkIncrementCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) bool {
+	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
+	if currentStep == nil {
+		return false
+	}
+	if currentStep.Pause != nil && currentStep.Pause.Duration != nil {
+		now := metav1.Now()
+		if r.Status.CanaryStatus.PauseStartTime != nil {
+			expiredTime := r.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
+			if now.After(expiredTime) {
+				return true
+			}
+		}
+	}
+	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Status.SetPause != nil && !*r.Status.SetPause {
+		return true
+	}
+	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+		return true
+	}
+	return false
+}
+
 func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) error {
 	logCtx := logutil.WithRollout(r)
 	allRSs := append(olderRSs, newRS)
@@ -214,19 +237,28 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
 
-	setPause := r.Status.SetPause
-
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
+	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
+
 	if replicasetutil.CheckPodSpecChange(r) {
 		currentStepIndex = 0
-		setPause = nil
-	} else if currentStep != nil && currentStep.Pause != nil && r.Status.SetPause != nil && !*r.Status.SetPause {
-		currentStepIndex++
-		logCtx.Infof("Incrementing the Current Step Index to %d", currentStepIndex)
+		newStatus.CurrentStepIndex = &currentStepIndex
+		logCtx.Info("Resetting the Current Step Index to 0 on pod spec change")
+		return c.persistRolloutStatus(r, &newStatus)
 	}
 
-	if currentStep != nil && currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+	if r.Status.CanaryStatus.StableRS == "" || int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+	}
+
+	if checkIncrementCanaryStep(olderRSs, newRS, stableRS, r) {
 		currentStepIndex++
+		newStatus.CurrentStepIndex = &currentStepIndex
+		logCtx.Infof("Incrementing the Current Step Index to %d", currentStepIndex)
+		if int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+			newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+		}
+		return c.persistRolloutStatus(r, &newStatus)
 	}
 
 	pauseStartTime := r.Status.CanaryStatus.PauseStartTime
@@ -235,23 +267,11 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		if r.Status.CanaryStatus.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 			pauseStartTime = &now
 		}
-		if r.Status.CanaryStatus.PauseStartTime != nil {
-			expiredTime := r.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
-			if now.After(expiredTime) {
-				pauseStartTime = nil
-				currentStepIndex++
-			}
-		}
-	}
-
-	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
-	if r.Status.CanaryStatus.StableRS == "" || int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
-		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 	}
 
 	newStatus.CanaryStatus.PauseStartTime = pauseStartTime
 	newStatus.CurrentStepIndex = &currentStepIndex
-	newStatus.SetPause = setPause
+	newStatus.SetPause = r.Status.SetPause
 	return c.persistRolloutStatus(r, &newStatus)
 }
 
