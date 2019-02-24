@@ -101,7 +101,12 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		return false, nil
 	}
 
-	if currentStep.Pause != nil {
+	if currentStep.Pause == nil {
+		logCtx.Info("Not at a pause step")
+		return false, nil
+	}
+
+	if currentStep.Pause.Duration == nil {
 		if rollout.Status.SetPause == nil {
 			logCtx.Infof("Pausing the canary for step %d in the canary steps", currentStepIndex)
 			boolValue := true
@@ -119,20 +124,16 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		return true, nil
 	}
 
-	if currentStep.Wait != nil {
+	if rollout.Status.CanaryStatus.PauseStartTime != nil {
 		now := metav1.Now()
-		if rollout.Status.CanaryStatus.WaitStartTime != nil {
-			expiredTime := rollout.Status.CanaryStatus.WaitStartTime.Add(time.Duration(*currentStep.Wait) * time.Second)
-			nextResync := now.Add(c.resyncPeriod)
-			if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
-				timeRemaining := expiredTime.Sub(now.Time)
-				c.enqueueRolloutAfter(rollout, timeRemaining)
-			}
+		expiredTime := rollout.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
+		nextResync := now.Add(c.resyncPeriod)
+		if nextResync.After(expiredTime) && expiredTime.After(now.Time){
+			timeRemaining := expiredTime.Sub(now.Time)
+			c.enqueueRolloutAfter(rollout, timeRemaining)
 		}
-		return true, nil
 	}
-
-	return false, nil
+	return true, nil
 }
 
 func (c *Controller) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
@@ -228,16 +229,16 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		currentStepIndex++
 	}
 
-	waitStartTime := r.Status.CanaryStatus.WaitStartTime
-	if currentStep != nil && currentStep.Wait != nil {
+	pauseStartTime := r.Status.CanaryStatus.PauseStartTime
+	if currentStep != nil && currentStep.Pause != nil && currentStep.Pause.Duration != nil {
 		now := metav1.Now()
-		if r.Status.CanaryStatus.WaitStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
-			waitStartTime = &now
+		if r.Status.CanaryStatus.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+			pauseStartTime = &now
 		}
-		if r.Status.CanaryStatus.WaitStartTime != nil {
-			expiredTime := r.Status.CanaryStatus.WaitStartTime.Add(time.Duration(*currentStep.Wait) * time.Second)
+		if r.Status.CanaryStatus.PauseStartTime != nil {
+			expiredTime := r.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
 			if now.After(expiredTime) {
-				waitStartTime = nil
+				pauseStartTime = nil
 				currentStepIndex++
 			}
 		}
@@ -248,7 +249,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 	}
 
-	newStatus.CanaryStatus.WaitStartTime = waitStartTime
+	newStatus.CanaryStatus.PauseStartTime = pauseStartTime
 	newStatus.CurrentStepIndex = &currentStepIndex
 	newStatus.SetPause = setPause
 	return c.persistRolloutStatus(r, &newStatus)
@@ -308,7 +309,7 @@ func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.Repl
 	// replica sets from the larger to the smaller in size replica set. Scaling direction
 	// drives what happens in case we are trying to scale replica sets of the same size.
 	// In such a case when scaling up, we should scale up stable replica set first, and
-	// when scaling down, we should scale down older replica sets and newRS first.
+	// when scaling down, we should scale down older replica sets  afirst.
 	var scalingOperation string
 	switch {
 	case rolloutReplicasToAdd > 0:

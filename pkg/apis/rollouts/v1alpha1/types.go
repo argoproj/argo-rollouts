@@ -44,6 +44,8 @@ type RolloutSpec struct {
 	// This is set to the max value of int32 (i.e. 2147483647) by default, which means
 	// "retaining all old ReplicaSets".
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
+	// Pause pauses the rollout at its current step.
+	Pause *bool `json:"pause,omitempty"`
 }
 
 const (
@@ -116,17 +118,18 @@ type CanaryStrategy struct {
 
 // CanaryStep defines a step of a canary deployment.
 type CanaryStep struct {
-	// Wait the amount of time to run the canary instance before moving to the next step.
-	// +optional
-	Wait *int32 `json:"wait,omitempty"`
 	// SetWeight sets what percentage of the newRS should receive
 	SetWeight *int32 `json:"setWeight,omitempty"`
-	// Pause freezes the rollout until a user sets the status.setPause to false
+	// Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 }
 
-type RolloutPause struct{}
+type RolloutPause struct{
+	// Duration the amount of time to wait before moving to the next step.
+	// +optional
+	Duration *int32 `json:"duration,omitempty"`
+}
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
@@ -185,7 +188,7 @@ type CanaryStatus struct {
 	StableRS string `json:"stableRS,omitempty"`
 	//WaitStartTime this field is set when the rollout is in a wait step and indicates the time the wait started at
 	// +optional
-	WaitStartTime *metav1.Time `json:"waitStartTime,omitempty"`
+	PauseStartTime *metav1.Time `json:"pauseStartTime,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

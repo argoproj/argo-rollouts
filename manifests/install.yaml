@@ -35,6 +35,9 @@ spec:
                 as soon as it is ready)
               format: int32
               type: integer
+            pause:
+              description: Pause pauses the rollout at its current step.
+              type: boolean
             replicas:
               description: Number of desired pods. This is a pointer to distinguish
                 between explicit zero and not specified. Defaults to 1.
@@ -83,15 +86,16 @@ spec:
                       items:
                         description: CanaryStep defines a step of a canary deployment.
                         properties:
-                          pause: {}
+                          pause:
+                            properties:
+                              duration:
+                                description: Duration the amount of time to wait before
+                                  moving to the next step.
+                                format: int32
+                                type: integer
                           setWeight:
                             description: SetWeight sets what percentage of the newRS
                               should receive
-                            format: int32
-                            type: integer
-                          wait:
-                            description: Wait the amount of time to run the canary
-                              instance before moving to the next step.
                             format: int32
                             type: integer
                       type: array
@@ -118,11 +122,11 @@ spec:
             canaryStatus:
               description: CanaryStatus fields that only pertain to the canary rollout
               properties:
+                pauseStartTime: {}
                 stableRS:
                   description: StableRS indicates the last replicaset that walked
                     through all the canary steps or was the only replicaset
                   type: string
-                waitStartTime: {}
             collisionCount:
               description: Count of hash collisions for the Rollout. The Rollout controller
                 uses this field as a collision avoidance mechanism when it needs to
