@@ -3,9 +3,9 @@ package controller
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
+	"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -14,10 +14,12 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -44,6 +46,28 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return newRollout
 }
 
+func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
+	origBytes, err := json.Marshal(ro)
+	if err != nil {
+		panic(err)
+	}
+	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
+	if err != nil {
+		panic(err)
+	}
+	newRO := &v1alpha1.Rollout{}
+	json.Unmarshal(newBytes, newRO)
+	newObservedGen := conditions.ComputeGenerationHash(newRO.Spec)
+
+	newPatch := make(map[string]interface{})
+	json.Unmarshal([]byte(patch), &newPatch)
+	newStatus := newPatch["status"].(map[string]interface{})
+	newStatus["observedGeneration"] = newObservedGen
+	newPatch["status"] = newStatus
+	newPatchBytes, _ := json.Marshal(newPatch)
+	return string(newPatchBytes)
+}
+
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	fake := fake.Clientset{}
 	k8sfake := k8sfake.Clientset{}
@@ -60,7 +84,6 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
 
-	//Handle case where currentStepIndex is greater than the list of steps
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
 	stepResult, err = controller.reconcilePause(nil, nil, nil, r2)
@@ -149,21 +172,7 @@ func TestReconcileCanaryStepsHandlePause(t *testing.T) {
 	}
 }
 
-func removeWhiteSpace(str string) string {
-	noSpaces := strings.Replace(str, "\n", "", -1)
-	noTabs := strings.Replace(noSpaces, "\t", "", -1)
-	return strings.Replace(noTabs, " ", "", -1)
-}
-
 func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
-	expectedPatch := removeWhiteSpace(`{
-	"status": {
-		"currentPodHash":"5f79b78d7f",
-		"currentStepIndex":0,
-		"observedGeneration":"6577859b4d"
-	}
-}`)
-
 	f := newFixture(t)
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -188,21 +197,17 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r2,`{
+	"status": {
+		"currentPodHash":"5f79b78d7f",
+		"currentStepIndex":0
+	}
+}`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 
 }
 
 func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
-	expectedPatch := removeWhiteSpace(`{
-	"status":{
-		"canaryStatus":{
-			"stableRS":"895c6c4f9"
-		},
-		"currentPodHash":"895c6c4f9",
-		"currentStepIndex":0,
-		"observedGeneration":"6fd8456894"
-	}
-}`)
 	f := newFixture(t)
 
 	r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
@@ -216,6 +221,15 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 	f.run(getKey(r, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r,`{
+	"status":{
+		"canaryStatus":{
+			"stableRS":"895c6c4f9"
+		},
+		"currentPodHash":"895c6c4f9",
+		"currentStepIndex":0
+	}
+}`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 
 }
@@ -343,16 +357,6 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 }
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
-	expectedPatch := removeWhiteSpace(`{
-	"status":{
-		"availableReplicas":10,
-		"canaryStatus":{
-			"stableRS":"8cdf7bbb4"
-		},
-		"currentStepIndex":1,
-		"observedGeneration":"667bf85f4"
-	}
-}`)
 	f := newFixture(t)
 
 	steps := []v1alpha1.CanaryStep{{
@@ -384,19 +388,19 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r3, `{
+	"status":{
+		"availableReplicas":10,
+		"canaryStatus":{
+			"stableRS":"8cdf7bbb4"
+		},
+		"currentStepIndex":1
+    }
+}`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
 func TestSyncRolloutsSetWaitStartTime(t *testing.T) {
-	expectedPatch := removeWhiteSpace(`{
-	"status":{
-		"canaryStatus":{
-			"waitStartTime": "%s"
-		},
-		"observedGeneration":"7c5dcf976c"
-	}
-}`)
-	expectedPatch = fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))
 	f := newFixture(t)
 
 	steps := []v1alpha1.CanaryStep{
@@ -427,6 +431,14 @@ func TestSyncRolloutsSetWaitStartTime(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r2, `{
+	"status":{
+		"canaryStatus":{
+			"waitStartTime": "%s"
+		}
+	}
+}`)
+	expectedPatch = fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
@@ -446,7 +458,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
-	r2.Status.ObservedGeneration = "7c5dcf976c"
+	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
 	now := metav1.Now()
 	r2.Status.CanaryStatus.WaitStartTime = &now
@@ -487,7 +499,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	r2.Status.CurrentPodHash = "5f79b78d7f"
 	now := metav1.Now()
 	r2.Status.CanaryStatus.WaitStartTime = &now
-	r2.Status.ObservedGeneration = "7bc4488755"
+	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -509,15 +521,6 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 }
 
 func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
-	expectedPatch := removeWhiteSpace(`{
-	"status":{
-		"canaryStatus":{
-			"waitStartTime": null
-		},
-		"currentStepIndex":2,
-		"observedGeneration":"b64bd68c6"
-	}
-}`)
 
 	f := newFixture(t)
 	steps := []v1alpha1.CanaryStep{
@@ -537,7 +540,6 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.CanaryStatus.WaitStartTime = &earlier
-	r2.Status.ObservedGeneration = "6dff5cffc5"
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -554,5 +556,13 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r2, `{
+	"status":{
+		"canaryStatus":{
+			"waitStartTime": null
+		},
+		"currentStepIndex":2
+	}
+}`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
