@@ -14,9 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 // generateRollout creates a rollout, with the input image as its template
@@ -535,9 +537,37 @@ func TestMaxUnavailable(t *testing.T) {
 func TestCheckPodSpecChange(t *testing.T) {
 	ro := generateRollout("ngnix")
 	assert.False(t, CheckPodSpecChange(&ro))
-	ro.Status.CurrentPodHash = "7b7b57dd84"
+	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
 	assert.False(t, CheckPodSpecChange(&ro))
 
 	ro.Status.CurrentPodHash = "different-hash"
 	assert.True(t, CheckPodSpecChange(&ro))
+}
+
+func TestCheckStepHashChange(t *testing.T) {
+	ro := generateRollout("ngnix")
+	assert.False(t, CheckStepHashChange(&ro))
+	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
+	assert.False(t, CheckStepHashChange(&ro))
+
+	ro.Status.CurrentStepHash = "different-hash"
+	assert.True(t, CheckStepHashChange(&ro))
+}
+
+func TestResetCurrentStepIndex(t *testing.T) {
+	ro := generateRollout("ngnix")
+	ro.Spec.Strategy.CanaryStrategy = &v1alpha1.CanaryStrategy{
+		Steps: []v1alpha1.CanaryStep{
+			{
+				SetWeight: pointer.Int32Ptr(1),
+			},
+		},
+	}
+	newStepIndex := ResetCurrentStepIndex(&ro)
+	assert.Equal(t, pointer.Int32Ptr(0), newStepIndex)
+
+	ro.Spec.Strategy.CanaryStrategy.Steps = nil
+	newStepIndex = ResetCurrentStepIndex(&ro)
+	assert.Nil(t, newStepIndex)
+
 }

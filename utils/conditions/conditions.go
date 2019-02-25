@@ -108,6 +108,19 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		newStatus.ObservedGeneration == ComputeGenerationHash(rollout.Spec)
 }
 
+// ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
+// be safe encoded to avoid bad words.
+func ComputeStepHash(rollout *v1alpha1.Rollout) string {
+	rolloutStepHasher := fnv.New32a()
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		return ""
+	}
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
+		hashutil.DeepHashObject(rolloutStepHasher, rollout.Spec.Strategy.CanaryStrategy.Steps)
+	}
+	return rand.SafeEncodeString(fmt.Sprint(rolloutStepHasher.Sum32()))
+}
+
 // ComputeGenerationHash returns a hash value calculated from the Rollout Spec. The hash will
 // be safe encoded to avoid bad words.
 func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {

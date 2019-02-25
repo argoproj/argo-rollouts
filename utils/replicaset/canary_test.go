@@ -385,7 +385,7 @@ func TestGetCurrentCanaryStep(t *testing.T) {
 
 	currentStep, index := GetCurrentCanaryStep(rollout)
 	assert.NotNil(t, currentStep)
-	assert.Equal(t, int32(0), index)
+	assert.Equal(t, int32(0), *index)
 
 	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(1)
 	noMoreStep, _ := GetCurrentCanaryStep(rollout)
