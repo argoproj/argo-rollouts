@@ -407,79 +407,79 @@ func TestGetCurrentSetWeight(t *testing.T) {
 }
 
 func TestGetProportion(t *testing.T) {
-	tests := []struct{
-		name string
-		RS *appsv1.ReplicaSet
-		replicasToAdd int32
-		replicasAdded int32
+	tests := []struct {
+		name                   string
+		RS                     *appsv1.ReplicaSet
+		replicasToAdd          int32
+		replicasAdded          int32
 		desiredNewReplicaCount int32
 
 		expectedProportion int32
 	}{
 		{
 			name: "Nil RS: Do not scale",
-			RS: nil,
+			RS:   nil,
 
 			expectedProportion: int32(0),
 		},
 		{
 			name: "RS with no replicas: Do not scale",
-			RS: newRS("",0,0),
+			RS:   newRS("", 0, 0),
 
 			expectedProportion: int32(0),
 		},
 		{
-			name: "No replicas to add: Do not scale",
-			RS: newRS("",5,5),
-			replicasToAdd: 0,
-			replicasAdded: 1,
+			name:                   "No replicas to add: Do not scale",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          0,
+			replicasAdded:          1,
 			desiredNewReplicaCount: 6,
-			expectedProportion: int32(0),
+			expectedProportion:     int32(0),
 		},
 		{
-			name: "replicas to add equals replicas added: Do not scale",
-			RS: newRS("",5,5),
-			replicasToAdd: 1,
-			replicasAdded: 1,
+			name:                   "replicas to add equals replicas added: Do not scale",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          1,
+			replicasAdded:          1,
 			desiredNewReplicaCount: 6,
-			expectedProportion: int32(0),
+			expectedProportion:     int32(0),
 		},
 		{
-			name: "Do not scale up past desired",
-			RS: newRS("",5,5),
-			replicasToAdd: 4,
-			replicasAdded: 1,
+			name:                   "Do not scale up past desired",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          4,
+			replicasAdded:          1,
 			desiredNewReplicaCount: 6,
-			expectedProportion: int32(1),
+			expectedProportion:     int32(1),
 		},
 		{
-			name: "Do not scale up past allowed",
-			RS: newRS("",5,5),
-			replicasToAdd: 4,
-			replicasAdded: 1,
+			name:                   "Do not scale up past allowed",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          4,
+			replicasAdded:          1,
 			desiredNewReplicaCount: 10,
-			expectedProportion: int32(3),
+			expectedProportion:     int32(3),
 		},
 		{
-			name: "Do not scale down past desired",
-			RS: newRS("",5,5),
-			replicasToAdd: -4,
-			replicasAdded: -1,
+			name:                   "Do not scale down past desired",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          -4,
+			replicasAdded:          -1,
 			desiredNewReplicaCount: 3,
-			expectedProportion: int32(-2),
+			expectedProportion:     int32(-2),
 		},
 		{
-			name: "Do not scale down past allowed",
-			RS: newRS("",5,5),
-			replicasToAdd: -4,
-			replicasAdded: -1,
+			name:                   "Do not scale down past allowed",
+			RS:                     newRS("", 5, 5),
+			replicasToAdd:          -4,
+			replicasAdded:          -1,
 			desiredNewReplicaCount: 1,
-			expectedProportion: int32(-3),
+			expectedProportion:     int32(-3),
 		},
 	}
 	for i := range tests {
 		test := tests[i]
-		t.Run(test.name,func(t *testing.T){
+		t.Run(test.name, func(t *testing.T) {
 			proportion := GetProportion(test.RS, test.replicasToAdd, test.replicasAdded, test.desiredNewReplicaCount)
 			assert.Equal(t, test.expectedProportion, proportion)
 		})

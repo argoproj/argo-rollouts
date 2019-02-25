@@ -233,7 +233,6 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
 }
 
-
 // isScalingEvent checks whether the provided rollout has been updated with a scaling event
 // by looking at the desired-replicas annotation in the active replica sets of the rollout.
 //

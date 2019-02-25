@@ -128,7 +128,7 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		now := metav1.Now()
 		expiredTime := rollout.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
 		nextResync := now.Add(c.resyncPeriod)
-		if nextResync.After(expiredTime) && expiredTime.After(now.Time){
+		if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 			timeRemaining := expiredTime.Sub(now.Time)
 			c.enqueueRolloutAfter(rollout, timeRemaining)
 		}
