@@ -69,7 +69,7 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 }
 
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
-	return &v1alpha1.Rollout{
+	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
 			Name:      name,
@@ -97,6 +97,7 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 		},
 		Status: v1alpha1.RolloutStatus{},
 	}
+	return ro
 }
 
 func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, availableReplicas int) *appsv1.ReplicaSet {

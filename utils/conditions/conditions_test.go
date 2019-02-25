@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"k8s.io/utils/pointer"
 )
 
 var (
@@ -80,6 +81,7 @@ func TestGetCondition(t *testing.T) {
 		})
 	}
 }
+
 func TestSetCondition(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
@@ -364,4 +366,72 @@ func TestRolloutComplete(t *testing.T) {
 		})
 	}
 
+}
+
+func TestComputeGenerationHash(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: pointer.Int32Ptr(10),
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{{
+						Image: "name",
+					}},
+				},
+			},
+		},
+	}
+	baseline := ComputeGenerationHash(ro.Spec)
+	roPaused := ro.DeepCopy()
+	roPaused.Spec.Pause = pointer.BoolPtr(true)
+	roPausedHash := ComputeGenerationHash(roPaused.Spec)
+
+	assert.NotEqual(t, baseline, roPausedHash)
+}
+
+func TestComputeStepHash(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Type: v1alpha1.CanaryRolloutStrategyType,
+				CanaryStrategy: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							Pause: &v1alpha1.RolloutPause{},
+						},
+					},
+				},
+			},
+		},
+	}
+	baseline := ComputeStepHash(ro)
+	roWithDiffSteps := ro.DeepCopy()
+	roWithDiffSteps.Spec.Strategy.CanaryStrategy.Steps = []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	roWithDiffStepsHash := ComputeStepHash(roWithDiffSteps)
+
+	roWithSameSteps := ro.DeepCopy()
+	roWithSameSteps.Status.CurrentPodHash = "Test"
+	roWithSameSteps.Spec.Replicas = pointer.Int32Ptr(1)
+	roWithSameStepsHash := ComputeStepHash(roWithSameSteps)
+
+	roNoSteps := ro.DeepCopy()
+	roNoSteps.Spec.Strategy.CanaryStrategy.Steps = nil
+	roNoStepsHash := ComputeStepHash(roNoSteps)
+
+	roBlueGreen := ro.DeepCopy()
+	roBlueGreen.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
+	roBlueGreen.Spec.Strategy.CanaryStrategy = nil
+	roBlueGreenHash := ComputeStepHash(roBlueGreen)
+
+	assert.NotEqual(t, baseline, roWithDiffStepsHash)
+	assert.Equal(t, baseline, roWithSameStepsHash)
+	assert.NotEqual(t, baseline, roNoStepsHash)
+	assert.Equal(t, "", roBlueGreenHash)
 }

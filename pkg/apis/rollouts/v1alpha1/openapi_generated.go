@@ -402,6 +402,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"currentStepHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the list of current steps change",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"previewSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PreviewSelector indicates which replicas set the preview service is serving traffic to",
@@ -492,6 +499,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 						},
 					},
 				},
+				Required: []string{"currentStepHash"},
 			},
 		},
 		Dependencies: []string{

@@ -10,6 +10,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -17,6 +18,15 @@ import (
 
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
+	if replicasetutil.CheckStepHashChange(rollout) {
+		logCtx.Info("List of steps to execute have changed and need to reset CurrentStepIndex")
+		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
+		if err != nil {
+			return err
+		}
+		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
+	}
 	if replicasetutil.CheckPodSpecChange(rollout) {
 		logCtx.Info("Pod Spec changed and need to reset CurrentStepIndex")
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
@@ -97,7 +107,7 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) <= int(currentStepIndex) {
+	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) <= int(*currentStepIndex) {
 		logCtx.Info("No Steps remain in the canary steps")
 		return false, nil
 	}
@@ -226,22 +236,29 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
+	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
+
+	if replicasetutil.CheckStepHashChange(r) {
+		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
+		logCtx.Info("Resetting the Current Step Index to 0 on step change")
+		return c.persistRolloutStatus(r, &newStatus, nil)
+	}
 
 	if replicasetutil.CheckPodSpecChange(r) {
-		newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
+		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
 		logCtx.Info("Resetting the Current Step Index to 0 on pod spec change")
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
-	if r.Status.CanaryStatus.StableRS == "" || int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+	if r.Status.CanaryStatus.StableRS == "" || currentStepIndex == nil || int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 	}
 
 	if checkIncrementCanaryStep(olderRSs, newRS, stableRS, r) {
-		currentStepIndex++
-		newStatus.CurrentStepIndex = &currentStepIndex
-		logCtx.Infof("Incrementing the Current Step Index to %d", currentStepIndex)
-		if int(currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+		*currentStepIndex++
+		newStatus.CurrentStepIndex = currentStepIndex
+		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
+		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
 			newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		}
 		return c.persistRolloutStatus(r, &newStatus, nil)
@@ -258,7 +275,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 
 	newStatus.CanaryStatus.PauseStartTime = pauseStartTime
-	newStatus.CurrentStepIndex = &currentStepIndex
+	newStatus.CurrentStepIndex = currentStepIndex
 	return c.persistRolloutStatus(r, &newStatus, paused)
 }
 

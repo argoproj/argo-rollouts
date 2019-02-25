@@ -165,6 +165,11 @@ spec:
             currentPodHash:
               description: CurrentPodHash the hash of the current pod template
               type: string
+            currentStepHash:
+              description: CurrentStepHash the hash of the current list of steps for
+                the current strategy. This is used to detect when the list of current
+                steps change
+              type: string
             currentStepIndex:
               description: CurrentStepIndex defines the current step of the rollout
                 is on. If the current step index is null, the controller will execute
@@ -198,6 +203,8 @@ spec:
                 replicas set being served traffic from the preview service. User will
                 need to edit this field to continue the rollout.
               type: boolean
+          required:
+          - currentStepHash
   version: v1alpha1
 ---
 apiVersion: v1

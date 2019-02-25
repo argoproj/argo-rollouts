@@ -11,9 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
@@ -212,11 +214,28 @@ func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 	return maxSurge
 }
 
-// CheckSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
+// CheckStepHashChange indicates if the rollout's step for the strategy have changed. This causes the rollout to reset the
+// currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
+func CheckStepHashChange(rollout *v1alpha1.Rollout) bool {
+	if rollout.Status.CurrentStepHash == "" {
+		return false
+	}
+	return rollout.Status.CurrentStepHash != conditions.ComputeStepHash(rollout)
+}
+
+// CheckPodSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
 // currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
 func CheckPodSpecChange(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
 	return rollout.Status.CurrentPodHash != controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+}
+
+// ResetCurrentStepIndex resets the index back to zero unless there are no steps
+func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
+	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) > 0 {
+		return pointer.Int32Ptr(0)
+	}
+	return nil
 }

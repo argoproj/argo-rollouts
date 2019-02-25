@@ -16,6 +16,7 @@ import (
 	core "k8s.io/client-go/testing"
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -40,6 +41,8 @@ func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, st
 		Steps:          steps,
 	}
 	rollout.Status.CurrentStepIndex = stepIndex
+	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
+	rollout.Status.CurrentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	return rollout
 }
 
@@ -51,6 +54,8 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRevisionStr := strconv.FormatInt(int64(newRevision), 10)
 	annotations.SetRolloutRevision(newRollout, newRevisionStr)
 	newRollout.Spec.Template.Spec.Containers[0].Image = "foo/bar" + newRevisionStr
+	newRollout.Status.CurrentPodHash = controller.ComputeHash(&newRollout.Spec.Template, newRollout.Status.CollisionCount)
+	newRollout.Status.CurrentStepHash = conditions.ComputeStepHash(newRollout)
 	return newRollout
 }
 
@@ -117,7 +122,6 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -160,7 +164,6 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
 
 	r2.Spec.Pause = pointer.BoolPtr(true)
@@ -192,7 +195,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
 
 	r2.Spec.Pause = pointer.BoolPtr(false)
@@ -222,7 +224,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	assert.Equal(t, expectedPatch, expectedPatch)
 }
 
-func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
+func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f := newFixture(t)
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -231,10 +233,13 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.CurrentPodHash = "895c6c4f9"
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 	r1.Status.AvailableReplicas = 10
 	r2 := bumpVersion(r1)
+	expectedCurrentPodHash := r2.Status.CurrentPodHash
+	r2.Status.CurrentPodHash = r1.Status.CanaryStatus.StableRS
+	r2.Spec.Strategy.CanaryStrategy.Steps = append(steps, v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}})
+	expectedCurrentStepHash := conditions.ComputeStepHash(r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -247,12 +252,51 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	expectedPatch := calculatePatch(r2, `{
+	expectedPatchWithoutPodHash := calculatePatch(r2, `{
 	"status": {
-		"currentPodHash":"5f79b78d7f",
-		"currentStepIndex":0
+		"currentStepIndex":0,
+		"currentPodHash": "%s",
+		"currentStepHash": "%s"
 	}
 }`)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash)
+	assert.Equal(t, expectedPatch, string(patchBytes))
+
+}
+
+func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
+	f := newFixture(t)
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.AvailableReplicas = 10
+	r2 := bumpVersion(r1)
+	expectedCurrentPodHash := r2.Status.CurrentPodHash
+	r2.Status.CurrentPodHash = r1.Status.CanaryStatus.StableRS
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatchWithoutPodHash := calculatePatch(r2, `{
+	"status": {
+		"currentStepIndex":0,
+		"currentPodHash": "%s"
+	}
+}`)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 
 }
@@ -261,6 +305,7 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 	f := newFixture(t)
 
 	r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	r.Status.CurrentPodHash = ""
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -276,8 +321,7 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 		"canaryStatus":{
 			"stableRS":"895c6c4f9"
 		},
-		"currentPodHash":"895c6c4f9",
-		"currentStepIndex":0
+		"currentPodHash":"895c6c4f9"
 	}
 }`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
@@ -417,7 +461,6 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	r2 := bumpVersion(r1)
 
 	r3 := bumpVersion(r2)
-	r3.Status.CurrentPodHash = "8cdf7bbb4"
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
@@ -465,7 +508,6 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -512,7 +554,6 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	r2.Status.AvailableReplicas = 10
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
@@ -555,7 +596,6 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	now := metav1.Now()
 	r2.Status.CanaryStatus.PauseStartTime = &now
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
@@ -598,7 +638,6 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
-	r2.Status.CurrentPodHash = "5f79b78d7f"
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.CanaryStatus.PauseStartTime = &earlier
