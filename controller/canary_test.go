@@ -449,6 +449,106 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	assert.Equal(t, expectedRS2, filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet))
 }
 
+func TestRollBackToStable(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Spec.Template = r1.Spec.Template
+	r2.Status.AvailableReplicas = 10
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	expectedRS1 := rs1.DeepCopy()
+	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
+	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
+	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+	secondtUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
+
+
+	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
+	"status":{
+		"currentPodHash": "%s",
+		"currentStepIndex":1
+    }
+}`)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutCurrPodHash, controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount))
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
+func TestRollBackToStableAndStepChange(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+
+	r2 := bumpVersion(r1)
+	r2.Spec.Template = r1.Spec.Template
+	r2.Status.AvailableReplicas = 10
+	r2.Spec.Strategy.CanaryStrategy.Steps[0].SetWeight = pointer.Int32Ptr(20)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	expectedRS1 := rs1.DeepCopy()
+	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
+	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
+	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+	secondtUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
+
+
+	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
+	"status":{
+		"currentPodHash": "%s",
+		"currentStepHash": "%s",
+		"currentStepIndex":1
+    }
+}`)
+	newPodHash := controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount)
+	newStepHash := conditions.ComputeStepHash(r2)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutCurrPodHash, newPodHash, newStepHash)
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	f := newFixture(t)
 
