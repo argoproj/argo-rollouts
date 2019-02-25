@@ -129,7 +129,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	if *newRS.Spec.Replicas < desiredNewRSReplicaCount && scaleUpCount > 0 {
 		// This follows the same logic as scaling up the stable except with the newRS and it does not need to
 		// set the scaleDownCount again since it's not used again
-		if *newRS.Spec.Replicas + scaleUpCount < desiredNewRSReplicaCount {
+		if *newRS.Spec.Replicas+scaleUpCount < desiredNewRSReplicaCount {
 			newRSReplicaCount = *newRS.Spec.Replicas + scaleUpCount
 		} else {
 			newRSReplicaCount = desiredNewRSReplicaCount
@@ -172,7 +172,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		if *stableRS.Spec.Replicas-scaleDownCount < desiredStableRSReplicaCount {
 			stableRSReplicaCount = desiredStableRSReplicaCount
 		} else {
-			stableRSReplicaCount = *stableRS.Spec.Replicas-scaleDownCount
+			stableRSReplicaCount = *stableRS.Spec.Replicas - scaleDownCount
 		}
 	}
 

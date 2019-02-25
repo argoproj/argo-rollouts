@@ -461,8 +461,10 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
-	f.run(getKey(r2, t))
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
+	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
+	f.runController(key, true, false, c, i, k8sI)
+
 	//When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
 	assert.Equal(t, 2, f.enqueuedObjects[key])
 
@@ -475,7 +477,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		{
 			SetWeight: int32Ptr(10),
 		}, {
-			Wait: int32Ptr(int32((60 * time.Hour).Seconds())),
+			Wait: int32Ptr(int32(3600)), //1 hour
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -485,7 +487,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	r2.Status.CurrentPodHash = "5f79b78d7f"
 	now := metav1.Now()
 	r2.Status.CanaryStatus.WaitStartTime = &now
-	r2.Status.ObservedGeneration = "cbb66d86f"
+	r2.Status.ObservedGeneration = "7bc4488755"
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -498,8 +500,9 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
-	f.run(getKey(r2, t))
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
+	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
+	f.runController(key, true, false, c, i, k8sI)
 	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
 	assert.Equal(t, 1, f.enqueuedObjects[key])
 

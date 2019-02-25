@@ -101,7 +101,7 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 				f.kubeobjects = append(f.kubeobjects, rs)
 			}
 
-			c, informers, _ := f.newController()
+			c, informers, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
 			defer close(stopCh)
 			informers.Start(stopCh)

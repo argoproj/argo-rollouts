@@ -44,8 +44,8 @@ type fixture struct {
 	kubeactions []core.Action
 	actions     []core.Action
 	// Objects from here preloaded into NewSimpleFake.
-	kubeobjects []runtime.Object
-	objects     []runtime.Object
+	kubeobjects     []runtime.Object
+	objects         []runtime.Object
 	enqueuedObjects map[string]int
 }
 
@@ -149,18 +149,20 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 	return key
 }
 
-func (f *fixture) newController() (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+type resyncFunc func() time.Duration
+
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
-	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
-	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
+	i := informers.NewSharedInformerFactory(f.client, resync())
+	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	c := NewController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
 		i.Argoproj().V1alpha1().Rollouts(),
-		time.Minute)
+		resync())
 
 	c.rolloutsSynced = alwaysReady
 	c.replicaSetSynced = alwaysReady
@@ -171,7 +173,6 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
-			return
 		}
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
@@ -200,12 +201,12 @@ func (f *fixture) newController() (*Controller, informers.SharedInformerFactory,
 }
 
 func (f *fixture) run(rolloutName string) {
-	c, i, k8sI := f.newController()
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
-	c, i, k8sI := f.newController()
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 

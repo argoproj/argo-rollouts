@@ -2,6 +2,7 @@ package controller
 
 import (
 	"sort"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +12,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-	"time"
 )
 
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
@@ -123,8 +123,8 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		now := metav1.Now()
 		if rollout.Status.CanaryStatus.WaitStartTime != nil {
 			expiredTime := rollout.Status.CanaryStatus.WaitStartTime.Add(time.Duration(*currentStep.Wait) * time.Second)
-			nextResync := now.Add(time.Duration(c.resyncPeriod) * time.Second)
-			if nextResync.After(expiredTime) && expiredTime.After(now.Time){
+			nextResync := now.Add(c.resyncPeriod)
+			if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 				timeRemaining := expiredTime.Sub(now.Time)
 				c.enqueueRolloutAfter(rollout, timeRemaining)
 			}
@@ -224,7 +224,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		logCtx.Infof("Incrementing the Current Step Index to %d", currentStepIndex)
 	}
 
-	if currentStep != nil && currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs){
+	if currentStep != nil && currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 		currentStepIndex++
 	}
 

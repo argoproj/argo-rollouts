@@ -73,7 +73,7 @@ type Controller struct {
 	rolloutsSynced   cache.InformerSynced
 
 	// used for unit testing
-	enqueueRollout func(obj interface{})
+	enqueueRollout      func(obj interface{})
 	enqueueRolloutAfter func(obj interface{}, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
@@ -84,7 +84,7 @@ type Controller struct {
 	workqueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
-	recorder record.EventRecorder
+	recorder     record.EventRecorder
 	resyncPeriod time.Duration
 }
 

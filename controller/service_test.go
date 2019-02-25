@@ -99,7 +99,7 @@ func TestReconcilePreviewService(t *testing.T) {
 			if test.previewSvc != nil {
 				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
 			}
-			c, _, _ := f.newController()
+			c, _, _ := f.newController(noResyncPeriodFunc)
 			result, err := c.reconcilePreviewService(ro, rs, test.previewSvc, test.activeSvc)
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedResult, result)
@@ -145,7 +145,7 @@ func TestReconcileActiveService(t *testing.T) {
 			if test.previewSvc != nil {
 				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
 			}
-			c, _, _ := f.newController()
+			c, _, _ := f.newController(noResyncPeriodFunc)
 			result, err := c.reconcileActiveService(ro, rs, test.previewSvc, test.activeSvc)
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedResult, result)
@@ -166,7 +166,7 @@ func TestGetRolloutsForService(t *testing.T) {
 
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	rollouts, err := c.getRolloutsForService(s)
 	assert.Nil(t, err)
@@ -187,8 +187,7 @@ func TestHandleServiceEnqueueRollout(t *testing.T) {
 
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
-
+	c, _, _ := f.newController(noResyncPeriodFunc)
 	c.handleService(s)
 	assert.Equal(t, c.workqueue.Len(), 1)
 
@@ -209,7 +208,7 @@ func TestHandleServiceNoAdditions(t *testing.T) {
 
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	c.handleService(s)
 	assert.Equal(t, c.workqueue.Len(), 0)
@@ -221,7 +220,7 @@ func TestHandleServiceNoExistingRollouts(t *testing.T) {
 	s := newService("foo", 80, nil)
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	c.handleService(s)
 	assert.Equal(t, c.workqueue.Len(), 0)
@@ -238,7 +237,7 @@ func TestUpdateServiceEnqueueRollout(t *testing.T) {
 	f.objects = append(f.objects, ro1)
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	c.updateService(oldSvc, newSvc)
 	assert.Equal(t, c.workqueue.Len(), 1)
@@ -257,7 +256,7 @@ func TestUpdateServiceSameService(t *testing.T) {
 
 	// Create the fixture but don't start it,
 	// so nothing happens in the background.
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	c.updateService(s, s)
 	assert.Equal(t, c.workqueue.Len(), 0)
@@ -305,7 +304,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 			},
 		},
 	}
-	c, _, _ := f.newController()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
 		preview, active, err := c.getPreviewAndActiveServices(rollout)
 		assert.Nil(t, err)
