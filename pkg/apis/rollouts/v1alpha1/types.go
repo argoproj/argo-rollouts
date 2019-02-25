@@ -125,7 +125,7 @@ type CanaryStep struct {
 	Pause *RolloutPause `json:"pause,omitempty"`
 }
 
-type RolloutPause struct{
+type RolloutPause struct {
 	// Duration the amount of time to wait before moving to the next step.
 	// +optional
 	Duration *int32 `json:"duration,omitempty"`

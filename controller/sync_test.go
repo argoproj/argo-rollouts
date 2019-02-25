@@ -356,7 +356,6 @@ func TestCleanupRollouts(t *testing.T) {
 	}
 }
 
-
 func TestIsScalingEventCanary(t *testing.T) {
 
 }

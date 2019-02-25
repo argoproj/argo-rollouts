@@ -156,7 +156,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 	scaleDownCount = scaleDownCount - totalAvailableOlderReplicaCount
 
-	if newRS != nil &&  *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
+	if newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
 		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
@@ -274,10 +274,10 @@ func GetProportion(rs *appsv1.ReplicaSet, rolloutReplicasToAdd, rolloutReplicasA
 		// Use the minimum between the difference to the desired state and current rs count, and the maximum allowed
 		// replicas when scaling up. This way we ensure we will not scale up more than the allowed
 		// replicas we can add.
-		return integer.Int32Min(desiredNewReplicaCount - *rs.Spec.Replicas, allowed)
+		return integer.Int32Min(desiredNewReplicaCount-*rs.Spec.Replicas, allowed)
 	}
 	// Use the maximum between the difference of the desired state and current rs count and the maximum allowed replicas
 	// when scaling down. This way we ensure we will not scale down more than the allowed
 	// replicas we can remove.
-	return integer.Int32Max(desiredNewReplicaCount - *rs.Spec.Replicas, allowed)
+	return integer.Int32Max(desiredNewReplicaCount-*rs.Spec.Replicas, allowed)
 }

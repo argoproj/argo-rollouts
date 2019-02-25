@@ -1,21 +1,21 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
-	"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	testclient "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -29,7 +29,7 @@ func newCanaryRolloutWithStatus(name string, replicas int, revisionHistoryLimit 
 	return ro
 }
 
-	func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
+func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 	selector := map[string]string{"foo": "bar"}
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
 	rollout.Spec.Strategy.Type = v1alpha1.CanaryRolloutStrategyType
@@ -204,7 +204,7 @@ func TestResetCurrentStepIndexOnSpecChange(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	expectedPatch := calculatePatch(r2,`{
+	expectedPatch := calculatePatch(r2, `{
 	"status": {
 		"currentPodHash":"5f79b78d7f",
 		"currentStepIndex":0
@@ -228,7 +228,7 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 	f.run(getKey(r, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	expectedPatch := calculatePatch(r,`{
+	expectedPatch := calculatePatch(r, `{
 	"status":{
 		"canaryStatus":{
 			"stableRS":"895c6c4f9"
@@ -584,15 +584,13 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
-
-
 func TestScaleCanary(t *testing.T) {
 	newTimestamp := metav1.Date(2016, 5, 20, 3, 0, 0, 0, time.UTC)
 	oldTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
 	olderTimestamp := metav1.Date(2016, 5, 20, 1, 0, 0, 0, time.UTC)
 	oldestTimestamp := metav1.Date(2016, 5, 20, 0, 0, 0, 0, time.UTC)
 
-	setWeight50 := []v1alpha1.CanaryStep{{SetWeight:int32Ptr(50)}}
+	setWeight50 := []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}
 
 	zeroIntStr := intstr.FromInt(0)
 	oneIntStr := intstr.FromInt(1)
@@ -602,21 +600,21 @@ func TestScaleCanary(t *testing.T) {
 		rollout    *v1alpha1.Rollout
 		oldRollout *v1alpha1.Rollout
 
-		newRS  *appsv1.ReplicaSet
-		stableRS  *appsv1.ReplicaSet
-		oldRSs []*appsv1.ReplicaSet
+		newRS    *appsv1.ReplicaSet
+		stableRS *appsv1.ReplicaSet
+		oldRSs   []*appsv1.ReplicaSet
 
-		expectedNew  *appsv1.ReplicaSet
-		expectedStable  *appsv1.ReplicaSet
-		expectedOld  []*appsv1.ReplicaSet
-		wasntUpdated map[string]bool
+		expectedNew    *appsv1.ReplicaSet
+		expectedStable *appsv1.ReplicaSet
+		expectedOld    []*appsv1.ReplicaSet
+		wasntUpdated   map[string]bool
 
 		desiredReplicasAnnotations map[string]int32
 	}{
 		{
 			name:       "normal scaling event: 10 -> 12",
 			rollout:    newCanaryRollout("foo", 12, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout:    newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
+			oldRollout: newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
 
 			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{},
@@ -627,7 +625,7 @@ func TestScaleCanary(t *testing.T) {
 		{
 			name:       "normal scaling event: 10 -> 5",
 			rollout:    newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout:    newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
+			oldRollout: newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
 
 			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{},
@@ -638,7 +636,7 @@ func TestScaleCanary(t *testing.T) {
 		{
 			name:       "Scale up non-active latest Replicaset",
 			rollout:    newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout:    newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
+			oldRollout: newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
 
 			newRS:  rs("foo-v2", 0, nil, newTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{rs("foo-v1", 0, nil, oldTimestamp, nil)},
@@ -651,14 +649,14 @@ func TestScaleCanary(t *testing.T) {
 			rollout:    newCanaryRollout("foo", 10, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}, int32Ptr(0), oneIntStr, zeroIntStr),
 			oldRollout: newCanaryRollout("foo", 10, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}, int32Ptr(0), oneIntStr, zeroIntStr),
 
-			newRS: rs("foo-v3", 5, nil, newTimestamp, nil),
+			newRS:    rs("foo-v3", 5, nil, newTimestamp, nil),
 			stableRS: rs("foo-v2", 5, nil, oldTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
 				rs("foo-v1", 0, nil, olderTimestamp, nil),
 				rs("foo-v0", 0, nil, oldestTimestamp, nil),
 			},
 
-			expectedNew: rs("foo-v3", 5, nil, newTimestamp, nil),
+			expectedNew:    rs("foo-v3", 5, nil, newTimestamp, nil),
 			expectedStable: rs("foo-v2", 5, nil, oldTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
 				rs("foo-v1", 0, nil, olderTimestamp, nil),
@@ -676,16 +674,16 @@ func TestScaleCanary(t *testing.T) {
 		},
 		{
 			name:       "Scale up active RS before new RS",
-			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
+			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
+			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
 
-			newRS: rs("foo-v2", 4, nil, newTimestamp, nil),
+			newRS:    rs("foo-v2", 4, nil, newTimestamp, nil),
 			stableRS: rs("foo-v1", 4, nil, oldTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
 				rs("foo-v0", 1, nil, oldestTimestamp, nil),
 			},
 
-			expectedNew: rs("foo-v2", 4, nil, newTimestamp, nil),
+			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
 			expectedStable: rs("foo-v1", 5, nil, oldTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
 				rs("foo-v0", 1, nil, oldestTimestamp, nil),
@@ -693,16 +691,16 @@ func TestScaleCanary(t *testing.T) {
 		},
 		{
 			name:       "Scale down oldRS, newRS and active RS",
-			rollout:    newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
+			rollout:    newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
+			oldRollout: newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
 
-			newRS: rs("foo-v2", 5, nil, newTimestamp, nil),
+			newRS:    rs("foo-v2", 5, nil, newTimestamp, nil),
 			stableRS: rs("foo-v1", 5, nil, oldTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
 				rs("foo-v0", 2, nil, oldestTimestamp, nil),
 			},
 
-			expectedNew: rs("foo-v2", 4, nil, newTimestamp, nil),
+			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
 			expectedStable: rs("foo-v1", 4, nil, oldTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
 				rs("foo-v0", 0, nil, oldestTimestamp, nil),
@@ -710,16 +708,16 @@ func TestScaleCanary(t *testing.T) {
 		},
 		{
 			name:       "Scale down OldRS if stable is at desired count",
-			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr,"foo-v0"),
+			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
+			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
 
-			newRS: rs("foo-v2", 4, nil, newTimestamp, nil),
+			newRS:    rs("foo-v2", 4, nil, newTimestamp, nil),
 			stableRS: rs("foo-v1", 5, nil, oldTimestamp, nil),
 			oldRSs: []*appsv1.ReplicaSet{
 				rs("foo-v0", 1, nil, oldestTimestamp, nil),
 			},
 
-			expectedNew: rs("foo-v2", 4, nil, newTimestamp, nil),
+			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
 			expectedStable: rs("foo-v1", 5, nil, oldTimestamp, nil),
 			expectedOld: []*appsv1.ReplicaSet{
 				rs("foo-v0", 0, nil, oldestTimestamp, nil),
@@ -787,6 +785,3 @@ func TestScaleCanary(t *testing.T) {
 		})
 	}
 }
-
-
-
