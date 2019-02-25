@@ -9,10 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"k8s.io/utils/pointer"
 )
 
 var (
@@ -255,28 +256,28 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	noSelectorCond := VerifyRolloutSpec(noSelector, nil)
 	assert.NotNil(t, noSelectorCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
-	assert.Equal(t, MissingSelectorReason, noSelectorCond.Reason)
+	assert.Equal(t, MissingFieldReason, noSelectorCond.Reason)
 
 	noBlueGreenStrategy := validRollout.DeepCopy()
 	noBlueGreenStrategy.Spec.Strategy.BlueGreenStrategy = nil
 	noBlueGreenStrategyCond := VerifyRolloutSpec(noBlueGreenStrategy, nil)
 	assert.NotNil(t, noBlueGreenStrategyCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy"), noBlueGreenStrategyCond.Message)
-	assert.Equal(t, MissingBlueGreenStrategyReason, noBlueGreenStrategyCond.Reason)
+	assert.Equal(t, MissingFieldReason, noBlueGreenStrategyCond.Reason)
 
 	noActiveSvc := validRollout.DeepCopy()
 	noActiveSvc.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
 	noActiveSvcCond := VerifyRolloutSpec(noActiveSvc, nil)
 	assert.NotNil(t, noActiveSvcCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService"), noActiveSvcCond.Message)
-	assert.Equal(t, MissingActiveServiceReason, noActiveSvcCond.Reason)
+	assert.Equal(t, MissingFieldReason, noActiveSvcCond.Reason)
 
 	sameSvcs := validRollout.DeepCopy()
 	sameSvcs.Spec.Strategy.BlueGreenStrategy.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
 	assert.NotNil(t, sameSvcsCond)
-	assert.Equal(t, SameServicesMessage, sameSvcsCond.Message)
-	assert.Equal(t, SameServicesReason, sameSvcsCond.Reason)
+	assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
+	assert.Equal(t, DuplicatedServicesReason, sameSvcsCond.Reason)
 
 	noStrategy := validRollout.DeepCopy()
 	noStrategy.Spec.Strategy = v1alpha1.RolloutStrategy{}
@@ -284,7 +285,128 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 
 	assert.NotNil(t, noStrategyCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type"), noStrategyCond.Message)
-	assert.Equal(t, MissingStrategyTypeReason, noStrategyCond.Reason)
+	assert.Equal(t, MissingFieldReason, noStrategyCond.Reason)
+}
+
+func TestVerifyRolloutSpecCanary(t *testing.T) {
+	zero := intstr.FromInt(0)
+	tests := []struct {
+		name           string
+		maxUnavailable *intstr.IntOrString
+		maxSurge       *intstr.IntOrString
+		steps          []v1alpha1.CanaryStep
+
+		notValid bool
+		reason   string
+		message  string
+	}{
+		{
+			name:           "Max Surge and Max Unavailable set to zero",
+			maxUnavailable: &zero,
+			maxSurge:       &zero,
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidMaxSurgeMaxUnavailable,
+		},
+		{
+			name: "setWeight and pause both set",
+			steps: []v1alpha1.CanaryStep{{
+				Pause:     &v1alpha1.RolloutPause{},
+				SetWeight: pointer.Int32Ptr(10),
+			}},
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidStepMessage,
+		},
+		{
+			name:  "Nether setWeight and pause are set",
+			steps: []v1alpha1.CanaryStep{{}},
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidStepMessage,
+		},
+		{
+			name: "setWeight over 0",
+			steps: []v1alpha1.CanaryStep{{
+				SetWeight: pointer.Int32Ptr(-1),
+			}},
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidSetWeightMessage,
+		},
+		{
+			name: "setWeight less than 100",
+			steps: []v1alpha1.CanaryStep{{
+				SetWeight: pointer.Int32Ptr(110),
+			}},
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidSetWeightMessage,
+		},
+		{
+			name: "Pause duration is not less than 0",
+			steps: []v1alpha1.CanaryStep{{
+				Pause: &v1alpha1.RolloutPause{
+					Duration: pointer.Int32Ptr(-1),
+				},
+			}},
+
+			notValid: true,
+			reason:   InvalidFieldReason,
+			message:  InvalidDurationMessage,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			ro := &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"key": "value"},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Type: v1alpha1.CanaryRolloutStrategyType,
+						CanaryStrategy: &v1alpha1.CanaryStrategy{
+							MaxUnavailable: test.maxUnavailable,
+							MaxSurge:       test.maxSurge,
+							Steps:          test.steps,
+						},
+					},
+				},
+			}
+			cond := VerifyRolloutSpec(ro, nil)
+			if test.notValid {
+				assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
+				assert.Equal(t, test.reason, cond.Reason)
+				assert.Equal(t, test.message, cond.Message)
+			} else {
+				assert.Nil(t, cond)
+			}
+		})
+	}
+	t.Run("Null Canary Strategy field", func(t *testing.T) {
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"key": "value"},
+				},
+				Strategy: v1alpha1.RolloutStrategy{
+					Type: v1alpha1.CanaryRolloutStrategyType,
+				},
+			},
+		}
+		cond := VerifyRolloutSpec(ro, nil)
+		assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
+		assert.Equal(t, MissingFieldReason, cond.Reason)
+		assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy"), cond.Message)
+
+	})
+
 }
 
 func TestHasRevisionHistoryLimit(t *testing.T) {

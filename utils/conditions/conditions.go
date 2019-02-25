@@ -20,24 +20,28 @@ const (
 	FailedRSCreateReason = "ReplicaSetCreateError"
 	// Verify Spec constants
 
+	//MissingFieldReason the reason that indicates that a rollout is missing a field
+	MissingFieldReason = "MissingField"
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
-	// SameServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
-	SameServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
 	// SelectAllMessage the message to indicate that the rollout has an empty selector
 	SelectAllMessage = "This rollout is selecting all pods. A non-empty selector is required."
-	// MissingStrategyTypeReason the reason to indicate that the rollout is missing the strategy field
-	MissingStrategyTypeReason = "MissingStrategy"
-	// MissingSelectorReason the reason to indicate that the rollout is missing the selector field
-	MissingSelectorReason = "MissingSelector"
-	// MissingBlueGreenStrategyReason the reason to indicate that the rollout is missing the .spec.strategy.blueGreen field
-	MissingBlueGreenStrategyReason = "MissingBlueGreen"
-	// MissingActiveServiceReason the reason to indicate that the rollout is missing the active service field
-	MissingActiveServiceReason = "MissingActive"
 	// InvalidSelectorReason the reason to indicate the selector is selecting all the pods
 	InvalidSelectorReason = "InvalidSelector"
-	// SameServicesReason the reason to indicate that the rollout uses the same service for the active and preview services
-	SameServicesReason = "SameService"
+	// InvalidFieldReason reason indicating that a field is invalid
+	InvalidFieldReason = "InvalidFieldValue"
+	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
+	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
+	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
+	InvalidDurationMessage = "Duration needs to be greater than 0"
+	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
+	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
+	// InvalidStepMessage indicates that a step must have either setWeight or pause set
+	InvalidStepMessage = "Step must have either setWeight or pause set"
+	// DuplicatedServicesReason the reason to indicate that the rollout uses the same service for the active and preview services
+	DuplicatedServicesReason = "DuplicatedService"
+	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
+	DuplicatedServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
 	// Available the reason to indicate that the rollout is serving traffic from the active service
 	Available = "Available"
 )
@@ -141,7 +145,7 @@ func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason 
 func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCondition) *v1alpha1.RolloutCondition {
 	if rollout.Spec.Selector == nil {
 		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Selector")
-		return newInvalidSpecRolloutCondition(prevCond, MissingSelectorReason, message)
+		return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
 	}
 
 	everything := metav1.LabelSelector{}
@@ -153,18 +157,41 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	case v1alpha1.BlueGreenRolloutStrategyType:
 		if rollout.Spec.Strategy.BlueGreenStrategy == nil {
 			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy")
-			return newInvalidSpecRolloutCondition(prevCond, MissingBlueGreenStrategyReason, message)
+			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
 		}
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
 			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService")
-			return newInvalidSpecRolloutCondition(prevCond, MissingActiveServiceReason, message)
+			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
 		}
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == rollout.Spec.Strategy.BlueGreenStrategy.PreviewService {
-			return newInvalidSpecRolloutCondition(prevCond, SameServicesReason, SameServicesMessage)
+			return newInvalidSpecRolloutCondition(prevCond, DuplicatedServicesReason, DuplicatedServicesMessage)
+		}
+	case v1alpha1.CanaryRolloutStrategyType:
+		if rollout.Spec.Strategy.CanaryStrategy == nil {
+			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy")
+			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
+		}
+		maxSurge := rollout.Spec.Strategy.CanaryStrategy.MaxSurge
+		maxUnavailable := rollout.Spec.Strategy.CanaryStrategy.MaxUnavailable
+		if maxSurge != nil && maxUnavailable != nil {
+			if maxSurge.IntValue() == maxUnavailable.IntValue() && maxSurge.IntValue() == 0 {
+				return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidMaxSurgeMaxUnavailable)
+			}
+		}
+		for _, step := range rollout.Spec.Strategy.CanaryStrategy.Steps {
+			if (step.Pause != nil && step.SetWeight != nil) || (step.Pause == nil && step.SetWeight == nil) {
+				return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidStepMessage)
+			}
+			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
+				return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidSetWeightMessage)
+			}
+			if step.Pause != nil && step.Pause.Duration != nil && *step.Pause.Duration < 0 {
+				return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidDurationMessage)
+			}
 		}
 	case "":
 		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type")
-		return newInvalidSpecRolloutCondition(prevCond, MissingStrategyTypeReason, message)
+		return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
 	}
 
 	return nil
