@@ -240,12 +240,24 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 
 	if replicasetutil.CheckStepHashChange(r) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
+		if r.Status.CanaryStatus.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
+			if newStatus.CurrentStepIndex != nil {
+				stepsLength := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
+				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepsLength)
+			}
+		}
 		logCtx.Info("Resetting the Current Step Index to 0 on step change")
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
 	if replicasetutil.CheckPodSpecChange(r) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
+		if r.Status.CanaryStatus.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
+			if newStatus.CurrentStepIndex != nil {
+				stepsLength := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
+				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepsLength)
+			}
+		}
 		logCtx.Info("Resetting the Current Step Index to 0 on pod spec change")
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
