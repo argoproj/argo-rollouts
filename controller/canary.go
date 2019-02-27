@@ -262,9 +262,28 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
-	if r.Status.CanaryStatus.StableRS == "" || currentStepIndex == nil || int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
+
+	if r.Status.CanaryStatus.StableRS == "" {
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+		if len(r.Spec.Strategy.CanaryStrategy.Steps) > 0 {
+			newStatus.CurrentStepIndex = &stepCount
+		}
+		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
+
+	//Handles case where there are no steps
+	if currentStep == nil && currentStepIndex == nil {
+		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+		return c.persistRolloutStatus(r, &newStatus, nil)
+	}
+
+	if *currentStepIndex == stepCount {
+		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+		newStatus.CurrentStepIndex = &stepCount
+		return c.persistRolloutStatus(r, &newStatus, nil)
+	}
+
 
 	if checkIncrementCanaryStep(olderRSs, newRS, stableRS, r) {
 		*currentStepIndex++
