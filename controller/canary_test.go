@@ -224,6 +224,46 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	assert.Equal(t, expectedPatch, expectedPatch)
 }
 
+
+func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r2 := bumpVersion(r1)
+	expectedStableRS := r2.Status.CurrentPodHash
+	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 10, 10)
+	r2.Status.AvailableReplicas = 10
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatchWithoutStableRS := calculatePatch(r2, `{
+	"status": {
+		"canaryStatus": {
+			"stableRS": "%s"
+		}
+	}
+}`)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS,expectedStableRS)
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
 func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f := newFixture(t)
 	steps := []v1alpha1.CanaryStep{
@@ -301,7 +341,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 
 }
 
-func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
+func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	f := newFixture(t)
 
 	r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
@@ -326,6 +366,36 @@ func TestCanaryRolloutCreateFirstReplicaset(t *testing.T) {
 }`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
+
+func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
+	f := newFixture(t)
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	r := newCanaryRollout("foo", 10, nil, steps, nil, intstr.FromInt(1), intstr.FromInt(0))
+	r.Status.CurrentPodHash = ""
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+
+	f.expectCreateReplicaSetAction(rs)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	expectedPatch := calculatePatch(r, `{
+	"status":{
+		"canaryStatus":{
+			"stableRS":"895c6c4f9"
+		},
+		"currentStepIndex":1,
+		"currentPodHash":"895c6c4f9"
+	}
+}`)
+	assert.Equal(t, expectedPatch, string(patchBytes))
+}
+
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f := newFixture(t)
