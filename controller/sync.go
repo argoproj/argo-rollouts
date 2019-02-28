@@ -377,14 +377,15 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 		return err
 	}
 	if !modified {
-		logCtx.Infof("No status changes. Skipping patch")
+		logCtx.Info("No status changes. Skipping patch")
 		return nil
 	}
+	logCtx.Debugf("Rollout Patch: %s", patch)
 	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
 		logCtx.Warningf("Error updating application: %v", err)
 		return err
 	}
-	logCtx.Infof("Patch status successfully")
+	logCtx.Info("Patch status successfully")
 	return nil
 }
