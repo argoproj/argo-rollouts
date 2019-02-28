@@ -29,6 +29,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":   schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy": schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":      schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":        schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
@@ -40,6 +41,33 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":       schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":     schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":   schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BlueGreenStatus status fields that only pertain to the blueGreen rollout",
+				Properties: map[string]spec.Schema{
+					"previewSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreviewSelector indicates which replicas set the preview service is serving traffic to",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"activeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ActiveSelector indicates which replicas set the active service is serving traffic to",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
@@ -75,7 +103,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CanaryStatus fields that only pertain to the canary rollout",
+				Description: "CanaryStatus status fields that only pertain to the canary rollout",
 				Properties: map[string]spec.Schema{
 					"stableRS": {
 						SchemaProps: spec.SchemaProps{
@@ -409,20 +437,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
-					"previewSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PreviewSelector indicates which replicas set the preview service is serving traffic to",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"activeSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ActiveSelector indicates which replicas set the active service is serving traffic to",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"verifyingPreview": {
 						SchemaProps: spec.SchemaProps{
 							Description: "VerifyingPreview indicates the rollout is verifying the replicas set being served traffic from the preview service. User will need to edit this field to continue the rollout.",
@@ -498,12 +512,18 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
 						},
 					},
+					"blueGreenStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BlueGreenStatus describes the state of the canary rollout",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus"),
+						},
+					},
 				},
 				Required: []string{"currentStepHash"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition"},
 	}
 }
 

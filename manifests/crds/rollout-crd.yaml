@@ -105,17 +105,26 @@ spec:
         status:
           description: RolloutStatus is the status for a Rollout resource
           properties:
-            activeSelector:
-              description: ActiveSelector indicates which replicas set the active
-                service is serving traffic to
-              type: string
             availableReplicas:
               description: Total number of available pods (ready for at least minReadySeconds)
                 targeted by this rollout.
               format: int32
               type: integer
+            blueGreenStatus:
+              description: BlueGreenStatus status fields that only pertain to the
+                blueGreen rollout
+              properties:
+                activeSelector:
+                  description: ActiveSelector indicates which replicas set the active
+                    service is serving traffic to
+                  type: string
+                previewSelector:
+                  description: PreviewSelector indicates which replicas set the preview
+                    service is serving traffic to
+                  type: string
             canaryStatus:
-              description: CanaryStatus fields that only pertain to the canary rollout
+              description: CanaryStatus status fields that only pertain to the canary
+                rollout
               properties:
                 pauseStartTime: {}
                 stableRS:
@@ -174,10 +183,6 @@ spec:
             observedGeneration:
               description: The generation observed by the rollout controller by taking
                 a hash of the spec.
-              type: string
-            previewSelector:
-              description: PreviewSelector indicates which replicas set the preview
-                service is serving traffic to
               type: string
             readyReplicas:
               description: Total number of ready pods targeted by this rollout.

@@ -127,12 +127,6 @@ type RolloutStatus struct {
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
 	CurrentStepHash string `json:"currentStepHash"`
-	// PreviewSelector indicates which replicas set the preview service is serving traffic to
-	// +optional
-	PreviewSelector string `json:"previewSelector"`
-	// ActiveSelector indicates which replicas set the active service is serving traffic to
-	// +optional
-	ActiveSelector string `json:"activeSelector"`
 	// VerifyingPreview indicates the rollout is verifying the replicas set being served
 	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
@@ -167,9 +161,22 @@ type RolloutStatus struct {
 	//CanaryStatus describes the state of the canary rollout
 	// +optional
 	CanaryStatus CanaryStatus `json:"canaryStatus,omitempty"`
+	//BlueGreenStatus describes the state of the canary rollout
+	// +optional
+	BlueGreenStatus BlueGreenStatus `json:"blueGreenStatus,omitempty"`
 }
 
-// CanaryStatus fields that only pertain to the canary rollout
+// BlueGreenStatus status fields that only pertain to the blueGreen rollout
+type BlueGreenStatus struct {
+	// PreviewSelector indicates which replicas set the preview service is serving traffic to
+	// +optional
+	PreviewSelector string `json:"previewSelector"`
+	// ActiveSelector indicates which replicas set the active service is serving traffic to
+	// +optional
+	ActiveSelector string `json:"activeSelector"`
+}
+
+// CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
 	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
 	// +optional
