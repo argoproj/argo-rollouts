@@ -115,7 +115,6 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 	}
 
 	if currentStep.Pause == nil {
-		logCtx.Info("Not at a pause step")
 		return false, nil
 	}
 
@@ -203,6 +202,7 @@ func (c *Controller) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSe
 }
 
 func checkIncrementCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) bool {
+	logCtx := logutil.WithRollout(r)
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
 	if currentStep == nil {
 		return false
@@ -212,14 +212,18 @@ func checkIncrementCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Repli
 		if r.Status.CanaryStatus.PauseStartTime != nil {
 			expiredTime := r.Status.CanaryStatus.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
 			if now.After(expiredTime) {
+				logCtx.Info("Rollout has waited the duration of the pause step")
 				return true
 			}
 		}
 	}
 	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Spec.Pause != nil && !*r.Spec.Pause {
+		logCtx.Info("Rollout has been unpaused")
 		return true
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+		logCtx.Info("Rollout has reached the desired state for the correct weight")
+
 		return true
 	}
 	return false
@@ -266,9 +270,10 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	if r.Status.CanaryStatus.StableRS == "" {
 		logCtx.Info("Setting StableRS to CurrentPodHash because it is empty beforehand")
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
-		if len(r.Spec.Strategy.CanaryStrategy.Steps) > 0 {
-			logCtx.Info("Skipping all steps because the currentPodHash is now the stableRS")
-			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
+		if stepCount > 0 {
+			if stepCount != *currentStepIndex {
+				c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
+			}
 			newStatus.CurrentStepIndex = &stepCount
 
 		}
@@ -282,10 +287,12 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 
 	if *currentStepIndex == stepCount {
-		logCtx.Info("Rollout has executed every step so setting stableRS status to currentPodHash")
-		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
-		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
+		logCtx.Info("Rollout has executed every step")
+		if stepCount != *currentStepIndex {
+			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
+		}
 		newStatus.CurrentStepIndex = &stepCount
+		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 

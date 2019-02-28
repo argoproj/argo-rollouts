@@ -92,7 +92,6 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 						},
 					},
 				},
-				Required: []string{"activeService"},
 			},
 		},
 		Dependencies: []string{},
