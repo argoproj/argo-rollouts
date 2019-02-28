@@ -5,6 +5,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
@@ -19,7 +20,7 @@ import (
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 	if replicasetutil.CheckStepHashChange(rollout) {
-		logCtx.Info("List of steps to execute have changed and need to reset CurrentStepIndex")
+		logCtx.Info("List of Canary steps have changed and need to reset CurrentStepIndex")
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 		if err != nil {
 			return err
@@ -77,13 +78,13 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 
-	logCtx.Info("Reconciling Canary Step")
+	logCtx.Info("Reconciling Canary Pause")
 	stillReconciling, err := c.reconcilePause(oldRSs, newRS, stableRS, rollout)
 	if err != nil {
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 	if stillReconciling {
-		logCtx.Infof("Not finished reconciling new Canary Steps")
+		logCtx.Infof("Not finished reconciling Canary Pause")
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
 	return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
@@ -92,7 +93,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if !replicasetutil.CheckStableRSExists(newRS, stableRS) {
-		logCtx.Info("No StableRS to reconcile")
+		logCtx.Info("No StableRS exists to reconcile")
 		return false, nil
 	}
 	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
@@ -103,6 +104,7 @@ func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *app
 func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
+		logCtx.Info("Rollout does not have any steps")
 		return false, nil
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
@@ -127,6 +129,7 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		nextResync := now.Add(c.resyncPeriod)
 		if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 			timeRemaining := expiredTime.Sub(now.Time)
+			logCtx.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
 			c.enqueueRolloutAfter(rollout, timeRemaining)
 		}
 	}
@@ -140,10 +143,6 @@ func (c *Controller) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, 
 		// Can't scale down further
 		return false, nil
 	}
-
-	//logCtx.Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
-	//
-	//annotations.GetDesiredReplicasAnnotation(newRS)
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
@@ -237,16 +236,18 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.CanaryStatus.StableRS = r.Status.CanaryStatus.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
+	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
 
 	if replicasetutil.CheckStepHashChange(r) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
 		if r.Status.CanaryStatus.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
 			if newStatus.CurrentStepIndex != nil {
-				stepsLength := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepsLength)
+				logCtx.Info("Skipping all steps because the newRS is the stableRS.")
+				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepCount)
+				c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
+
 			}
 		}
-		logCtx.Info("Resetting the Current Step Index to 0 on step change")
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
@@ -254,31 +255,35 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
 		if r.Status.CanaryStatus.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
 			if newStatus.CurrentStepIndex != nil {
-				stepsLength := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepsLength)
+				logCtx.Info("Skipping all steps because the newRS is the stableRS.")
+				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepCount)
+				c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
 			}
 		}
-		logCtx.Info("Resetting the Current Step Index to 0 on pod spec change")
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
-	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
-
 	if r.Status.CanaryStatus.StableRS == "" {
+		logCtx.Info("Setting StableRS to CurrentPodHash because it is empty beforehand")
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		if len(r.Spec.Strategy.CanaryStrategy.Steps) > 0 {
+			logCtx.Info("Skipping all steps because the currentPodHash is now the stableRS")
+			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
 			newStatus.CurrentStepIndex = &stepCount
+
 		}
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
-	//Handles case where there are no steps
 	if currentStep == nil && currentStepIndex == nil {
+		logCtx.Info("Rollout has no steps so setting stableRS status to currentPodHash")
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
 	if *currentStepIndex == stepCount {
+		logCtx.Info("Rollout has executed every step so setting stableRS status to currentPodHash")
+		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(stepCount))
 		newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		newStatus.CurrentStepIndex = &stepCount
 		return c.persistRolloutStatus(r, &newStatus, nil)
@@ -287,10 +292,11 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	if checkIncrementCanaryStep(olderRSs, newRS, stableRS, r) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
-		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
 			newStatus.CanaryStatus.StableRS = newStatus.CurrentPodHash
 		}
+		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
+		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
@@ -299,6 +305,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	if currentStep != nil && currentStep.Pause != nil {
 		now := metav1.Now()
 		if r.Status.CanaryStatus.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
 			pauseStartTime = &now
 			paused = pointer.BoolPtr(true)
 		}
@@ -317,6 +324,8 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 // Afterwards, the function calculates the number of replicas to add, which can be negative.  From there, the function
 // starts to scale the replicasets until they are at the desired state or it cannot scale down any more.
 func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+	logCtx := logutil.WithRollout(rollout)
+	logCtx.Info("Scaling Rollout due to scaling event")
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 	// If there is only one active replica set, then we should scale that up to the full count of the
 	// rollout. If there are no active replica sets, and there is only one RS with replicas, then we
@@ -327,6 +336,7 @@ func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.Repl
 	}
 
 	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, previousRS); activeOrLatest != nil {
+		logCtx.Infof("One active RS found: %s", activeOrLatest.Name)
 		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
 			return err
@@ -340,6 +350,7 @@ func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.Repl
 	newRSAtDesired := newRS == nil || desiredNewRSReplicaCount == *newRS.Spec.Replicas
 	stableRSAtDesired := stableRS == nil || desiredStableRSReplicaCount == *stableRS.Spec.Replicas
 	if newRSAtDesired || stableRSAtDesired {
+		logCtx.Info("newRS or stableRS at desired. Scaling down older RS")
 		for _, old := range controller.FilterActiveReplicaSets(oldRSs) {
 			if _, _, err := c.scaleReplicaSetAndRecordEvent(old, 0, rollout); err != nil {
 				return err
@@ -370,7 +381,6 @@ func (c *Controller) scaleCanary(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.Repl
 		sort.Sort(controller.ReplicaSetsBySizeNewer(oldRSs))
 		allRSs = append([]*appsv1.ReplicaSet{stableRS, newRS}, oldRSs...)
 		scalingOperation = "up"
-
 	case rolloutReplicasToAdd < 0:
 		sort.Sort(controller.ReplicaSetsBySizeOlder(oldRSs))
 		allRSs = append(oldRSs, newRS, stableRS)
