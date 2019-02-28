@@ -60,7 +60,6 @@ func newFixture(t *testing.T) *fixture {
 
 func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
-	rollout.Spec.Strategy.Type = v1alpha1.BlueGreenRolloutStrategyType
 	rollout.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{
 		ActiveService:  activeSvc,
 		PreviewService: previewSvc,

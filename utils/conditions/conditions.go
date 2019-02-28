@@ -38,6 +38,8 @@ const (
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
 	InvalidStepMessage = "Step must have either setWeight or pause set"
+	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
+	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesReason the reason to indicate that the rollout uses the same service for the active and preview services
 	DuplicatedServicesReason = "DuplicatedService"
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
@@ -153,12 +155,16 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSelectorReason, SelectAllMessage)
 	}
 
-	switch rollout.Spec.Strategy.Type {
-	case v1alpha1.BlueGreenRolloutStrategyType:
-		if rollout.Spec.Strategy.BlueGreenStrategy == nil {
-			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy")
-			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
-		}
+	if rollout.Spec.Strategy.CanaryStrategy == nil && rollout.Spec.Strategy.BlueGreenStrategy == nil {
+		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy or .Spec.Strategy.BlueGreen")
+		return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
+	}
+
+	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidStrategyMessage)
+	}
+
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
 			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService")
 			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
@@ -166,11 +172,9 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == rollout.Spec.Strategy.BlueGreenStrategy.PreviewService {
 			return newInvalidSpecRolloutCondition(prevCond, DuplicatedServicesReason, DuplicatedServicesMessage)
 		}
-	case v1alpha1.CanaryRolloutStrategyType:
-		if rollout.Spec.Strategy.CanaryStrategy == nil {
-			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy")
-			return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
-		}
+	}
+
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
 		maxSurge := rollout.Spec.Strategy.CanaryStrategy.MaxSurge
 		maxUnavailable := rollout.Spec.Strategy.CanaryStrategy.MaxUnavailable
 		if maxSurge != nil && maxUnavailable != nil {
@@ -189,9 +193,6 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 				return newInvalidSpecRolloutCondition(prevCond, InvalidFieldReason, InvalidDurationMessage)
 			}
 		}
-	case "":
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type")
-		return newInvalidSpecRolloutCondition(prevCond, MissingFieldReason, message)
 	}
 
 	return nil

@@ -284,7 +284,6 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		return c.persistRolloutStatus(r, &newStatus, nil)
 	}
 
-
 	if checkIncrementCanaryStep(olderRSs, newRS, stableRS, r) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex

@@ -23,25 +23,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-const (
-	setPausePatch = `{
-	"status": {
-		"setPause": %s
-	}
-}`
-)
-
-func (c *Controller) PatchSetPause(r *v1alpha1.Rollout, boolValue *bool) error {
-	boolPtrStr := "null"
-	if boolValue != nil {
-		boolPtrStr = strconv.FormatBool(*boolValue)
-	}
-	logutil.WithRollout(r).Infof("Patching setVerifyingPreview to %s", boolPtrStr)
-	patchStr := fmt.Sprintf(setPausePatch, boolPtrStr)
-	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(patchStr))
-	return err
-}
-
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
 //
 // rsList should come from getReplicaSetsForRollout(r).
@@ -207,8 +188,7 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 	if err != nil {
 		return err
 	}
-	switch r.Spec.Strategy.Type {
-	case v1alpha1.BlueGreenRolloutStrategyType:
+	if r.Spec.Strategy.BlueGreenStrategy != nil {
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
 			return nil
@@ -220,7 +200,8 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 		}
 		allRSs := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
 		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
-	case v1alpha1.CanaryRolloutStrategyType:
+	}
+	if r.Spec.Strategy.CanaryStrategy != nil {
 		stableRS, previousRSs := replicasetutil.GetStableRS(r, newRS, oldRSs)
 
 		if err := c.scaleCanary(previousRSs, newRS, stableRS, r); err != nil {
@@ -230,7 +211,7 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 		}
 		return c.syncRolloutStatusCanary(previousRSs, newRS, stableRS, r)
 	}
-	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
+	return fmt.Errorf("no rollout strategy provided")
 }
 
 // isScalingEvent checks whether the provided rollout has been updated with a scaling event
