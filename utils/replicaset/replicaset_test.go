@@ -183,14 +183,14 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 
 func TestNewRSNewReplicas(t *testing.T) {
 	ro := generateRollout("test")
-	ro.Spec.Strategy.Type = v1alpha1.BlueGreenRolloutStrategyType
+	ro.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
 	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
 
-	ro.Spec.Strategy.Type = ""
+	ro.Spec.Strategy.BlueGreenStrategy = nil
 	_, err = NewRSNewReplicas(&ro, nil, nil)
-	assert.Error(t, err, fmt.Sprintf("rollout strategy type %v isn't supported", ro.Spec.Strategy.Type))
+	assert.Error(t, err, "no rollout strategy provided")
 }
 
 func TestRevision(t *testing.T) {
@@ -419,7 +419,6 @@ func TestMaxSurge(t *testing.T) {
 						MaxUnavailable: func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
 						MaxSurge:       &maxSurge,
 					},
-					Type: v1alpha1.CanaryRolloutStrategyType,
 				},
 			},
 		}
@@ -439,7 +438,7 @@ func TestMaxSurge(t *testing.T) {
 			rollout: &v1alpha1.Rollout{
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
-						Type: v1alpha1.BlueGreenRolloutStrategyType,
+						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
 					},
 				},
 			},
@@ -469,7 +468,6 @@ func TestMaxUnavailable(t *testing.T) {
 						MaxSurge:       func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
 						MaxUnavailable: &maxUnavailable,
 					},
-					Type: v1alpha1.CanaryRolloutStrategyType,
 				},
 			},
 		}
@@ -504,7 +502,7 @@ func TestMaxUnavailable(t *testing.T) {
 			rollout: &v1alpha1.Rollout{
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
-						Type: v1alpha1.BlueGreenRolloutStrategyType,
+						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
 					},
 				},
 			},

@@ -98,10 +98,6 @@ spec:
                             format: int32
                             type: integer
                       type: array
-                type:
-                  type: string
-              required:
-              - type
             template: {}
           required:
           - selector

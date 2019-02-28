@@ -310,13 +310,13 @@ func (c *Controller) syncHandler(key string) error {
 	if scalingEvent {
 		return c.sync(r, rsList)
 	}
-	switch r.Spec.Strategy.Type {
-	case v1alpha1.BlueGreenRolloutStrategyType:
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		return c.rolloutBlueGreen(r, rsList)
-	case v1alpha1.CanaryRolloutStrategyType:
+	}
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
 		return c.rolloutCanary(r, rsList)
 	}
-	return fmt.Errorf("unexpected rollout strategy type: %s", r.Spec.Strategy.Type)
+	return fmt.Errorf("no rollout strategy selected")
 }
 
 func (c *Controller) enqueue(obj interface{}) {

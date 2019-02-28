@@ -60,20 +60,8 @@ type RolloutStrategy struct {
 	// +optional
 	BlueGreenStrategy *BlueGreenStrategy `json:"blueGreen,omitempty"`
 	// +optional
-	CanaryStrategy *CanaryStrategy     `json:"canary,omitempty"`
-	Type           RolloutStrategyType `json:"type"`
+	CanaryStrategy *CanaryStrategy `json:"canary,omitempty"`
 }
-
-//RolloutStrategyType defines a type that holds all the different rollout straegies
-type RolloutStrategyType string
-
-const (
-	// BlueGreenRolloutStrategyType Replace the old ReplicaSets by using a blue green update
-	// i.e Wait until a new stack is completely health before switching the service
-	BlueGreenRolloutStrategyType RolloutStrategyType = "BlueGreenUpdate"
-	// CanaryRolloutStrategyType fun!
-	CanaryRolloutStrategyType RolloutStrategyType = "CanaryUpdate"
-)
 
 // BlueGreenStrategy defines parameters for Blue Green deployment
 type BlueGreenStrategy struct {

@@ -23,7 +23,6 @@ func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.I
 						SetWeight: &setWeight,
 					}},
 				},
-				Type: v1alpha1.CanaryRolloutStrategyType,
 			},
 		},
 		Status: v1alpha1.RolloutStatus{

@@ -234,7 +234,6 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 				MatchLabels: map[string]string{"key": "value"},
 			},
 			Strategy: v1alpha1.RolloutStrategy{
-				Type: v1alpha1.BlueGreenRolloutStrategyType,
 				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
 					PreviewService: "preview",
 					ActiveService:  "active",
@@ -243,27 +242,6 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 		},
 	}
 	assert.Nil(t, VerifyRolloutSpec(validRollout, nil))
-
-	selectorEverything := validRollout.DeepCopy()
-	selectorEverything.Spec.Selector = &metav1.LabelSelector{}
-	selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
-	assert.NotNil(t, selectorEverythingConf)
-	assert.Equal(t, SelectAllMessage, selectorEverythingConf.Message)
-	assert.Equal(t, InvalidSelectorReason, selectorEverythingConf.Reason)
-
-	noSelector := validRollout.DeepCopy()
-	noSelector.Spec.Selector = nil
-	noSelectorCond := VerifyRolloutSpec(noSelector, nil)
-	assert.NotNil(t, noSelectorCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
-	assert.Equal(t, MissingFieldReason, noSelectorCond.Reason)
-
-	noBlueGreenStrategy := validRollout.DeepCopy()
-	noBlueGreenStrategy.Spec.Strategy.BlueGreenStrategy = nil
-	noBlueGreenStrategyCond := VerifyRolloutSpec(noBlueGreenStrategy, nil)
-	assert.NotNil(t, noBlueGreenStrategyCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy"), noBlueGreenStrategyCond.Message)
-	assert.Equal(t, MissingFieldReason, noBlueGreenStrategyCond.Reason)
 
 	noActiveSvc := validRollout.DeepCopy()
 	noActiveSvc.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
@@ -278,14 +256,45 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.NotNil(t, sameSvcsCond)
 	assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
 	assert.Equal(t, DuplicatedServicesReason, sameSvcsCond.Reason)
+}
 
-	noStrategy := validRollout.DeepCopy()
-	noStrategy.Spec.Strategy = v1alpha1.RolloutStrategy{}
-	noStrategyCond := VerifyRolloutSpec(noStrategy, nil)
+func TestVerifyRolloutSpecBaseCases(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"key": "value"},
+			},
+			Strategy: v1alpha1.RolloutStrategy{
+				CanaryStrategy: &v1alpha1.CanaryStrategy{},
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+					ActiveService: "active",
+				},
+			},
+		},
+	}
+	cond := VerifyRolloutSpec(ro, nil)
+	assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
+	assert.Equal(t, InvalidFieldReason, cond.Reason)
+	assert.Equal(t, InvalidStrategyMessage, cond.Message)
 
-	assert.NotNil(t, noStrategyCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Type"), noStrategyCond.Message)
-	assert.Equal(t, MissingFieldReason, noStrategyCond.Reason)
+	validRollout := ro.DeepCopy()
+	validRollout.Spec.Strategy.CanaryStrategy = nil
+	validRolloutCond := VerifyRolloutSpec(validRollout, nil)
+	assert.Nil(t, validRolloutCond)
+
+	selectorEverything := validRollout.DeepCopy()
+	selectorEverything.Spec.Selector = &metav1.LabelSelector{}
+	selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
+	assert.NotNil(t, selectorEverythingConf)
+	assert.Equal(t, SelectAllMessage, selectorEverythingConf.Message)
+	assert.Equal(t, InvalidSelectorReason, selectorEverythingConf.Reason)
+
+	noSelector := validRollout.DeepCopy()
+	noSelector.Spec.Selector = nil
+	noSelectorCond := VerifyRolloutSpec(noSelector, nil)
+	assert.NotNil(t, noSelectorCond)
+	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
+	assert.Equal(t, MissingFieldReason, noSelectorCond.Reason)
 }
 
 func TestVerifyRolloutSpecCanary(t *testing.T) {
@@ -370,7 +379,6 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 						MatchLabels: map[string]string{"key": "value"},
 					},
 					Strategy: v1alpha1.RolloutStrategy{
-						Type: v1alpha1.CanaryRolloutStrategyType,
 						CanaryStrategy: &v1alpha1.CanaryStrategy{
 							MaxUnavailable: test.maxUnavailable,
 							MaxSurge:       test.maxSurge,
@@ -389,24 +397,6 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			}
 		})
 	}
-	t.Run("Null Canary Strategy field", func(t *testing.T) {
-		ro := &v1alpha1.Rollout{
-			Spec: v1alpha1.RolloutSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"key": "value"},
-				},
-				Strategy: v1alpha1.RolloutStrategy{
-					Type: v1alpha1.CanaryRolloutStrategyType,
-				},
-			},
-		}
-		cond := VerifyRolloutSpec(ro, nil)
-		assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
-		assert.Equal(t, MissingFieldReason, cond.Reason)
-		assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy"), cond.Message)
-
-	})
-
 }
 
 func TestHasRevisionHistoryLimit(t *testing.T) {
@@ -515,7 +505,6 @@ func TestComputeStepHash(t *testing.T) {
 	ro := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				Type: v1alpha1.CanaryRolloutStrategyType,
 				CanaryStrategy: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{

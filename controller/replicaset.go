@@ -88,8 +88,7 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
 	allRSs = append(oldRSs, newRS)
 	scaledDownCount := int32(0)
-	switch rollout.Spec.Strategy.Type {
-	case v1alpha1.BlueGreenRolloutStrategyType:
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(allRSs, oldRSs, rollout)
 		if err != nil {
 			return false, nil

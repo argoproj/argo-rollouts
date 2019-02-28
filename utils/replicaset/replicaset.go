@@ -51,16 +51,15 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // 1) The new RS is saturated: newRS's replicas == deployment's replicas
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
-	switch rollout.Spec.Strategy.Type {
-	case v1alpha1.BlueGreenRolloutStrategyType:
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		return defaults.GetRolloutReplicasOrDefault(rollout), nil
-	case v1alpha1.CanaryRolloutStrategyType:
+	}
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
 		stableRS, olderRSs := GetStableRS(rollout, newRS, allRSs)
 		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
 		return newRSReplicaCount, nil
-	default:
-		return 0, fmt.Errorf("rollout strategy type %v isn't supported", rollout.Spec.Strategy.Type)
 	}
+	return 0, fmt.Errorf("no rollout strategy provided")
 }
 
 // MaxRevision finds the highest revision in the replica sets
@@ -191,7 +190,7 @@ func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 // MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
 func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
-	if rollout.Spec.Strategy.Type != v1alpha1.CanaryRolloutStrategyType || rolloutReplicas == 0 {
+	if rollout.Spec.Strategy.CanaryStrategy == nil || rolloutReplicas == 0 {
 		return int32(0)
 	}
 
@@ -206,7 +205,7 @@ func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 // MaxSurge returns the maximum surge pods a rolling deployment can take.
 func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
-	if rollout.Spec.Strategy.Type != v1alpha1.CanaryRolloutStrategyType {
+	if rollout.Spec.Strategy.CanaryStrategy == nil {
 		return int32(0)
 	}
 	// Error caught by validation

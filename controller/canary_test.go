@@ -34,7 +34,6 @@ func newCanaryRolloutWithStatus(name string, replicas int, revisionHistoryLimit 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 	selector := map[string]string{"foo": "bar"}
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
-	rollout.Spec.Strategy.Type = v1alpha1.CanaryRolloutStrategyType
 	rollout.Spec.Strategy.CanaryStrategy = &v1alpha1.CanaryStrategy{
 		MaxUnavailable: &maxUnavailable,
 		MaxSurge:       &maxSurge,
@@ -224,7 +223,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	assert.Equal(t, expectedPatch, expectedPatch)
 }
 
-
 func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	f := newFixture(t)
 
@@ -260,7 +258,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		}
 	}
 }`)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS,expectedStableRS)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
@@ -395,7 +393,6 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 }`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
-
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f := newFixture(t)
@@ -555,7 +552,6 @@ func TestRollBackToStable(t *testing.T) {
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
 	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
 
-
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
 	"status":{
 		"currentPodHash": "%s",
@@ -603,7 +599,6 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	secondtUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
 	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
-
 
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
 	"status":{
