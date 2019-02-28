@@ -21,7 +21,6 @@ spec:
   minReadySeconds: 30
   revisionHistoryLimit: 3
   strategy:
-    type: BlueGreenUpdate
     blueGreen: 
       activeService: active-service
       previewService: preview-service

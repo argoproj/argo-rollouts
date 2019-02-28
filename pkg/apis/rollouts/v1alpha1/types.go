@@ -66,10 +66,10 @@ type RolloutStrategy struct {
 // BlueGreenStrategy defines parameters for Blue Green deployment
 type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the active service.
-	ActiveService string `json:"activeService"`
+	ActiveService string `json:"activeService,omitempty"`
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
-	PreviewService string `json:"previewService"`
+	PreviewService string `json:"previewService,omitempty"`
 }
 
 // ReplicaBasedCanaryStrategy defines parameters for a Replica Based Canary
