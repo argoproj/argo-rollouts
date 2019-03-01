@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-rollout-canary
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+      - name: guestbook
+        # The image below can be flip from 0.1 to 0.2 
+        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        ports:
+        - containerPort: 80
+  minReadySeconds: 30
+  revisionHistoryLimit: 3
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20 
+      - pause:
+        duration: 3600 # One Hour
+      - setWeight: 0
+      - pause: {}  
