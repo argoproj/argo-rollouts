@@ -353,22 +353,26 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
-func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, pause *bool) error {
+func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, newPause *bool) error {
 	specCopy := orig.Spec.DeepCopy()
-	specCopy.Pause = pause
+	paused := specCopy.Paused
+	if newPause != nil {
+		paused = *newPause
+		specCopy.Paused = *newPause
+	}
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
 
 	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
-				Pause: orig.Spec.Pause,
+				Paused: orig.Spec.Paused,
 			},
 			Status: orig.Status,
 		},
 		&v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
-				Pause: pause,
+				Paused: paused,
 			},
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})

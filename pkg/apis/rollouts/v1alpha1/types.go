@@ -44,8 +44,8 @@ type RolloutSpec struct {
 	// This is set to the max value of int32 (i.e. 2147483647) by default, which means
 	// "retaining all old ReplicaSets".
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
-	// Pause pauses the rollout at its current step.
-	Pause *bool `json:"pause,omitempty"`
+	// Paused pauses the rollout at its current step.
+	Paused bool `json:"paused,omitempty"`
 }
 
 const (

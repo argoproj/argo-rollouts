@@ -257,11 +257,6 @@ func (in *RolloutSpec) DeepCopyInto(out *RolloutSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.Pause != nil {
-		in, out := &in.Pause, &out.Pause
-		*out = new(bool)
-		**out = **in
-	}
 	return
 }
 
