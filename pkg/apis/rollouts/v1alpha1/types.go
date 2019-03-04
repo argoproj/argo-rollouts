@@ -123,10 +123,10 @@ type RolloutPause struct {
 type RolloutStatus struct {
 	// CurrentPodHash the hash of the current pod template
 	// +optional
-	CurrentPodHash string `json:"currentPodHash"`
+	CurrentPodHash string `json:"currentPodHash,omitempty"`
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
-	CurrentStepHash string `json:"currentStepHash"`
+	CurrentStepHash string `json:"currentStepHash,omitempty"`
 	// VerifyingPreview indicates the rollout is verifying the replicas set being served
 	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
