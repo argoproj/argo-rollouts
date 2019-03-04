@@ -27,7 +27,7 @@ import (
 
 func newCanaryRolloutWithStatus(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString, stableRS string) *v1alpha1.Rollout {
 	ro := newCanaryRollout(name, replicas, revisionHistoryLimit, steps, stepIndex, maxSurge, maxUnavailable)
-	ro.Status.CanaryStatus.StableRS = stableRS
+	ro.Status.Canary.StableRS = stableRS
 	return ro
 }
 
@@ -119,7 +119,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	r2 := bumpVersion(r1)
-	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r2.Status.Canary.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	r2.Status.AvailableReplicas = 10
 
@@ -137,7 +137,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
         "paused": true
     },
 	"status":{
-		"canaryStatus": {
+		"canary": {
 			"pauseStartTime":"%s"
 		}
 	}
@@ -161,13 +161,13 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	r2 := bumpVersion(r1)
-	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r2.Status.Canary.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	r2.Status.AvailableReplicas = 10
 
 	r2.Spec.Paused = true
 	now := metav1.Now()
-	r2.Status.CanaryStatus.PauseStartTime = &now
+	r2.Status.Canary.PauseStartTime = &now
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -192,13 +192,13 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	r2 := bumpVersion(r1)
-	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r2.Status.Canary.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	r2.Status.AvailableReplicas = 10
 
 	r2.Spec.Paused = false
 	now := metav1.Now()
-	r2.Status.CanaryStatus.PauseStartTime = &now
+	r2.Status.Canary.PauseStartTime = &now
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -210,7 +210,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 
 	expectedPatchTemplate := `{
 	"status":{
-		"canaryStatus": {
+		"canary": {
 			"pauseStartTime": null
 		},
 		"currentStepIndex": 1
@@ -235,7 +235,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 
 	r2 := bumpVersion(r1)
 	expectedStableRS := r2.Status.CurrentPodHash
-	r2.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r2.Status.Canary.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 10, 10)
 	r2.Status.AvailableReplicas = 10
 
@@ -250,7 +250,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchWithoutStableRS := calculatePatch(r2, `{
 	"status": {
-		"canaryStatus": {
+		"canary": {
 			"stableRS": "%s"
 		}
 	}
@@ -268,11 +268,11 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r1.Status.AvailableReplicas = 10
 	r2 := bumpVersion(r1)
 	expectedCurrentPodHash := r2.Status.CurrentPodHash
-	r2.Status.CurrentPodHash = r1.Status.CanaryStatus.StableRS
+	r2.Status.CurrentPodHash = r1.Status.Canary.StableRS
 	r2.Spec.Strategy.CanaryStrategy.Steps = append(steps, v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}})
 	expectedCurrentStepHash := conditions.ComputeStepHash(r2)
 
@@ -308,11 +308,11 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r1.Status.AvailableReplicas = 10
 	r2 := bumpVersion(r1)
 	expectedCurrentPodHash := r2.Status.CurrentPodHash
-	r2.Status.CurrentPodHash = r1.Status.CanaryStatus.StableRS
+	r2.Status.CurrentPodHash = r1.Status.Canary.StableRS
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -353,7 +353,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r, `{
 	"status":{
-		"canaryStatus":{
+		"canary":{
 			"stableRS":"895c6c4f9"
 		},
 		"currentPodHash":"895c6c4f9"
@@ -381,7 +381,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r, `{
 	"status":{
-		"canaryStatus":{
+		"canary":{
 			"stableRS":"895c6c4f9"
 		},
 		"currentStepIndex":1,
@@ -398,7 +398,7 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -424,7 +424,7 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 		SetWeight: int32Ptr(40),
 	}}
 	r1 := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -452,7 +452,7 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -482,7 +482,7 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 
@@ -520,7 +520,7 @@ func TestRollBackToStable(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	r2.Spec.Template = r1.Spec.Template
@@ -567,7 +567,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	r2.Spec.Template = r1.Spec.Template
@@ -618,7 +618,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 
@@ -645,7 +645,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	expectedPatch := calculatePatch(r3, `{
 	"status":{
 		"availableReplicas":10,
-		"canaryStatus":{
+		"canary":{
 			"stableRS":"8cdf7bbb4"
 		},
 		"currentStepIndex":1
@@ -667,7 +667,7 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	r2.Status.AvailableReplicas = 10
@@ -691,7 +691,7 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 		"paused": true
 	},
 	"status":{
-		"canaryStatus":{
+		"canary":{
 			"pauseStartTime": "%s"
 		}
 	}
@@ -713,14 +713,14 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	r2.Status.AvailableReplicas = 10
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
 	now := metav1.Now()
-	r2.Status.CanaryStatus.PauseStartTime = &now
+	r2.Status.Canary.PauseStartTime = &now
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -755,11 +755,11 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	now := metav1.Now()
-	r2.Status.CanaryStatus.PauseStartTime = &now
+	r2.Status.Canary.PauseStartTime = &now
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -797,12 +797,12 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.CanaryStatus.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
-	r2.Status.CanaryStatus.PauseStartTime = &earlier
+	r2.Status.Canary.PauseStartTime = &earlier
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -821,7 +821,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r2, `{
 	"status":{
-		"canaryStatus":{
+		"canary":{
 			"pauseStartTime": null
 		},
 		"currentStepIndex":2

@@ -428,7 +428,7 @@ func TestRolloutComplete(t *testing.T) {
 			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
 		}
 		if pointActiveAtPodHash {
-			r.Status.BlueGreenStatus.ActiveSelector = podHash
+			r.Status.BlueGreen.ActiveSelector = podHash
 		}
 		return r
 	}

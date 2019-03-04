@@ -26,7 +26,7 @@ func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.I
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CanaryStatus: v1alpha1.CanaryStatus{
+			Canary: v1alpha1.CanaryStatus{
 				StableRS: stablePodHash,
 			},
 			CurrentPodHash: currentPodHash,

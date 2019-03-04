@@ -158,12 +158,12 @@ type RolloutStatus struct {
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty"`
-	//CanaryStatus describes the state of the canary rollout
+	// Canary describes the state of the canary rollout
 	// +optional
-	CanaryStatus CanaryStatus `json:"canaryStatus,omitempty"`
-	//BlueGreenStatus describes the state of the canary rollout
+	Canary CanaryStatus `json:"canary,omitempty"`
+	// BlueGreen describes the state of the bluegreen rollout
 	// +optional
-	BlueGreenStatus BlueGreenStatus `json:"blueGreenStatus,omitempty"`
+	BlueGreen BlueGreenStatus `json:"blueGreen,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

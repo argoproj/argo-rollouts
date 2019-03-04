@@ -295,8 +295,8 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.CanaryStatus.DeepCopyInto(&out.CanaryStatus)
-	out.BlueGreenStatus = in.BlueGreenStatus
+	in.Canary.DeepCopyInto(&out.Canary)
+	out.BlueGreen = in.BlueGreen
 	return
 }
 
