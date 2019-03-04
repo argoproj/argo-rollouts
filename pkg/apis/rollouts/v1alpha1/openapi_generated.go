@@ -518,7 +518,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"currentStepHash"},
 			},
 		},
 		Dependencies: []string{

@@ -201,6 +201,4 @@ spec:
                 replicas set being served traffic from the preview service. User will
                 need to edit this field to continue the rollout.
               type: boolean
-          required:
-          - currentStepHash
   version: v1alpha1
