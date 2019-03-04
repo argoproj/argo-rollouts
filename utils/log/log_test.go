@@ -1,15 +1,15 @@
 package log
 
 import (
-	"testing"
 	"bytes"
+	"strings"
+	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"strings"
 )
 
 func TestWithRollout(t *testing.T) {
@@ -17,7 +17,7 @@ func TestWithRollout(t *testing.T) {
 	log.SetOutput(buf)
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-name",
+			Name:      "test-name",
 			Namespace: "test-ns",
 		},
 	}

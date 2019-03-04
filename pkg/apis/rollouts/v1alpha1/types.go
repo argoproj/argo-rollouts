@@ -123,7 +123,7 @@ type RolloutPause struct {
 type RolloutStatus struct {
 	// CurrentPodHash the hash of the current pod template
 	// +optional
-	CurrentPodHash string `json:"currentPodHash,omitempty"`
+	CurrentPodHash string `json:"currentPodHash"`
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
 	CurrentStepHash string `json:"currentStepHash,omitempty"`
@@ -170,10 +170,10 @@ type RolloutStatus struct {
 type BlueGreenStatus struct {
 	// PreviewSelector indicates which replicas set the preview service is serving traffic to
 	// +optional
-	PreviewSelector string `json:"previewSelector"`
+	PreviewSelector string `json:"previewSelector,omitempty"`
 	// ActiveSelector indicates which replicas set the active service is serving traffic to
 	// +optional
-	ActiveSelector string `json:"activeSelector"`
+	ActiveSelector string `json:"activeSelector,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
