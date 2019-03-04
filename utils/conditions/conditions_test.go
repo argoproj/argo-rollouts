@@ -495,7 +495,7 @@ func TestComputeGenerationHash(t *testing.T) {
 	}
 	baseline := ComputeGenerationHash(ro.Spec)
 	roPaused := ro.DeepCopy()
-	roPaused.Spec.Pause = pointer.BoolPtr(true)
+	roPaused.Spec.Paused = true
 	roPausedHash := ComputeGenerationHash(roPaused.Spec)
 
 	assert.NotEqual(t, baseline, roPausedHash)

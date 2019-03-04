@@ -34,8 +34,8 @@ spec:
                 as soon as it is ready)
               format: int32
               type: integer
-            pause:
-              description: Pause pauses the rollout at its current step.
+            paused:
+              description: Paused pauses the rollout at its current step.
               type: boolean
             replicas:
               description: Number of desired pods. This is a pointer to distinguish

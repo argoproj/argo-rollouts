@@ -400,9 +400,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 							Format:      "int32",
 						},
 					},
-					"pause": {
+					"paused": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pause pauses the rollout at its current step.",
+							Description: "Paused pauses the rollout at its current step.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

@@ -134,7 +134,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchTemplate := `{
     "spec":{
-        "pause": true
+        "paused": true
     },
 	"status":{
 		"canaryStatus": {
@@ -165,7 +165,7 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	r2.Status.AvailableReplicas = 10
 
-	r2.Spec.Pause = pointer.BoolPtr(true)
+	r2.Spec.Paused = true
 	now := metav1.Now()
 	r2.Status.CanaryStatus.PauseStartTime = &now
 
@@ -196,7 +196,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	r2.Status.AvailableReplicas = 10
 
-	r2.Spec.Pause = pointer.BoolPtr(false)
+	r2.Spec.Paused = false
 	now := metav1.Now()
 	r2.Status.CanaryStatus.PauseStartTime = &now
 
@@ -209,9 +209,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	expectedPatchTemplate := `{
-    "spec":{
-        "pause": null
-    },
 	"status":{
 		"canaryStatus": {
 			"pauseStartTime": null
@@ -691,7 +688,7 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r2, `{
     "spec" :{
-		"pause": true
+		"paused": true
 	},
 	"status":{
 		"canaryStatus":{

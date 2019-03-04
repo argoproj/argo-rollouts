@@ -217,7 +217,7 @@ func checkIncrementCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Repli
 			}
 		}
 	}
-	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Spec.Pause != nil && !*r.Spec.Pause {
+	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Status.CanaryStatus.PauseStartTime != nil && !r.Spec.Paused {
 		logCtx.Info("Rollout has been unpaused")
 		return true
 	}
@@ -308,19 +308,19 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 
 	pauseStartTime := r.Status.CanaryStatus.PauseStartTime
-	paused := r.Spec.Pause
+	paused := r.Spec.Paused
 	if currentStep != nil && currentStep.Pause != nil {
 		now := metav1.Now()
 		if r.Status.CanaryStatus.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
 			pauseStartTime = &now
-			paused = pointer.BoolPtr(true)
+			paused = true
 		}
 	}
 
 	newStatus.CanaryStatus.PauseStartTime = pauseStartTime
 	newStatus.CurrentStepIndex = currentStepIndex
-	return c.persistRolloutStatus(r, &newStatus, paused)
+	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 
 // scaleCanary scales the rollout with a canary strategy on a scaling event. First, it checks if there is only one
