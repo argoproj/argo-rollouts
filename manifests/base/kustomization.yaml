@@ -6,5 +6,5 @@ resources:
 - argo-rollouts-aggregate-roles.yaml
 
 imageTags:
-- name: argoproj/rollout-controlller
-  newTag: latest
+- name: argoproj/argo-rollouts
+  newTag: v0.2.0
