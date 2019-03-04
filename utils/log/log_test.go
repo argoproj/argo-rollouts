@@ -1,0 +1,29 @@
+package log
+
+import (
+	"testing"
+	"bytes"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	"strings"
+)
+
+func TestWithRollout(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	logCtx := WithRollout(&ro)
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
+}
