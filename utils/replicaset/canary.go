@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"k8s.io/client-go/util/integer"
 )
 
 // AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
@@ -259,25 +258,4 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 		}
 	}
 	return stableRS, olderRSs
-}
-
-// GetProportion will estimate the proportion for the provided replica set using the replica count that needs be added
-// on the replica sets of the rollout and the total replicas added in the replica sets of the rollout so far.
-func GetProportion(rs *appsv1.ReplicaSet, rolloutReplicasToAdd, rolloutReplicasAdded, desiredNewReplicaCount int32) int32 {
-	if rs == nil || *(rs.Spec.Replicas) == 0 || rolloutReplicasToAdd == 0 || rolloutReplicasToAdd == rolloutReplicasAdded {
-		return int32(0)
-	}
-
-	allowed := rolloutReplicasToAdd - rolloutReplicasAdded
-
-	if rolloutReplicasToAdd > 0 {
-		// Use the minimum between the difference to the desired state and current rs count, and the maximum allowed
-		// replicas when scaling up. This way we ensure we will not scale up more than the allowed
-		// replicas we can add.
-		return integer.Int32Min(desiredNewReplicaCount-*rs.Spec.Replicas, allowed)
-	}
-	// Use the maximum between the difference of the desired state and current rs count and the maximum allowed replicas
-	// when scaling down. This way we ensure we will not scale down more than the allowed
-	// replicas we can remove.
-	return integer.Int32Max(desiredNewReplicaCount-*rs.Spec.Replicas, allowed)
 }

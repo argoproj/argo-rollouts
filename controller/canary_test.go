@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
@@ -537,7 +536,6 @@ func TestRollBackToStable(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -545,9 +543,7 @@ func TestRollBackToStable(t *testing.T) {
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
 	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
 	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-	secondtUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
-	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
 
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
 	"status":{
@@ -585,7 +581,6 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -593,9 +588,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
 	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
 	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-	secondtUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
-	assert.Equal(t, expectedRS1, secondtUpdatedRS1)
 
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
 	"status":{
@@ -828,206 +821,4 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	}
 }`)
 	assert.Equal(t, expectedPatch, string(patchBytes))
-}
-
-func TestScaleCanary(t *testing.T) {
-	newTimestamp := metav1.Date(2016, 5, 20, 3, 0, 0, 0, time.UTC)
-	oldTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
-	olderTimestamp := metav1.Date(2016, 5, 20, 1, 0, 0, 0, time.UTC)
-	oldestTimestamp := metav1.Date(2016, 5, 20, 0, 0, 0, 0, time.UTC)
-
-	setWeight50 := []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}
-
-	zeroIntStr := intstr.FromInt(0)
-	oneIntStr := intstr.FromInt(1)
-
-	tests := []struct {
-		name       string
-		rollout    *v1alpha1.Rollout
-		oldRollout *v1alpha1.Rollout
-
-		newRS    *appsv1.ReplicaSet
-		stableRS *appsv1.ReplicaSet
-		oldRSs   []*appsv1.ReplicaSet
-
-		expectedNew    *appsv1.ReplicaSet
-		expectedStable *appsv1.ReplicaSet
-		expectedOld    []*appsv1.ReplicaSet
-		wasntUpdated   map[string]bool
-
-		desiredReplicasAnnotations map[string]int32
-	}{
-		{
-			name:       "normal scaling event: 10 -> 12",
-			rollout:    newCanaryRollout("foo", 12, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout: newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
-
-			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{},
-
-			expectedNew: rs("foo-v1", 12, nil, newTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{},
-		},
-		{
-			name:       "normal scaling event: 10 -> 5",
-			rollout:    newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout: newCanaryRollout("foo", 10, nil, nil, nil, oneIntStr, zeroIntStr),
-
-			newRS:  rs("foo-v1", 10, nil, newTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{},
-
-			expectedNew: rs("foo-v1", 5, nil, newTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{},
-		},
-		{
-			name:       "Scale up non-active latest Replicaset",
-			rollout:    newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
-			oldRollout: newCanaryRollout("foo", 5, nil, nil, nil, oneIntStr, zeroIntStr),
-
-			newRS:  rs("foo-v2", 0, nil, newTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{rs("foo-v1", 0, nil, oldTimestamp, nil)},
-
-			expectedNew: rs("foo-v2", 5, nil, newTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{rs("foo-v1", 0, nil, oldTimestamp, nil)},
-		},
-		{
-			name:       "No updates",
-			rollout:    newCanaryRollout("foo", 10, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}, int32Ptr(0), oneIntStr, zeroIntStr),
-			oldRollout: newCanaryRollout("foo", 10, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(50)}}, int32Ptr(0), oneIntStr, zeroIntStr),
-
-			newRS:    rs("foo-v3", 5, nil, newTimestamp, nil),
-			stableRS: rs("foo-v2", 5, nil, oldTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v1", 0, nil, olderTimestamp, nil),
-				rs("foo-v0", 0, nil, oldestTimestamp, nil),
-			},
-
-			expectedNew:    rs("foo-v3", 5, nil, newTimestamp, nil),
-			expectedStable: rs("foo-v2", 5, nil, oldTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v1", 0, nil, olderTimestamp, nil),
-				rs("foo-v0", 0, nil, oldestTimestamp, nil),
-			},
-		},
-		{
-			name:       "New RS not created yet",
-			rollout:    newCanaryRollout("foo", 10, nil, setWeight50, int32Ptr(0), oneIntStr, zeroIntStr),
-			oldRollout: newCanaryRollout("foo", 12, nil, setWeight50, int32Ptr(0), oneIntStr, zeroIntStr),
-
-			stableRS: rs("foo-v0", 12, nil, oldTimestamp, nil),
-
-			expectedStable: rs("foo-v0", 10, nil, oldTimestamp, nil),
-		},
-		{
-			name:       "Scale up active RS before new RS",
-			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-
-			newRS:    rs("foo-v2", 4, nil, newTimestamp, nil),
-			stableRS: rs("foo-v1", 4, nil, oldTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v0", 1, nil, oldestTimestamp, nil),
-			},
-
-			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
-			expectedStable: rs("foo-v1", 5, nil, oldTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v0", 1, nil, oldestTimestamp, nil),
-			},
-		},
-		{
-			name:       "Scale down oldRS, newRS and active RS",
-			rollout:    newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-
-			newRS:    rs("foo-v2", 5, nil, newTimestamp, nil),
-			stableRS: rs("foo-v1", 5, nil, oldTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v0", 2, nil, oldestTimestamp, nil),
-			},
-
-			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
-			expectedStable: rs("foo-v1", 4, nil, oldTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v0", 0, nil, oldestTimestamp, nil),
-			},
-		},
-		{
-			name:       "Scale down OldRS if stable is at desired count",
-			rollout:    newCanaryRolloutWithStatus("foo", 10, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-			oldRollout: newCanaryRolloutWithStatus("foo", 8, nil, setWeight50, int32Ptr(0), zeroIntStr, oneIntStr, "foo-v0"),
-
-			newRS:    rs("foo-v2", 4, nil, newTimestamp, nil),
-			stableRS: rs("foo-v1", 5, nil, oldTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v0", 1, nil, oldestTimestamp, nil),
-			},
-
-			expectedNew:    rs("foo-v2", 4, nil, newTimestamp, nil),
-			expectedStable: rs("foo-v1", 5, nil, oldTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v0", 0, nil, oldestTimestamp, nil),
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			_ = olderTimestamp
-			rolloutFake := fake.Clientset{}
-			k8sFake := k8sfake.Clientset{}
-			c := &Controller{
-				rolloutsclientset: &rolloutFake,
-				kubeclientset:     &k8sFake,
-				recorder:          &record.FakeRecorder{},
-			}
-
-			if err := c.scaleCanary(test.oldRSs, test.newRS, test.stableRS, test.rollout); err != nil {
-				t.Errorf("%s: unexpected error: %v", test.name, err)
-				return
-			}
-
-			// Construct the nameToSize map that will hold all the sizes we got our of tests
-			// Skip updating the map if the replica set wasn't updated since there will be
-			// no update action for it.
-			nameToSize := make(map[string]int32)
-			if test.newRS != nil {
-				nameToSize[test.newRS.Name] = *(test.newRS.Spec.Replicas)
-			}
-			if test.stableRS != nil {
-				nameToSize[test.stableRS.Name] = *(test.stableRS.Spec.Replicas)
-			}
-			for i := range test.oldRSs {
-				rs := test.oldRSs[i]
-				nameToSize[rs.Name] = *(rs.Spec.Replicas)
-			}
-			// Get all the UPDATE actions and update nameToSize with all the updated sizes.
-			for _, action := range k8sFake.Actions() {
-				rs := action.(testclient.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-				if !test.wasntUpdated[rs.Name] {
-					nameToSize[rs.Name] = *(rs.Spec.Replicas)
-				}
-			}
-
-			if test.expectedNew != nil && test.newRS != nil && *(test.expectedNew.Spec.Replicas) != nameToSize[test.newRS.Name] {
-				t.Errorf("%s: expected new replicas: %d, got: %d", test.name, *(test.expectedNew.Spec.Replicas), nameToSize[test.newRS.Name])
-				return
-			}
-			if test.expectedStable != nil && test.stableRS != nil && *(test.expectedStable.Spec.Replicas) != nameToSize[test.stableRS.Name] {
-				t.Errorf("%s: expected stable replicas: %d, got: %d", test.name, *(test.expectedStable.Spec.Replicas), nameToSize[test.expectedStable.Name])
-				return
-			}
-			if len(test.expectedOld) != len(test.oldRSs) {
-				t.Errorf("%s: expected %d old replica sets, got %d", test.name, len(test.expectedOld), len(test.oldRSs))
-				return
-			}
-			for n := range test.oldRSs {
-				rs := test.oldRSs[n]
-				expected := test.expectedOld[n]
-				if *(expected.Spec.Replicas) != nameToSize[rs.Name] {
-					t.Errorf("%s: expected old (%s) replicas: %d, got: %d", test.name, rs.Name, *(expected.Spec.Replicas), nameToSize[rs.Name])
-				}
-			}
-		})
-	}
 }

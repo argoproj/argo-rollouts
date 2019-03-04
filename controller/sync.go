@@ -201,16 +201,6 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 		allRSs := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
 		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
 	}
-	if r.Spec.Strategy.CanaryStrategy != nil {
-		stableRS, previousRSs := replicasetutil.GetStableRS(r, newRS, oldRSs)
-
-		if err := c.scaleCanary(previousRSs, newRS, stableRS, r); err != nil {
-			// If we get an error while trying to scale, the rollout will be requeued
-			// so we can abort this resync
-			return err
-		}
-		return c.syncRolloutStatusCanary(previousRSs, newRS, stableRS, r)
-	}
 	return fmt.Errorf("no rollout strategy provided")
 }
 
@@ -219,6 +209,9 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *Controller) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) (bool, error) {
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
+		return false, nil
+	}
 	newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 	if err != nil {
 		return false, err
