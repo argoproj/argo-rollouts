@@ -248,14 +248,14 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	noActiveSvcCond := VerifyRolloutSpec(noActiveSvc, nil)
 	assert.NotNil(t, noActiveSvcCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService"), noActiveSvcCond.Message)
-	assert.Equal(t, MissingFieldReason, noActiveSvcCond.Reason)
+	assert.Equal(t, InvalidSpecReason, noActiveSvcCond.Reason)
 
 	sameSvcs := validRollout.DeepCopy()
 	sameSvcs.Spec.Strategy.BlueGreenStrategy.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
 	assert.NotNil(t, sameSvcsCond)
 	assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
-	assert.Equal(t, DuplicatedServicesReason, sameSvcsCond.Reason)
+	assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
 }
 
 func TestVerifyRolloutSpecBaseCases(t *testing.T) {
@@ -274,7 +274,7 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	}
 	cond := VerifyRolloutSpec(ro, nil)
 	assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
-	assert.Equal(t, InvalidFieldReason, cond.Reason)
+	assert.Equal(t, InvalidSpecReason, cond.Reason)
 	assert.Equal(t, InvalidStrategyMessage, cond.Message)
 
 	validRollout := ro.DeepCopy()
@@ -287,14 +287,14 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
 	assert.NotNil(t, selectorEverythingConf)
 	assert.Equal(t, SelectAllMessage, selectorEverythingConf.Message)
-	assert.Equal(t, InvalidSelectorReason, selectorEverythingConf.Reason)
+	assert.Equal(t, InvalidSpecReason, selectorEverythingConf.Reason)
 
 	noSelector := validRollout.DeepCopy()
 	noSelector.Spec.Selector = nil
 	noSelectorCond := VerifyRolloutSpec(noSelector, nil)
 	assert.NotNil(t, noSelectorCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
-	assert.Equal(t, MissingFieldReason, noSelectorCond.Reason)
+	assert.Equal(t, InvalidSpecReason, noSelectorCond.Reason)
 }
 
 func TestVerifyRolloutSpecCanary(t *testing.T) {
@@ -315,7 +315,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			maxSurge:       &zero,
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidMaxSurgeMaxUnavailable,
 		},
 		{
@@ -326,7 +326,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			}},
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidStepMessage,
 		},
 		{
@@ -334,7 +334,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			steps: []v1alpha1.CanaryStep{{}},
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidStepMessage,
 		},
 		{
@@ -344,7 +344,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			}},
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidSetWeightMessage,
 		},
 		{
@@ -354,7 +354,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			}},
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidSetWeightMessage,
 		},
 		{
@@ -366,7 +366,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			}},
 
 			notValid: true,
-			reason:   InvalidFieldReason,
+			reason:   InvalidSpecReason,
 			message:  InvalidDurationMessage,
 		},
 	}
