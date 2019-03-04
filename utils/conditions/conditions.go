@@ -110,7 +110,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.Replicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
-		newStatus.BlueGreenStatus.ActiveSelector == newStatus.CurrentPodHash &&
+		newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash &&
 		newStatus.ObservedGeneration == ComputeGenerationHash(rollout.Spec)
 }
 

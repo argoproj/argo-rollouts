@@ -152,12 +152,12 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 	if !ok {
 		previewSelector = ""
 	}
-	newStatus.BlueGreenStatus.PreviewSelector = previewSelector
+	newStatus.BlueGreen.PreviewSelector = previewSelector
 	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
 	if !ok {
 		activeSelector = ""
 	}
-	newStatus.BlueGreenStatus.ActiveSelector = activeSelector
+	newStatus.BlueGreen.ActiveSelector = activeSelector
 
 	prevStatus := r.Status
 

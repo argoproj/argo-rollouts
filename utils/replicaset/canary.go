@@ -240,7 +240,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 }
 
 func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
-	if rollout.Status.CanaryStatus.StableRS == "" {
+	if rollout.Status.Canary.StableRS == "" {
 		return nil, rslist
 	}
 	olderRSs := []*appsv1.ReplicaSet{}
@@ -248,7 +248,7 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 	for i := range rslist {
 		rs := rslist[i]
 		if rs != nil {
-			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.CanaryStatus.StableRS {
+			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
 				stableRS = rs
 				continue
 			}

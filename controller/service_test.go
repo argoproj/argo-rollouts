@@ -268,7 +268,7 @@ func TestGetActiveReplicaSet(t *testing.T) {
 
 	rollout := &v1alpha1.Rollout{
 		Status: v1alpha1.RolloutStatus{
-			BlueGreenStatus: v1alpha1.BlueGreenStatus{
+			BlueGreen: v1alpha1.BlueGreenStatus{
 				ActiveSelector: "1234",
 			},
 		},

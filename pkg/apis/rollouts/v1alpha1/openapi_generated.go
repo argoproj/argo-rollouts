@@ -505,15 +505,15 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							},
 						},
 					},
-					"canaryStatus": {
+					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CanaryStatus describes the state of the canary rollout",
+							Description: "Canary describes the state of the canary rollout",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
 						},
 					},
-					"blueGreenStatus": {
+					"blueGreen": {
 						SchemaProps: spec.SchemaProps{
-							Description: "BlueGreenStatus describes the state of the canary rollout",
+							Description: "BlueGreen describes the state of the bluegreen rollout",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus"),
 						},
 					},
