@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -144,9 +145,17 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
 
+	activeRS := GetActiveReplicaSet(r, allRSs)
+	if activeRS != nil {
+		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{activeRS})
+		newStatus.Selector = metav1.FormatLabelSelector(activeRS.Spec.Selector)
+	} else {
+		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
+		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
+	}
+
 	prevStatus := r.Status
 
-	activeRS := GetActiveReplicaSet(r, allRSs)
 	if activeRS != nil && annotations.IsSaturated(r, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
 		conditions.SetRolloutCondition(&prevStatus, *availability)

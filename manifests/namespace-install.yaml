@@ -11,6 +11,11 @@ spec:
     shortNames:
     - ro
   scope: Namespaced
+  subresources:
+    scale:
+      labelSelectorPath: .status.selector
+      specReplicasPath: .spec.replicas
+      statusReplicasPath: .status.HPAReplicas
   validation:
     openAPIV3Schema:
       properties:
@@ -104,6 +109,11 @@ spec:
         status:
           description: RolloutStatus is the status for a Rollout resource
           properties:
+            HPAReplicas:
+              description: HPAReplicas the number of non-terminated replicas that
+                are receiving active traffic
+              format: int32
+              type: integer
             availableReplicas:
               description: Total number of available pods (ready for at least minReadySeconds)
                 targeted by this rollout.
@@ -192,6 +202,10 @@ spec:
                 (their labels match the selector).
               format: int32
               type: integer
+            selector:
+              description: Selector that identifies the pods that are receiving active
+                traffic
+              type: string
             updatedReplicas:
               description: Total number of non-terminated pods targeted by this rollout
                 that have the desired template spec.

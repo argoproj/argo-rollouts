@@ -46,6 +46,15 @@ func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinitio
 			},
 		},
 	}
+	labelSelector :=  ".status.selector"
+	crd.Spec.Subresources = &extensionsobj.CustomResourceSubresources{
+		Scale: &extensionsobj.CustomResourceSubresourceScale{
+			SpecReplicasPath: ".spec.replicas",
+			StatusReplicasPath: ".status.HPAReplicas",
+			LabelSelectorPath: &labelSelector,
+
+		},
+	}
 	crd.Spec.Validation = crdutil.GetCustomResourceValidation(specDefinitionName, v1alpha1.GetOpenAPIDefinitions)
 
 	return crd

@@ -511,6 +511,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus"),
 						},
 					},
+					"HPAReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HPAReplicas the number of non-terminated replicas that are receiving active traffic",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selector that identifies the pods that are receiving active traffic",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
