@@ -106,8 +106,42 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 
 func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, availableReplicas int) *appsv1.ReplicaSet {
 	rs := newReplicaSet(r, name, replicas)
+	rs.Status.Replicas = int32(replicas)
 	rs.Status.AvailableReplicas = int32(availableReplicas)
 	return rs
+}
+
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+	newRollout := updateBaseRolloutStatus(r,availableReplicas,updatedReplicas,hpaReplicas,pause)
+	selector := newRollout.Spec.Selector.DeepCopy()
+	if active != "" {
+		selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = active
+	}
+	newRollout.Status.Selector = metav1.FormatLabelSelector(selector)
+	newRollout.Status.BlueGreen.ActiveSelector = active
+	newRollout.Status.BlueGreen.PreviewSelector = preview
+	cond, _ := newAvailableCondition(available)
+	newRollout.Status.Conditions = cond
+	return newRollout
+}
+func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, hpaReplicas, pause)
+	newRollout.Status.Canary.StableRS = stableRS
+	return newRollout
+}
+
+func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
+	newRollout := r.DeepCopy()
+	newRollout.Status.Replicas = availableReplicas
+	newRollout.Status.AvailableReplicas = availableReplicas
+	newRollout.Status.UpdatedReplicas = updatedReplicas
+	newRollout.Status.HPAReplicas = hpaReplicas
+	if pause {
+		newRollout.Spec.Paused = pause
+		now := metav1.Now()
+		newRollout.Status.PauseStartTime = &now
+	}
+	return newRollout
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.ReplicaSet {
@@ -131,7 +165,7 @@ func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.Repli
 			},
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Selector: r.Spec.Selector,
+			Selector: metav1.SetAsLabelSelector(rsLabels),
 			Replicas: func() *int32 { i := int32(replicas); return &i }(),
 			Template: r.Spec.Template,
 		},

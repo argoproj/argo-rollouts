@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -210,6 +211,8 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		allRSs = append(allRSs, stableRS)
 	}
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
+	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
+	newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.Canary.StableRS = r.Status.Canary.StableRS

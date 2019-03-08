@@ -172,6 +172,12 @@ type RolloutStatus struct {
 	// BlueGreen describes the state of the bluegreen rollout
 	// +optional
 	BlueGreen BlueGreenStatus `json:"blueGreen,omitempty"`
+	// HPAReplicas the number of non-terminated replicas that are receiving active traffic
+	// +optional
+	HPAReplicas int32 `json:"HPAReplicas,omitempty"`
+	// Selector that identifies the pods that are receiving active traffic
+	// +optional
+	Selector string `json:"selector,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
