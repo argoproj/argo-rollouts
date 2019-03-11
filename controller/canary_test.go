@@ -84,34 +84,31 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
 	r2 := bumpVersion(r1)
-	r2.Status.Canary.StableRS = "895c6c4f9"
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	r2.Status.AvailableReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.HPAReplicas = 10
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchTemplate := `{
-    "spec":{
-        "paused": true
-    },
-	"status":{
-		"pauseStartTime":"%s"
-	}
-}`
+		"spec":{
+			"paused": true
+		},
+		"status":{
+			"pauseStartTime":"%s"
+		}
+	}`
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339))
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, string(patchBytes))
@@ -126,23 +123,18 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
 	r2 := bumpVersion(r1)
-	r2.Status.Canary.StableRS = "895c6c4f9"
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	r2.Status.AvailableReplicas = 10
 
-	r2.Spec.Paused = true
-	now := metav1.Now()
-	r2.Status.PauseStartTime = &now
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -163,13 +155,10 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	r2 := bumpVersion(r1)
-	r2.Status.Canary.StableRS = "895c6c4f9"
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 
-	r2 = updateCanaryRolloutStatus(r2,rs1PodHash,10,0,10,false)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	r2.Status.AvailableReplicas = 10
-
-	r2.Spec.Paused = false
 	now := metav1.Now()
 	r2.Status.PauseStartTime = &now
 
@@ -203,35 +192,31 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
 	r2 := bumpVersion(r1)
+
 	expectedStableRS := r2.Status.CurrentPodHash
-	r2.Status.Canary.StableRS = "895c6c4f9"
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 0, 0)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 10, 10)
-	r2.Status.AvailableReplicas = 10
-	r2.Status.UpdatedReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.HPAReplicas = 10
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 10, 10, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchWithoutStableRS := calculatePatch(r2, `{
-	"status": {
-		"canary": {
-			"stableRS": "%s"
+		"status": {
+			"canary": {
+				"stableRS": "%s"
+			}
 		}
-	}
-}`)
+	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 }
@@ -245,19 +230,18 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-	r1.Status.AvailableReplicas = 10
-	r1.Status.HPAReplicas = 10
-	r1.Status.Replicas = 10
 	r2 := bumpVersion(r1)
 	expectedCurrentPodHash := r2.Status.CurrentPodHash
-	r2.Status.CurrentPodHash = r1.Status.Canary.StableRS
 	r2.Spec.Strategy.CanaryStrategy.Steps = append(steps, v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}})
 	expectedCurrentStepHash := conditions.ComputeStepHash(r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	r2.Status.CurrentPodHash = rs1PodHash
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -267,12 +251,12 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchWithoutPodHash := calculatePatch(r2, `{
-	"status": {
-		"currentStepIndex":0,
-		"currentPodHash": "%s",
-		"currentStepHash": "%s"
-	}
-}`)
+		"status": {
+			"currentStepIndex":0,
+			"currentPodHash": "%s",
+			"currentStepHash": "%s"
+		}
+	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 
@@ -287,17 +271,16 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-	r1.Status.AvailableReplicas = 10
-	r1.Status.HPAReplicas = 10
-	r1.Status.Replicas = 10
 	r2 := bumpVersion(r1)
-	expectedCurrentPodHash := r2.Status.CurrentPodHash
-	r2.Status.CurrentPodHash = r1.Status.Canary.StableRS
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	expectedCurrentPodHash := r2.Status.CurrentPodHash
+	r2.Status.CurrentPodHash = rs1PodHash
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -307,11 +290,11 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatchWithoutPodHash := calculatePatch(r2, `{
-	"status": {
-		"currentStepIndex":0,
-		"currentPodHash": "%s"
-	}
-}`)
+		"status": {
+			"currentStepIndex":0,
+			"currentPodHash": "%s"
+		}
+	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash)
 	assert.Equal(t, expectedPatch, string(patchBytes))
 
@@ -501,24 +484,19 @@ func TestRollBackToStable(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-
 	r2 := bumpVersion(r1)
 	r2.Spec.Template = r1.Spec.Template
-	r2.Status.AvailableReplicas = 10
-	r2.Status.HPAReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.UpdatedReplicas = 9
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 9, 10, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
@@ -548,25 +526,20 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	r2.Spec.Template = r1.Spec.Template
-	r2.Status.AvailableReplicas = 10
-	r2.Status.HPAReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.UpdatedReplicas = 9
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 9, 10, false)
 	r2.Spec.Strategy.CanaryStrategy.Steps[0].SetWeight = pointer.Int32Ptr(20)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
@@ -599,32 +572,22 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-
 	r2 := bumpVersion(r1)
-
 	r3 := bumpVersion(r2)
-	r3.Status.Replicas = 10
-	r3.Status.UpdatedReplicas = 1
-	r3.Status.HPAReplicas = 10
-	r3.Status.AvailableReplicas = 10
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
+	rs3 := newReplicaSetWithStatus(r3, "foo-8cdf7bbb4", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+
+	r3 = updateCanaryRolloutStatus(r3, rs1PodHash, 10, 1, 10, false)
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
-
-	rs3 := newReplicaSetWithStatus(r3, "foo-8cdf7bbb4", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs3)
-	f.replicaSetLister = append(f.replicaSetLister, rs3)
-
-	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
 
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r3, `{
@@ -640,6 +603,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 
 func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	f := newFixture(t)
+	f.checkObjects = true
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -651,38 +615,31 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-
 	r2 := bumpVersion(r1)
-	r2.Status.AvailableReplicas = 10
-	r2.Status.HPAReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.UpdatedReplicas = 1
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	expectedPatchWithoutTime := `{
+		"spec" :{
+			"paused": true
+		},
+		"status":{
+			"pauseStartTime": "%s"
+		}
+	}`
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339))
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
-
-	f.expectPatchRolloutAction(r2)
+	f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
-
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	expectedPatch := calculatePatch(r2, `{
-    "spec" :{
-		"paused": true
-	},
-	"status":{
-		"pauseStartTime": "%s"
-	}
-}`)
-	expectedPatch = fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))
-	assert.Equal(t, expectedPatch, string(patchBytes))
 }
 
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
@@ -698,28 +655,18 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-
 	r2 := bumpVersion(r1)
-	r2.Status.AvailableReplicas = 10
-	r2.Spec.Paused = true
-	r2.Status.HPAReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.UpdatedReplicas = 1
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
-
-	now := metav1.Now()
-	r2.Status.PauseStartTime = &now
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
+	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
@@ -744,27 +691,20 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
-
 	r2 := bumpVersion(r1)
-	now := metav1.Now()
-	r2.Status.PauseStartTime = &now
-	r2.Spec.Paused = true
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
-	r2.Status.AvailableReplicas = 10
-	r2.Status.HPAReplicas = 10
-	r2.Status.UpdatedReplicas = 1
-	r2.Status.Replicas = 10
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
+	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
@@ -793,23 +733,19 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	r1.Status.Canary.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.PauseStartTime = &earlier
-	r2.Status.AvailableReplicas = 10
-	r2.Status.HPAReplicas = 10
-	r2.Status.Replicas = 10
-	r2.Status.UpdatedReplicas = 1
+
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -826,6 +762,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 
 func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	f := newFixture(t)
+	f.checkObjects = true
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -834,36 +771,27 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	ro := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	ro.Status.Selector = ""
-	rs1 := newReplicaSetWithStatus(ro, "foo-895c6c4f9", 4, 4)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	ro2 := bumpVersion(ro)
-	rs2 := newReplicaSetWithStatus(ro2, "foo-5f79b78d7f", 1, 1)
-	ro2.Status.Canary.StableRS = rs1PodHash
-	ro2.Spec.Paused = true
-	now := metav1.Now()
-	ro2.Status.PauseStartTime = &now
-	ro2.Status.AvailableReplicas = 5
-	ro2.Status.Replicas = 5
-	ro2.Status.UpdatedReplicas = 1
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.Selector = ""
+	r2 := bumpVersion(r1)
 
-	f.rolloutLister = append(f.rolloutLister, ro2)
-	f.objects = append(f.objects, ro2)
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 4, 4)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	f.expectPatchRolloutAction(ro2)
-	f.run(getKey(ro2, t))
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 5, 1, 10, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
-	filteredActions := filterInformerActions(f.client.Actions())
-	assert.Len(t, filteredActions, 1)
-	result := filteredActions[0].(core.PatchAction).GetPatch()
-	expectedPatch := calculatePatch(ro2, `{
+	expectedPatch := `{
 		"status":{
 			"HPAReplicas":5,
 			"selector":"foo=bar"
 		}
-	}`)
-	assert.Equal(t, expectedPatch, string(result))
+	}`
+
+	f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	f.run(getKey(r2, t))
 }

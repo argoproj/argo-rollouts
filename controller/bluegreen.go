@@ -181,6 +181,16 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 	if !ok {
 		activeSelector = ""
 	}
+
+	// If there is only one replica set with pods, then we should scale that up to the full count of the
+	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
+	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
+		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
+			return err
+		}
+	}
+
 	allRS := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
 	activeRS := GetActiveReplicaSet(rollout, allRS)
 	if activeRS != nil {
@@ -189,11 +199,10 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 			return err
 		}
 	}
-	// If there is only one replica set with pods, then we should scale that up to the full count of the
-	// rollout. If there is no replica set with pods, then we should scale up the newest replica set.
-	if activeOrLatest := replicasetutil.FindActiveOrLatest(newRS, oldRSs); activeOrLatest != nil {
-		if *(activeOrLatest.Spec.Replicas) != rolloutReplicas {
-			_, _, err := c.scaleReplicaSetAndRecordEvent(activeOrLatest, rolloutReplicas, rollout)
+
+	if newRS != nil {
+		if *(newRS.Spec.Replicas) != rolloutReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
 			return err
 		}
 	}
