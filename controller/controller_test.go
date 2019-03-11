@@ -112,7 +112,7 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, ava
 }
 
 func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
-	newRollout := updateBaseRolloutStatus(r,availableReplicas,updatedReplicas,hpaReplicas,pause)
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, hpaReplicas, pause)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
 		selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = active
