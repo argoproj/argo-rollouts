@@ -65,6 +65,26 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the preview service.
                       type: string
+                    steps:
+                      description: Steps define the order of steps to execute the
+                        bluegreen deployment
+                      items:
+                        description: BlueGreenStep defines a step of a bluegreen deployment.
+                        properties:
+                          pause:
+                            properties:
+                              duration:
+                                description: Duration the amount of time to wait before
+                                  moving to the next step.
+                                format: int32
+                                type: integer
+                          setPreview:
+                            description: SetPreview empty struct to indicate the SetPreview
+                              step
+                          switchActive:
+                            description: SwitchActive empty struct to indicate the
+                              SetActive step
+                      type: array
                 canary:
                   description: ReplicaBasedCanaryStrategy defines parameters for a
                     Replica Based Canary
