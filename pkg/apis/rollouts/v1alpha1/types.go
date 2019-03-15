@@ -70,6 +70,9 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
 	PreviewService string `json:"previewService,omitempty"`
+	// Steps define the order of steps to execute the bluegreen deployment
+	// +optional
+	Steps []BlueGreenStep `json:"steps,omitempty"`
 }
 
 // ReplicaBasedCanaryStrategy defines parameters for a Replica Based Canary
@@ -112,6 +115,25 @@ type CanaryStep struct {
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 }
+
+// BlueGreenStep defines a step of a bluegreen deployment.
+type BlueGreenStep struct {
+	// SwitchActive switches the new replicaset to the active service
+	// +optional
+	SwitchActive *SwitchActive `json:"switchActive,omitempty"`
+	// SetPreview sets the new replicaset to the preview service
+	// +optional
+	SetPreview *SetPreview `json:"setPreview,omitempty"`
+	// Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false
+	// +optional
+	Pause *RolloutPause `json:"pause,omitempty"`
+}
+
+// SetPreview empty struct to indicate the SetPreview step
+type SetPreview struct{}
+
+// SwitchActive empty struct to indicate the SetActive step
+type SwitchActive struct{}
 
 type RolloutPause struct {
 	// Duration the amount of time to wait before moving to the next step.
