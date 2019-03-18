@@ -2,11 +2,9 @@ package controller
 
 import (
 	"sort"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -79,7 +77,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 
 	logCtx.Info("Reconciling Canary Pause")
-	stillReconciling, err := c.reconcilePause(oldRSs, newRS, stableRS, rollout)
+	stillReconciling, err := c.reconcileCanaryPause(rollout)
 	if err != nil {
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
@@ -101,7 +99,7 @@ func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *app
 	return scaled, err
 }
 
-func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *Controller) reconcileCanaryPause(rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
 		logCtx.Info("Rollout does not have any steps")
@@ -118,20 +116,7 @@ func (c *Controller) reconcilePause(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.R
 		return false, nil
 	}
 
-	if currentStep.Pause.Duration == nil {
-		return true, nil
-	}
-
-	if rollout.Status.PauseStartTime != nil {
-		now := metav1.Now()
-		expiredTime := rollout.Status.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
-		nextResync := now.Add(c.resyncPeriod)
-		if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
-			timeRemaining := expiredTime.Sub(now.Time)
-			logCtx.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
-			c.enqueueRolloutAfter(rollout, timeRemaining)
-		}
-	}
+	c.checkEnqueueRolloutDuringPause(rollout, *currentStep.Pause)
 	return true, nil
 }
 
@@ -207,19 +192,8 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 	if currentStep == nil {
 		return false
 	}
-	if currentStep.Pause != nil && currentStep.Pause.Duration != nil {
-		now := metav1.Now()
-		if r.Status.PauseStartTime != nil {
-			expiredTime := r.Status.PauseStartTime.Add(time.Duration(*currentStep.Pause.Duration) * time.Second)
-			if now.After(expiredTime) {
-				logCtx.Info("Rollout has waited the duration of the pause step")
-				return true
-			}
-		}
-	}
-	if currentStep.Pause != nil && currentStep.Pause.Duration == nil && r.Status.PauseStartTime != nil && !r.Spec.Paused {
-		logCtx.Info("Rollout has been unpaused")
-		return true
+	if currentStep.Pause != nil {
+		return completedPauseStep(r, currentStep.Pause)
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
@@ -304,18 +278,10 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
-	pauseStartTime := r.Status.PauseStartTime
-	paused := r.Spec.Paused
-	if currentStep != nil && currentStep.Pause != nil {
-		now := metav1.Now()
-		if r.Status.PauseStartTime == nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
-			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
-			pauseStartTime = &now
-			paused = true
-		}
-	}
-
+	addPause := currentStep.Pause != nil
+	pauseStartTime, paused := calculatePauseStatus(r, addPause)
 	newStatus.PauseStartTime = pauseStartTime
+
 	newStatus.CurrentStepIndex = currentStepIndex
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }

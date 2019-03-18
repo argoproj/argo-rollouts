@@ -199,7 +199,7 @@ func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) erro
 			return err
 		}
 		allRSs := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, r.Spec.Paused)
 	}
 	return fmt.Errorf("no rollout strategy provided")
 }

@@ -134,11 +134,8 @@ type RolloutStatus struct {
 	CurrentPodHash string `json:"currentPodHash"`
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
-	CurrentStepHash string `json:"currentStepHash,omitempty"`
-	// VerifyingPreview indicates the rollout is verifying the replicas set being served
-	// traffic from the preview service. User will need to edit this field to continue the rollout.
 	// +optional
-	VerifyingPreview *bool `json:"verifyingPreview,omitempty"`
+	CurrentStepHash string `json:"currentStepHash,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
 	// +optional
 	Replicas int32 `json:"replicas"`

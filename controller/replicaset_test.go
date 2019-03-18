@@ -152,7 +152,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			test := tests[i]
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			allRSs := []*appsv1.ReplicaSet{newRS}
-			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, nil, "", "")
+			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			controller := &Controller{
@@ -250,7 +250,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			allRSs := []*appsv1.ReplicaSet{oldRS, newRS}
-			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, nil, "", "")
+			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}

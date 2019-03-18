@@ -67,9 +67,9 @@ In addition to managing replica sets, the Argo Rollouts will modify `Service` re
         * The active service is not serving any traffic to any replica sets created by this rollout. 
         * The active service's selector already points at the new replica set. 
     1. Verify if the preview service is serving traffic to the new replica set.
-        * Otherwise, set the preview service's selector to the new replica set and set the `verifyingPreview` flag in the rollout status to true.
-1. Check if the `verifyingPreview` flag is set to true.
-    * Do not progress until `verifyingPreview` is unset or set to false.
+        * Otherwise, set the preview service's selector to the new replica set and set the `paused` flag and `pausedStartedAt` field in the rollout status to true.
+1. Check if the `paused` flag is set to true.
+    * Do not progress until `paused` is set to false.
 1. Reconcile if the active service is serving traffic to the new replica set
     1. Verify if the active service is serving traffic to the new replica set.
         * Set the active service's selector to the new replica set
