@@ -145,7 +145,6 @@ spec:
               description: CanaryStatus status fields that only pertain to the canary
                 rollout
               properties:
-                pauseStartTime: {}
                 stableRS:
                   description: StableRS indicates the last replicaset that walked
                     through all the canary steps or was the only replicaset
@@ -203,6 +202,7 @@ spec:
               description: The generation observed by the rollout controller by taking
                 a hash of the spec.
               type: string
+            pauseStartTime: {}
             readyReplicas:
               description: Total number of ready pods targeted by this rollout.
               format: int32

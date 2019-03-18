@@ -120,7 +120,7 @@ func TestBlueGreenReconcileVerifyingPreview(t *testing.T) {
 func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "preview", "active")
+	r1 := newBlueGreenRollout("foo", 1, nil, nil, "preview", "active")
 
 	r2 := r1.DeepCopy()
 	annotations.SetRolloutRevision(r2, "2")
@@ -152,7 +152,7 @@ func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
 func TestBlueGreenHandleVerifyingPreviewSetButNotPreviewSvc(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r1 := newBlueGreenRollout("foo", 1, nil, nil, "active", "preview")
 	r2 := r1.DeepCopy()
 	annotations.SetRolloutRevision(r2, "2")
 	r2.Spec.Template.Spec.Containers[0].Image = "foo/bar2.0"
