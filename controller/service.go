@@ -22,8 +22,7 @@ const (
 			"%s": "%s"
 		}
 	}
-}
-`
+}`
 )
 
 // switchSelector switch the selector on an existing service to a new value
@@ -31,6 +30,10 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
 	logutil.WithRollout(r).Infof("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
 	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
+	if service.Spec.Selector == nil {
+		service.Spec.Selector = make(map[string]string)
+	}
+	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
 	return err
 }
 

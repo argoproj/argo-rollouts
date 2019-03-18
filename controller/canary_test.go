@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -11,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
@@ -55,28 +53,6 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRollout.Status.CurrentPodHash = controller.ComputeHash(&newRollout.Spec.Template, newRollout.Status.CollisionCount)
 	newRollout.Status.CurrentStepHash = conditions.ComputeStepHash(newRollout)
 	return newRollout
-}
-
-func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
-	origBytes, err := json.Marshal(ro)
-	if err != nil {
-		panic(err)
-	}
-	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
-	if err != nil {
-		panic(err)
-	}
-	newRO := &v1alpha1.Rollout{}
-	json.Unmarshal(newBytes, newRO)
-	newObservedGen := conditions.ComputeGenerationHash(newRO.Spec)
-
-	newPatch := make(map[string]interface{})
-	json.Unmarshal([]byte(patch), &newPatch)
-	newStatus := newPatch["status"].(map[string]interface{})
-	newStatus["observedGeneration"] = newObservedGen
-	newPatch["status"] = newStatus
-	newPatchBytes, _ := json.Marshal(newPatch)
-	return string(newPatchBytes)
 }
 
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
