@@ -160,17 +160,10 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
-					"pauseStartTime": {
-						SchemaProps: spec.SchemaProps{
-							Description: "WaitStartTime this field is set when the rollout is in a wait step and indicates the time the wait started at",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+		Dependencies: []string{},
 	}
 }
 
@@ -527,6 +520,12 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "int32",
 						},
 					},
+					"pauseStartTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PauseStartTime this field is set when the rollout is in a pause step and indicates the time the wait started at",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 					"collisionCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Count of hash collisions for the Rollout. The Rollout controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",
@@ -570,7 +569,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

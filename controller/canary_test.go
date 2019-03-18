@@ -112,9 +112,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
         "paused": true
     },
 	"status":{
-		"canary": {
-			"pauseStartTime":"%s"
-		}
+		"pauseStartTime":"%s"
 	}
 }`
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339))
@@ -142,7 +140,7 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 
 	r2.Spec.Paused = true
 	now := metav1.Now()
-	r2.Status.Canary.PauseStartTime = &now
+	r2.Status.PauseStartTime = &now
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -173,7 +171,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 
 	r2.Spec.Paused = false
 	now := metav1.Now()
-	r2.Status.Canary.PauseStartTime = &now
+	r2.Status.PauseStartTime = &now
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -660,9 +658,7 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 		"paused": true
 	},
 	"status":{
-		"canary":{
-			"pauseStartTime": "%s"
-		}
+		"pauseStartTime": "%s"
 	}
 }`)
 	expectedPatch = fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))
@@ -689,7 +685,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
 	now := metav1.Now()
-	r2.Status.Canary.PauseStartTime = &now
+	r2.Status.PauseStartTime = &now
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -728,7 +724,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	r2 := bumpVersion(r1)
 	now := metav1.Now()
-	r2.Status.Canary.PauseStartTime = &now
+	r2.Status.PauseStartTime = &now
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -771,7 +767,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	r2 := bumpVersion(r1)
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
-	r2.Status.Canary.PauseStartTime = &earlier
+	r2.Status.PauseStartTime = &earlier
 	r2.Status.AvailableReplicas = 10
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -790,9 +786,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
 	expectedPatch := calculatePatch(r2, `{
 	"status":{
-		"canary":{
-			"pauseStartTime": null
-		},
+		"pauseStartTime": null,
 		"currentStepIndex":2
 	}
 }`)
