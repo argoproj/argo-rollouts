@@ -409,7 +409,7 @@ func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, p
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 
-	r := newBlueGreenRollout("foo", 1, nil, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, "", "")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 

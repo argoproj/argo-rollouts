@@ -196,9 +196,4 @@ spec:
                 that have the desired template spec.
               format: int32
               type: integer
-            verifyingPreview:
-              description: VerifyingPreview indicates the rollout is verifying the
-                replicas set being served traffic from the preview service. User will
-                need to edit this field to continue the rollout.
-              type: boolean
   version: v1alpha1

@@ -431,13 +431,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
-					"verifyingPreview": {
-						SchemaProps: spec.SchemaProps{
-							Description: "VerifyingPreview indicates the rollout is verifying the replicas set being served traffic from the preview service. User will need to edit this field to continue the rollout.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Total number of non-terminated pods targeted by this rollout (their labels match the selector).",

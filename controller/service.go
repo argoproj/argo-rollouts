@@ -72,12 +72,7 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 		}
 	}
 
-	err := c.setVerifyingPreview(r)
-	if err != nil {
-		return false, err
-	}
-
-	err = c.switchServiceSelector(previewSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+	err := c.switchServiceSelector(previewSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
 	if err != nil {
 		return false, err
 	}

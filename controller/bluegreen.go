@@ -5,7 +5,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -14,14 +13,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-)
-
-const (
-	verifyingPreviewPatch = `{
-	"status": {
-		"verifyingPreview": true
-	}
-}`
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
@@ -45,7 +36,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledUp {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
 	if previewSvc != nil {
@@ -56,15 +47,17 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		}
 		if switchPreviewSvc {
 			logCtx.Infof("Not finished reconciling preview service' %s'", previewSvc.Name)
-			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
-		}
-		logCtx.Info("Reconciling verifying preview service")
-		verfyingPreview := c.reconcileVerifyingPreview(activeSvc, r)
-		if verfyingPreview {
-			logCtx.Info("Not finished reconciling verifying preview service")
-			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, true)
 		}
 	}
+
+	logCtx.Info("Reconciling pause before switching active service")
+	pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, r)
+	if pauseBeforeSwitchActive {
+		logCtx.Info("Not finished reconciling pause before switching active service")
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, true)
+	}
+
 	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
@@ -72,8 +65,9 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if switchActiveSvc {
 		logCtx.Infof("Not Finished reconciling active service '%s'", activeSvc.Name)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
 	}
+
 	// Scale down, if we can.
 	logCtx.Info("Reconciling old replica sets")
 	scaledDown, err := c.reconcileOldReplicaSets(allRSs, controller.FilterActiveReplicaSets(oldRSs), newRS, r)
@@ -82,8 +76,9 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledDown {
 		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
 	}
+
 	logCtx.Infof("Confirming rollout is complete")
 	if conditions.RolloutComplete(r, &r.Status) {
 		logCtx.Info("Cleaning up old replicasets")
@@ -91,10 +86,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 			return err
 		}
 	}
-	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r)
+	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
 }
 
-func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
+func (c *Controller) reconcileBlueGreenPause(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService == "" {
 		return false
 	}
@@ -102,11 +97,7 @@ func (c *Controller) reconcileVerifyingPreview(activeSvc *corev1.Service, rollou
 		return false
 	}
 
-	if rollout.Status.VerifyingPreview == nil {
-		return false
-	}
-
-	return *rollout.Status.VerifyingPreview
+	return rollout.Spec.Paused && rollout.Status.PauseStartTime != nil
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
@@ -140,13 +131,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 	return totalScaledDown, nil
 }
 
-func (c *Controller) setVerifyingPreview(r *v1alpha1.Rollout) error {
-	logutil.WithRollout(r).Infof("Patching setVerifyingPreview to true")
-	_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, []byte(verifyingPreviewPatch))
-	return err
-}
-
-func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout) error {
+func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout, addPause bool) error {
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
 	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
 	if !ok {
@@ -170,9 +155,10 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
 	}
 	newStatus.Conditions = prevStatus.Conditions
-	newStatus.VerifyingPreview = r.Status.VerifyingPreview
 
-	return c.persistRolloutStatus(r, &newStatus, nil)
+	pauseStartTime, paused := calculatePauseStatus(r, addPause)
+	newStatus.PauseStartTime = pauseStartTime
+	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 
 // Should run only on scaling events and not during the normal rollout process.
