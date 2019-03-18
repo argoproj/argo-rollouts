@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/diff"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -24,11 +27,20 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 var (
 	alwaysReady        = func() bool { return true }
 	noResyncPeriodFunc = func() time.Duration { return 0 }
+)
+
+const (
+	OnlyObservedGenerationPatch = `{
+			"status" : {
+				"observedGeneration": ""
+			}
+	}`
 )
 
 type fixture struct {
@@ -47,11 +59,13 @@ type fixture struct {
 	kubeobjects     []runtime.Object
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
+	checkObjects    bool
 }
 
 func newFixture(t *testing.T) *fixture {
 	f := &fixture{}
 	f.t = t
+	f.checkObjects = false
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
@@ -129,6 +143,28 @@ func newImage(rs *appsv1.ReplicaSet, newImage string) *appsv1.ReplicaSet {
 	rsCopy.Spec.Template.Spec.Containers[0].Image = newImage
 	rsCopy.ObjectMeta.Name = controller.ComputeHash(&rsCopy.Spec.Template, nil)
 	return rsCopy
+}
+
+func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
+	origBytes, err := json.Marshal(ro)
+	if err != nil {
+		panic(err)
+	}
+	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
+	if err != nil {
+		panic(err)
+	}
+	newRO := &v1alpha1.Rollout{}
+	json.Unmarshal(newBytes, newRO)
+	newObservedGen := conditions.ComputeGenerationHash(newRO.Spec)
+
+	newPatch := make(map[string]interface{})
+	json.Unmarshal([]byte(patch), &newPatch)
+	newStatus := newPatch["status"].(map[string]interface{})
+	newStatus["observedGeneration"] = newObservedGen
+	newPatch["status"] = newStatus
+	newPatchBytes, _ := json.Marshal(newPatch)
+	return string(newPatchBytes)
 }
 
 func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
@@ -224,7 +260,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		}
 
 		expectedAction := f.actions[i]
-		checkAction(expectedAction, action, f.t)
+		checkAction(expectedAction, action, f.t, f.checkObjects)
 	}
 
 	if len(f.actions) > len(actions) {
@@ -239,7 +275,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		}
 
 		expectedAction := f.kubeactions[i]
-		checkAction(expectedAction, action, f.t)
+		checkAction(expectedAction, action, f.t, f.checkObjects)
 	}
 
 	if len(f.kubeactions) > len(k8sActions) {
@@ -249,7 +285,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 }
 
 // checkAction verifies that expected and actual actions are equal
-func checkAction(expected, actual core.Action, t *testing.T) {
+func checkAction(expected, actual core.Action, t *testing.T, checkObjects bool) {
 	if !(expected.Matches(actual.GetVerb(), actual.GetResource().Resource) && actual.GetSubresource() == expected.GetSubresource()) {
 		t.Errorf("Expected\n\t%#v\ngot\n\t%#v", expected, actual)
 		if patch, ok := actual.(core.PatchAction); ok {
@@ -266,6 +302,38 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 	if reflect.TypeOf(actual) != reflect.TypeOf(expected) {
 		t.Errorf("Action has wrong type. Expected: %t. Got: %t", expected, actual)
 		return
+	}
+	if !checkObjects {
+		return
+	}
+	switch a := actual.(type) {
+	case core.CreateAction:
+		e, _ := expected.(core.CreateAction)
+		expObject := e.GetObject()
+		object := a.GetObject()
+
+		if !reflect.DeepEqual(expObject, object) {
+			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
+				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
+		}
+	case core.UpdateAction:
+		e, _ := expected.(core.UpdateAction)
+		expObject := e.GetObject()
+		object := a.GetObject()
+
+		if !reflect.DeepEqual(expObject, object) {
+			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
+				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
+		}
+	case core.PatchAction:
+		e, _ := expected.(core.PatchAction)
+		expPatch := e.GetPatch()
+		patch := a.GetPatch()
+
+		if !reflect.DeepEqual(expPatch, patch) {
+			t.Errorf("Action %s %s has wrong patch\nDiff:\n %s",
+				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(string(expPatch), string(patch)))
+		}
 	}
 }
 
@@ -298,17 +366,12 @@ func (f *fixture) expectGetServiceAction(s *corev1.Service) {
 }
 
 func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) {
-	patch := corev1.Service{
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newLabel},
-		},
-	}
-	patchBytes, _ := json.Marshal(patch)
+	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newLabel)
 	serviceSchema := schema.GroupVersionResource{
 		Resource: "services",
 		Version:  "v1",
 	}
-	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, patchBytes))
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, []byte(patch)))
 }
 
 func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) {
@@ -334,6 +397,15 @@ func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) {
 		Version:  "v1alpha1",
 	}
 	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, nil))
+}
+
+func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, patch string) {
+	expectedPatch := calculatePatch(rollout, patch)
+	serviceSchema := schema.GroupVersionResource{
+		Resource: "rollouts",
+		Version:  "v1alpha1",
+	}
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, []byte(expectedPatch)))
 }
 
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,23 +9,49 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 var (
 	noTimestamp = metav1.Time{}
 )
 
-func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string, activeSvc string, previewSvc string) *v1alpha1.Rollout {
-	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
+func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, stepIndex *int32, activeSvc string, previewSvc string) *v1alpha1.Rollout {
+	rollout := newRollout(name, replicas, revisionHistoryLimit, map[string]string{"foo": "bar"})
 	rollout.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{
 		ActiveService:  activeSvc,
 		PreviewService: previewSvc,
 	}
+	rollout.Status.CurrentStepIndex = stepIndex
+	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
+	rollout.Status.CurrentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	return rollout
+}
+
+func newAvailableCondition(available bool) ([]v1alpha1.RolloutCondition, string) {
+	message := "Rollout is not serving traffic from the active service."
+	status := corev1.ConditionFalse
+	if available {
+		message = "Rollout is serving traffic from the active service."
+		status = corev1.ConditionTrue
+
+	}
+	rc := []v1alpha1.RolloutCondition{{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            message,
+		Reason:             "Available",
+		Status:             status,
+		Type:               v1alpha1.RolloutAvailable,
+	}}
+	rcStr, _ := json.Marshal(rc)
+	return rc, string(rcStr)
 }
 
 func TestBlueGreenReconcileVerifyingPreview(t *testing.T) {
@@ -73,7 +100,7 @@ func TestBlueGreenReconcileVerifyingPreview(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			rollout := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "", test.previewSvcName)
+			rollout := newBlueGreenRollout("foo", 1, nil, nil, "", test.previewSvcName)
 			rollout.Status = v1alpha1.RolloutStatus{
 				VerifyingPreview: test.verifyingPreviewFlag,
 			}
@@ -159,7 +186,7 @@ func TestBlueGreenHandleVerifyingPreviewSetButNotPreviewSvc(t *testing.T) {
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
 
-	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
+	r := newBlueGreenRollout("foo", 1, nil, nil, "bar", "")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 	s := newService("bar", 80, nil)
@@ -176,7 +203,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 func TestBlueGreenSetPreviewService(t *testing.T) {
 	f := newFixture(t)
 
-	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, pointer.Int32Ptr(0), "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -200,7 +227,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 func TestBlueGreenVerifyPreviewNoActions(t *testing.T) {
 	f := newFixture(t)
 
-	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, pointer.Int32Ptr(1), "active", "preview")
 	r.Status.VerifyingPreview = func(boolean bool) *bool { return &boolean }(true)
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
@@ -225,7 +252,8 @@ func TestBlueGreenVerifyPreviewNoActions(t *testing.T) {
 func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 	f := newFixture(t)
 
-	r := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "active", "preview")
+	r := newBlueGreenRollout("foo", 1, nil, nil, "active", "preview")
+	r.Status.AvailableReplicas = 1
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -247,11 +275,9 @@ func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 func TestBlueGreenScaleDownOldRS(t *testing.T) {
 	f := newFixture(t)
 
-	r1 := newBlueGreenRollout("foo", 1, nil, map[string]string{"foo": "bar"}, "bar", "")
+	r1 := newBlueGreenRollout("foo", 1, nil, pointer.Int32Ptr(3), "bar", "")
 
-	r2 := r1.DeepCopy()
-	annotations.SetRolloutRevision(r2, "2")
-	r2.Spec.Template.Spec.Containers[0].Image = "foo/bar2.0"
+	r2 := bumpVersion(r1)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -259,11 +285,12 @@ func TestBlueGreenScaleDownOldRS(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-6479c8f85c", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "6479c8f85c"}
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector)
 	f.kubeobjects = append(f.kubeobjects, s)
 
