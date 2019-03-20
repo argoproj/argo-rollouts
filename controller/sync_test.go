@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
@@ -18,11 +17,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
 )
-
-func intOrStrP(num int) *intstr.IntOrString {
-	intstr := intstr.FromInt(num)
-	return &intstr
-}
 
 func newRolloutWithStatus(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)

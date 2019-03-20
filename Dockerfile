@@ -26,12 +26,17 @@ ENV DEP_VERSION=0.5.0
 RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -O /usr/local/bin/dep && \
     chmod +x /usr/local/bin/dep
 
-# Install gometalinter
-RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v2.0.5/gometalinter-2.0.5-linux-amd64.tar.gz | \
-    tar -xzC "$GOPATH/bin" --exclude COPYING --exclude README.md --strip-components 1 -f- && \
-    ln -s $GOPATH/bin/gometalinter $GOPATH/bin/gometalinter.v2
+# Install golangci-lint
+RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
+    chmod +x ./golangci-lint.sh && \
+    ./golangci-lint.sh -b $GOPATH/bin && \
+    golangci-lint linters
 
+COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
 
+RUN cd ${GOPATH}/src/dummy && \
+    touch dummy.go \
+    golangci-lint run
 
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries

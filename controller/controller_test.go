@@ -138,13 +138,6 @@ func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.Repli
 	}
 }
 
-func newImage(rs *appsv1.ReplicaSet, newImage string) *appsv1.ReplicaSet {
-	rsCopy := rs.DeepCopy()
-	rsCopy.Spec.Template.Spec.Containers[0].Image = newImage
-	rsCopy.ObjectMeta.Name = controller.ComputeHash(&rsCopy.Spec.Template, nil)
-	return rsCopy
-}
-
 func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	origBytes, err := json.Marshal(ro)
 	if err != nil {

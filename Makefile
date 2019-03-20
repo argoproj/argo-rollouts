@@ -61,7 +61,7 @@ image:
 
 .PHONY: lint
 lint:
-	gometalinter.v2 --config gometalinter.json ./...
+	golangci-lint run --fix
 
 .PHONY: test
 test:
