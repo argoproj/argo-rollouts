@@ -398,6 +398,8 @@ spec:
   selector:
     matchLabels:
       app: argo-rollouts
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:

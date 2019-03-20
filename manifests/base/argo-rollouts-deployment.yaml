@@ -18,3 +18,5 @@ spec:
         image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
         name: argo-rollouts
+  strategy:
+    type: Recreate
