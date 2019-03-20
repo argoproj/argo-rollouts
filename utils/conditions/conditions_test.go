@@ -537,30 +537,12 @@ func TestComputeStepHash(t *testing.T) {
 	roNoStepsHash := ComputeStepHash(roNoSteps)
 
 	roBlueGreen := ro.DeepCopy()
-	roBlueGreen.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{
-		Steps: []v1alpha1.BlueGreenStep{
-			{
-				SetPreview: &v1alpha1.SetPreview{},
-			},
-		},
-	}
 	roBlueGreen.Spec.Strategy.CanaryStrategy = nil
+	roBlueGreen.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
 	roBlueGreenHash := ComputeStepHash(roBlueGreen)
-
-	roBlueGreen2 := ro.DeepCopy()
-	roBlueGreen2.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{
-		Steps: []v1alpha1.BlueGreenStep{
-			{
-				SwitchActive: &v1alpha1.SwitchActive{},
-			},
-		},
-	}
-	roBlueGreen2.Spec.Strategy.CanaryStrategy = nil
-	roBlueGreenHash2 := ComputeStepHash(roBlueGreen2)
 
 	assert.NotEqual(t, baseline, roWithDiffStepsHash)
 	assert.Equal(t, baseline, roWithSameStepsHash)
 	assert.NotEqual(t, baseline, roNoStepsHash)
-	assert.NotEqual(t, roBlueGreenHash, roNoStepsHash)
-	assert.NotEqual(t, roBlueGreenHash, roBlueGreenHash2)
+	assert.Equal(t, "", roBlueGreenHash)
 }

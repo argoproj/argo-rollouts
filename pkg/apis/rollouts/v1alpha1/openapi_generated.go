@@ -30,7 +30,6 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":   schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStep":     schema_pkg_apis_rollouts_v1alpha1_BlueGreenStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy": schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":      schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":        schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
@@ -74,38 +73,6 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "BlueGreenStep defines a step of a bluegreen deployment.",
-				Properties: map[string]spec.Schema{
-					"switchActive": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SwitchActive switches the new replicaset to the active service",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SwitchActive"),
-						},
-					},
-					"setPreview": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SetPreview sets the new replicaset to the preview service",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetPreview"),
-						},
-					},
-					"pause": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetPreview", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SwitchActive"},
-	}
-}
-
 func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -126,24 +93,10 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
-					"steps": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Steps define the order of steps to execute the bluegreen deployment",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStep"),
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStep"},
+		Dependencies: []string{},
 	}
 }
 

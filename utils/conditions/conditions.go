@@ -113,7 +113,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 func ComputeStepHash(rollout *v1alpha1.Rollout) string {
 	rolloutStepHasher := fnv.New32a()
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		hashutil.DeepHashObject(rolloutStepHasher, rollout.Spec.Strategy.BlueGreenStrategy.Steps)
+		return ""
 	}
 	if rollout.Spec.Strategy.CanaryStrategy != nil {
 		hashutil.DeepHashObject(rolloutStepHasher, rollout.Spec.Strategy.CanaryStrategy.Steps)
