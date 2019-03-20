@@ -22,12 +22,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
-func newCanaryRolloutWithStatus(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString, stableRS string) *v1alpha1.Rollout {
-	ro := newCanaryRollout(name, replicas, revisionHistoryLimit, steps, stepIndex, maxSurge, maxUnavailable)
-	ro.Status.Canary.StableRS = stableRS
-	return ro
-}
-
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 	selector := map[string]string{"foo": "bar"}
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
