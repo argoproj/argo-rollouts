@@ -276,7 +276,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
-  name: argo-aggregate-to-admin
+  name: argo-rollouts-aggregate-to-admin
 rules:
 - apiGroups:
   - argoproj.io
@@ -297,7 +297,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
-  name: argo-aggregate-to-edit
+  name: argo-rollouts-aggregate-to-edit
 rules:
 - apiGroups:
   - argoproj.io
@@ -318,7 +318,7 @@ kind: ClusterRole
 metadata:
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
-  name: argo-aggregate-to-view
+  name: argo-rollouts-aggregate-to-view
 rules:
 - apiGroups:
   - argoproj.io
