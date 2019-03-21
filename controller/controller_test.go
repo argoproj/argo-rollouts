@@ -187,13 +187,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 
 	c := NewController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
-		k8sI.Core().V1().Services(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		resync())
 
 	c.rolloutsSynced = alwaysReady
 	c.replicaSetSynced = alwaysReady
-	c.serviceSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string

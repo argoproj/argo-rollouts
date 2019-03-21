@@ -15,12 +15,10 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
-	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -67,8 +65,6 @@ type Controller struct {
 
 	replicaSetLister appslisters.ReplicaSetLister
 	replicaSetSynced cache.InformerSynced
-	serviceLister    corelisters.ServiceLister
-	serviceSynced    cache.InformerSynced
 	rolloutsLister   listers.RolloutLister
 	rolloutsSynced   cache.InformerSynced
 
@@ -93,7 +89,6 @@ func NewController(
 	kubeclientset kubernetes.Interface,
 	rolloutsclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
-	serviceInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
 	resyncPeriod time.Duration) *Controller {
 
@@ -117,8 +112,6 @@ func NewController(
 		replicaSetControl: replicaSetControl,
 		replicaSetLister:  replicaSetInformer.Lister(),
 		replicaSetSynced:  replicaSetInformer.Informer().HasSynced,
-		serviceLister:     serviceInformer.Lister(),
-		serviceSynced:     serviceInformer.Informer().HasSynced,
 		rolloutsLister:    rolloutsInformer.Lister(),
 		rolloutsSynced:    rolloutsInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
@@ -149,12 +142,6 @@ func NewController(
 			controller.handleObject(new)
 		},
 		DeleteFunc: controller.handleObject,
-	})
-
-	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.handleService,
-		UpdateFunc: controller.updateService,
-		DeleteFunc: controller.handleService,
 	})
 
 	return controller
