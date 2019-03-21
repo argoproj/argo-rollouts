@@ -52,7 +52,7 @@ const (
 	MessageResourceSynced = "Rollout synced successfully"
 
 	// DefaultRolloutResyncPeriod Default time in seconds for rollout resync period
-	DefaultRolloutResyncPeriod = 30
+	DefaultRolloutResyncPeriod = 15 * 60
 )
 
 // Controller is the controller implementation for Rollout resources
