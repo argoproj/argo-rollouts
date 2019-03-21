@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
@@ -123,50 +122,6 @@ func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.R
 	}
 
 	return false, nil
-}
-
-func (c *Controller) getRolloutsForService(service *corev1.Service) ([]*v1alpha1.Rollout, error) {
-	allROs, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(service.Namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	rollouts := []*v1alpha1.Rollout{}
-	for _, rollout := range allROs.Items {
-		if rollout.Spec.Strategy.BlueGreenStrategy != nil && rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == service.Name {
-			copyRO := rollout.DeepCopy()
-			rollouts = append(rollouts, copyRO)
-		}
-	}
-	if len(rollouts) > 1 {
-		errMessage := fmt.Sprintf("More tha one rollout is selecting replica set %s/%s with labels: %#v",
-			service.Namespace, service.Name, service.Labels)
-		log.Error(errMessage)
-		return nil, fmt.Errorf(errMessage)
-	}
-	return rollouts, nil
-}
-
-func (c *Controller) handleService(obj interface{}) {
-	service := obj.(*corev1.Service)
-	rollouts, err := c.getRolloutsForService(service)
-	if err != nil {
-		return
-	}
-	if len(rollouts) != 1 {
-		return
-	}
-	c.enqueueRollout(rollouts[0])
-}
-
-func (c *Controller) updateService(old, cur interface{}) {
-	curSvc := cur.(*corev1.Service)
-	oldSvc := old.(*corev1.Service)
-	if curSvc.ResourceVersion == oldSvc.ResourceVersion {
-		// Periodic resync will send update events for all known services.
-		// Two different versions of the same replica set will always have different RVs.
-		return
-	}
-	c.handleService(cur)
 }
 
 func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
