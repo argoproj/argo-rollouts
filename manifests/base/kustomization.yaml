@@ -4,7 +4,7 @@ resources:
 - argo-rollouts-rolebinding.yaml
 - argo-rollouts-deployment.yaml
 - argo-rollouts-aggregate-roles.yaml
-
+- argo-rollouts-metrics-service.yaml
 imageTags:
 - name: argoproj/rollout-controlller
   newTag: latest

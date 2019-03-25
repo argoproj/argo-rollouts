@@ -68,3 +68,30 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	rolloutDefaultValue := &v1alpha1.Rollout{}
 	assert.Equal(t, intstr.FromInt(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
 }
+
+func TestGetStrategyType(t *testing.T) {
+	bgRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, "blueGreen", GetStrategyType(bgRollout))
+
+	canaryRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				CanaryStrategy: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, "canary", GetStrategyType(canaryRollout))
+
+	noStrategyRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{},
+		},
+	}
+	assert.Equal(t, "No Strategy listed", GetStrategyType(noStrategyRollout))
+}

@@ -27,7 +27,6 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return err
 	}
 	allRSs := append(oldRSs, newRS)
-
 	// Scale up, if we can.
 	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
 	scaledUp, err := c.reconcileNewReplicaSet(allRSs, newRS, r)
@@ -86,6 +85,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 			return err
 		}
 	}
+
 	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
 }
 

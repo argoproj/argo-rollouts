@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
 
+	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
@@ -67,6 +69,7 @@ type Controller struct {
 	replicaSetSynced cache.InformerSynced
 	rolloutsLister   listers.RolloutLister
 	rolloutsSynced   cache.InformerSynced
+	metricsServer    *metrics.MetricsServer
 
 	// used for unit testing
 	enqueueRollout      func(obj interface{})
@@ -105,6 +108,7 @@ func NewController(
 		KubeClient: kubeclientset,
 		Recorder:   recorder,
 	}
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", 8080)
 
 	controller := &Controller{
 		kubeclientset:     kubeclientset,
@@ -117,6 +121,7 @@ func NewController(
 		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
 		recorder:          recorder,
 		resyncPeriod:      resyncPeriod,
+		metricsServer:     metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister()),
 	}
 	controller.enqueueRollout = controller.enqueueRateLimited
 	controller.enqueueRolloutAfter = controller.enqueueAfter
@@ -171,6 +176,14 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 
 	log.Info("Started workers")
+	go func() {
+		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
+		err := c.metricsServer.ListenAndServe()
+		if err != nil {
+			err = errors.Wrap(err, "Starting Metric Server")
+			log.Fatal(err)
+		}
+	}()
 	<-stopCh
 	log.Info("Shutting down workers")
 
@@ -221,9 +234,15 @@ func (c *Controller) processNextWorkItem() bool {
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
 		if err := c.syncHandler(key); err != nil {
+			err := fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
+			namespace, name, splitErr := cache.SplitMetaNamespaceKey(key)
+			if splitErr != nil {
+				return errors.Wrapf(err, "Error splitting key %s: %s", key, splitErr.Error())
+			}
+			c.metricsServer.IncError(namespace, name)
 			// Put the item back on the workqueue to handle any transient errors.
 			c.workqueue.AddRateLimited(key)
-			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
+			return err
 		}
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
@@ -246,18 +265,14 @@ func (c *Controller) processNextWorkItem() bool {
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	log.WithField(logutil.RolloutKey, key).Infof("Started syncing rollout at (%v)", startTime)
-	defer func() {
-		log.WithField(logutil.RolloutKey, key).Infof("Finished syncing rollout (%v)", time.Since(startTime))
-	}()
-
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		log.WithField(logutil.RolloutKey, key).Infof("Rollout %v has been deleted", key)
-		return nil
+		return err
 	}
 	if err != nil {
 		return err
@@ -265,6 +280,12 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Deep-copy otherwise we are mutating our cache.
 	r := rollout.DeepCopy()
+	defer func() {
+		duration := time.Since(startTime)
+		c.metricsServer.IncReconcile(r, duration)
+		logCtx := logutil.WithRollout(r).WithField("time_ms", duration.Seconds()*1e3)
+		logCtx.Info("Reconciliation completed")
+	}()
 
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
