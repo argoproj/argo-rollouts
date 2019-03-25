@@ -48,3 +48,13 @@ func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 	defaultValue := intstr.FromInt(DefaultMaxUnavailable)
 	return &defaultValue
 }
+
+func GetStrategyType(rollout *v1alpha1.Rollout) string {
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		return "blueGreen"
+	}
+	if rollout.Spec.Strategy.CanaryStrategy != nil {
+		return "canary"
+	}
+	return "No Strategy listed"
+}

@@ -347,6 +347,7 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, newPause *bool) error {
+	c.metricsServer.IncPhase(orig, newStatus)
 	specCopy := orig.Spec.DeepCopy()
 	paused := specCopy.Paused
 	if newPause != nil {
