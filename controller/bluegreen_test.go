@@ -88,18 +88,31 @@ func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
 
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
+	f.checkObjects = true
 
-	r := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	s := newService("bar", 80, nil)
-	f.kubeobjects = append(f.kubeobjects, s)
+	previewSvc := newService("preview", 80, nil)
+	activeSvc := newService("active", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+	// Need to set the UID to empty string since the k8s api sets the UID instead of the controller when a RS is created. As a result, the controller leaves it empty
+	rs.UID = ""
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectGetServiceAction(s)
-	f.expectPatchRolloutAction(r)
+	f.expectGetServiceAction(activeSvc)
+	f.expectGetServiceAction(previewSvc)
+	expectedPatchWithoutSubs := `{
+		"status":{
+			"conditions": %s,
+			"selector": "foo=bar"
+		}
+	}`
+	_, availableStr := newAvailableCondition(false)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, availableStr)
+	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
 }
 

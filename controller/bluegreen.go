@@ -41,6 +41,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 
 	if previewSvc != nil {
 		logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
+		if !annotations.IsSaturated(r, newRS) {
+			logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
+			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+		}
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
 			return err
@@ -59,6 +63,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 
 	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
+	if !annotations.IsSaturated(r, newRS) {
+		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
+		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+	}
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
 		return err

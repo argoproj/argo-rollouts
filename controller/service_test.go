@@ -40,14 +40,6 @@ func TestReconcilePreviewService(t *testing.T) {
 		expectedResult         bool
 	}{
 		{
-			name:                   "Do not switch if the new RS isn't ready",
-			activeSvc:              newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "test"}),
-			previewSvc:             newService("preview", 80, nil),
-			newRSDesiredReplicas:   5,
-			newRSAvailableReplicas: 3,
-			expectedResult:         true,
-		},
-		{
 			name:                   "Continue if active service is already set to the newRS",
 			activeSvc:              newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
 			newRSDesiredReplicas:   5,

@@ -10,7 +10,6 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -39,10 +38,6 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
 	if previewSvc == nil {
 		return false, nil
-	}
-	if !annotations.IsSaturated(r, newRS) {
-		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
-		return true, nil
 	}
 
 	//If the active service selector does not point to any RS,
@@ -81,10 +76,6 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 }
 
 func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
-	if !annotations.IsSaturated(r, newRS) {
-		return false, nil
-	}
-
 	switchActiveSvc := true
 	if activeSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
