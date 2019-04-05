@@ -152,7 +152,7 @@ func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.Repli
 	for k, v := range r.Spec.Selector.MatchLabels {
 		rsLabels[k] = v
 	}
-	return &appsv1.ReplicaSet{
+	rs := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			UID:             uuid.NewUUID(),
@@ -170,6 +170,8 @@ func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.Repli
 			Template: r.Spec.Template,
 		},
 	}
+	rs.Spec.Template.ObjectMeta.Labels = rsLabels
+	return rs
 }
 
 func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
