@@ -134,6 +134,6 @@ Two sets of installation manifests are provided:
 
 You can install the Argo Rollouts using either of these manifests by using running the kubectl apply with either file or leveraging a GitOps tool like [argo-cd](https://github.com/argoproj/argo-cd) to deploy the Argo Rollouts.  Below is an example of how to install Argo Rollouts at a cluster-wide level.
 ```bash
-kubectl create namespace argo-rollouts
-kubectl -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/release-v0.2/manifests/install.yaml
+$ kubectl create namespace argo-rollouts
+$ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/release-v0.2/manifests/install.yaml
 ```
