@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -104,10 +105,13 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 			"paused": true
 		},
 		"status":{
-			"pauseStartTime":"%s"
+			"pauseStartTime":"%s",
+			"conditions": %s
 		}
 	}`
-	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339))
+
+	conditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, r2.Name, false)
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339), conditions)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -123,6 +127,9 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2.Name)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 
@@ -136,6 +143,45 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+}
+
+func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2.Name)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(addPausedConditionPatch)
+	_, pausedCondition := newProgressingCondition(conditions.PausedRolloutReason, rs2.Name)
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"conditions": [%s]
+		}
+	}`, pausedCondition)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
@@ -309,18 +355,26 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 
 	f.expectCreateReplicaSetAction(rs)
+	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
+	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progessingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progessingCondition.Message)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r, `{
-	"status":{
-		"canary":{
-			"stableRS":"895c6c4f9"
-		},
-		"currentPodHash":"895c6c4f9"
-	}
-}`)
+		"status":{
+			"canary":{
+				"stableRS":"895c6c4f9"
+			},
+			"currentPodHash":"895c6c4f9"
+		}
+	}`)
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -337,8 +391,16 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 
 	f.expectCreateReplicaSetAction(rs)
+	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
+
+	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progessingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progessingCondition.Message)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r, `{
@@ -367,16 +429,24 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 0)
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 0)
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+	updatedRolloutIndex := f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
+
+	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progessingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progessingCondition.Message)
 }
 
 func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
@@ -629,10 +699,12 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 			"paused": true
 		},
 		"status":{
-			"pauseStartTime": "%s"
+			"pauseStartTime": "%s",
+			"conditions": %s
 		}
 	}`
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339)))
+	condtions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, r2.Name, false)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339), condtions))
 
 	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
@@ -663,6 +735,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2.Name)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -701,6 +776,8 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2.Name)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -771,6 +848,8 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.Selector = ""
 	r2 := bumpVersion(r1)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2.Name)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 4, 4)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

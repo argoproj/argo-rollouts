@@ -10,6 +10,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -114,12 +115,16 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
-	logCtx := logutil.WithRollout(r)
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
 		previewSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				logCtx.Warnf("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+				c.recorder.Eventf(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+				newStatus := r.Status.DeepCopy()
+				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
+				conditions.SetRolloutCondition(newStatus, *cond)
+				c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
 			}
 			return nil, nil, err
 		}
@@ -130,7 +135,12 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	activeSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logCtx.Warnf("Service %v does not exist", r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
+			c.recorder.Eventf(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+			newStatus := r.Status.DeepCopy()
+			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
+			conditions.SetRolloutCondition(newStatus, *cond)
+			c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
 		}
 		return nil, nil, err
 	}

@@ -297,15 +297,20 @@ func (c *Controller) syncHandler(key string) error {
 		logutil.WithRollout(r).Error("Error: Spec submitted is invalid")
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			newStatus := r.Status
+			newStatus := r.Status.DeepCopy()
 			newStatus.ObservedGeneration = generation
-			conditions.SetRolloutCondition(&newStatus, *invalidSpecCond)
-			err := c.persistRolloutStatus(r, &newStatus, nil)
+			conditions.SetRolloutCondition(newStatus, *invalidSpecCond)
+			err := c.persistRolloutStatus(r, newStatus, nil)
 			if err != nil {
 				return err
 			}
 		}
 		return nil
+	}
+
+	err = c.checkPausedConditions(r)
+	if err != nil {
+		return err
 	}
 
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef

@@ -410,8 +410,133 @@ func TestHasRevisionHistoryLimit(t *testing.T) {
 	assert.True(t, HasRevisionHistoryLimit(r))
 }
 
+func TestRolloutProgressing(t *testing.T) {
+	rolloutStatus := func(current, updated, ready, available int32) v1alpha1.RolloutStatus {
+		return v1alpha1.RolloutStatus{
+			Replicas:          current,
+			UpdatedReplicas:   updated,
+			ReadyReplicas:     ready,
+			AvailableReplicas: available,
+		}
+	}
+	blueGreenStatus := func(current, updated, ready, available int32, activeSelector, previewSelector string) v1alpha1.RolloutStatus {
+		status := rolloutStatus(current, updated, ready, available)
+		status.BlueGreen.ActiveSelector = activeSelector
+		status.BlueGreen.PreviewSelector = previewSelector
+		return status
+	}
+	canaryStatus := func(current, updated, ready, available int32, stableRS string, index int32, stepHash string) v1alpha1.RolloutStatus {
+		status := rolloutStatus(current, updated, ready, available)
+		status.Canary.StableRS = stableRS
+		status.CurrentStepIndex = &index
+		status.CurrentStepHash = stepHash
+		return status
+	}
+	blueGreenRollout := func(current, updated, ready, available int32, activeSelector, previewSelector string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				},
+			},
+			Status: blueGreenStatus(current, updated, ready, available, activeSelector, previewSelector),
+		}
+	}
+	canaryRollout := func(current, updated, ready, available int32, stableRS string, index int32, stepHash string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					CanaryStrategy: &v1alpha1.CanaryStrategy{},
+				},
+			},
+			Status: canaryStatus(current, updated, ready, available, stableRS, index, stepHash),
+		}
+	}
+
+	tests := []struct {
+		name           string
+		updatedRollout *v1alpha1.Rollout
+		oldStatus      v1alpha1.RolloutStatus
+		expected       bool
+	}{
+		{
+			name:           "BlueGreen: Active Selector change",
+			updatedRollout: blueGreenRollout(1, 1, 1, 1, "active", "preview"),
+			oldStatus:      blueGreenStatus(1, 1, 1, 1, "", "preview"),
+			expected:       true,
+		},
+		{
+			name:           "BlueGreen: Preview Selector change",
+			updatedRollout: blueGreenRollout(1, 1, 1, 1, "active", "preview"),
+			oldStatus:      blueGreenStatus(1, 1, 1, 1, "active", ""),
+			expected:       true,
+		},
+		{
+			name:           "BlueGreen: No change",
+			updatedRollout: blueGreenRollout(1, 1, 1, 1, "active", "preview"),
+			oldStatus:      blueGreenStatus(1, 1, 1, 1, "active", "preview"),
+			expected:       false,
+		},
+		{
+			name:           "Canary: Stable Selector change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 1, "", 1, "abcdef"),
+			expected:       true,
+		},
+		{
+			name:           "Canary: StepIndex change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 1, "active", 2, "abcdef"),
+			expected:       true,
+		},
+		{
+			name:           "Canary: StepHash change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 1, "active", 1, "12345"),
+			expected:       true,
+		},
+		{
+			name:           "Canary: No change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 1, "active", 1, "abcdef"),
+			expected:       false,
+		},
+		{
+			name:           "Updated Replica change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 2, 1, 1, "active", 1, "abcdef"),
+			expected:       true,
+		},
+		{
+			name:           "Ready Replica change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 2, 1, "active", 1, "abcdef"),
+			expected:       true,
+		},
+		{
+			name:           "Available Replica change",
+			updatedRollout: canaryRollout(1, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 2, "active", 1, "abcdef"),
+			expected:       true,
+		},
+		{
+			name:           "Old Replica Replica change",
+			updatedRollout: canaryRollout(2, 1, 1, 1, "active", 1, "abcdef"),
+			oldStatus:      canaryStatus(1, 1, 1, 2, "active", 1, "abcdef"),
+			expected:       true,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, RolloutProgressing(test.updatedRollout, &test.oldStatus))
+		})
+	}
+
+}
+
 func TestRolloutComplete(t *testing.T) {
-	rollout := func(desired, current, updated, available int32, pointActiveAtPodHash bool, correctObservedGeneration bool) *v1alpha1.Rollout {
+	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas: &desired,
@@ -424,11 +549,40 @@ func TestRolloutComplete(t *testing.T) {
 		}
 		podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 		r.Status.CurrentPodHash = podHash
+		return r
+	}
+
+	blueGreenRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, activeSelector, previewSelector string) *v1alpha1.Rollout {
+		r := rollout(desired, current, updated, available, correctObservedGeneration)
+		r.Spec.Strategy = v1alpha1.RolloutStrategy{
+			BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				PreviewService: "preview",
+				ActiveService:  "active",
+			},
+		}
+		r.Status.BlueGreen.ActiveSelector = activeSelector
+		r.Status.BlueGreen.PreviewSelector = previewSelector
 		if correctObservedGeneration {
 			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
 		}
-		if pointActiveAtPodHash {
-			r.Status.BlueGreen.ActiveSelector = podHash
+		return r
+	}
+
+	canaryRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, stableRS string, hasSteps bool, stepIndex *int32) *v1alpha1.Rollout {
+		r := rollout(desired, current, updated, available, correctObservedGeneration)
+		steps := []v1alpha1.CanaryStep{}
+		if hasSteps {
+			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(30)})
+		}
+		r.Spec.Strategy = v1alpha1.RolloutStrategy{
+			CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Steps: steps,
+			},
+		}
+		r.Status.Canary.StableRS = stableRS
+		r.Status.CurrentStepIndex = stepIndex
+		if correctObservedGeneration {
+			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
 		}
 		return r
 	}
@@ -439,35 +593,59 @@ func TestRolloutComplete(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "complete",
-
-			r:        rollout(5, 5, 5, 5, true, true),
+			name:     "BlueGreen complete",
+			r:        blueGreenRollout(5, 5, 5, 5, true, "56548459cd", ""),
 			expected: true,
+		},
+		{
+			name:     "BlueGreen not completed: active service does not point at updated rs",
+			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
+			expected: false,
+		},
+		{
+			name:     "BlueGreen not completed:: preview service points at something",
+			r:        blueGreenRollout(1, 1, 1, 1, true, "active", "preview"),
+			expected: false,
+		},
+		{
+			name:     "CanaryWithSteps Completed",
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
+			expected: false,
+		},
+		{
+			name:     "CanaryWithSteps Not Completed: Steps left",
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
+			expected: false,
+		},
+		{
+			name:     "CanaryNoSteps Completed",
+			r:        canaryRollout(1, 1, 1, 1, true, "active", false, nil),
+			expected: false,
+		},
+		{
+			name:     "Canary Not Completed: Diff stableRs",
+			r:        canaryRollout(1, 1, 1, 1, true, "not-active", false, nil),
+			expected: false,
 		},
 		{
 			name: "not complete: min but not all pods become available",
 
-			r:        rollout(5, 5, 5, 4, true, true),
+			r:        rollout(5, 5, 5, 4, true),
 			expected: false,
 		},
 		{
 			name:     "not complete: all pods are available but not all active",
-			r:        rollout(5, 5, 4, 5, true, true),
+			r:        rollout(5, 5, 4, 5, true),
 			expected: false,
 		},
 		{
 			name:     "not complete: still running old pods",
-			r:        rollout(1, 2, 1, 1, true, true),
+			r:        rollout(1, 2, 1, 1, true),
 			expected: false,
 		},
 		{
 			name:     "not complete: Mismatching ObservedGeneration",
-			r:        rollout(1, 2, 1, 1, true, false),
-			expected: false,
-		},
-		{
-			name:     "not complete: active service does not point at updated rs",
-			r:        rollout(1, 1, 1, 1, false, true),
+			r:        rollout(1, 2, 1, 1, false),
 			expected: false,
 		},
 	}
@@ -478,6 +656,77 @@ func TestRolloutComplete(t *testing.T) {
 		})
 	}
 
+}
+
+func TestRolloutTimedOut(t *testing.T) {
+
+	before := metav1.Time{
+		Time: metav1.Now().Add(-10 * time.Second),
+	}
+
+	conditons := func(reason string, lastUpdate metav1.Time) []v1alpha1.RolloutCondition {
+		return []v1alpha1.RolloutCondition{{
+			Type:           v1alpha1.RolloutProgressing,
+			Reason:         reason,
+			LastUpdateTime: lastUpdate,
+		}}
+	}
+
+	tests := []struct {
+		name                    string
+		progressDeadlineSeconds int32
+		newStatus               v1alpha1.RolloutStatus
+		expected                bool
+	}{
+		{
+			name: "New RS is Available",
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditons(NewRSAvailableReason, metav1.Now()),
+			},
+			expected: false,
+		},
+		{
+			name: "Has no progressing condition",
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: []v1alpha1.RolloutCondition{},
+			},
+			expected: false,
+		},
+		{
+			name: "Rollout is already has timed out condition",
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditons(TimedOutReason, metav1.Now()),
+			},
+			expected: true,
+		},
+		{
+			name:                    "Rollout has not timed out",
+			progressDeadlineSeconds: 30,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditons(ReplicaSetUpdatedReason, before),
+			},
+			expected: false,
+		},
+		{
+			name:                    "Rollout has timed out",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditons(ReplicaSetUpdatedReason, before),
+			},
+			expected: true,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			rollout := &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					ProgressDeadlineSeconds: &test.progressDeadlineSeconds,
+				},
+			}
+			assert.Equal(t, test.expected, RolloutTimedOut(rollout, &test.newStatus))
+		})
+	}
 }
 
 func TestComputeGenerationHash(t *testing.T) {

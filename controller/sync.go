@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -77,6 +78,17 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 
 		// Should use the revision in existingNewRS's annotation, since it set by before
 		needsUpdate := annotations.SetRolloutRevision(rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
+		// If no other Progressing condition has been recorded and we need to estimate the progress
+		// of this rollout then it is likely that old users started caring about progress. In that
+		// case we need to take into account the first time we noticed their new replica set.
+		cond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.RolloutProgressing)
+		if cond == nil {
+			msg := fmt.Sprintf(conditions.FoundNewRSMessage, rsCopy.Name)
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FoundNewRSReason, msg)
+			conditions.SetRolloutCondition(&rollout.Status, *condition)
+			needsUpdate = true
+		}
+
 		if needsUpdate {
 			var err error
 			logCtx.Info("Setting revision annotation after creating a new replicaset")
@@ -166,17 +178,28 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		}
 		return nil, err
 	case err != nil:
-		msg := fmt.Sprintf("Failed to create new replica set %q: %v", newRS.Name, err)
+		msg := fmt.Sprintf(conditions.FailedRSCreateMessage, newRS.Name, err)
 		c.recorder.Eventf(rollout, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
+		newStatus := rollout.Status.DeepCopy()
+		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
+		conditions.SetRolloutCondition(newStatus, *cond)
+		c.persistRolloutStatus(rollout, newStatus, &rollout.Spec.Paused)
 		return nil, err
 	}
+
 	if !alreadyExists && newReplicasCount > 0 {
 		c.recorder.Eventf(rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
 	needsUpdate := annotations.SetRolloutRevision(rollout, newRevision)
+	if !alreadyExists {
+		msg := fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name)
+		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewReplicaSetReason, msg)
+		conditions.SetRolloutCondition(&rollout.Status, *condition)
+		needsUpdate = true
+	}
+
 	if needsUpdate {
-		logCtx.Info("Setting rollout revision annotation after creating new replicaset")
 		_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 	}
 	return createdRS, err
@@ -328,6 +351,37 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 	return nil
 }
 
+// checkPausedConditions checks if the given rollout is paused or not and adds an appropriate condition.
+// These conditions are needed so that we won't accidentally report lack of progress for resumed rollouts
+// that were paused for longer than progressDeadlineSeconds.
+func (c *Controller) checkPausedConditions(r *v1alpha1.Rollout) error {
+	cond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
+	if cond != nil && cond.Reason == conditions.TimedOutReason {
+		// If we have reported lack of progress, do not overwrite it with a paused condition.
+		return nil
+	}
+	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
+
+	newStatus := r.Status.DeepCopy()
+	needsUpdate := false
+	if r.Spec.Paused && !pausedCondExists {
+		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
+		conditions.SetRolloutCondition(newStatus, *condition)
+		needsUpdate = true
+	} else if !r.Spec.Paused && pausedCondExists {
+		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
+		conditions.SetRolloutCondition(newStatus, *condition)
+		needsUpdate = true
+	}
+
+	if !needsUpdate {
+		return nil
+	}
+
+	err := c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
+	return err
+}
+
 // CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)
 func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
@@ -343,6 +397,83 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 		return nil, false, err
 	}
 	return patch, string(patch) != "{}", nil
+}
+
+func (c *Controller) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) v1alpha1.RolloutStatus {
+	if r.Spec.Paused {
+		return newStatus
+	}
+
+	// If there is only one replica set that is active then that means we are not running
+	// a new rollout and this is a resync where we don't need to estimate any progress.
+	// In such a case, we should simply not estimate any progress for this rollout.
+	currentCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
+	isCompleteRollout := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason
+	// Check for progress only if the latest rollout hasn't completed yet.
+	if !isCompleteRollout {
+		switch {
+		case conditions.RolloutComplete(r, &newStatus):
+			// Update the rollout conditions with a message for the new replica set that
+			// was successfully deployed. If the condition already exists, we ignore this update.
+			msg := fmt.Sprintf(conditions.RolloutCompletedMessage, r.Name)
+			if newRS != nil {
+				msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, newRS.Name)
+			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *condition)
+
+		case conditions.RolloutProgressing(r, &newStatus):
+			// If there is any progress made, continue by not checking if the rollout failed. This
+			// behavior emulates the rolling updater progressDeadline check.
+			msg := fmt.Sprintf(conditions.RolloutProgressingMessage, r.Name)
+			if newRS != nil {
+				msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, newRS.Name)
+			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.ReplicaSetUpdatedReason, msg)
+			// Update the current Progressing condition or add a new one if it doesn't exist.
+			// If a Progressing condition with status=true already exists, we should update
+			// everything but lastTransitionTime. SetRolloutCondition already does that but
+			// it also is not updating conditions when the reason of the new condition is the
+			// same as the old. The Progressing condition is a special case because we want to
+			// update with the same reason and change just lastUpdateTime iff we notice any
+			// progress. That's why we handle it here.
+			if currentCond != nil {
+				if currentCond.Status == corev1.ConditionTrue {
+					condition.LastTransitionTime = currentCond.LastTransitionTime
+				}
+				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
+			}
+			conditions.SetRolloutCondition(&newStatus, *condition)
+
+		case conditions.RolloutTimedOut(r, &newStatus):
+			// Update the rollout with a timeout condition. If the condition already exists,
+			// we ignore this update.
+			msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, r.Name)
+			if newRS != nil {
+				msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, newRS.Name)
+			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *condition)
+		}
+	}
+
+	if newRS != nil && annotations.IsSaturated(r, newRS) {
+		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
+		conditions.SetRolloutCondition(&newStatus, *availability)
+	} else {
+		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.Available, "Rollout is not serving traffic from the active service.")
+		conditions.SetRolloutCondition(&newStatus, *noAvailability)
+	}
+
+	// Move failure conditions of all replica sets in rollout conditions. For now,
+	// only one failure condition is returned from getReplicaFailures.
+	if replicaFailureCond := c.getReplicaFailures(allRSs, newRS); len(replicaFailureCond) > 0 {
+		// There will be only one ReplicaFailure condition on the replica set.
+		conditions.SetRolloutCondition(&newStatus, replicaFailureCond[0])
+	} else {
+		conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutReplicaFailure)
+	}
+	return newStatus
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
@@ -376,6 +507,7 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 	}
 	if !modified {
 		logCtx.Info("No status changes. Skipping patch")
+		c.requeueStuckRollout(orig, *newStatus)
 		return nil
 	}
 	logCtx.Debugf("Rollout Patch: %s", patch)
@@ -386,4 +518,87 @@ func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1a
 	}
 	logCtx.Info("Patch status successfully")
 	return nil
+}
+
+// used for unit testing
+var nowFn = func() time.Time { return time.Now() }
+
+// requeueStuckRollout checks whether the provided rollout needs to be synced for a progress
+// check. It returns the time after the rollout will be requeued for the progress check, 0 if it
+// will be requeued now, or -1 if it does not need to be requeued.
+func (c *Controller) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus) time.Duration {
+	logctx := logutil.WithRollout(r)
+	currentCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
+	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
+	if currentCond == nil {
+		return time.Duration(-1)
+	}
+	// No need to estimate progress if the rollout is complete or already timed out.
+	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || r.Spec.Paused {
+		return time.Duration(-1)
+	}
+	// If there is no sign of progress at this point then there is a high chance that the
+	// rollout is stuck. We should resync this rollout at some point in the future[1]
+	// and check whether it has timed out. We definitely need this, otherwise we depend on the
+	// controller resync interval. See https://github.com/kubernetes/kubernetes/issues/34458.
+	//
+	// [1] ProgressingCondition.LastUpdatedTime + progressDeadlineSeconds - time.Now()
+	//
+	// For example, if a Rollout updated its Progressing condition 3 minutes ago and has a
+	// deadline of 10 minutes, it would need to be resynced for a progress check after 7 minutes.
+	//
+	// lastUpdated: 			00:00:00
+	// now: 					00:03:00
+	// progressDeadlineSeconds: 600 (10 minutes)
+	//
+	// lastUpdated + progressDeadlineSeconds - now => 00:00:00 + 00:10:00 - 00:03:00 => 07:00
+	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(r)
+	after := currentCond.LastUpdateTime.Time.Add(time.Duration(progressDeadlineSeconds) * time.Second).Sub(nowFn())
+	// If the remaining time is less than a second, then requeue the deployment immediately.
+	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
+	// transition either to a Complete or to a TimedOut condition.
+	if after < time.Second {
+		logctx.Infof("Queueing up Rollout for a progress check now")
+		c.enqueueRateLimited(r)
+		return time.Duration(0)
+	}
+	logctx.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
+	// Add a second to avoid milliseconds skew in AddAfter.
+	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
+	c.enqueueAfter(r, after+time.Second)
+	return after
+}
+
+// getReplicaFailures will convert replica failure conditions from replica sets
+// to rollout conditions.
+func (c *Controller) getReplicaFailures(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) []v1alpha1.RolloutCondition {
+	var errorConditions []v1alpha1.RolloutCondition
+	if newRS != nil {
+		for _, c := range newRS.Status.Conditions {
+			if c.Type != appsv1.ReplicaSetReplicaFailure {
+				continue
+			}
+			errorConditions = append(errorConditions, conditions.ReplicaSetToRolloutCondition(c))
+		}
+	}
+
+	// Return failures for the new replica set over failures from old replica sets.
+	if len(errorConditions) > 0 {
+		return errorConditions
+	}
+
+	for i := range allRSs {
+		rs := allRSs[i]
+		if rs == nil {
+			continue
+		}
+
+		for _, c := range rs.Status.Conditions {
+			if c.Type != appsv1.ReplicaSetReplicaFailure {
+				continue
+			}
+			errorConditions = append(errorConditions, conditions.ReplicaSetToRolloutCondition(c))
+		}
+	}
+	return errorConditions
 }

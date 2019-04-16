@@ -19,11 +19,11 @@ import (
 // rolloutBlueGreen implements the logic for rolling a new replica set.
 func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
-	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, true)
+	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 	if err != nil {
 		return err
 	}
-	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, true)
 	if err != nil {
 		return err
 	}
@@ -162,19 +162,9 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 	}
 
-	prevStatus := r.Status
-
-	if activeRS != nil && annotations.IsSaturated(r, activeRS) {
-		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.Available, "Rollout is serving traffic from the active service.")
-		conditions.SetRolloutCondition(&prevStatus, *availability)
-	} else {
-		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.Available, "Rollout is not serving traffic from the active service.")
-		conditions.SetRolloutCondition(&prevStatus, *noAvailability)
-	}
-	newStatus.Conditions = prevStatus.Conditions
-
 	pauseStartTime, paused := calculatePauseStatus(r, addPause)
 	newStatus.PauseStartTime = pauseStartTime
+	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 

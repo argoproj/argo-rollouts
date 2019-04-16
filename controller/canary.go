@@ -286,5 +286,6 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.PauseStartTime = pauseStartTime
 
 	newStatus.CurrentStepIndex = currentStepIndex
+	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }

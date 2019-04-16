@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 func newService(name string, port int, selector map[string]string) *corev1.Service {
@@ -218,4 +220,55 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
 	})
 
+}
+
+func TestActiveServiceNotFound(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active-svc", "preview-svc")
+	r.Status.Conditions = []v1alpha1.RolloutCondition{}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	previewSvc := newService("preview-svc", 80, nil)
+	notUsedActiveSvc := newService("active-svc", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, previewSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectGetServiceAction(previewSvc)
+	f.expectGetServiceAction(notUsedActiveSvc)
+	f.runExpectError(getKey(r, t), true)
+
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+			"status": {
+				"conditions": [%s]
+			}
+		}`
+	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedActiveSvc.Name)
+	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
+}
+
+func TestPreviewServiceNotFound(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active-svc", "preview-svc")
+	r.Status.Conditions = []v1alpha1.RolloutCondition{}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	activeSvc := newService("active-svc", 80, nil)
+	notUsedPreviewSvc := newService("preview-svc", 80, nil)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+
+	f.expectGetServiceAction(notUsedPreviewSvc)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.runExpectError(getKey(r, t), true)
+
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+			"status": {
+				"conditions": [%s]
+			}
+		}`
+	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc.Name)
+	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }
