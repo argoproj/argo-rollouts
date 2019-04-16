@@ -33,3 +33,10 @@ rules:
   - update
   - watch
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+
