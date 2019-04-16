@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,14 +23,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 var (
@@ -100,6 +101,8 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 		},
 		Status: v1alpha1.RolloutStatus{},
 	}
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, ro.Name)
+	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 	return ro
 }
 
@@ -110,6 +113,74 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, ava
 	return rs
 }
 
+func newProgressingCondition(reason, resourceName string) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := ""
+	if reason == conditions.ReplicaSetUpdatedReason {
+		msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, resourceName)
+	}
+	if reason == conditions.NewReplicaSetReason {
+		msg = fmt.Sprintf(conditions.NewReplicaSetMessage, resourceName)
+	}
+	if reason == conditions.PausedRolloutReason {
+		msg = conditions.PausedRolloutMessage
+		status = corev1.ConditionUnknown
+	}
+	if reason == conditions.ResumedRolloutReason {
+		msg = conditions.ResumeRolloutMessage
+		status = corev1.ConditionUnknown
+	}
+	if reason == conditions.ServiceNotFoundReason {
+		msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resourceName)
+		status = corev1.ConditionFalse
+	}
+
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            msg,
+		Reason:             reason,
+		Status:             status,
+		Type:               v1alpha1.RolloutProgressing,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+
+}
+
+func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
+	message := "Rollout is not serving traffic from the active service."
+	status := corev1.ConditionFalse
+	if available {
+		message = "Rollout is serving traffic from the active service."
+		status = corev1.ConditionTrue
+
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            message,
+		Reason:             "Available",
+		Status:             status,
+		Type:               v1alpha1.RolloutAvailable,
+	}
+	conditionBytes, _ := json.Marshal(condition)
+	return condition, string(conditionBytes)
+}
+
+func generateConditionsPatch(available bool, progressingReason, progressingResourceName string, availableConditionFirst bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingConditon := newProgressingCondition(progressingReason, progressingResourceName)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s]", availableCondition, progressingConditon)
+	}
+	return fmt.Sprintf("[%s, %s]", progressingConditon, availableCondition)
+}
+
+// func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
 func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, hpaReplicas, pause)
 	selector := newRollout.Spec.Selector.DeepCopy()
@@ -120,7 +191,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.BlueGreen.ActiveSelector = active
 	newRollout.Status.BlueGreen.PreviewSelector = preview
 	cond, _ := newAvailableCondition(available)
-	newRollout.Status.Conditions = cond
+	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
@@ -472,7 +543,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
-		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	return string(patchAction.GetPatch())
 }
@@ -486,4 +557,112 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
+}
+
+func TestAdoptReplicaSet(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r.Status.Conditions = []v1alpha1.RolloutCondition{}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	previewSvc := newService("preview", 80, nil)
+	activeSvc := newService("active", 80, nil)
+
+	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	f.expectGetServiceAction(activeSvc)
+	f.expectGetServiceAction(previewSvc)
+	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progressingCondition)
+	assert.Equal(t, fmt.Sprintf(conditions.FoundNewRSMessage, rs.Name), progressingCondition.Message)
+	assert.Equal(t, conditions.FoundNewRSReason, progressingCondition.Reason)
+}
+
+func TestRequeueStuckRollout(t *testing.T) {
+	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progessDeadlineSeconds *int32) *v1alpha1.Rollout {
+		r := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Replicas:                pointer.Int32Ptr(0),
+				Paused:                  rolloutPaused,
+				ProgressDeadlineSeconds: progessDeadlineSeconds,
+			},
+		}
+		if rolloutCompleted {
+			r.Status.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
+		}
+
+		if progressingConditionReason != "" {
+			lastUpdated := metav1.Time{
+				Time: metav1.Now().Add(-10 * time.Second),
+			}
+			r.Status.Conditions = []v1alpha1.RolloutCondition{{
+				Type:           v1alpha1.RolloutProgressing,
+				Reason:         progressingConditionReason,
+				LastUpdateTime: lastUpdated,
+			}}
+		}
+
+		return r
+	}
+
+	tests := []struct {
+		name               string
+		rollout            *v1alpha1.Rollout
+		requeueImmediately bool
+		noRequeue          bool
+	}{
+		{
+			name:      "No Progressing Condition",
+			rollout:   rollout("", false, false, nil),
+			noRequeue: true,
+		},
+		{
+			name:      "Rollout Completed",
+			rollout:   rollout(conditions.ReplicaSetUpdatedReason, true, false, nil),
+			noRequeue: true,
+		},
+		{
+			name:      "Rollout Timed out",
+			rollout:   rollout(conditions.TimedOutReason, false, false, nil),
+			noRequeue: true,
+		},
+		{
+			name:      "Rollout Paused",
+			rollout:   rollout(conditions.ReplicaSetUpdatedReason, false, true, nil),
+			noRequeue: true,
+		},
+		{
+			name:               "Less than a second",
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			requeueImmediately: true,
+		},
+		{
+			name:    "More than a second",
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			f := newFixture(t)
+			c, _, _ := f.newController(noResyncPeriodFunc)
+			duration := c.requeueStuckRollout(test.rollout, test.rollout.Status)
+			if test.noRequeue {
+				assert.Equal(t, time.Duration(-1), duration)
+			} else if test.requeueImmediately {
+				assert.Equal(t, time.Duration(0), duration)
+			} else {
+				assert.NotEqual(t, time.Duration(-1), duration)
+				assert.NotEqual(t, time.Duration(0), duration)
+			}
+		})
+	}
 }

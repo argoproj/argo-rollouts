@@ -15,6 +15,8 @@ const (
 	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
 	DefaultMaxUnavailable = 0
+	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
+	DefaultProgressDeadlineSeconds = int32(600)
 )
 
 // GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
@@ -57,4 +59,11 @@ func GetStrategyType(rollout *v1alpha1.Rollout) string {
 		return "canary"
 	}
 	return "No Strategy listed"
+}
+
+func GetProgressDeadlineSecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Spec.ProgressDeadlineSeconds != nil {
+		return *rollout.Spec.ProgressDeadlineSeconds
+	}
+	return DefaultProgressDeadlineSeconds
 }

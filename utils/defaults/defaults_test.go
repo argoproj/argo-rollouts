@@ -95,3 +95,16 @@ func TestGetStrategyType(t *testing.T) {
 	}
 	assert.Equal(t, "No Strategy listed", GetStrategyType(noStrategyRollout))
 }
+
+func TestGetProgressDeadlineSecondsOrDefault(t *testing.T) {
+	seconds := int32(2)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			ProgressDeadlineSeconds: &seconds,
+		},
+	}
+
+	assert.Equal(t, seconds, GetProgressDeadlineSecondsOrDefault(rolloutNonDefaultValue))
+	rolloutDefaultValue := &v1alpha1.Rollout{}
+	assert.Equal(t, DefaultProgressDeadlineSeconds, GetProgressDeadlineSecondsOrDefault(rolloutDefaultValue))
+}

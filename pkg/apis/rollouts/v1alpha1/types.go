@@ -46,6 +46,13 @@ type RolloutSpec struct {
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 	// Paused pauses the rollout at its current step.
 	Paused bool `json:"paused,omitempty"`
+	// ProgressDeadlineSeconds The maximum time in seconds for a rollout to
+	// make progress before it is considered to be failed. Argo Rollouts will
+	// continue to process failed rollouts and a condition with a
+	// ProgressDeadlineExceeded reason will be surfaced in the rollout status.
+	// Note that progress will not be estimated during the time a rollout is paused.
+	// Defaults to 600s.
+	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
 }
 
 const (
@@ -74,7 +81,7 @@ type BlueGreenStrategy struct {
 	// +optional
 }
 
-// ReplicaBasedCanaryStrategy defines parameters for a Replica Based Canary
+// CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
@@ -121,6 +128,7 @@ type SetPreview struct{}
 // SwitchActive empty struct to indicate the SetActive step
 type SwitchActive struct{}
 
+// RolloutPause defines a pause stage for a rollout
 type RolloutPause struct {
 	// Duration the amount of time to wait before moving to the next step.
 	// +optional
@@ -205,9 +213,17 @@ const (
 	// InvalidSpec means the rollout has an invalid spec and will not progress until
 	// the spec is fixed.
 	InvalidSpec RolloutConditionType = "InvalidSpec"
-	// Available means the rollout is available, ie. the active service is pointing at a
+	// RolloutAvailable means the rollout is available, ie. the active service is pointing at a
 	// replicaset with the required replicas up and running for at least minReadySeconds.
 	RolloutAvailable RolloutConditionType = "Available"
+	// RolloutProgressing means the rollout is progressing. Progress for a rollout is
+	// considered when a new replica set is created or adopted, when pods scale
+	// up or old pods scale down, or when the services are updated. Progress is not estimated
+	// for paused rollouts.
+	RolloutProgressing RolloutConditionType = "Progressing"
+	// RolloutReplicaFailure ReplicaFailure is added in a deployment when one of its pods
+	// fails to be created or deleted.
+	RolloutReplicaFailure RolloutConditionType = "ReplicaFailure"
 )
 
 // RolloutCondition describes the state of a rollout at a certain point.
