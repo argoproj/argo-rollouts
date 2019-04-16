@@ -88,7 +88,6 @@ func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
 
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
-	f.checkObjects = true
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -111,9 +110,12 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 		}
 	}`
 	_, availableStr := newAvailableCondition(false)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, availableStr)
-	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
+	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, availableStr))
+	index := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
+
+	patch := f.getPatchedRollout(index)
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestBlueGreenSetPreviewService(t *testing.T) {
@@ -142,7 +144,6 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 func TestBlueGreenHandlePause(t *testing.T) {
 	t.Run("NoActionsWhilePaused", func(t *testing.T) {
 		f := newFixture(t)
-		f.checkObjects = true
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r2 := bumpVersion(r1)
@@ -166,13 +167,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		f.expectGetServiceAction(activeSvc)
 		f.expectGetServiceAction(previewSvc)
-		f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
+		patch := f.getPatchedRollout(patchIndex)
+		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
 	t.Run("SkipWhenNoPreviewSpecified", func(t *testing.T) {
 		f := newFixture(t)
-		f.checkObjects = true
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 		r2 := bumpVersion(r1)
@@ -193,7 +195,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 		f.expectGetServiceAction(activeSvc)
-		f.expectPatchServiceAction(activeSvc, rs2PodHash)
+		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -201,14 +203,18 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				}
 			}
 		}`
-		expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash)
-		f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash))
+		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
+
+		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs2PodHash))
+
+		rolloutPatch := f.getPatchedRollout(patchIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
 	t.Run("SkipNoActiveSelector", func(t *testing.T) {
 		f := newFixture(t)
-		f.checkObjects = true
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 
@@ -227,7 +233,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		f.expectGetServiceAction(activeSvc)
 		f.expectGetServiceAction(previewSvc)
-		f.expectPatchServiceAction(activeSvc, rs1PodHash)
+		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs1PodHash)
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -235,14 +241,18 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				}
 			}
 		}`
-		expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash)
-		f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
+		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash))
+		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
 		f.run(getKey(r1, t))
+
+		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs1PodHash))
+
+		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
 	t.Run("ContinueAfterUnpaused", func(t *testing.T) {
 		f := newFixture(t)
-		f.checkObjects = true
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r2 := bumpVersion(r1)
@@ -268,7 +278,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		f.expectGetServiceAction(activeSvc)
 		f.expectGetServiceAction(previewSvc)
-		f.expectPatchServiceAction(activeSvc, rs2PodHash)
+		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -277,9 +287,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"pauseStartTime": null
 			}
 		}`
-		expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash)
-		f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash))
+		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
+
+		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs2PodHash))
+
+		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 }
 
@@ -339,7 +354,6 @@ func TestBlueGreenScaleDownOldRS(t *testing.T) {
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	f := newFixture(t)
-	f.checkObjects = true
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r2 := bumpVersion(r)
@@ -372,12 +386,15 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 		}
 	}`
 	_, availableStr := newAvailableCondition(true)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSubs, availableStr, rs1PodHash)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, availableStr, rs1PodHash))
 
 	f.expectGetServiceAction(activeSvc)
 	f.expectGetServiceAction(previewSvc)
-	f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
+
+	rolloutPatch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, rolloutPatch)
 }
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {

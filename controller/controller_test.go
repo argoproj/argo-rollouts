@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
@@ -28,6 +27,8 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 var (
@@ -59,13 +60,11 @@ type fixture struct {
 	kubeobjects     []runtime.Object
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
-	checkObjects    bool
 }
 
 func newFixture(t *testing.T) *fixture {
 	f := &fixture{}
 	f.t = t
-	f.checkObjects = false
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
@@ -288,7 +287,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		}
 
 		expectedAction := f.actions[i]
-		checkAction(expectedAction, action, f.t, f.checkObjects)
+		checkAction(expectedAction, action, f.t)
 	}
 
 	if len(f.actions) > len(actions) {
@@ -303,7 +302,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		}
 
 		expectedAction := f.kubeactions[i]
-		checkAction(expectedAction, action, f.t, f.checkObjects)
+		checkAction(expectedAction, action, f.t)
 	}
 
 	if len(f.kubeactions) > len(k8sActions) {
@@ -313,7 +312,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 }
 
 // checkAction verifies that expected and actual actions are equal
-func checkAction(expected, actual core.Action, t *testing.T, checkObjects bool) {
+func checkAction(expected, actual core.Action, t *testing.T) {
 	if !(expected.Matches(actual.GetVerb(), actual.GetResource().Resource) && actual.GetSubresource() == expected.GetSubresource()) {
 		t.Errorf("Expected\n\t%#v\ngot\n\t%#v", expected, actual)
 		if patch, ok := actual.(core.PatchAction); ok {
@@ -330,38 +329,6 @@ func checkAction(expected, actual core.Action, t *testing.T, checkObjects bool) 
 	if reflect.TypeOf(actual) != reflect.TypeOf(expected) {
 		t.Errorf("Action has wrong type. Expected: %t. Got: %t", expected, actual)
 		return
-	}
-	if !checkObjects {
-		return
-	}
-	switch a := actual.(type) {
-	case core.CreateAction:
-		e, _ := expected.(core.CreateAction)
-		expObject := e.GetObject()
-		object := a.GetObject()
-
-		if !reflect.DeepEqual(expObject, object) {
-			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
-		}
-	case core.UpdateAction:
-		e, _ := expected.(core.UpdateAction)
-		expObject := e.GetObject()
-		object := a.GetObject()
-
-		if !reflect.DeepEqual(expObject, object) {
-			t.Errorf("Action %s %s has wrong object\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(expObject, object))
-		}
-	case core.PatchAction:
-		e, _ := expected.(core.PatchAction)
-		expPatch := e.GetPatch()
-		patch := a.GetPatch()
-
-		if !reflect.DeepEqual(expPatch, patch) {
-			t.Errorf("Action %s %s has wrong patch\nDiff:\n %s",
-				a.GetVerb(), a.GetResource().Resource, diff.ObjectGoPrintDiff(string(expPatch), string(patch)))
-		}
 	}
 }
 
@@ -393,47 +360,122 @@ func (f *fixture) expectGetServiceAction(s *corev1.Service) {
 	f.kubeactions = append(f.kubeactions, core.NewGetAction(serviceSchema, s.Namespace, s.Name))
 }
 
-func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) {
+func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) int {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newLabel)
 	serviceSchema := schema.GroupVersionResource{
 		Resource: "services",
 		Version:  "v1",
 	}
+	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, []byte(patch)))
+	return len
 }
 
-func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) {
+func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
+	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
+	return len
 }
 
-func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) {
+func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
+	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
+	return len
 }
 
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) {
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
+	return len
 }
 
-func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) {
+func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) int {
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
+	len := len(f.actions)
 	f.actions = append(f.actions, action)
+	return len
 }
 
-func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) {
+func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) int {
 	serviceSchema := schema.GroupVersionResource{
 		Resource: "rollouts",
 		Version:  "v1alpha1",
 	}
+	len := len(f.actions)
 	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, nil))
+	return len
 }
 
-func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, patch string) {
+func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, patch string) int {
 	expectedPatch := calculatePatch(rollout, patch)
 	serviceSchema := schema.GroupVersionResource{
 		Resource: "rollouts",
 		Version:  "v1alpha1",
 	}
+	len := len(f.actions)
 	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, []byte(expectedPatch)))
+	return len
+}
+
+func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	createAction, ok := action.(core.CreateAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
+	}
+	obj := createAction.GetObject()
+	rs := &appsv1.ReplicaSet{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rs)
+	return rs
+}
+
+func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	updateAction, ok := action.(core.UpdateAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
+	}
+	obj := updateAction.GetObject()
+	rs := &appsv1.ReplicaSet{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rs)
+	return rs
+}
+
+func (f *fixture) verifyPatchedService(index int, newPodHash string) bool {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newPodHash)
+	return string(patchAction.GetPatch()) == patch
+}
+
+func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
+	action := filterInformerActions(f.client.Actions())[index]
+	updateAction, ok := action.(core.UpdateAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
+	}
+	obj := updateAction.GetObject()
+	rollout := &v1alpha1.Rollout{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
+	return rollout
+}
+
+func (f *fixture) getPatchedRollout(index int) string {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	return string(patchAction.GetPatch())
 }
 
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
