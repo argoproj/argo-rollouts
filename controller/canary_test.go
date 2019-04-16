@@ -7,11 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
@@ -97,10 +95,10 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 		"spec":{
 			"paused": true
@@ -111,7 +109,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	}`
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339))
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
@@ -167,9 +165,9 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 	"status":{
 		"canary": {
@@ -180,7 +178,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	}
 }`
 	expectedPatch := calculatePatch(r2, expectedPatchTemplate)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
@@ -206,10 +204,10 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutStableRS := calculatePatch(r2, `{
 		"status": {
 			"canary": {
@@ -218,7 +216,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		}
 	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
@@ -246,10 +244,10 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutPodHash := calculatePatch(r2, `{
 		"status": {
 			"currentStepIndex":0,
@@ -258,7 +256,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 		}
 	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 
 }
 
@@ -285,10 +283,10 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutPodHash := calculatePatch(r2, `{
 		"status": {
 			"currentStepIndex":0,
@@ -296,7 +294,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 		}
 	}`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 
 }
 
@@ -311,10 +309,10 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectPatchRolloutAction(r)
+	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r, `{
 	"status":{
 		"canary":{
@@ -323,7 +321,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 		"currentPodHash":"895c6c4f9"
 	}
 }`)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
@@ -339,10 +337,10 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectPatchRolloutAction(r)
+	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r, `{
 	"status":{
 		"canary":{
@@ -352,7 +350,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 		"currentPodHash":"895c6c4f9"
 	}
 }`)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
@@ -373,12 +371,12 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 0)
-	f.expectCreateReplicaSetAction(rs2)
+	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	newReplicaset := filterInformerActions(f.kubeclient.Actions())[0].(core.CreateAction).GetObject().(*appsv1.ReplicaSet)
-	assert.Equal(t, int32(1), *newReplicaset.Spec.Replicas)
+	createdRS := f.getCreatedReplicaSet(createdRSIndex)
+	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
 }
 
 func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
@@ -401,12 +399,12 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
-	f.expectUpdateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	newReplicaset := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-	assert.Equal(t, int32(2), *newReplicaset.Spec.Replicas)
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(2), *updatedRS.Spec.Replicas)
 }
 
 func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
@@ -429,14 +427,14 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 0, 0)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
-	f.expectUpdateReplicaSetAction(rs1)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Spec.Replicas = int32Ptr(9)
-	assert.Len(t, filterInformerActions(f.kubeclient.Actions()), 1)
-	assert.Equal(t, expectedRS1, filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet))
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, expectedRS1, updatedRS)
 }
 
 func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
@@ -466,15 +464,16 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs3)
 
-	f.expectUpdateReplicaSetAction(rs2)
+	updateRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS2 := rs2.DeepCopy()
 	expectedRS2.Spec.Replicas = int32Ptr(0)
 	expectedRS2.Annotations[annotations.DesiredReplicasAnnotation] = "10"
+	updatedRS := f.getUpdatedReplicaSet(updateRSIndex)
 
-	assert.Equal(t, expectedRS2, filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet))
+	assert.Equal(t, expectedRS2, updatedRS)
 }
 
 func TestRollBackToStable(t *testing.T) {
@@ -498,14 +497,14 @@ func TestRollBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)
-	f.expectPatchRolloutAction(r2)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
 	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
-	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+	firstUpdatedRS1 := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
 
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
@@ -515,8 +514,8 @@ func TestRollBackToStable(t *testing.T) {
     }
 }`)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutCurrPodHash, controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount))
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestRollBackToStableAndStepChange(t *testing.T) {
@@ -541,28 +540,26 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)
-	f.expectPatchRolloutAction(r2)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	expectedRS1 := rs1.DeepCopy()
-	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
-	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
-	firstUpdatedRS1 := filterInformerActions(f.kubeclient.Actions())[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+	updatedReplicaSet := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, "3", updatedReplicaSet.Annotations[annotations.RevisionAnnotation])
+	assert.Equal(t, "1", updatedReplicaSet.Annotations[annotations.RevisionHistoryAnnotation])
 
 	expectedPatchWithoutCurrPodHash := calculatePatch(r2, `{
-	"status":{
-		"currentPodHash": "%s",
-		"currentStepHash": "%s",
-		"currentStepIndex":1
-    }
-}`)
+		"status":{
+			"currentPodHash": "%s",
+			"currentStepHash": "%s",
+			"currentStepIndex":1
+		}
+	}`)
 	newPodHash := controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutCurrPodHash, newPodHash, newStepHash)
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
@@ -586,10 +583,10 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
-	f.expectPatchRolloutAction(r3)
+	patchIndex := f.expectPatchRolloutAction(r3)
 	f.run(getKey(r3, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r3, `{
 	"status":{
 		"canary":{
@@ -598,12 +595,11 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 		"currentStepIndex":1
     }
 }`)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	f := newFixture(t)
-	f.checkObjects = true
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -636,10 +632,13 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 			"pauseStartTime": "%s"
 		}
 	}`
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339))
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339)))
 
-	f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(index)
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
@@ -715,7 +714,6 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 }
 
 func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
-
 	f := newFixture(t)
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -747,22 +745,21 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectPatchRolloutAction(r2)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patchBytes := filterInformerActions(f.client.Actions())[0].(core.PatchAction).GetPatch()
+	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, `{
 	"status":{
 		"pauseStartTime": null,
 		"currentStepIndex":2
 	}
 }`)
-	assert.Equal(t, expectedPatch, string(patchBytes))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	f := newFixture(t)
-	f.checkObjects = true
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -785,13 +782,16 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	expectedPatch := `{
+	expectedPatchWithSub := `{
 		"status":{
 			"HPAReplicas":5,
 			"selector":"foo=bar"
 		}
 	}`
 
-	f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
 	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(index)
+	assert.Equal(t, calculatePatch(r2, expectedPatchWithSub), patch)
 }
