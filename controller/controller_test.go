@@ -217,7 +217,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c := NewController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
 		i.Argoproj().V1alpha1().Rollouts(),
-		resync())
+		resync(),
+		DefaultMetricsPort)
 
 	c.rolloutsSynced = alwaysReady
 	c.replicaSetSynced = alwaysReady
