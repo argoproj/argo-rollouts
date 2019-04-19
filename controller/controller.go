@@ -53,6 +53,9 @@ const (
 
 	// DefaultRolloutResyncPeriod Default time in seconds for rollout resync period
 	DefaultRolloutResyncPeriod = 15 * 60
+
+	// DefaultMetricsPort Default port to expose the metrics endpoint
+	DefaultMetricsPort = 8090
 )
 
 // Controller is the controller implementation for Rollout resources
@@ -93,7 +96,8 @@ func NewController(
 	rolloutsclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	rolloutsInformer informers.RolloutInformer,
-	resyncPeriod time.Duration) *Controller {
+	resyncPeriod time.Duration,
+	metricsPort int) *Controller {
 
 	// Create event broadcaster
 	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
@@ -108,7 +112,7 @@ func NewController(
 		KubeClient: kubeclientset,
 		Recorder:   recorder,
 	}
-	metricsAddr := fmt.Sprintf("0.0.0.0:%d", 8080)
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
 	controller := &Controller{
 		kubeclientset:     kubeclientset,

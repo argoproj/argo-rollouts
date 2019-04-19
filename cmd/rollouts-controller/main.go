@@ -37,6 +37,7 @@ func newCommand() *cobra.Command {
 		rolloutResyncPeriod int64
 		logLevel            string
 		glogLevel           int
+		metricsPort         int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -79,7 +80,8 @@ func newCommand() *cobra.Command {
 			controller := controller.NewController(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				rolloutInformerFactory.Argoproj().V1alpha1().Rollouts(),
-				resyncDuration)
+				resyncDuration,
+				metricsPort)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
@@ -96,6 +98,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	return &command
 }
 
