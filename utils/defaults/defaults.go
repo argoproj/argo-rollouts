@@ -17,6 +17,8 @@ const (
 	DefaultMaxUnavailable = 0
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
+	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
+	DefaultScaleDownDelaySeconds = int32(30)
 )
 
 // GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
@@ -66,4 +68,15 @@ func GetProgressDeadlineSecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
 		return *rollout.Spec.ProgressDeadlineSeconds
 	}
 	return DefaultProgressDeadlineSeconds
+}
+func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Spec.Strategy.BlueGreenStrategy == nil {
+		return DefaultScaleDownDelaySeconds
+	}
+
+	if rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds == nil {
+		return DefaultScaleDownDelaySeconds
+	}
+
+	return *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds
 }

@@ -77,8 +77,10 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
 	PreviewService string `json:"previewService,omitempty"`
-	// Steps define the order of steps to execute the bluegreen deployment
+	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See
+	// https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
 	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -196,6 +198,9 @@ type BlueGreenStatus struct {
 	// ActiveSelector indicates which replicas set the active service is serving traffic to
 	// +optional
 	ActiveSelector string `json:"activeSelector,omitempty"`
+	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
+	// +optional
+	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout

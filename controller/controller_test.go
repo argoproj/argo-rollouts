@@ -122,6 +122,9 @@ func newProgressingCondition(reason, resourceName string) (v1alpha1.RolloutCondi
 	if reason == conditions.NewReplicaSetReason {
 		msg = fmt.Sprintf(conditions.NewReplicaSetMessage, resourceName)
 	}
+	if reason == conditions.NewRSAvailableReason {
+		msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resourceName)
+	}
 	if reason == conditions.PausedRolloutReason {
 		msg = conditions.PausedRolloutMessage
 		status = corev1.ConditionUnknown
@@ -264,6 +267,13 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	newPatch["status"] = newStatus
 	newPatchBytes, _ := json.Marshal(newPatch)
 	return string(newPatchBytes)
+}
+
+func cleanPatch(expectedPatch string) string {
+	patch := make(map[string]interface{})
+	json.Unmarshal([]byte(expectedPatch), &patch)
+	patchStr, _ := json.Marshal(patch)
+	return string(patchStr)
 }
 
 func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {

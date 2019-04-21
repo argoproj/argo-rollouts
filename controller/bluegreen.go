@@ -2,6 +2,7 @@ package controller
 
 import (
 	"sort"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,14 +37,14 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledUp {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
 	if previewSvc != nil {
 		logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 		if !annotations.IsSaturated(r, newRS) {
 			logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
-			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+			return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 		}
 		switchPreviewSvc, err := c.reconcilePreviewService(r, newRS, previewSvc, activeSvc)
 		if err != nil {
@@ -51,7 +52,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		}
 		if switchPreviewSvc {
 			logCtx.Infof("Not finished reconciling preview service' %s'", previewSvc.Name)
-			return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, true)
+			return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, true)
 		}
 	}
 
@@ -59,21 +60,28 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, r)
 	if pauseBeforeSwitchActive {
 		logCtx.Info("Not finished reconciling pause before switching active service")
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, true)
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, true)
 	}
 
 	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
 	if !annotations.IsSaturated(r, newRS) {
 		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 	switchActiveSvc, err := c.reconcileActiveService(r, newRS, previewSvc, activeSvc)
 	if err != nil {
 		return err
 	}
 	if switchActiveSvc {
-		logCtx.Infof("Not Finished reconciling active service '%s'", activeSvc.Name)
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+		logCtx.Infof("Not finished reconciling active service '%s'", activeSvc.Name)
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
+	}
+
+	logCtx.Infof("Reconciling scale down delay")
+	scaleDownDelayNotFinished := c.reconcileScaleDownDelay(r, oldRSs, previewSvc, activeSvc)
+	if scaleDownDelayNotFinished {
+		logCtx.Info("Not finished pausing for scale down delay")
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
 	// Scale down, if we can.
@@ -84,7 +92,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	if scaledDown {
 		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
 	logCtx.Infof("Confirming rollout is complete")
@@ -95,7 +103,23 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		}
 	}
 
-	return c.syncRolloutStatusBlueGreen(allRSs, newRS, previewSvc, activeSvc, r, false)
+	return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
+}
+
+func (c *Controller) reconcileScaleDownDelay(rollout *v1alpha1.Rollout, oldRSs []*appsv1.ReplicaSet, previewSvc, activeSvc *corev1.Service) bool {
+	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
+	if oldPodsCount == 0 {
+		// Already scaled down old RS
+		return false
+	}
+	if rollout.Status.BlueGreen.ScaleDownDelayStartTime == nil {
+		return true
+	}
+	scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(rollout)
+	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.BlueGreen.ScaleDownDelayStartTime, scaleDownDelaySeconds)
+	pauseUntil := metav1.NewTime(rollout.Status.BlueGreen.ScaleDownDelayStartTime.Add(time.Duration(scaleDownDelaySeconds) * time.Second))
+	now := metav1.Now()
+	return now.Before(&pauseUntil)
 }
 
 func (c *Controller) reconcileBlueGreenPause(activeSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
@@ -140,7 +164,8 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.Replic
 	return totalScaledDown, nil
 }
 
-func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout, addPause bool) error {
+func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout, addPause bool) error {
+	allRSs := append(oldRSs, newRS)
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
 	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
 	if !ok {
@@ -160,6 +185,15 @@ func (c *Controller) syncRolloutStatusBlueGreen(allRSs []*appsv1.ReplicaSet, new
 	} else {
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
+	}
+
+	newStatus.BlueGreen.ScaleDownDelayStartTime = r.Status.BlueGreen.ScaleDownDelayStartTime
+	if activeSelector == newStatus.CurrentPodHash && newStatus.BlueGreen.ScaleDownDelayStartTime == nil {
+		now := metav1.Now()
+		newStatus.BlueGreen.ScaleDownDelayStartTime = &now
+	}
+	if activeSelector != newStatus.CurrentPodHash || replicasetutil.GetReplicaCountForReplicaSets(oldRSs) == 0 {
+		newStatus.BlueGreen.ScaleDownDelayStartTime = nil
 	}
 
 	pauseStartTime, paused := calculatePauseStatus(r, addPause)

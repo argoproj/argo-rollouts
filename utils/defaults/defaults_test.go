@@ -108,3 +108,28 @@ func TestGetProgressDeadlineSecondsOrDefault(t *testing.T) {
 	rolloutDefaultValue := &v1alpha1.Rollout{}
 	assert.Equal(t, DefaultProgressDeadlineSeconds, GetProgressDeadlineSecondsOrDefault(rolloutDefaultValue))
 }
+
+func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
+	scaleDownDelaySeconds := int32(60)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+					ScaleDownDelaySeconds: &scaleDownDelaySeconds,
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, scaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(rolloutNonDefaultValue))
+	rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
+	assert.Equal(t, DefaultScaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+	rolloutNoScaleDownDelaySeconds := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, DefaultScaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(rolloutNoScaleDownDelaySeconds))
+}

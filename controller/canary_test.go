@@ -60,15 +60,13 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 	// Handle case with no steps
 	r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	stepResult, err := controller.reconcileCanaryPause(r)
-	assert.Nil(t, err)
+	stepResult := controller.reconcileCanaryPause(r)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
 
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
-	stepResult, err = controller.reconcileCanaryPause(r2)
-	assert.Nil(t, err)
+	stepResult = controller.reconcileCanaryPause(r2)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
 
