@@ -129,8 +129,13 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc *corev1.Service, rollout 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return false
 	}
+	pauseStartTime := rollout.Status.PauseStartTime
+	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds
+	if autoPromoteActiveServiceDelaySeconds != nil && pauseStartTime != nil {
+		c.checkEnqueueRolloutDuringWait(rollout, *pauseStartTime, *autoPromoteActiveServiceDelaySeconds)
+	}
 
-	return rollout.Spec.Paused && rollout.Status.PauseStartTime != nil
+	return rollout.Spec.Paused && pauseStartTime != nil
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
