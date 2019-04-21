@@ -29,16 +29,10 @@ func completedPauseStep(rollout *v1alpha1.Rollout, pause *v1alpha1.RolloutPause)
 	return false
 }
 
-func (c *Controller) checkEnqueueRolloutDuringPause(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) {
+func (c *Controller) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Rollout, startTime metav1.Time, durationInSeconds int32) {
 	logCtx := logutil.WithRollout(rollout)
-	if pause.Duration == nil {
-		return
-	}
-	if rollout.Status.PauseStartTime == nil {
-		return
-	}
 	now := metav1.Now()
-	expiredTime := rollout.Status.PauseStartTime.Add(time.Duration(*pause.Duration) * time.Second)
+	expiredTime := startTime.Add(time.Duration(durationInSeconds) * time.Second)
 	nextResync := now.Add(c.resyncPeriod)
 	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 		timeRemaining := expiredTime.Sub(now.Time)

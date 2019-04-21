@@ -66,10 +66,17 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"scaleDownDelayStartTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelayStartTime indicates the start of the scaleDownDelay",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -91,6 +98,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Description: "Name of the service that the rollout modifies as the preview service.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"scaleDownDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -151,7 +165,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ReplicaBasedCanaryStrategy defines parameters for a Replica Based Canary",
+				Description: "CanaryStrategy defines parameters for a Replica Based Canary",
 				Properties: map[string]spec.Schema{
 					"steps": {
 						SchemaProps: spec.SchemaProps{
@@ -335,6 +349,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPause defines a pause stage for a rollout",
 				Properties: map[string]spec.Schema{
 					"duration": {
 						SchemaProps: spec.SchemaProps{

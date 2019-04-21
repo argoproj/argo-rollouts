@@ -86,7 +86,7 @@ const (
 	// RolloutCompletedMessage is added when the rollout is completed
 	RolloutCompletedMessage = "Rollout %q has successfully progressed."
 	// ReplicaSetCompletedMessage is added when the rollout is completed
-	ReplicaSetCompletedMessage = "Rollout %q has successfully progressed."
+	ReplicaSetCompletedMessage = "ReplicaSet %q has successfully progressed."
 
 	// PausedRolloutReason is added in a rollout when it is paused. Lack of progress shouldn't be
 	// estimated once a rollout is paused.

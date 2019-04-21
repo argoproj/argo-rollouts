@@ -78,10 +78,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	}
 
 	logCtx.Info("Reconciling Canary Pause")
-	stillReconciling, err := c.reconcileCanaryPause(rollout)
-	if err != nil {
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
-	}
+	stillReconciling := c.reconcileCanaryPause(rollout)
 	if stillReconciling {
 		logCtx.Infof("Not finished reconciling Canary Pause")
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
@@ -100,25 +97,31 @@ func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *app
 	return scaled, err
 }
 
-func (c *Controller) reconcileCanaryPause(rollout *v1alpha1.Rollout) (bool, error) {
+func (c *Controller) reconcileCanaryPause(rollout *v1alpha1.Rollout) bool {
 	logCtx := logutil.WithRollout(rollout)
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
 		logCtx.Info("Rollout does not have any steps")
-		return false, nil
+		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) <= int(*currentStepIndex) {
 		logCtx.Info("No Steps remain in the canary steps")
-		return false, nil
+		return false
 	}
 
 	if currentStep.Pause == nil {
-		return false, nil
+		return false
 	}
 
-	c.checkEnqueueRolloutDuringPause(rollout, *currentStep.Pause)
-	return true, nil
+	if currentStep.Pause.Duration == nil {
+		return true
+	}
+	if rollout.Status.PauseStartTime == nil {
+		return true
+	}
+	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.PauseStartTime, *currentStep.Pause.Duration)
+	return true
 }
 
 func (c *Controller) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {

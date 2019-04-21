@@ -80,9 +80,15 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the preview service.
                       type: string
+                    scaleDownDelaySeconds:
+                      description: ScaleDownDelaySeconds adds a delay before scaling
+                        down the previous replicaset. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960
+                        for more information
+                      format: int32
+                      type: integer
                 canary:
-                  description: ReplicaBasedCanaryStrategy defines parameters for a
-                    Replica Based Canary
+                  description: CanaryStrategy defines parameters for a Replica Based
+                    Canary
                   properties:
                     maxSurge:
                       anyOf:
@@ -99,6 +105,8 @@ spec:
                         description: CanaryStep defines a step of a canary deployment.
                         properties:
                           pause:
+                            description: RolloutPause defines a pause stage for a
+                              rollout
                             properties:
                               duration:
                                 description: Duration the amount of time to wait before
@@ -140,6 +148,7 @@ spec:
                   description: PreviewSelector indicates which replicas set the preview
                     service is serving traffic to
                   type: string
+                scaleDownDelayStartTime: {}
             canary:
               description: CanaryStatus status fields that only pertain to the canary
                 rollout
