@@ -200,6 +200,87 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
+	t.Run("NoAutoPromoteBeforeDelayTimePasses", func(t *testing.T) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r2 := bumpVersion(r1)
+		r2.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds = pointer.Int32Ptr(10)
+
+		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 2, 1, 1, true, true)
+		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2.Name)
+		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+		previewSvc := newService("preview", 80, previewSelector)
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		f.expectGetServiceAction(activeSvc)
+		f.expectGetServiceAction(previewSvc)
+		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+		f.run(getKey(r2, t))
+		patch := f.getPatchedRollout(patchIndex)
+		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	})
+
+	t.Run("AutoPromoteAfterDelayTimePasses", func(t *testing.T) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r2 := bumpVersion(r1)
+		r2.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds = pointer.Int32Ptr(10)
+
+		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 2, 1, 1, true, true)
+		now := metav1.Now()
+		before := metav1.NewTime(now.Add(-1 * time.Minute))
+		r2.Status.PauseStartTime = &before
+		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2.Name)
+		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+		previewSvc := newService("preview", 80, previewSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		f.expectGetServiceAction(activeSvc)
+		f.expectGetServiceAction(previewSvc)
+		expectedPatchWithoutSubs := `{
+			"spec": {
+				"paused": null
+			},
+			"status": {
+				"pauseStartTime": null
+			}
+		}`
+		expectedPatch := calculatePatch(r2, expectedPatchWithoutSubs)
+		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		f.run(getKey(r2, t))
+
+		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
+	})
+
 	t.Run("SkipWhenNoPreviewSpecified", func(t *testing.T) {
 		f := newFixture(t)
 

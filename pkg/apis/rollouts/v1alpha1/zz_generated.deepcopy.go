@@ -54,6 +54,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.AutoPromoteActiveServiceDelaySeconds != nil {
+		in, out := &in.AutoPromoteActiveServiceDelaySeconds, &out.AutoPromoteActiveServiceDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	if in.ScaleDownDelaySeconds != nil {
 		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
 		*out = new(int32)

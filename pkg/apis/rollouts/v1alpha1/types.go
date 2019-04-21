@@ -81,6 +81,9 @@ type BlueGreenStrategy struct {
 	// resumed the new replicaset will be full scaled up before the switch occurs
 	// +optional
 	PreviewReplicaCount *int32 `json:"previewReplicaCount,omitempty"`
+	// AutoPromoteActiveServiceDelaySeconds add a delay before automatically promoting the ReplicaSet under the preview
+	// service to the active service.
+	AutoPromoteActiveServiceDelaySeconds *int32 `json:"autoPromoteActiveServiceDelaySeconds,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See
 	// https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
 	// +optional

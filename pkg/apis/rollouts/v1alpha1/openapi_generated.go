@@ -112,6 +112,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"autoPromoteActiveServiceDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AutoPromoteActiveServiceDelaySeconds add a delay before automatically promoting the ReplicaSet under the preview service to the active service.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"scaleDownDelaySeconds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information",

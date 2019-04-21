@@ -76,6 +76,12 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the active service.
                       type: string
+                    autoPromoteActiveServiceDelaySeconds:
+                      description: AutoPromoteActiveServiceDelaySeconds add a delay
+                        before automatically promoting the ReplicaSet under the preview
+                        service to the active service.
+                      format: int32
+                      type: integer
                     previewReplicaCount:
                       description: PreviewReplica the number of replicas to run under
                         the preview service before the switchover. Once the rollout
