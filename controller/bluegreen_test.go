@@ -228,16 +228,18 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2.Name, true)
 		now := metav1.Now().UTC().Format(time.RFC3339)
+		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
 					"activeSelector": "%s",
 					"scaleDownDelayStartTime": "%s"
 				},
-				"conditions": %s
+				"conditions": %s,
+				"selector": "%s"
 			}
 		}`
-		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, now, generatedConditions))
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, now, generatedConditions, newSelector))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
@@ -273,12 +275,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"blueGreen": {
 					"activeSelector": "%s"
 				},
-				"conditions": %s
+				"conditions": %s,
+				"selector": "%s"
 			}
 		}`
 
 		generateConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1.Name, false)
-		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, generateConditions))
+		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
+		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
 		f.run(getKey(r1, t))
 
@@ -341,10 +345,12 @@ func TestBlueGreenHandlePause(t *testing.T) {
 					"scaleDownDelayStartTime": "%s"
 				},
 				"pauseStartTime": null,
-				"conditions": %s
+				"conditions": %s,
+				"selector": "%s"
 			}
 		}`
-		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, now.UTC().Format(time.RFC3339), generatedConditions))
+		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
+		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, now.UTC().Format(time.RFC3339), generatedConditions, newSelector))
 		rollout2ndPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expected2ndPatch, rollout2ndPatch)
 	})

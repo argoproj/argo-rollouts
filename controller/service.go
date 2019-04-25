@@ -159,21 +159,3 @@ func (c *Controller) getRolloutSelectorLabel(svc *corev1.Service) (string, bool)
 	currentSelectorValue, ok := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 	return currentSelectorValue, ok
 }
-
-// GetActiveReplicaSet finds the replicaset that is serving traffic from the active service or returns nil
-func GetActiveReplicaSet(rollout *v1alpha1.Rollout, allRS []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
-	if rollout.Status.BlueGreen.ActiveSelector == "" {
-		return nil
-	}
-	for _, rs := range allRS {
-		if rs == nil {
-			continue
-		}
-		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			if podHash == rollout.Status.BlueGreen.ActiveSelector {
-				return rs
-			}
-		}
-	}
-	return nil
-}

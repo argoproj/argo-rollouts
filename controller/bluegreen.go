@@ -178,7 +178,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
 
-	activeRS := GetActiveReplicaSet(r, allRSs)
+	activeRS := replicasetutil.GetActiveReplicaSet(allRSs, newStatus.BlueGreen.ActiveSelector)
 	if activeRS != nil {
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{activeRS})
 		newStatus.Selector = metav1.FormatLabelSelector(activeRS.Spec.Selector)
@@ -224,7 +224,7 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 	}
 
 	allRS := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
-	activeRS := GetActiveReplicaSet(rollout, allRS)
+	activeRS := replicasetutil.GetActiveReplicaSet(allRS, rollout.Status.BlueGreen.ActiveSelector)
 	if activeRS != nil {
 		if *(activeRS.Spec.Replicas) != rolloutReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)
