@@ -27,7 +27,9 @@ const (
 // switchSelector switch the selector on an existing service to a new value
 func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
-	logutil.WithRollout(r).Infof("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	msg := fmt.Sprintf("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	logutil.WithRollout(r).Info(msg)
+	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
 	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
@@ -120,7 +122,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 		if err != nil {
 			if errors.IsNotFound(err) {
 				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
-				c.recorder.Eventf(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+				c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
 				newStatus := r.Status.DeepCopy()
 				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
 				conditions.SetRolloutCondition(newStatus, *cond)
@@ -136,7 +138,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	if err != nil {
 		if errors.IsNotFound(err) {
 			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
-			c.recorder.Eventf(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+			c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
 			newStatus := r.Status.DeepCopy()
 			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
 			conditions.SetRolloutCondition(newStatus, *cond)
