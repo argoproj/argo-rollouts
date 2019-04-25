@@ -155,10 +155,10 @@ func newProgressingCondition(reason, resourceName string) (v1alpha1.RolloutCondi
 }
 
 func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
-	message := "Rollout is not serving traffic from the active service."
+	message := conditions.NotAvailableMessage
 	status := corev1.ConditionFalse
 	if available {
-		message = "Rollout is serving traffic from the active service."
+		message = conditions.AvailableMessage
 		status = corev1.ConditionTrue
 
 	}
@@ -166,7 +166,7 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
 		Message:            message,
-		Reason:             "Available",
+		Reason:             conditions.AvailableReason,
 		Status:             status,
 		Type:               v1alpha1.RolloutAvailable,
 	}

@@ -238,3 +238,21 @@ func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 	}
 	return nil
 }
+
+// GetActiveReplicaSet finds the replicaset that is serving traffic from the active service or returns nil
+func GetActiveReplicaSet(allRS []*appsv1.ReplicaSet, activeSelector string) *appsv1.ReplicaSet {
+	if activeSelector == "" {
+		return nil
+	}
+	for _, rs := range allRS {
+		if rs == nil {
+			continue
+		}
+		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			if podHash == activeSelector {
+				return rs
+			}
+		}
+	}
+	return nil
+}

@@ -40,8 +40,12 @@ const (
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
 	DuplicatedServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
-	// Available the reason to indicate that the rollout is serving traffic from the active service
-	Available = "Available"
+	// AvailableReason the reason to indicate that the rollout is serving traffic from the active service
+	AvailableReason = "AvailableReason"
+	// NotAvailableMessage the message to indicate that the Rollout does not have min availability
+	NotAvailableMessage = "Rollout does not have minimum availability"
+	// AvailableMessage the message to indicate that the Rollout does have min availability
+	AvailableMessage = "Rollout has minimum availability"
 
 	// Reasons and Messages for rollout Progressing Condition
 

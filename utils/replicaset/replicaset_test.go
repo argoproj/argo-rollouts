@@ -569,3 +569,21 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	assert.Nil(t, newStepIndex)
 
 }
+
+func TestGetActiveReplicaSet(t *testing.T) {
+	assert.Nil(t, GetActiveReplicaSet(nil, ""))
+	rs1 := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
+		},
+	}
+	assert.Nil(t, GetActiveReplicaSet([]*appsv1.ReplicaSet{rs1}, "1234"))
+
+	rs2 := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
+		},
+	}
+	assert.Equal(t, rs2, GetActiveReplicaSet([]*appsv1.ReplicaSet{nil, rs1, rs2}, "1234"))
+
+}

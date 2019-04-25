@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -144,33 +143,6 @@ func TestReconcileActiveService(t *testing.T) {
 			assert.Equal(t, test.expectedResult, result)
 		})
 	}
-}
-
-func TestGetActiveReplicaSet(t *testing.T) {
-	rolloutNoActiveSelector := &v1alpha1.Rollout{}
-	assert.Nil(t, GetActiveReplicaSet(rolloutNoActiveSelector, nil))
-
-	rollout := &v1alpha1.Rollout{
-		Status: v1alpha1.RolloutStatus{
-			BlueGreen: v1alpha1.BlueGreenStatus{
-				ActiveSelector: "1234",
-			},
-		},
-	}
-	rs1 := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
-		},
-	}
-	assert.Nil(t, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{rs1}))
-
-	rs2 := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
-		},
-	}
-	assert.Equal(t, rs2, GetActiveReplicaSet(rollout, []*appsv1.ReplicaSet{nil, rs1, rs2}))
-
 }
 
 func TestGetPreviewAndActiveServices(t *testing.T) {
