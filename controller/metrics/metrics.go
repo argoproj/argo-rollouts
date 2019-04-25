@@ -6,7 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"time"
@@ -64,6 +63,12 @@ const (
 	Completed ReconcilePhase = "Completed"
 	// Progressing means the rollout finished the reconciliation with remaining work
 	Progressing ReconcilePhase = "Progressing"
+	// Paused means the rollout finished the reconciliation with a paused status
+	Paused ReconcilePhase = "Progressing"
+	// Timeout means the rollout finished the reconciliation with an timeout message
+	Timeout ReconcilePhase = "Timeout"
+	// Error means the rollout finished the reconciliation with an error
+	Error ReconcilePhase = "Error"
 )
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
@@ -126,9 +131,20 @@ func (m *MetricsServer) IncError(namespace, name string) {
 // IncError increments the error counter for an rollout
 func (m *MetricsServer) IncPhase(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) {
 	phase := Progressing
-	available := conditions.GetRolloutCondition(*newStatus, v1alpha1.InvalidSpec)
-	if available != nil && available.Status == corev1.ConditionTrue {
-		phase = Completed
+	progressing := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutProgressing)
+	if progressing != nil {
+		if progressing.Reason == conditions.NewRSAvailableReason {
+			phase = Completed
+		}
+		if progressing.Reason == conditions.PausedRolloutReason {
+			phase = Paused
+		}
+		if progressing.Reason == conditions.ServiceNotFoundReason || progressing.Reason == conditions.FailedRSCreateReason {
+			phase = Error
+		}
+		if progressing.Reason == conditions.TimedOutReason {
+			phase = Timeout
+		}
 	}
 	invalidSpec := conditions.GetRolloutCondition(*newStatus, v1alpha1.InvalidSpec)
 	if invalidSpec != nil {
