@@ -250,6 +250,13 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService"), noActiveSvcCond.Message)
 	assert.Equal(t, InvalidSpecReason, noActiveSvcCond.Reason)
 
+	scaleDownDelayLongerThanProgressDeadline := validRollout.DeepCopy()
+	scaleDownDelayLongerThanProgressDeadline.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds = pointer.Int32Ptr(1000)
+	scaleDownDelayLongerThanProgressDeadlineCond := VerifyRolloutSpec(scaleDownDelayLongerThanProgressDeadline, nil)
+	assert.NotNil(t, scaleDownDelayLongerThanProgressDeadlineCond)
+	assert.Equal(t, InvalidSpecReason, scaleDownDelayLongerThanProgressDeadlineCond.Reason)
+	assert.Equal(t, ScaleDownDelayLongerThanDeadlineMessage, scaleDownDelayLongerThanProgressDeadlineCond.Message)
+
 	sameSvcs := validRollout.DeepCopy()
 	sameSvcs.Spec.Strategy.BlueGreenStrategy.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
@@ -295,6 +302,13 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	assert.NotNil(t, noSelectorCond)
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
 	assert.Equal(t, InvalidSpecReason, noSelectorCond.Reason)
+
+	minReadyLongerThanProgessDeadline := validRollout.DeepCopy()
+	minReadyLongerThanProgessDeadline.Spec.MinReadySeconds = 1000
+	minReadyLongerThanProgessDeadlineCond := VerifyRolloutSpec(minReadyLongerThanProgessDeadline, nil)
+	assert.NotNil(t, minReadyLongerThanProgessDeadlineCond)
+	assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgessDeadlineCond.Reason)
+	assert.Equal(t, MinReadyLongerThanDeadlineMessage, minReadyLongerThanProgessDeadlineCond.Message)
 }
 
 func TestVerifyRolloutSpecCanary(t *testing.T) {
