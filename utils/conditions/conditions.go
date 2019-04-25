@@ -36,6 +36,10 @@ const (
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
 	InvalidStepMessage = "Step must have either setWeight or pause set"
+	// ScaleDownDelayLongerThanDeadlineMessage indicates the ScaleDownDelaySeconds is longer than ProgressDeadlineSeconds
+	ScaleDownDelayLongerThanDeadlineMessage = "ScaleDownDelaySeconds cannot be longer than ProgressDeadlineSeconds"
+	// MinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
+	MinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds"
 	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
@@ -276,7 +280,15 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStrategyMessage)
 	}
 
+	if rollout.Spec.MinReadySeconds > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
+		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, MinReadyLongerThanDeadlineMessage)
+	}
+
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		if defaults.GetScaleDownDelaySecondsOrDefault(rollout) > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
+			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownDelayLongerThanDeadlineMessage)
+		}
+
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
 			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService")
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
