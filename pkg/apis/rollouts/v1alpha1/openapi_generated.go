@@ -41,8 +41,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":       schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":     schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":   schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetPreview":        schema_pkg_apis_rollouts_v1alpha1_SetPreview(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SwitchActive":      schema_pkg_apis_rollouts_v1alpha1_SwitchActive(ref),
 	}
 }
 
@@ -72,6 +70,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"scaleUpPreviewCheckPoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -98,6 +103,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Description: "Name of the service that the rollout modifies as the preview service.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"previewReplicaCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"scaleDownDelaySeconds": {
@@ -576,29 +588,5 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_SetPreview(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SetPreview empty struct to indicate the SetPreview step",
-				Properties:  map[string]spec.Schema{},
-			},
-		},
-		Dependencies: []string{},
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_SwitchActive(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SwitchActive empty struct to indicate the SetActive step",
-				Properties:  map[string]spec.Schema{},
-			},
-		},
-		Dependencies: []string{},
 	}
 }

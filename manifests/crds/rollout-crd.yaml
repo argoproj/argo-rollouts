@@ -75,6 +75,13 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the active service.
                       type: string
+                    previewReplicaCount:
+                      description: PreviewReplica the number of replicas to run under
+                        the preview service before the switchover. Once the rollout
+                        is resumed the new replicaset will be full scaled up before
+                        the switch occurs
+                      format: int32
+                      type: integer
                     previewService:
                       description: Name of the service that the rollout modifies as
                         the preview service.
@@ -148,6 +155,11 @@ spec:
                     service is serving traffic to
                   type: string
                 scaleDownDelayStartTime: {}
+                scaleUpPreviewCheckPoint:
+                  description: ScaleUpPreviewCheckPoint indicates that the Replicaset
+                    receiving traffic from the preview service is ready to be scaled
+                    up after the rollout is unpaused
+                  type: boolean
             canary:
               description: CanaryStatus status fields that only pertain to the canary
                 rollout

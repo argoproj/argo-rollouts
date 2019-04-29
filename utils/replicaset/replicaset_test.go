@@ -30,7 +30,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 			Annotations: make(map[string]string),
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: func(i int32) *int32 { return &i }(1),
+			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -191,6 +191,89 @@ func TestNewRSNewReplicas(t *testing.T) {
 	ro.Spec.Strategy.BlueGreenStrategy = nil
 	_, err = NewRSNewReplicas(&ro, nil, nil)
 	assert.Error(t, err, "no rollout strategy provided")
+}
+
+func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
+	previewReplicaCount := int32(1)
+	replicaCount := int32(10)
+
+	rs := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "foo",
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo"},
+		},
+	}
+	rs2 := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "bar",
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "bar"},
+		},
+	}
+
+	tests := []struct {
+		name                     string
+		activeSelector           string
+		overrideCurrentPodHash   string
+		scaleUpPreviewCheckpoint bool
+		expectReplicaCount       int32
+	}{
+		{
+			name:               "No active rs is set",
+			expectReplicaCount: replicaCount,
+		},
+		{
+			name:               "Active rs is the new RS",
+			activeSelector:     "foo",
+			expectReplicaCount: replicaCount,
+		},
+		{
+			name:                     "Rollout's currentPodHash doesn't match up",
+			activeSelector:           "bar",
+			overrideCurrentPodHash:   "baz",
+			scaleUpPreviewCheckpoint: true,
+			expectReplicaCount:       previewReplicaCount,
+		},
+		{
+			name:                     "Rollout is unpaused and ready to scale up",
+			activeSelector:           "bar",
+			scaleUpPreviewCheckpoint: true,
+			expectReplicaCount:       replicaCount,
+		},
+		{
+			name:               "The rollout should use the preview value",
+			activeSelector:     "bar",
+			expectReplicaCount: previewReplicaCount,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			r := &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Replicas: &replicaCount,
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+							PreviewReplicaCount: &previewReplicaCount,
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					BlueGreen: v1alpha1.BlueGreenStatus{
+						ScaleUpPreviewCheckPoint: test.scaleUpPreviewCheckpoint,
+						ActiveSelector:           test.activeSelector,
+					},
+					CurrentPodHash: "foo",
+				},
+			}
+			if test.overrideCurrentPodHash != "" {
+				r.Status.CurrentPodHash = test.overrideCurrentPodHash
+			}
+			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs)
+			assert.Nil(t, err)
+			assert.Equal(t, test.expectReplicaCount, count)
+		})
+	}
+
 }
 
 func TestRevision(t *testing.T) {
@@ -567,23 +650,5 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	ro.Spec.Strategy.CanaryStrategy.Steps = nil
 	newStepIndex = ResetCurrentStepIndex(&ro)
 	assert.Nil(t, newStepIndex)
-
-}
-
-func TestGetActiveReplicaSet(t *testing.T) {
-	assert.Nil(t, GetActiveReplicaSet(nil, ""))
-	rs1 := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
-		},
-	}
-	assert.Nil(t, GetActiveReplicaSet([]*appsv1.ReplicaSet{rs1}, "1234"))
-
-	rs2 := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
-		},
-	}
-	assert.Equal(t, rs2, GetActiveReplicaSet([]*appsv1.ReplicaSet{nil, rs1, rs2}, "1234"))
 
 }
