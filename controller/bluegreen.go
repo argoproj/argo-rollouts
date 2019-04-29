@@ -42,7 +42,7 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 
 	if previewSvc != nil {
 		logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
-		if !annotations.IsSaturated(r, newRS) {
+		if !replicasetutil.ReadyForPreview(r, newRS, allRSs) {
 			logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
 			return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 		}
@@ -197,6 +197,14 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 	}
 
 	pauseStartTime, paused := calculatePauseStatus(r, addPause)
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	if paused && r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil {
+		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = true
+	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
+		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
+	} else if newRS != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != newStatus.CurrentPodHash {
+		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
+	}
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
@@ -233,8 +241,12 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 	}
 
 	if newRS != nil {
-		if *(newRS.Spec.Replicas) != rolloutReplicas {
-			_, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
+		newRSReplicaCount, err := replicasetutil.NewRSNewReplicas(rollout, allRS, newRS)
+		if err != nil {
+			return err
+		}
+		if *(newRS.Spec.Replicas) != newRSReplicaCount {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(newRS, newRSReplicaCount, rollout)
 			return err
 		}
 	}

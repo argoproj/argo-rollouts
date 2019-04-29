@@ -52,6 +52,20 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil {
+			activeRS := GetActiveReplicaSet(allRSs, rollout.Status.BlueGreen.ActiveSelector)
+			if activeRS == nil || activeRS.Name == newRS.Name {
+				return defaults.GetRolloutReplicasOrDefault(rollout), nil
+			}
+			if newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != rollout.Status.CurrentPodHash {
+				return *rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount, nil
+			}
+			if !rollout.Spec.Paused && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+				return defaults.GetRolloutReplicasOrDefault(rollout), nil
+			}
+			return *rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount, nil
+		}
+
 		return defaults.GetRolloutReplicasOrDefault(rollout), nil
 	}
 	if rollout.Spec.Strategy.CanaryStrategy != nil {
@@ -235,24 +249,6 @@ func CheckPodSpecChange(rollout *v1alpha1.Rollout) bool {
 func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) > 0 {
 		return pointer.Int32Ptr(0)
-	}
-	return nil
-}
-
-// GetActiveReplicaSet finds the replicaset that is serving traffic from the active service or returns nil
-func GetActiveReplicaSet(allRS []*appsv1.ReplicaSet, activeSelector string) *appsv1.ReplicaSet {
-	if activeSelector == "" {
-		return nil
-	}
-	for _, rs := range allRS {
-		if rs == nil {
-			continue
-		}
-		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			if podHash == activeSelector {
-				return rs
-			}
-		}
 	}
 	return nil
 }

@@ -77,6 +77,10 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
 	PreviewService string `json:"previewService,omitempty"`
+	// PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is
+	// resumed the new replicaset will be full scaled up before the switch occurs
+	// +optional
+	PreviewReplicaCount *int32 `json:"previewReplicaCount,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See
 	// https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
 	// +optional
@@ -123,12 +127,6 @@ type CanaryStep struct {
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 }
-
-// SetPreview empty struct to indicate the SetPreview step
-type SetPreview struct{}
-
-// SwitchActive empty struct to indicate the SetActive step
-type SwitchActive struct{}
 
 // RolloutPause defines a pause stage for a rollout
 type RolloutPause struct {
@@ -201,6 +199,9 @@ type BlueGreenStatus struct {
 	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
 	// +optional
 	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
+	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
+	// +optional
+	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout

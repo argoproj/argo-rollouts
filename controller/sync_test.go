@@ -20,6 +20,7 @@ import (
 
 func newRolloutWithStatus(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
+	rollout.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
 	return rollout
 }
 
