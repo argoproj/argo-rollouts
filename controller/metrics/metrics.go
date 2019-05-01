@@ -18,9 +18,8 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	reconcileHistogram    *prometheus.HistogramVec
-	reconcilePhaseCounter *prometheus.CounterVec
-	errorCounter          *prometheus.CounterVec
+	reconcileHistogram *prometheus.HistogramVec
+	errorCounter       *prometheus.CounterVec
 }
 
 const (
@@ -50,25 +49,32 @@ var (
 		descRolloutWithStrategyLabels,
 		nil,
 	)
+
+	descRolloutPhaseLabels = prometheus.NewDesc(
+		"rollout_phase",
+		"Information on the state of the rollout",
+		descRolloutReconcilePhaseLabels,
+		nil,
+	)
 )
 
-// ReconcilePhase the phases of a reconcile can have
-type ReconcilePhase string
+// RolloutPhase the phases of a reconcile can have
+type RolloutPhase string
 
 const (
 
 	// InvalidSpec means the rollout had an InvalidSpec during reconciliation
-	InvalidSpec ReconcilePhase = "InvalidSpec"
+	InvalidSpec RolloutPhase = "InvalidSpec"
 	// Completed means the rollout finished the reconciliation with no remaining work
-	Completed ReconcilePhase = "Completed"
+	Completed RolloutPhase = "Completed"
 	// Progressing means the rollout finished the reconciliation with remaining work
-	Progressing ReconcilePhase = "Progressing"
+	Progressing RolloutPhase = "Progressing"
 	// Paused means the rollout finished the reconciliation with a paused status
-	Paused ReconcilePhase = "Progressing"
+	Paused RolloutPhase = "Paused"
 	// Timeout means the rollout finished the reconciliation with an timeout message
-	Timeout ReconcilePhase = "Timeout"
+	Timeout RolloutPhase = "Timeout"
 	// Error means the rollout finished the reconciliation with an error
-	Error ReconcilePhase = "Error"
+	Error RolloutPhase = "Error"
 )
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
@@ -88,15 +94,6 @@ func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *M
 
 	rolloutRegistry.MustRegister(reconcileHistogram)
 
-	reconcilePhaseCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rollout_reconcile_phases",
-			Help: "Phase the rollout has",
-		},
-		append(descRolloutReconcilePhaseLabels),
-	)
-	rolloutRegistry.MustRegister(reconcilePhaseCounter)
-
 	errorCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "rollout_reconcile_error",
@@ -112,9 +109,8 @@ func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *M
 			Addr:    addr,
 			Handler: mux,
 		},
-		reconcileHistogram:    reconcileHistogram,
-		reconcilePhaseCounter: reconcilePhaseCounter,
-		errorCounter:          errorCounter,
+		reconcileHistogram: reconcileHistogram,
+		errorCounter:       errorCounter,
 	}
 }
 
@@ -128,10 +124,10 @@ func (m *MetricsServer) IncError(namespace, name string) {
 	m.errorCounter.WithLabelValues(namespace, name).Inc()
 }
 
-// IncError increments the error counter for an rollout
-func (m *MetricsServer) IncPhase(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) {
+// calculatePhase calculates where a Rollout is in a Completed, Paused, Error, Timeout, or InvalidSpec phase
+func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 	phase := Progressing
-	progressing := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutProgressing)
+	progressing := conditions.GetRolloutCondition(rollout.Status, v1alpha1.RolloutProgressing)
 	if progressing != nil {
 		if progressing.Reason == conditions.NewRSAvailableReason {
 			phase = Completed
@@ -146,11 +142,11 @@ func (m *MetricsServer) IncPhase(rollout *v1alpha1.Rollout, newStatus *v1alpha1.
 			phase = Timeout
 		}
 	}
-	invalidSpec := conditions.GetRolloutCondition(*newStatus, v1alpha1.InvalidSpec)
+	invalidSpec := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	if invalidSpec != nil {
 		phase = InvalidSpec
 	}
-	m.reconcilePhaseCounter.WithLabelValues(rollout.Namespace, rollout.Name, defaults.GetStrategyType(rollout), string(phase)).Inc()
+	return phase
 }
 
 type rolloutCollector struct {
@@ -191,6 +187,13 @@ func (c *rolloutCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+func boolFloat64(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
@@ -204,4 +207,12 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 	addGauge(descRolloutInfo, 1)
 
 	addGauge(descRolloutCreated, float64(rollout.CreationTimestamp.Unix()))
+
+	calculatedPhase := calculatePhase(rollout)
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Completed), string(Completed))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Progressing), string(Progressing))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Paused), string(Paused))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Timeout), string(Timeout))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Error), string(Error))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == InvalidSpec), string(InvalidSpec))
 }
