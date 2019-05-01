@@ -231,6 +231,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
 			}
 		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -244,6 +245,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
 			}
 		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -258,12 +260,14 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 			newStatus.CurrentStepIndex = &stepCount
 
 		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
 	if stepCount == 0 {
 		logCtx.Info("Rollout has no steps so setting stableRS status to currentPodHash")
 		newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -271,6 +275,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		logCtx.Info("Rollout has executed every step")
 		newStatus.CurrentStepIndex = &stepCount
 		newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -283,6 +288,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 

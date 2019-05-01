@@ -101,7 +101,7 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 		},
 		Status: v1alpha1.RolloutStatus{},
 	}
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, ro.Name)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, ro)
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 	return ro
 }
@@ -113,18 +113,34 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, ava
 	return rs
 }
 
-func newProgressingCondition(reason, resourceName string) (v1alpha1.RolloutCondition, string) {
+func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""
-	if reason == conditions.ReplicaSetUpdatedReason {
-		msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, resourceName)
+	switch resource := resourceObj.(type) {
+	case *appsv1.ReplicaSet:
+		if reason == conditions.ReplicaSetUpdatedReason {
+			msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, resource.Name)
+		}
+		if reason == conditions.ReplicaSetUpdatedReason {
+			msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, resource.Name)
+		}
+		if reason == conditions.NewReplicaSetReason {
+			msg = fmt.Sprintf(conditions.NewReplicaSetMessage, resource.Name)
+		}
+		if reason == conditions.NewRSAvailableReason {
+			msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resource.Name)
+		}
+	case *v1alpha1.Rollout:
+		if reason == conditions.ReplicaSetUpdatedReason {
+			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
+		}
+	case *corev1.Service:
+		if reason == conditions.ServiceNotFoundReason {
+			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)
+			status = corev1.ConditionFalse
+		}
 	}
-	if reason == conditions.NewReplicaSetReason {
-		msg = fmt.Sprintf(conditions.NewReplicaSetMessage, resourceName)
-	}
-	if reason == conditions.NewRSAvailableReason {
-		msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resourceName)
-	}
+
 	if reason == conditions.PausedRolloutReason {
 		msg = conditions.PausedRolloutMessage
 		status = corev1.ConditionUnknown
@@ -132,10 +148,6 @@ func newProgressingCondition(reason, resourceName string) (v1alpha1.RolloutCondi
 	if reason == conditions.ResumedRolloutReason {
 		msg = conditions.ResumeRolloutMessage
 		status = corev1.ConditionUnknown
-	}
-	if reason == conditions.ServiceNotFoundReason {
-		msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resourceName)
-		status = corev1.ConditionFalse
 	}
 
 	condition := v1alpha1.RolloutCondition{
@@ -174,9 +186,9 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func generateConditionsPatch(available bool, progressingReason, progressingResourceName string, availableConditionFirst bool) string {
+func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool) string {
 	_, availableCondition := newAvailableCondition(available)
-	_, progressingConditon := newProgressingCondition(progressingReason, progressingResourceName)
+	_, progressingConditon := newProgressingCondition(progressingReason, progressingResource)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s]", availableCondition, progressingConditon)
 	}

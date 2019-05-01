@@ -216,7 +216,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedActiveSvc.Name)
+	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedActiveSvc)
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }
 
@@ -241,6 +241,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc.Name)
+	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc)
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }

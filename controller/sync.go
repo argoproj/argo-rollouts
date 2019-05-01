@@ -462,7 +462,7 @@ func (c *Controller) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v
 	if r.Spec.Strategy.BlueGreenStrategy != nil && activeRS != nil && annotations.IsSaturated(r, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
-	} else if r.Spec.Strategy.CanaryStrategy != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) > defaults.GetRolloutReplicasOrDefault(r) {
+	} else if r.Spec.Strategy.CanaryStrategy != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) >= defaults.GetRolloutReplicasOrDefault(r) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
 	} else {
