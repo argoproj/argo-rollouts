@@ -689,3 +689,32 @@ func TestRequeueStuckRollout(t *testing.T) {
 		})
 	}
 }
+
+func TestSwitchInvalidSpecMessage(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r.Spec.Selector = &metav1.LabelSelector{}
+	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.SelectAllMessage)
+	conditions.SetRolloutCondition(&r.Status, *cond)
+
+	r.Spec.Selector = nil
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r)
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".Spec.Selector"))
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}

@@ -294,11 +294,16 @@ func (c *Controller) syncHandler(key string) error {
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
 	if invalidSpecCond != nil {
-		logutil.WithRollout(r).Error("Error: Spec submitted is invalid")
+		logutil.WithRollout(r).Error("Spec submitted is invalid")
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 			newStatus := r.Status.DeepCopy()
 			newStatus.ObservedGeneration = generation
+			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
+			// the controller should update the invalidSpec if there is a change in why the spec is invalid
+			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
+			}
 			conditions.SetRolloutCondition(newStatus, *invalidSpecCond)
 			err := c.persistRolloutStatus(r, newStatus, nil)
 			if err != nil {
