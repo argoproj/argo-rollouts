@@ -46,15 +46,17 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 }
 
 func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
-	if *(newRS.Spec.Replicas) == rolloutReplicas {
-		// Scaling not required.
-		return false, nil
-	}
-	if *(newRS.Spec.Replicas) > rolloutReplicas {
-		// Scale down.
-		scaled, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
-		return scaled, err
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+		if *(newRS.Spec.Replicas) == rolloutReplicas {
+			// Scaling not required.
+			return false, nil
+		}
+		if *(newRS.Spec.Replicas) > rolloutReplicas {
+			// Scale down.
+			scaled, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
+			return scaled, err
+		}
 	}
 	newReplicasCount, err := replicasetutil.NewRSNewReplicas(rollout, allRSs, newRS)
 	if err != nil {
