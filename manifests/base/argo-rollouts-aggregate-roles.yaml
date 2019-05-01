@@ -4,6 +4,9 @@ metadata:
   name: argo-rollouts-aggregate-to-view
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name:  argo-rollouts-aggregate-to-view
+    app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io
@@ -21,6 +24,9 @@ metadata:
   name: argo-rollouts-aggregate-to-edit
   labels:
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name:  argo-rollouts-aggregate-to-edit
+    app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io
@@ -43,6 +49,9 @@ metadata:
   name: argo-rollouts-aggregate-to-admin
   labels:
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name:  argo-rollouts-aggregate-to-admin
+    app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io

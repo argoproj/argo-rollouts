@@ -2,6 +2,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: argo-rollouts-clusterrole
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts-clusterrole
+    app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
   - apps

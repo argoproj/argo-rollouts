@@ -2,3 +2,8 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argo-rollouts
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+

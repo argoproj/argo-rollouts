@@ -252,11 +252,19 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts-role
+    app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts-role
 rules:
 - apiGroups:
@@ -300,6 +308,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name: argo-rollouts-aggregate-to-admin
+    app.kubernetes.io/part-of: argo-rollouts
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
   name: argo-rollouts-aggregate-to-admin
 rules:
@@ -321,6 +332,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name: argo-rollouts-aggregate-to-edit
+    app.kubernetes.io/part-of: argo-rollouts
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
   name: argo-rollouts-aggregate-to-edit
 rules:
@@ -342,6 +356,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    app.kubernetes.io/component: aggregate-cluster-role
+    app.kubernetes.io/name: argo-rollouts-aggregate-to-view
+    app.kubernetes.io/part-of: argo-rollouts
     rbac.authorization.k8s.io/aggregate-to-view: "true"
   name: argo-rollouts-aggregate-to-view
 rules:
@@ -357,6 +374,10 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts-role-binding
+    app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -369,6 +390,10 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argo-rollouts-metrics
+    app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts-metrics
 spec:
   ports:
@@ -377,22 +402,26 @@ spec:
     protocol: TCP
     targetPort: 8090
   selector:
-    app: argo-rollouts
+    app.kubernetes.io/name: argo-rollouts
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 spec:
   selector:
     matchLabels:
-      app: argo-rollouts
+      app.kubernetes.io/name: argo-rollouts
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: argo-rollouts
+        app.kubernetes.io/name: argo-rollouts
     spec:
       containers:
       - command:

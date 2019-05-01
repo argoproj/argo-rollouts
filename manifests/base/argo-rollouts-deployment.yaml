@@ -2,14 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-rollouts
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
 spec:
   selector:
     matchLabels:
-      app: argo-rollouts
+      app.kubernetes.io/name: argo-rollouts
   template:
     metadata:
       labels:
-        app: argo-rollouts
+        app.kubernetes.io/name: argo-rollouts
     spec:
       serviceAccountName: argo-rollouts
       containers:
