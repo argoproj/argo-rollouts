@@ -13,7 +13,7 @@ update_image () {
 }
 
 if [ ! -z "${IMAGE_TAG}" ]; then
-  (cd ${SRCROOT}/manifests/base && kustomize edit set imagetag argoproj/argo-rollouts:${IMAGE_TAG})
+  (cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argo-rollouts:${IMAGE_TAG})
 fi
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"

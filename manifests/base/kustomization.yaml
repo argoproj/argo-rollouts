@@ -9,5 +9,5 @@ resources:
 - argo-rollouts-aggregate-roles.yaml
 - argo-rollouts-metrics-service.yaml
 images:
-- name: argoproj/rollout-controlller
+- name: argoproj/argo-rollouts
   newTag: latest
