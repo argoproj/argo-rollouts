@@ -63,18 +63,21 @@ ARG MAKE_TARGET="controller"
 RUN make ${MAKE_TARGET}
 
 
-####################################################################################################
-# Final image
-####################################################################################################
-FROM debian:9.5-slim
-
-COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
-
 RUN groupadd -g 999 argo-rollouts && \
     useradd -r -u 999 -g argo-rollouts argo-rollouts && \
     mkdir -p /home/argo-rollouts && \
     chown argo-rollouts:argo-rollouts /home/argo-rollouts
 
+
+####################################################################################################
+# Final image
+####################################################################################################
+FROM scratch
+
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+
+# Import the user and group files from the builder.
+COPY --from=argo-rollouts-build /etc/passwd /etc/passwd
 
 USER argo-rollouts
 
