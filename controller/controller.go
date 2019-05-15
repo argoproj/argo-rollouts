@@ -277,7 +277,7 @@ func (c *Controller) syncHandler(key string) error {
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
 		log.WithField(logutil.RolloutKey, key).Infof("Rollout %v has been deleted", key)
-		return err
+		return nil
 	}
 	if err != nil {
 		return err
