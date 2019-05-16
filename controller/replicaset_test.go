@@ -208,15 +208,6 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			scaleExpected:      false,
 		},
 		{
-			name:               "New ReplicaSet is not fully healthy",
-			rolloutReplicas:    10,
-			oldReplicas:        10,
-			newReplicas:        10,
-			readyPodsFromOldRS: 10,
-			readyPodsFromNewRS: 9,
-			scaleExpected:      false,
-		},
-		{
 			name:                "Clean up unhealthy pods",
 			rolloutReplicas:     10,
 			oldReplicas:         10,
@@ -249,23 +240,23 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
-			allRSs := []*appsv1.ReplicaSet{oldRS, newRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
-			fake := fake.Clientset{}
-			k8sfake := k8sfake.Clientset{}
-			controller := &Controller{
-				rolloutsclientset: &fake,
-				kubeclientset:     &k8sfake,
-				recorder:          &record.FakeRecorder{},
-			}
-			scaled, err := controller.reconcileOldReplicaSets(allRSs, oldRSs, newRS, rollout)
+
+			f := newFixture(t)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			c, informers, _ := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			informers.Start(stopCh)
+			scaled, err := c.reconcileOldReplicaSets(oldRSs, newRS, rollout)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
 			if !test.scaleExpected && scaled {
-				t.Errorf("unexpected scaling: %v", k8sfake.Actions())
+				t.Errorf("unexpected scaling: %v", f.kubeclient.Actions())
 			}
 			if test.scaleExpected && !scaled {
 				t.Errorf("expected scaling to occur")

@@ -53,7 +53,7 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil {
-			activeRS := GetActiveReplicaSet(allRSs, rollout.Status.BlueGreen.ActiveSelector)
+			activeRS, _ := GetActiveReplicaSet(allRSs, rollout.Status.BlueGreen.ActiveSelector)
 			if activeRS == nil || activeRS.Name == newRS.Name {
 				return defaults.GetRolloutReplicasOrDefault(rollout), nil
 			}
