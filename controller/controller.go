@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+	"encoding/json"
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
@@ -282,8 +283,10 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// Deep-copy otherwise we are mutating our cache.
-	r := rollout.DeepCopy()
+	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
+	// rollout spec and pod template spec, the hash will be consistent. See issue #70
+	// This also returns a copy of the rollout to prevent mutation of the informer cache.
+	r := remarshalRollout(rollout)
 	defer func() {
 		duration := time.Since(startTime)
 		c.metricsServer.IncReconcile(r, duration)
@@ -339,6 +342,19 @@ func (c *Controller) syncHandler(key string) error {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")
+}
+
+func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
+	rolloutBytes, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	var remarshalled v1alpha1.Rollout
+	err = json.Unmarshal(rolloutBytes, &remarshalled)
+	if err != nil {
+		panic(err)
+	}
+	return &remarshalled
 }
 
 func (c *Controller) enqueue(obj interface{}) {
