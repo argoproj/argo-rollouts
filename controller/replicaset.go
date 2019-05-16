@@ -10,7 +10,6 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -66,16 +65,11 @@ func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *
 	return scaled, err
 }
 
-func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *Controller) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
 		// Can't scale down further
-		return false, nil
-	}
-
-	logCtx.Infof("New replica set %s/%s has %d available pods.", newRS.Namespace, newRS.Name, newRS.Status.AvailableReplicas)
-	if !annotations.IsSaturated(rollout, newRS) {
 		return false, nil
 	}
 
@@ -87,11 +81,10 @@ func (c *Controller) reconcileOldReplicaSets(allRSs []*appsv1.ReplicaSet, oldRSs
 	}
 	logCtx.Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
 
-	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
-	allRSs = append(oldRSs, newRS)
+	// Scale down old replica sets
 	scaledDownCount := int32(0)
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(allRSs, oldRSs, rollout)
+		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, rollout)
 		if err != nil {
 			return false, nil
 		}
