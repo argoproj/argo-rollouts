@@ -57,10 +57,8 @@ spec:
               format: int32
               type: integer
             revisionHistoryLimit:
-              description: The number of old ReplicaSets to retain. This is a pointer
-                to distinguish between explicit zero and not specified. This is set
-                to the max value of int32 (i.e. 2147483647) by default, which means
-                "retaining all old ReplicaSets".
+              description: The number of old ReplicaSets to retain. If unspecified,
+                will retain 10 old ReplicaSets
               format: int32
               type: integer
             selector: {}
@@ -75,10 +73,12 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the active service.
                       type: string
-                    autoPromoteActiveServiceDelaySeconds:
-                      description: AutoPromoteActiveServiceDelaySeconds add a delay
-                        before automatically promoting the ReplicaSet under the preview
-                        service to the active service.
+                    autoPromotionSeconds:
+                      description: AutoPromotionSeconds automatically promotes the
+                        current ReplicaSet to active after the specified pause delay
+                        in seconds after the ReplicaSet becomes ready. If omitted,
+                        the Rollout enters and remains in a paused state until manually
+                        resumed by resetting spec.Paused to false.
                       format: int32
                       type: integer
                     previewReplicaCount:
@@ -94,7 +94,10 @@ spec:
                       type: string
                     scaleDownDelaySeconds:
                       description: ScaleDownDelaySeconds adds a delay before scaling
-                        down the previous replicaset. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960
+                        down the previous replicaset. If omitted, the Rollout waits
+                        30 seconds before scaling down the previous ReplicaSet. A
+                        minimum of 30 seconds is recommended to ensure IP table propagation
+                        across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960
                         for more information
                       format: int32
                       type: integer

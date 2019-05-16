@@ -200,7 +200,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r2 := bumpVersion(r1)
-		r2.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds = pointer.Int32Ptr(10)
+		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
 		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
@@ -234,7 +234,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r2 := bumpVersion(r1)
-		r2.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds = pointer.Int32Ptr(10)
+		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
 		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)

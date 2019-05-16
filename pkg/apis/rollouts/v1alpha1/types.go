@@ -39,10 +39,7 @@ type RolloutSpec struct {
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy"`
-	// The number of old ReplicaSets to retain.
-	// This is a pointer to distinguish between explicit zero and not specified.
-	// This is set to the max value of int32 (i.e. 2147483647) by default, which means
-	// "retaining all old ReplicaSets".
+	// The number of old ReplicaSets to retain. If unspecified, will retain 10 old ReplicaSets
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 	// Paused pauses the rollout at its current step.
 	Paused bool `json:"paused,omitempty"`
@@ -81,11 +78,17 @@ type BlueGreenStrategy struct {
 	// resumed the new replicaset will be full scaled up before the switch occurs
 	// +optional
 	PreviewReplicaCount *int32 `json:"previewReplicaCount,omitempty"`
-	// AutoPromoteActiveServiceDelaySeconds add a delay before automatically promoting the ReplicaSet under the preview
-	// service to the active service.
-	AutoPromoteActiveServiceDelaySeconds *int32 `json:"autoPromoteActiveServiceDelaySeconds,omitempty"`
-	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See
-	// https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
+	// AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the
+	// specified pause delay in seconds after the ReplicaSet becomes ready.
+	// If omitted, the Rollout enters and remains in a paused state until manually resumed by
+	// resetting spec.Paused to false.
+	// +optional
+	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
+	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
+	// If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet.
+	// A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
+	// a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for
+	// more information
 	// +optional
 	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty"`
 }
@@ -126,7 +129,8 @@ type CanaryStrategy struct {
 type CanaryStep struct {
 	// SetWeight sets what percentage of the newRS should receive
 	SetWeight *int32 `json:"setWeight,omitempty"`
-	// Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false
+	// Pause freezes the rollout by setting spec.Paused to true.
+	// A Rollout will resume when spec.Paused is reset to false.
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 }

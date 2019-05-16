@@ -121,7 +121,7 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc *corev1.Service, rollout 
 		return false
 	}
 	pauseStartTime := rollout.Status.PauseStartTime
-	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds
+	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && pauseStartTime != nil {
 		c.checkEnqueueRolloutDuringWait(rollout, *pauseStartTime, *autoPromoteActiveServiceDelaySeconds)
 	}
