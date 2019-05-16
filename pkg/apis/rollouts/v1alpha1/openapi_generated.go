@@ -112,16 +112,16 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
-					"autoPromoteActiveServiceDelaySeconds": {
+					"autoPromotionSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AutoPromoteActiveServiceDelaySeconds add a delay before automatically promoting the ReplicaSet under the preview service to the active service.",
+							Description: "AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"scaleDownDelaySeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information",
+							Description: "ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -168,7 +168,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 					},
 					"pause": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pause freezes the rollout. If an empty struct is provided, it will freeze until a user sets the spec.Pause to false",
+							Description: "Pause freezes the rollout by setting spec.Paused to true. A Rollout will resume when spec.Paused is reset to false.",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"),
 						},
 					},
@@ -424,7 +424,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 					},
 					"revisionHistoryLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The number of old ReplicaSets to retain. This is a pointer to distinguish between explicit zero and not specified. This is set to the max value of int32 (i.e. 2147483647) by default, which means \"retaining all old ReplicaSets\".",
+							Description: "The number of old ReplicaSets to retain. If unspecified, will retain 10 old ReplicaSets",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
