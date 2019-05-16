@@ -61,9 +61,9 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, addPause bool) (*metav1.Tim
 	}
 
 	if paused && rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds != nil {
+		if pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {
 			now := metav1.Now()
-			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromoteActiveServiceDelaySeconds
+			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
 			switchDeadline := pauseStartTime.Add(time.Duration(autoPromoteActiveServiceDelaySeconds) * time.Second)
 			if now.After(switchDeadline) {
 				return nil, false
