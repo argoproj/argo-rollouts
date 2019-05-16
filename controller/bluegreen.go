@@ -11,7 +11,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -35,6 +34,24 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if err != nil {
 		return err
 	}
+	// Scale down old non-active replicasets, if we can.
+	if !c.reconcileScaleDownDelay(r, oldRSs) {
+		logCtx.Info("Reconciling old non-active replica sets")
+		_, nonActiveOldRSs := replicasetutil.GetActiveReplicaSet(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+		scaledDown, err := c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(nonActiveOldRSs), newRS, r)
+		if err != nil {
+			return err
+		}
+		logCtx.Info("Cleaning up old non-active replicasets")
+		if err := c.cleanupRollouts(nonActiveOldRSs, r); err != nil {
+			return err
+		}
+		if scaledDown {
+			logCtx.Info("Not finished reconciling old replica sets")
+			return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
+		}
+	}
+
 	if scaledUp {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
@@ -77,36 +94,10 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
-	logCtx.Infof("Reconciling scale down delay")
-	scaleDownDelayNotFinished := c.reconcileScaleDownDelay(r, oldRSs, previewSvc, activeSvc)
-	if scaleDownDelayNotFinished {
-		logCtx.Info("Not finished pausing for scale down delay")
-		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
-	}
-
-	// Scale down, if we can.
-	logCtx.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSets(allRSs, controller.FilterActiveReplicaSets(oldRSs), newRS, r)
-	if err != nil {
-		return err
-	}
-	if scaledDown {
-		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
-	}
-
-	logCtx.Infof("Confirming rollout is complete")
-	if conditions.RolloutComplete(r, &r.Status) {
-		logCtx.Info("Cleaning up old replicasets")
-		if err := c.cleanupRollouts(oldRSs, r); err != nil {
-			return err
-		}
-	}
-
 	return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 }
 
-func (c *Controller) reconcileScaleDownDelay(rollout *v1alpha1.Rollout, oldRSs []*appsv1.ReplicaSet, previewSvc, activeSvc *corev1.Service) bool {
+func (c *Controller) reconcileScaleDownDelay(rollout *v1alpha1.Rollout, oldRSs []*appsv1.ReplicaSet) bool {
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
 		// Already scaled down old RS
@@ -139,14 +130,7 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc *corev1.Service, rollout 
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
-	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
-	if availablePodCount <= defaults.GetRolloutReplicasOrDefault(rollout) {
-		// Cannot scale down.
-		return 0, nil
-	}
-	logutil.WithRollout(rollout).Infof("Found %d available pods, scaling down old RSes", availablePodCount)
-
+func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
 	totalScaledDown := int32(0)
@@ -183,7 +167,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
 
-	activeRS := replicasetutil.GetActiveReplicaSet(allRSs, newStatus.BlueGreen.ActiveSelector)
+	activeRS, _ := replicasetutil.GetActiveReplicaSet(allRSs, newStatus.BlueGreen.ActiveSelector)
 	if activeRS != nil {
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{activeRS})
 		newStatus.Selector = metav1.FormatLabelSelector(activeRS.Spec.Selector)
@@ -237,7 +221,7 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 	}
 
 	allRS := append([]*appsv1.ReplicaSet{newRS}, oldRSs...)
-	activeRS := replicasetutil.GetActiveReplicaSet(allRS, rollout.Status.BlueGreen.ActiveSelector)
+	activeRS, _ := replicasetutil.GetActiveReplicaSet(allRS, rollout.Status.BlueGreen.ActiveSelector)
 	if activeRS != nil {
 		if *(activeRS.Spec.Replicas) != rolloutReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)

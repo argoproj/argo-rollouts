@@ -12,20 +12,26 @@ import (
 )
 
 func TestGetActiveReplicaSet(t *testing.T) {
-	assert.Nil(t, GetActiveReplicaSet(nil, ""))
+	activeRS, nonActiveRSs := GetActiveReplicaSet(nil, "")
+	assert.Nil(t, activeRS)
+	assert.Nil(t, nonActiveRSs)
 	rs1 := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
 		},
 	}
-	assert.Nil(t, GetActiveReplicaSet([]*appsv1.ReplicaSet{rs1}, "1234"))
+	activeRS, nonActiveRSs = GetActiveReplicaSet([]*appsv1.ReplicaSet{rs1}, "1234")
+	assert.Nil(t, activeRS)
+	assert.Equal(t, rs1, nonActiveRSs[0])
 
 	rs2 := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "1234"},
 		},
 	}
-	assert.Equal(t, rs2, GetActiveReplicaSet([]*appsv1.ReplicaSet{nil, rs1, rs2}, "1234"))
+	activeRS, nonActiveRSs = GetActiveReplicaSet([]*appsv1.ReplicaSet{nil, rs1, rs2}, "1234")
+	assert.Equal(t, rs2, activeRS)
+	assert.Len(t, nonActiveRSs, 2)
 }
 
 func TestReadyForPreview(t *testing.T) {
