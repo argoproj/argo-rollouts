@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
+	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -717,4 +718,52 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
+
+// TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
+// variations made to the pod template in equivalent ways.
+func TestPodTemplateHashEquivalence(t *testing.T) {
+	var err error
+	expectedReplicaSetName := "guestbook-796789b97b"
+
+	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
+	r1Resources := `
+limits:
+  cpu: 150m
+  memory: 8192M
+requests:
+  cpu: 2000m
+  memory: 8192M
+`
+	err = yaml.Unmarshal([]byte(r1Resources), &r1.Spec.Template.Spec.Containers[0].Resources)
+	assert.NoError(t, err)
+
+	r2 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
+	r2Resources := `
+  limits:
+    cpu: 0.15
+    memory: 8192M
+  requests:
+    cpu: '2'
+    memory: 8192M
+`
+	err = yaml.Unmarshal([]byte(r2Resources), &r2.Spec.Template.Spec.Containers[0].Resources)
+	assert.NoError(t, err)
+
+	for _, r := range []*v1alpha1.Rollout{r1, r2} {
+		f := newFixture(t)
+		activeSvc := newService("active", 80, nil)
+		f.kubeobjects = append(f.kubeobjects, activeSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
+		_ = f.expectUpdateRolloutAction(r)
+		f.expectPatchRolloutAction(r)
+		rs := newReplicaSet(r, expectedReplicaSetName, 1)
+		f.expectGetServiceAction(activeSvc)
+		rsIdx := f.expectCreateReplicaSetAction(rs)
+		f.run(getKey(r, t))
+		rs = f.getCreatedReplicaSet(rsIdx)
+		assert.Equal(t, expectedReplicaSetName, rs.Name)
+	}
 }
