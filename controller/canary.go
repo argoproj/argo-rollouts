@@ -83,6 +83,12 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 		logCtx.Infof("Not finished reconciling Canary Pause")
 		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 	}
+	if conditions.RolloutComplete(rollout, &rollout.Status) {
+		logCtx.Info("Cleaning up old replicasets")
+		if err := c.cleanupRollouts(oldRSs, rollout); err != nil {
+			return err
+		}
+	}
 	return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 }
 
