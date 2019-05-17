@@ -458,7 +458,7 @@ func (c *Controller) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v
 		}
 	}
 
-	activeRS, _ := replicasetutil.GetActiveReplicaSet(allRSs, newStatus.BlueGreen.ActiveSelector)
+	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)
 	if r.Spec.Strategy.BlueGreenStrategy != nil && activeRS != nil && annotations.IsSaturated(r, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)

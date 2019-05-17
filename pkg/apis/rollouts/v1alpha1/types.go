@@ -203,6 +203,10 @@ type BlueGreenStatus struct {
 	// ActiveSelector indicates which replicas set the active service is serving traffic to
 	// +optional
 	ActiveSelector string `json:"activeSelector,omitempty"`
+	// PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset
+	// to avoid scaling down for the scale down delay
+	// +optional
+	PreviousActiveSelector string `json:"previousActiveSelector,omitempty"`
 	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
 	// +optional
 	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
