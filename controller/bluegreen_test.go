@@ -33,7 +33,7 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 	return rollout
 }
 
-func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
+func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 	f := newFixture(t)
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
@@ -44,13 +44,18 @@ func TestBlueGreenHandlePreviewWhenActiveSet(t *testing.T) {
 
 	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.BlueGreen.PreviousActiveSelector = rs1PodHash
+	now := metav1.Now()
+	r2.Status.BlueGreen.ScaleDownDelayStartTime = &now
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "5f79b78d7f"})
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
 	f.kubeobjects = append(f.kubeobjects, previewSvc)
 
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "895c6c4f9"})
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
 	f.expectGetServiceAction(previewSvc)
@@ -123,6 +128,47 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 }
 
 func TestBlueGreenHandlePause(t *testing.T) {
+	t.Run("AddPause", func(t *testing.T) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r2 := bumpVersion(r1)
+		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 2, 1, 1, false, true)
+		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+		previewSvc := newService("preview", 80, previewSelector)
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		f.expectGetServiceAction(activeSvc)
+		f.expectGetServiceAction(previewSvc)
+		addPauseConditionPatchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		patch := f.getPatchedRollout(addPauseConditionPatchIndex)
+		f.run(getKey(r2, t))
+
+		expectedPatch := `{
+			"spec": {
+				"paused": true
+			},
+			"status": {
+				"pauseStartTime": "%s"
+			}
+		}`
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))), patch)
+
+	})
+
 	t.Run("AddPausedConditionWhilePaused", func(t *testing.T) {
 		f := newFixture(t)
 
@@ -309,13 +355,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			"status": {
 				"blueGreen": {
 					"activeSelector": "%s",
+					"previousActiveSelector": "%s",
 					"scaleDownDelayStartTime": "%s"
 				},
 				"conditions": %s,
 				"selector": "%s"
 			}
 		}`
-		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, now, generatedConditions, newSelector))
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs1PodHash, now, generatedConditions, newSelector))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
@@ -418,6 +465,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			"status": {
 				"blueGreen": {
 					"activeSelector": "%s",
+					"previousActiveSelector": "%s",
 					"scaleDownDelayStartTime": "%s"
 				},
 				"pauseStartTime": null,
@@ -426,7 +474,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
-		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, now.UTC().Format(time.RFC3339), generatedConditions, newSelector))
+		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, rs1PodHash, now.UTC().Format(time.RFC3339), generatedConditions, newSelector))
 		rollout2ndPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expected2ndPatch, rollout2ndPatch)
 	})
@@ -485,6 +533,7 @@ func TestBlueGreenAddScaleDownDelayStartTime(t *testing.T) {
 		"status":{
 			"blueGreen": {
 				"activeSelector": "%s",
+				"previousActiveSelector": "%s",
 				"scaleDownDelayStartTime": "%s"
 			},
 			"conditions": %s,
@@ -493,7 +542,7 @@ func TestBlueGreenAddScaleDownDelayStartTime(t *testing.T) {
 	}`
 	newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
 	expectedCondition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true)
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, metav1.Now().UTC().Format(time.RFC3339), expectedCondition, newSelector))
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs1PodHash, metav1.Now().UTC().Format(time.RFC3339), expectedCondition, newSelector))
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -513,8 +562,10 @@ func TestBlueGreenWaitForScaleDownDelay(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
+	r2.Status.BlueGreen.PreviousActiveSelector = rs1PodHash
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, 2, 1, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)

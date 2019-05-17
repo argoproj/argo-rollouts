@@ -1,10 +1,10 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
-	"encoding/json"
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"

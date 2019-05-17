@@ -64,6 +64,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"previousActiveSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset to avoid scaling down for the scale down delay",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"scaleDownDelayStartTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ScaleDownDelayStartTime indicates the start of the scaleDownDelay",

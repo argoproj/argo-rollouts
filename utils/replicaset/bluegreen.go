@@ -6,25 +6,31 @@ import (
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-// GetActiveReplicaSet finds the replicaset that is serving traffic from the active service or returns nil
-func GetActiveReplicaSet(allRS []*appsv1.ReplicaSet, activeSelector string) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
-	if activeSelector == "" {
+// GetReplicaSetByTemplateHash find the replicaset that matches the podTemplateHash
+func GetReplicaSetByTemplateHash(allRS []*appsv1.ReplicaSet, podTemplateHash string) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
+	if podTemplateHash == "" {
 		return nil, allRS
 	}
-	for i, rs := range allRS {
+
+	otherRSs := []*appsv1.ReplicaSet{}
+	var filterRS *appsv1.ReplicaSet
+	for i := range allRS {
+		rs := allRS[i]
 		if rs == nil {
 			continue
 		}
-		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			if podHash == activeSelector {
-				return rs, append(allRS[:i], allRS[i+1:]...)
+		if rsPodHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			if rsPodHash == podTemplateHash {
+				filterRS = rs.DeepCopy()
+				continue
 			}
+			otherRSs = append(otherRSs, rs)
 		}
 	}
-	return nil, allRS
+	return filterRS, otherRSs
 }
 
-func ReadyForPreview(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
+func ReadyForPause(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
 	newRSReplicaCount, err := NewRSNewReplicas(rollout, allRSs, newRS)
 	if err != nil {
 		return false

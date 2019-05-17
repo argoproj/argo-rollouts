@@ -67,6 +67,7 @@ func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *
 
 func (c *Controller) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
+
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
 		// Can't scale down further

@@ -39,9 +39,11 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 }
 
 func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+	logCtx := logutil.WithRollout(r)
 	if previewSvc == nil {
 		return false, nil
 	}
+	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
 	//If the active service selector does not point to any RS,
 	// we short-circuit changing the preview service.
