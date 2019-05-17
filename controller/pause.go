@@ -60,6 +60,12 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, addPause bool) (*metav1.Tim
 		}
 	}
 
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		if reconcileBlueGreenTemplateChange(rollout) {
+			return nil, false
+		}
+	}
+
 	if paused && rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		if pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {
 			now := metav1.Now()
