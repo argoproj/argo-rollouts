@@ -372,7 +372,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
-	t.Run("SkipNoActiveSelector", func(t *testing.T) {
+	t.Run("SkipPreviewWhenActiveHasNoSelector", func(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
