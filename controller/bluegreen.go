@@ -29,6 +29,8 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	templateChange := reconcileBlueGreenTemplateChange(r)
 	if templateChange {
+		newPodHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+		logCtx.Infof("New Template '%s' detected", newPodHash)
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 	allRSs := append(oldRSs, newRS)
@@ -41,7 +43,8 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	}
 	// Scale down old non-active replicasets, if we can.
 	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-	if c.reconcileScaleDownDelay(r, oldRSs) {
+	if !c.scaleDownPreviousActiveRS(r) {
+		logCtx.Info("Filtering out previous active RS while reconciling old replica sets")
 		_, filteredOldRS = replicasetutil.GetReplicaSetByTemplateHash(filteredOldRS, r.Status.BlueGreen.PreviousActiveSelector)
 	}
 	logCtx.Info("Reconciling old replica sets")
@@ -106,20 +109,15 @@ func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout) bool {
 	return rollout.Status.CurrentPodHash != controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 }
 
-func (c *Controller) reconcileScaleDownDelay(rollout *v1alpha1.Rollout, oldRSs []*appsv1.ReplicaSet) bool {
-	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
-	if oldPodsCount == 0 {
-		// Already scaled down old RS
-		return false
-	}
+func (c *Controller) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.BlueGreen.ScaleDownDelayStartTime == nil {
 		return true
 	}
 	scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(rollout)
 	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.BlueGreen.ScaleDownDelayStartTime, scaleDownDelaySeconds)
-	pauseUntil := metav1.NewTime(rollout.Status.BlueGreen.ScaleDownDelayStartTime.Add(time.Duration(scaleDownDelaySeconds) * time.Second))
+	pauseEnd := metav1.NewTime(rollout.Status.BlueGreen.ScaleDownDelayStartTime.Add(time.Duration(scaleDownDelaySeconds) * time.Second))
 	now := metav1.Now()
-	return now.Before(&pauseUntil)
+	return now.After(pauseEnd.Time)
 }
 
 func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
@@ -129,7 +127,7 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Servi
 
 	// If the rollout is not paused and the preview service is pointing at the currentPodHash, the rollout should enter a paused state
 	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-	if !rollout.Spec.Paused && rollout.Status.PauseStartTime == nil && previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == currentPodHash {
+	if !rollout.Spec.Paused && rollout.Status.PauseStartTime == nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == currentPodHash {
 		return true
 	}
 
@@ -182,9 +180,19 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 		activeSelector = ""
 	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
+
 	newStatus.BlueGreen.PreviousActiveSelector = r.Status.BlueGreen.PreviousActiveSelector
+	newStatus.BlueGreen.ScaleDownDelayStartTime = r.Status.BlueGreen.ScaleDownDelayStartTime
 	if newStatus.BlueGreen.ActiveSelector != r.Status.BlueGreen.ActiveSelector {
-		newStatus.BlueGreen.PreviousActiveSelector = r.Status.BlueGreen.ActiveSelector
+		previousActiveRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.BlueGreen.ActiveSelector)
+		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousActiveRS}) > 0 {
+			newStatus.BlueGreen.PreviousActiveSelector = r.Status.BlueGreen.ActiveSelector
+			now := metav1.Now()
+			newStatus.BlueGreen.ScaleDownDelayStartTime = &now
+		}
+	} else if c.scaleDownPreviousActiveRS(r) {
+		newStatus.BlueGreen.PreviousActiveSelector = ""
+		newStatus.BlueGreen.ScaleDownDelayStartTime = nil
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)
@@ -196,22 +204,13 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 	}
 
-	newStatus.BlueGreen.ScaleDownDelayStartTime = r.Status.BlueGreen.ScaleDownDelayStartTime
-	if activeSelector == newStatus.CurrentPodHash && newStatus.BlueGreen.ScaleDownDelayStartTime == nil {
-		now := metav1.Now()
-		newStatus.BlueGreen.ScaleDownDelayStartTime = &now
-	}
-	if activeSelector != newStatus.CurrentPodHash || replicasetutil.GetReplicaCountForReplicaSets(oldRSs) == 0 {
-		newStatus.BlueGreen.ScaleDownDelayStartTime = nil
-	}
-
 	pauseStartTime, paused := calculatePauseStatus(r, addPause)
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = r.Status.BlueGreen.ScaleUpPreviewCheckPoint
 	if paused && r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil {
 		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = true
-	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
+	} else if reconcileBlueGreenTemplateChange(r) {
 		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
-	} else if newRS != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != newStatus.CurrentPodHash {
+	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
 		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
 	}
 	newStatus.PauseStartTime = pauseStartTime
