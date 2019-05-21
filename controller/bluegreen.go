@@ -248,6 +248,18 @@ func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.Rep
 		}
 	}
 
+	previewRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRS, rollout.Status.BlueGreen.PreviewSelector)
+	if previewRS != nil {
+		previewReplicas := rolloutReplicas
+		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+			previewReplicas = *rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount
+		}
+		if *(previewRS.Spec.Replicas) != previewReplicas {
+			_, _, err := c.scaleReplicaSetAndRecordEvent(previewRS, previewReplicas, rollout)
+			return err
+		}
+	}
+
 	if newRS != nil {
 		newRSReplicaCount, err := replicasetutil.NewRSNewReplicas(rollout, allRS, newRS)
 		if err != nil {

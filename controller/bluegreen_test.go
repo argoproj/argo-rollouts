@@ -724,6 +724,41 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+func TestBlueGreenRolloutScaleUpdatePreviewRS(t *testing.T) {
+	f := newFixture(t)
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount = pointer.Int32Ptr(123)
+	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	rs1.Spec.Replicas = pointer.Int32Ptr(2)
+	r2 := bumpVersion(r1)
+
+	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2.Spec.Replicas = pointer.Int32Ptr(2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
+
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 2, 1, 1, false, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+
+	f.expectGetServiceAction(previewSvc)
+	f.expectGetServiceAction(activeSvc)
+	rs2idx := f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	rs2Updated := f.getUpdatedReplicaSet(rs2idx)
+	assert.Equal(t, int32(123), *rs2Updated.Spec.Replicas)
+}
+
 func TestBlueGreenRolloutScalePreviewActiveRS(t *testing.T) {
 	f := newFixture(t)
 
