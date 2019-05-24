@@ -9,6 +9,8 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=rollouts,shortName=ro
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.HPAReplicas,selectorpath=.status.selector
 
 // Rollout is a specification for a Rollout resource
 type Rollout struct {
@@ -16,7 +18,7 @@ type Rollout struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RolloutSpec   `json:"spec"`
-	Status RolloutStatus `json:"status"`
+	Status RolloutStatus `json:"status,omitempty"`
 }
 
 // RolloutSpec is the spec for a Rollout resource
@@ -35,7 +37,7 @@ type RolloutSpec struct {
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
 	// +optional
-	MinReadySeconds int32 `json:"minReadySeconds"`
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy"`
