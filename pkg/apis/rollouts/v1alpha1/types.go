@@ -9,6 +9,8 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=rollouts,shortName=ro
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.HPAReplicas,selectorpath=.status.selector
 
 // Rollout is a specification for a Rollout resource
 type Rollout struct {
@@ -16,7 +18,7 @@ type Rollout struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RolloutSpec   `json:"spec"`
-	Status RolloutStatus `json:"status"`
+	Status RolloutStatus `json:"status,omitempty"`
 }
 
 // RolloutSpec is the spec for a Rollout resource
@@ -35,7 +37,7 @@ type RolloutSpec struct {
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
 	// +optional
-	MinReadySeconds int32 `json:"minReadySeconds"`
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy"`
@@ -146,23 +148,23 @@ type RolloutPause struct {
 type RolloutStatus struct {
 	// CurrentPodHash the hash of the current pod template
 	// +optional
-	CurrentPodHash string `json:"currentPodHash"`
+	CurrentPodHash string `json:"currentPodHash,omitempty"`
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
 	// +optional
 	CurrentStepHash string `json:"currentStepHash,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
 	// +optional
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout that have the desired template spec.
 	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas"`
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 	// Total number of ready pods targeted by this rollout.
 	// +optional
-	ReadyReplicas int32 `json:"readyReplicas"`
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this rollout.
 	// +optional
-	AvailableReplicas int32 `json:"availableReplicas"`
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 	// CurrentStepIndex defines the current step of the rollout is on. If the current step index is null, the
 	// controller will execute the rollout.
 	// +optional

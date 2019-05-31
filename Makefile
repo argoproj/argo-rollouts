@@ -42,9 +42,11 @@ endif
 .PHONY: all
 all: controller image
 
-.PHONY: clientgen
-clientgen:
+.PHONY: codegen
+codegen:
 	./hack/update-codegen.sh
+	./hack/update-openapigen.sh
+	go run ./hack/gen-crd-spec/main.go
 
 .PHONY: controller
 controller: clean-debug
@@ -68,13 +70,8 @@ lint:
 test:
 	$(TEST_CMD) -v -covermode=count -coverprofile=coverage.out `go list ./...`
 
-.PHONY: openapi-gen
-openapi-gen: clientgen
-	./hack/update-openapigen.sh
-
 .PHONY: manifests
-manifests: openapi-gen
-	go run ./hack/gen-openapi-spec/main.go
+manifests:
 	./hack/update-manifests.sh
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes

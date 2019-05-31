@@ -27,14 +27,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0cac9c70f3308d54ed601878aa66423eb95c374616fdd7d2ea4e2d18b045ae62"
-  name = "github.com/ant31/crd-validation"
-  packages = ["pkg"]
-  pruneopts = ""
-  revision = "38f6a293f140402953f884b015014e0cd519bbb3"
-
-[[projects]]
-  branch = "master"
   digest = "1:c0bec5f9b98d0bc872ff5e834fac186b807b656683bd29cb82fb207a1513fabb"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -974,7 +966,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/ant31/crd-validation/pkg",
     "github.com/emicklei/go-restful",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/spec",
