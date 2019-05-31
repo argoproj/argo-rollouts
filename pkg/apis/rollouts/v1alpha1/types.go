@@ -148,23 +148,23 @@ type RolloutPause struct {
 type RolloutStatus struct {
 	// CurrentPodHash the hash of the current pod template
 	// +optional
-	CurrentPodHash string `json:"currentPodHash"`
+	CurrentPodHash string `json:"currentPodHash,omitempty"`
 	// CurrentStepHash the hash of the current list of steps for the current strategy. This is used to detect when the
 	// list of current steps change
 	// +optional
 	CurrentStepHash string `json:"currentStepHash,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout (their labels match the selector).
 	// +optional
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// Total number of non-terminated pods targeted by this rollout that have the desired template spec.
 	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas"`
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 	// Total number of ready pods targeted by this rollout.
 	// +optional
-	ReadyReplicas int32 `json:"readyReplicas"`
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this rollout.
 	// +optional
-	AvailableReplicas int32 `json:"availableReplicas"`
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 	// CurrentStepIndex defines the current step of the rollout is on. If the current step index is null, the
 	// controller will execute the rollout.
 	// +optional

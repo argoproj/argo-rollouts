@@ -4882,12 +4882,6 @@ spec:
                 that have the desired template spec.
               format: int32
               type: integer
-          required:
-          - currentPodHash
-          - replicas
-          - updatedReplicas
-          - readyReplicas
-          - availableReplicas
           type: object
       required:
       - spec
