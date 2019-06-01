@@ -9,6 +9,8 @@ import (
 const (
 	// RolloutKey defines the key for the rollout field
 	RolloutKey = "rollout"
+	// ServiceKey defines the key for the service field
+	ServiceKey = "service"
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )

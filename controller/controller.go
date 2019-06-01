@@ -17,13 +17,16 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -39,19 +42,6 @@ import (
 const controllerAgentName = "rollouts-controller"
 
 const (
-	// SuccessSynced is used as part of the Event 'reason' when a Rollout is synced
-	SuccessSynced = "Synced"
-	// ErrResourceExists is used as part of the Event 'reason' when a Rollout fails
-	// to sync due to a Replica of the same name already existing.
-	ErrResourceExists = "ErrResourceExists"
-
-	// MessageResourceExists is the message used for Events when a resource
-	// fails to sync due to a Replica already existing
-	MessageResourceExists = "Resource %q already exists and is not managed by Rollout"
-	// MessageResourceSynced is the message used for an Event fired when a Rollout
-	// is synced successfully
-	MessageResourceSynced = "Rollout synced successfully"
-
 	// DefaultRolloutResyncPeriod Default time in seconds for rollout resync period
 	DefaultRolloutResyncPeriod = 15 * 60
 
@@ -73,6 +63,9 @@ type Controller struct {
 	replicaSetSynced cache.InformerSynced
 	rolloutsLister   listers.RolloutLister
 	rolloutsSynced   cache.InformerSynced
+	rolloutsIndexer  cache.Indexer
+	servicesSynced   cache.InformerSynced
+	servicesLister   v1.ServiceLister
 	metricsServer    *metrics.MetricsServer
 
 	// used for unit testing
@@ -84,7 +77,8 @@ type Controller struct {
 	// means we can ensure we only process a fixed amount of resources at a
 	// time, and makes it easy to ensure we are never processing the same item
 	// simultaneously in two different workers.
-	workqueue workqueue.RateLimitingInterface
+	rolloutWorkqueue workqueue.RateLimitingInterface
+	serviceWorkqueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder     record.EventRecorder
@@ -96,6 +90,7 @@ func NewController(
 	kubeclientset kubernetes.Interface,
 	rolloutsclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
+	servicesInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
 	resyncPeriod time.Duration,
 	metricsPort int) *Controller {
@@ -121,15 +116,28 @@ func NewController(
 		replicaSetControl: replicaSetControl,
 		replicaSetLister:  replicaSetInformer.Lister(),
 		replicaSetSynced:  replicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:   rolloutsInformer.Informer().GetIndexer(),
 		rolloutsLister:    rolloutsInformer.Lister(),
 		rolloutsSynced:    rolloutsInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
+		servicesSynced:    servicesInformer.Informer().HasSynced,
+		servicesLister:    servicesInformer.Lister(),
+		rolloutWorkqueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts"),
+		serviceWorkqueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services"),
 		recorder:          recorder,
 		resyncPeriod:      resyncPeriod,
 		metricsServer:     metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister()),
 	}
 	controller.enqueueRollout = controller.enqueueRateLimited
 	controller.enqueueRolloutAfter = controller.enqueueAfter
+
+	util.CheckErr(rolloutsInformer.Informer().AddIndexers(cache.Indexers{
+		serviceIndexName: func(obj interface{}) (strings []string, e error) {
+			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
+				return getRolloutServiceKeys(rollout), nil
+			}
+			return []string{}, nil
+		},
+	}))
 
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
@@ -138,7 +146,15 @@ func NewController(
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueRollout(new)
 		},
+		DeleteFunc: func(obj interface{}) {
+			if r, ok := obj.(*v1alpha1.Rollout); ok {
+				for _, s := range getRolloutServiceKeys(r) {
+					controller.serviceWorkqueue.AddRateLimited(s)
+				}
+			}
+		},
 	})
+
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.handleObject,
 		UpdateFunc: func(old, new interface{}) {
@@ -153,6 +169,13 @@ func NewController(
 		},
 		DeleteFunc: controller.handleObject,
 	})
+	servicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueService,
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controller.enqueueService(newObj)
+		},
+		DeleteFunc: controller.enqueueService,
+	})
 
 	return controller
 }
@@ -162,22 +185,25 @@ func NewController(
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+
 	defer runtime.HandleCrash()
-	defer c.workqueue.ShutDown()
+	defer c.rolloutWorkqueue.ShutDown()
+	defer c.serviceWorkqueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Rollout controller")
 
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.servicesSynced, c.rolloutsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
 	log.Info("Starting workers")
-	// Launch two workers to process Rollout resources
+
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
+		go wait.Until(func() { c.runWorker(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler) }, time.Second, stopCh)
+		go wait.Until(func() { c.runWorker(c.serviceWorkqueue, logutil.ServiceKey, c.syncService) }, time.Second, stopCh)
 	}
 
 	log.Info("Started workers")
@@ -198,15 +224,15 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // runWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func (c *Controller) runWorker() {
-	for c.processNextWorkItem() {
+func (c *Controller) runWorker(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error) {
+	for c.processNextWorkItem(workqueue, objType, syncHandler) {
 	}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func (c *Controller) processNextWorkItem() bool {
-	obj, shutdown := c.workqueue.Get()
+func (c *Controller) processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error) bool {
+	obj, shutdown := workqueue.Get()
 
 	if shutdown {
 		return false
@@ -220,7 +246,7 @@ func (c *Controller) processNextWorkItem() bool {
 		// not call Forget if a transient error occurs, instead the item is
 		// put back on the workqueue and attempted again after a back-off
 		// period.
-		defer c.workqueue.Done(obj)
+		defer workqueue.Done(obj)
 		var key string
 		var ok bool
 		// We expect strings to come off the workqueue. These are of the
@@ -232,13 +258,13 @@ func (c *Controller) processNextWorkItem() bool {
 			// As the item in the workqueue is actually invalid, we call
 			// Forget here else we'd go into a loop of attempting to
 			// process a work item that is invalid.
-			c.workqueue.Forget(obj)
+			workqueue.Forget(obj)
 			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
-		if err := c.syncHandler(key); err != nil {
+		if err := syncHandler(key); err != nil {
 			err := fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 			namespace, name, splitErr := cache.SplitMetaNamespaceKey(key)
 			if splitErr != nil {
@@ -246,13 +272,13 @@ func (c *Controller) processNextWorkItem() bool {
 			}
 			c.metricsServer.IncError(namespace, name)
 			// Put the item back on the workqueue to handle any transient errors.
-			c.workqueue.AddRateLimited(key)
+			workqueue.AddRateLimited(key)
 			return err
 		}
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
-		c.workqueue.Forget(obj)
-		log.WithField(logutil.RolloutKey, key).Infof("Successfully synced")
+		workqueue.Forget(obj)
+		log.WithField(objType, key).Infof("Successfully synced")
 		return nil
 	}(obj)
 
@@ -364,7 +390,7 @@ func (c *Controller) enqueue(obj interface{}) {
 		runtime.HandleError(err)
 		return
 	}
-	c.workqueue.Add(key)
+	c.rolloutWorkqueue.Add(key)
 }
 
 func (c *Controller) enqueueRateLimited(obj interface{}) {
@@ -374,7 +400,7 @@ func (c *Controller) enqueueRateLimited(obj interface{}) {
 		runtime.HandleError(err)
 		return
 	}
-	c.workqueue.AddRateLimited(key)
+	c.rolloutWorkqueue.AddRateLimited(key)
 }
 
 func (c *Controller) enqueueAfter(obj interface{}, duration time.Duration) {
@@ -384,7 +410,7 @@ func (c *Controller) enqueueAfter(obj interface{}, duration time.Duration) {
 		runtime.HandleError(err)
 		return
 	}
-	c.workqueue.AddAfter(key, duration)
+	c.rolloutWorkqueue.AddAfter(key, duration)
 }
 
 // handleObject will take any resource implementing metav1.Object and attempt

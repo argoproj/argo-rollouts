@@ -8,13 +8,17 @@ import (
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
+	serviceIndexName    = "byService"
 	switchSelectorPatch = `{
 	"spec": {
 		"selector": {
@@ -22,6 +26,7 @@ const (
 		}
 	}
 }`
+	removeSelectorPatch = `[{ "op": "remove", "path": "/spec/selector/%s" }]`
 )
 
 // switchSelector switch the selector on an existing service to a new value
@@ -160,4 +165,80 @@ func (c *Controller) getRolloutSelectorLabel(svc *corev1.Service) (string, bool)
 	}
 	currentSelectorValue, ok := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 	return currentSelectorValue, ok
+}
+
+func (c *Controller) enqueueService(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	c.serviceWorkqueue.AddRateLimited(key)
+}
+
+func (c *Controller) syncService(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	svc, err := c.servicesLister.Services(namespace).Get(name)
+	if errors.IsNotFound(err) {
+		log.WithField(logutil.ServiceKey, key).Infof("Service %v has been deleted", key)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if rollouts, err := c.getRolloutsByService(svc.Namespace, svc.Name); err == nil {
+		for i := range rollouts {
+			c.enqueueRollout(rollouts[i])
+		}
+
+		if _, hasHashSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; hasHashSelector && len(rollouts) == 0 {
+			updatedSvc := svc.DeepCopy()
+			delete(updatedSvc.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey)
+			patch := fmt.Sprintf(removeSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey)
+			_, err := c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.JSONPatchType, []byte(patch))
+			if errors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// getRolloutsByService returns all rollouts which are referencing specified service
+func (c *Controller) getRolloutsByService(namespace string, serviceName string) ([]*v1alpha1.Rollout, error) {
+	objs, err := c.rolloutsIndexer.ByIndex(serviceIndexName, fmt.Sprintf("%s/%s", namespace, serviceName))
+	if err != nil {
+		return nil, err
+	}
+	var rollouts []*v1alpha1.Rollout
+	for i := range objs {
+		if r, ok := objs[i].(*v1alpha1.Rollout); ok {
+			rollouts = append(rollouts, r)
+		}
+	}
+	return rollouts, nil
+}
+
+// getRolloutServiceKeys returns services keys (namespace/serviceName) which are referenced by specified rollout
+func getRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
+	servicesSet := make(map[string]bool)
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.ActiveService)] = true
+		}
+		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.PreviewService)] = true
+		}
+	}
+	var services []string
+	for svc := range servicesSet {
+		services = append(services, svc)
+	}
+	return services
 }
