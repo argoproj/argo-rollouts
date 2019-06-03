@@ -27,3 +27,7 @@ required = [
 [[override]]
   name = "k8s.io/apiserver"
   branch = "release-1.12"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  branch = "release-1.12"
