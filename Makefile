@@ -9,6 +9,9 @@ GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
 
+# build development images
+DEV_IMAGE=false
+
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
@@ -57,7 +60,12 @@ builder-image:
 
 .PHONY: image
 image:
+ifeq ($(DEV_IMAGE), true)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
+	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev .
+else
 	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
+endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
 .PHONY: lint

@@ -603,8 +603,8 @@
   revision = "e8a638592964bfb3aaacb66d283c483097d1c0a7"
 
 [[projects]]
-  branch = "master"
-  digest = "1:3166a472475f9904e42f93565fca74f7f20d9a5f3bc1b0ac321aedc5a211e796"
+  branch = "release-1.12"
+  digest = "1:9c7ee6fe7b8b621df5a7604e9a1f752b566ae451b2cf010c9c075e5e5ff81f56"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/equality",
@@ -656,7 +656,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "1b0702fe2927f82126da9c2ecf567f14676f6072"
+  revision = "01f179d85dbce0f2e0e4351a92394b38694b7cae"
 
 [[projects]]
   branch = "release-1.12"
@@ -675,7 +675,7 @@
 
 [[projects]]
   branch = "release-9.0"
-  digest = "1:303a14c5b87098d9ebf2773aba2ebc9b3f4808ba4e6d7c547b0fed4e624d9e30"
+  digest = "1:b1a32e8c431a032029c57bd211aa8b7e7de4fd7e142d4805be654da286f5efe4"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -850,7 +850,7 @@
     "util/workqueue",
   ]
   pruneopts = ""
-  revision = "02f343fb27038ed2f570c9ecb2484fb11f2a59a9"
+  revision = "b6aa6aafe32b0767f075245e5d391381c5449c8a"
 
 [[projects]]
   branch = "release-1.12"
@@ -886,12 +886,12 @@
   revision = "fd15ee9cc2f77baa4f31e59e6acbf21146455073"
 
 [[projects]]
-  digest = "1:4f5eb833037cc0ba0bf8fe9cae6be9df62c19dd1c869415275c708daa8ccfda5"
+  digest = "1:32e54cfe25c8eea758b1e0d3aec033ba652d0557cb79ee62d1ba239f5f694c0e"
   name = "k8s.io/klog"
   packages = ["."]
   pruneopts = ""
-  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
-  version = "v0.1.0"
+  revision = "89e63fd5117f8c20208186ef85f096703a280c20"
+  version = "v0.3.1"
 
 [[projects]]
   branch = "master"
@@ -961,14 +961,6 @@
   packages = ["pointer"]
   pruneopts = ""
   revision = "0d26856f57b32ec3398579285e5c8a2bfe8c5243"
-
-[[projects]]
-  digest = "1:321081b4a44256715f2b68411d8eda9a17f17ebfe6f0cc61d2cc52d11c08acfa"
-  name = "sigs.k8s.io/yaml"
-  packages = ["."]
-  pruneopts = ""
-  revision = "fd68e9863619f6ec2fdd8625fe1f02e7c877e480"
-  version = "v1.1.0"
 
 [solve-meta]
   analyzer-name = "dep"
