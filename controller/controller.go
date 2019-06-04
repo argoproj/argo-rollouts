@@ -262,14 +262,14 @@ func (c *Controller) processNextWorkItem(workqueue workqueue.RateLimitingInterfa
 			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
+		namespace, name, err := cache.SplitMetaNamespaceKey(key)
+		if err != nil {
+			return err
+		}
+
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
 		if err := syncHandler(key); err != nil {
-			err := fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
-			namespace, name, splitErr := cache.SplitMetaNamespaceKey(key)
-			if splitErr != nil {
-				return errors.Wrapf(err, "Error splitting key %s: %s", key, splitErr.Error())
-			}
 			c.metricsServer.IncError(namespace, name)
 			// Put the item back on the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
@@ -278,7 +278,7 @@ func (c *Controller) processNextWorkItem(workqueue workqueue.RateLimitingInterfa
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		workqueue.Forget(obj)
-		log.WithField(objType, key).Infof("Successfully synced")
+		log.WithField(objType, name).WithField(logutil.NamespaceKey, namespace).Info("Successfully synced")
 		return nil
 	}(obj)
 
@@ -295,14 +295,14 @@ func (c *Controller) processNextWorkItem(workqueue workqueue.RateLimitingInterfa
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
-	log.WithField(logutil.RolloutKey, key).Infof("Started syncing rollout at (%v)", startTime)
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
+	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing rollout at (%v)", startTime)
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
-		log.WithField(logutil.RolloutKey, key).Infof("Rollout %v has been deleted", key)
+		log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Info("Rollout has been deleted")
 		return nil
 	}
 	if err != nil {
