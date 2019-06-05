@@ -153,7 +153,11 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	expPreview := newService("preview", 80, nil)
 	f.kubeobjects = append(f.kubeobjects, expActive)
 	f.kubeobjects = append(f.kubeobjects, expPreview)
+	f.serviceLister = append(f.serviceLister, expActive, expPreview)
 	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
 				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
@@ -205,10 +209,9 @@ func TestActiveServiceNotFound(t *testing.T) {
 	previewSvc := newService("preview-svc", 80, nil)
 	notUsedActiveSvc := newService("active-svc", 80, nil)
 	f.kubeobjects = append(f.kubeobjects, previewSvc)
+	f.serviceLister = append(f.serviceLister, previewSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.expectGetServiceAction(previewSvc)
-	f.expectGetServiceAction(notUsedActiveSvc)
 	f.runExpectError(getKey(r, t), true)
 
 	patch := f.getPatchedRollout(patchIndex)
@@ -231,8 +234,8 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	activeSvc := newService("active-svc", 80, nil)
 	notUsedPreviewSvc := newService("preview-svc", 80, nil)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister)
 
-	f.expectGetServiceAction(notUsedPreviewSvc)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.runExpectError(getKey(r, t), true)
 
