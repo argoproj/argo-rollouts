@@ -447,14 +447,6 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectGetServiceAction(s *corev1.Service) {
-	serviceSchema := schema.GroupVersionResource{
-		Resource: "services",
-		Version:  "v1",
-	}
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(serviceSchema, s.Namespace, s.Name))
-}
-
 func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) int {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newLabel)
 	serviceSchema := schema.GroupVersionResource{
@@ -597,9 +589,8 @@ func TestAdoptReplicaSet(t *testing.T) {
 	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
-	f.expectGetServiceAction(activeSvc)
-	f.expectGetServiceAction(previewSvc)
 	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -756,12 +747,12 @@ requests:
 		activeSvc := newService("active", 80, nil)
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
 		_ = f.expectUpdateRolloutAction(r)
 		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, expectedReplicaSetName, 1)
-		f.expectGetServiceAction(activeSvc)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)

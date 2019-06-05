@@ -5,8 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -125,7 +124,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	var activeSvc *corev1.Service
 	var err error
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
-		previewSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService, metav1.GetOptions{})
+		previewSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
@@ -141,7 +140,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	if r.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
 		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
 	}
-	activeSvc, err = c.kubeclientset.CoreV1().Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService, metav1.GetOptions{})
+	activeSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
