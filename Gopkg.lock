@@ -604,6 +604,7 @@
     "pkg/api/meta",
     "pkg/api/resource",
     "pkg/api/validation",
+    "pkg/apis/config",
     "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
@@ -820,6 +821,8 @@
     "testing",
     "third_party/forked/golang/template",
     "tools/auth",
+    "tools/bootstrap/token/api",
+    "tools/bootstrap/token/util",
     "tools/cache",
     "tools/clientcmd",
     "tools/clientcmd/api",
@@ -905,6 +908,9 @@
   digest = "1:6061aa42761235df375f20fa4a1aa6d1845cba3687575f3adb2ef3f3bc540af5"
   name = "k8s.io/kubernetes"
   packages = [
+    "cmd/kubeadm/app/apis/kubeadm",
+    "cmd/kubeadm/app/constants",
+    "cmd/kubeadm/app/util",
     "pkg/api/legacyscheme",
     "pkg/api/service",
     "pkg/api/v1/pod",
@@ -925,8 +931,12 @@
     "pkg/features",
     "pkg/fieldpath",
     "pkg/kubelet/apis",
+    "pkg/kubelet/apis/config",
     "pkg/kubelet/types",
     "pkg/master/ports",
+    "pkg/proxy/apis/config",
+    "pkg/registry/core/service/allocator",
+    "pkg/registry/core/service/ipallocator",
     "pkg/scheduler/algorithm",
     "pkg/scheduler/algorithm/priorities/util",
     "pkg/scheduler/api",
@@ -941,6 +951,8 @@
     "pkg/util/node",
     "pkg/util/parsers",
     "pkg/util/taints",
+    "pkg/util/version",
+    "pkg/version",
   ]
   pruneopts = ""
   revision = "17c77c7898218073f14c8d573582e8d2313dc740"
@@ -950,7 +962,10 @@
   branch = "master"
   digest = "1:bea542e853f98bfcc80ecbe8fe0f32bc52c97664102aacdd7dca676354ef2faa"
   name = "k8s.io/utils"
-  packages = ["pointer"]
+  packages = [
+    "exec",
+    "pointer",
+  ]
   pruneopts = ""
   revision = "0d26856f57b32ec3398579285e5c8a2bfe8c5243"
 
@@ -1001,11 +1016,13 @@
     "k8s.io/client-go/discovery/fake",
     "k8s.io/client-go/informers",
     "k8s.io/client-go/informers/apps/v1",
+    "k8s.io/client-go/informers/core/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/listers/apps/v1",
+    "k8s.io/client-go/listers/core/v1",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/plugin/pkg/client/auth/oidc",
     "k8s.io/client-go/rest",
@@ -1018,6 +1035,7 @@
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/kube-openapi/cmd/openapi-gen",
     "k8s.io/kube-openapi/pkg/common",
+    "k8s.io/kubernetes/cmd/kubeadm/app/util",
     "k8s.io/kubernetes/pkg/controller",
     "k8s.io/kubernetes/pkg/util/hash",
     "k8s.io/kubernetes/pkg/util/labels",

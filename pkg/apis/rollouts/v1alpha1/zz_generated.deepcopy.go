@@ -54,6 +54,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.AutoPromotionEnabled != nil {
+		in, out := &in.AutoPromotionEnabled, &out.AutoPromotionEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	if in.AutoPromotionSeconds != nil {
 		in, out := &in.AutoPromotionSeconds, &out.AutoPromotionSeconds
 		*out = new(int32)

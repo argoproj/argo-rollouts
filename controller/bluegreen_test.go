@@ -132,6 +132,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
 		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
@@ -173,6 +174,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
@@ -212,6 +214,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
@@ -245,6 +248,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
@@ -279,6 +283,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
@@ -322,7 +327,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
-	t.Run("SkipWhenNoPreviewSpecified", func(t *testing.T) {
+	t.Run("NoPauseWhenAutoPromotionEnabledIsNotSet", func(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
@@ -372,10 +377,53 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
+	t.Run("PauseWhenAutoPromotionEnabledIsFalse", func(t *testing.T) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r2 := bumpVersion(r1)
+
+		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 2, 1, 1, false, true)
+
+		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2)
+		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		f.expectGetServiceAction(activeSvc)
+
+		now := metav1.Now().UTC().Format(time.RFC3339)
+		expectedPatchWithoutSubs := `{
+			"spec": {
+				"paused": true
+			},
+			"status": {
+				"pauseStartTime": "%s"
+			}
+		}`
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, now))
+		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		f.run(getKey(r2, t))
+
+		rolloutPatch := f.getPatchedRollout(patchIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
+	})
+
 	t.Run("SkipPreviewWhenActiveHasNoSelector", func(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -419,6 +467,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
@@ -621,6 +670,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	f := newFixture(t)
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r)
 
 	rs1 := newReplicaSetWithStatus(r, "foo-867bc46cdc", 1, 1)

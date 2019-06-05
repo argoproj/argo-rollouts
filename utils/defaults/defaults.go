@@ -19,6 +19,8 @@ const (
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
 	DefaultScaleDownDelaySeconds = int32(30)
+	// DefaultAutoPromotionEnabled default value for auto promoting a blueGreen strategy
+	DefaultAutoPromotionEnabled = true
 )
 
 // GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
@@ -79,4 +81,14 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
 	}
 
 	return *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds
+}
+
+func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.Strategy.BlueGreenStrategy == nil {
+		return DefaultAutoPromotionEnabled
+	}
+	if rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled == nil {
+		return DefaultAutoPromotionEnabled
+	}
+	return *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled
 }

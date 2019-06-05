@@ -81,11 +81,13 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
-	logCtx.Info("Reconciling pause")
-	pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, r)
-	if pauseBeforeSwitchActive {
-		logCtx.Info("Not finished reconciling pause")
-		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, true)
+	if !defaults.GetAutoPromotionEnabledOrDefault(r) {
+		logCtx.Info("Reconciling pause")
+		pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, r, newRS)
+		if pauseBeforeSwitchActive {
+			logCtx.Info("Not finished reconciling pause")
+			return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, true)
+		}
 	}
 
 	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
@@ -120,20 +122,17 @@ func (c *Controller) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
 	return now.After(pauseEnd.Time)
 }
 
-func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService == "" {
-		return false
-	}
-
-	// If the rollout is not paused and the preview service is pointing at the currentPodHash, the rollout should enter a paused state
-	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-	if !rollout.Spec.Paused && rollout.Status.PauseStartTime == nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == currentPodHash {
-		return true
-	}
+func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return false
 	}
+	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
+	if !rollout.Spec.Paused && rollout.Status.PauseStartTime == nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
+		return true
+	}
+
 	pauseStartTime := rollout.Status.PauseStartTime
 	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && pauseStartTime != nil {
@@ -205,17 +204,22 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 	}
 
 	pauseStartTime, paused := calculatePauseStatus(r, addPause)
-	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = r.Status.BlueGreen.ScaleUpPreviewCheckPoint
-	if paused && r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil {
-		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = true
-	} else if reconcileBlueGreenTemplateChange(r) {
-		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
-	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
-		newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
-	}
 	newStatus.PauseStartTime = pauseStartTime
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(r, newRS, activeRS)
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
+}
+
+func calculateScaleUpPreviewCheckPoint(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, activeRS *appsv1.ReplicaSet) bool {
+	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
+	if r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount {
+		return true
+	} else if reconcileBlueGreenTemplateChange(r) {
+		return false
+	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
+		return false
+	}
+	return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
 }
 
 // Should run only on scaling events and not during the normal rollout process.

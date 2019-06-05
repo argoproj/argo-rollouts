@@ -425,6 +425,12 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the active service.
                       type: string
+                    autoPromotionEnabled:
+                      description: AutoPromotionEnabled indicates if the rollout should
+                        automatically promote the new ReplicaSet to the active service
+                        or enter a paused state. If not specified, the default value
+                        is true.
+                      type: boolean
                     autoPromotionSeconds:
                       description: AutoPromotionSeconds automatically promotes the
                         current ReplicaSet to active after the specified pause delay
@@ -4753,6 +4759,136 @@ spec:
           - selector
           - template
           - strategy
+          type: object
+        status:
+          properties:
+            HPAReplicas:
+              description: HPAReplicas the number of non-terminated replicas that
+                are receiving active traffic
+              format: int32
+              type: integer
+            availableReplicas:
+              description: Total number of available pods (ready for at least minReadySeconds)
+                targeted by this rollout.
+              format: int32
+              type: integer
+            blueGreen:
+              description: BlueGreen describes the state of the bluegreen rollout
+              properties:
+                activeSelector:
+                  description: ActiveSelector indicates which replicas set the active
+                    service is serving traffic to
+                  type: string
+                previewSelector:
+                  description: PreviewSelector indicates which replicas set the preview
+                    service is serving traffic to
+                  type: string
+                previousActiveSelector:
+                  description: PreviousActiveSelector indicates the last selector
+                    that the active service used. This is used to know which replicaset
+                    to avoid scaling down for the scale down delay
+                  type: string
+                scaleDownDelayStartTime:
+                  description: ScaleDownDelayStartTime indicates the start of the
+                    scaleDownDelay
+                  format: date-time
+                  type: string
+                scaleUpPreviewCheckPoint:
+                  description: ScaleUpPreviewCheckPoint indicates that the Replicaset
+                    receiving traffic from the preview service is ready to be scaled
+                    up after the rollout is unpaused
+                  type: boolean
+              type: object
+            canary:
+              description: Canary describes the state of the canary rollout
+              properties:
+                stableRS:
+                  description: StableRS indicates the last replicaset that walked
+                    through all the canary steps or was the only replicaset
+                  type: string
+              type: object
+            collisionCount:
+              description: Count of hash collisions for the Rollout. The Rollout controller
+                uses this field as a collision avoidance mechanism when it needs to
+                create the name for the newest ReplicaSet.
+              format: int32
+              type: integer
+            conditions:
+              description: Conditions a list of conditions a rollout can have.
+              items:
+                properties:
+                  lastTransitionTime:
+                    description: Last time the condition transitioned from one status
+                      to another.
+                    format: date-time
+                    type: string
+                  lastUpdateTime:
+                    description: The last time this condition was updated.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A human readable message indicating details about
+                      the transition.
+                    type: string
+                  reason:
+                    description: The reason for the condition's last transition.
+                    type: string
+                  status:
+                    description: Status of the condition, one of True, False, Unknown.
+                    type: string
+                  type:
+                    description: Type of deployment condition.
+                    type: string
+                required:
+                - type
+                - status
+                - lastUpdateTime
+                - lastTransitionTime
+                - reason
+                - message
+                type: object
+              type: array
+            currentPodHash:
+              description: CurrentPodHash the hash of the current pod template
+              type: string
+            currentStepHash:
+              description: CurrentStepHash the hash of the current list of steps for
+                the current strategy. This is used to detect when the list of current
+                steps change
+              type: string
+            currentStepIndex:
+              description: CurrentStepIndex defines the current step of the rollout
+                is on. If the current step index is null, the controller will execute
+                the rollout.
+              format: int32
+              type: integer
+            observedGeneration:
+              description: The generation observed by the rollout controller by taking
+                a hash of the spec.
+              type: string
+            pauseStartTime:
+              description: PauseStartTime this field is set when the rollout is in
+                a pause step and indicates the time the wait started at
+              format: date-time
+              type: string
+            readyReplicas:
+              description: Total number of ready pods targeted by this rollout.
+              format: int32
+              type: integer
+            replicas:
+              description: Total number of non-terminated pods targeted by this rollout
+                (their labels match the selector).
+              format: int32
+              type: integer
+            selector:
+              description: Selector that identifies the pods that are receiving active
+                traffic
+              type: string
+            updatedReplicas:
+              description: Total number of non-terminated pods targeted by this rollout
+                that have the desired template spec.
+              format: int32
+              type: integer
           type: object
       required:
       - spec
