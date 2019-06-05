@@ -133,3 +133,28 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 	}
 	assert.Equal(t, DefaultScaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(rolloutNoScaleDownDelaySeconds))
 }
+
+func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {
+	autoPromote := false
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+					AutoPromotionEnabled: &autoPromote,
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, autoPromote, GetAutoPromotionEnabledOrDefault(rolloutNonDefaultValue))
+	rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
+	assert.Equal(t, DefaultAutoPromotionEnabled, GetAutoPromotionEnabledOrDefault(rolloutNoStrategyDefaultValue))
+	rolloutNoAutoPromotionEnabled := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, DefaultAutoPromotionEnabled, GetAutoPromotionEnabledOrDefault(rolloutNoAutoPromotionEnabled))
+}

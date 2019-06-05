@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -49,6 +50,9 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, addPause bool) (*metav1.Tim
 	paused := rollout.Spec.Paused
 	if !paused {
 		pauseStartTime = nil
+	}
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil && defaults.GetAutoPromotionEnabledOrDefault(rollout) {
+		return nil, false
 	}
 
 	if addPause {
