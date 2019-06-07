@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
@@ -895,4 +897,53 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 
 	patch := f.getPatchedRollout(index)
 	assert.Equal(t, calculatePatch(r2, expectedPatchWithSub), patch)
+}
+
+func TestCanaryRolloutWithCanaryService(t *testing.T) {
+	f := newFixture(t)
+
+	canarySvc := newService("canary", 80, make(map[string]string))
+	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rs := newReplicaSetWithStatus(rollout, "foo-895c6c4f9", 0, 0)
+	rollout.Spec.Strategy.CanaryStrategy.CanaryService = canarySvc.Name
+
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.kubeobjects = append(f.kubeobjects, canarySvc, rs)
+	f.serviceLister = append(f.serviceLister, canarySvc)
+
+	_ = f.expectPatchRolloutAction(rollout)
+	_ = f.expectPatchServiceAction(canarySvc, rollout.Status.CurrentPodHash)
+	f.run(getKey(rollout, t))
+}
+
+func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
+	f := newFixture(t)
+
+	canarySvc := newService("invalid-canary", 80, make(map[string]string))
+	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rs := newReplicaSetWithStatus(rollout, "foo-895c6c4f9", 0, 0)
+	rollout.Spec.Strategy.CanaryStrategy.CanaryService = canarySvc.Name
+
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.kubeobjects = append(f.kubeobjects, rs)
+
+	patchIndex := f.expectPatchRolloutAction(rollout)
+	f.runExpectError(getKey(rollout, t), true)
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 1)
+
+	condition, ok := c[0].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
+
 }

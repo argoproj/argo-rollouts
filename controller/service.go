@@ -9,6 +9,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -155,6 +156,35 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	return previewSvc, activeSvc, nil
 }
 
+func (c *Controller) reconcileCanaryService(r *v1alpha1.Rollout) error {
+	if r.Spec.Strategy.CanaryStrategy != nil && r.Spec.Strategy.CanaryStrategy.CanaryService != "" {
+		svc, err := c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.CanaryStrategy.CanaryService)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.CanaryStrategy.CanaryService)
+				c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+				newStatus := r.Status.DeepCopy()
+				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
+				conditions.SetRolloutCondition(newStatus, *cond)
+				c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
+			}
+			return err
+		}
+
+		if svc.Spec.Selector == nil {
+			svc.Spec.Selector = make(map[string]string)
+		}
+
+		hash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != hash {
+			patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, hash)
+			_, err := c.kubeclientset.CoreV1().Services(svc.Namespace).Patch(svc.Name, patchtypes.StrategicMergePatchType, []byte(patch))
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Controller) getRolloutSelectorLabel(svc *corev1.Service) (string, bool) {
 	if svc == nil {
 		return "", false
@@ -233,6 +263,10 @@ func getRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 		}
 		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
 			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.PreviewService)] = true
+		}
+	} else if rollout.Spec.Strategy.CanaryStrategy != nil {
+		if rollout.Spec.Strategy.CanaryStrategy.CanaryService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.CanaryStrategy.CanaryService)] = true
 		}
 	}
 	var services []string

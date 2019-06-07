@@ -316,6 +316,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 
 	c.rolloutsSynced = alwaysReady
 	c.replicaSetSynced = alwaysReady
+	c.servicesSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string

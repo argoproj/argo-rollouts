@@ -200,6 +200,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 			SchemaProps: spec.SchemaProps{
 				Description: "CanaryStrategy defines parameters for a Replica Based Canary",
 				Properties: map[string]spec.Schema{
+					"canaryService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"steps": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Steps define the order of phases to execute the canary deployment",
