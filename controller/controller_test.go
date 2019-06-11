@@ -31,10 +31,10 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/bouk/monkey"
 )
 
 var (
-	alwaysReady        = func() bool { return true }
 	noResyncPeriodFunc = func() time.Duration { return 0 }
 )
 
@@ -314,9 +314,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		resync(),
 		DefaultMetricsPort)
 
-	c.rolloutsSynced = alwaysReady
-	c.replicaSetSynced = alwaysReady
-	c.servicesSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string
@@ -350,6 +347,13 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	return c, i, k8sI
 }
 
+func freezeNowAt(now time.Time) func() {
+	patch := monkey.Patch(time.Now, func() time.Time { return now })
+	return func() {
+		patch.Unpatch()
+	}
+}
+
 func (f *fixture) run(rolloutName string) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, true, false, c, i, k8sI)
@@ -366,6 +370,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
+
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.servicesSynced, c.rolloutsSynced))
 	}
 
 	err := c.syncHandler(rolloutName)
