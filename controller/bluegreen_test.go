@@ -392,8 +392,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-
-		f.expectGetServiceAction(activeSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc)
 
 		now := metav1.Now().UTC().Format(time.RFC3339)
 		expectedPatchWithoutSubs := `{
