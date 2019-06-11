@@ -260,6 +260,22 @@ func TestGetRolloutServiceKeysForCanary(t *testing.T) {
 	assert.Empty(t, keys)
 }
 
+func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
+	keys := getRolloutServiceKeys(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				CanaryStrategy: &v1alpha1.CanaryStrategy{
+					CanaryService: "canary-service",
+				},
+			},
+		},
+	})
+	assert.ElementsMatch(t, keys, []string{"default/canary-service"})
+}
+
 func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 	keys := getRolloutServiceKeys(&v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{

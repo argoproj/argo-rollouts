@@ -19,11 +19,6 @@ import (
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 
-	err := c.reconcileCanaryService(rollout)
-	if err != nil {
-		return err
-	}
-
 	if replicasetutil.CheckStepHashChange(rollout) {
 		logCtx.Info("List of Canary steps have changed and need to reset CurrentStepIndex")
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
@@ -55,6 +50,10 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 
 	logCtx.Info("Cleaning up old replicasets")
 	if err := c.cleanupRollouts(oldRSs, rollout); err != nil {
+		return err
+	}
+
+	if err := c.reconcileCanaryService(rollout, newRS); err != nil {
 		return err
 	}
 

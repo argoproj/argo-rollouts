@@ -902,7 +902,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	f := newFixture(t)
 
-	canarySvc := newService("canary", 80, make(map[string]string))
+	canarySvc := newService("canary", 80, nil)
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	rs := newReplicaSetWithStatus(rollout, "foo-895c6c4f9", 0, 0)
 	rollout.Spec.Strategy.CanaryStrategy.CanaryService = canarySvc.Name
@@ -912,8 +912,8 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, canarySvc, rs)
 	f.serviceLister = append(f.serviceLister, canarySvc)
 
-	_ = f.expectPatchRolloutAction(rollout)
 	_ = f.expectPatchServiceAction(canarySvc, rollout.Status.CurrentPodHash)
+	_ = f.expectPatchRolloutAction(rollout)
 	f.run(getKey(rollout, t))
 }
 
@@ -945,5 +945,4 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	condition, ok := c[0].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
-
 }

@@ -3,18 +3,16 @@ package controller
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/controller"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -120,69 +118,54 @@ func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.R
 	return false, nil
 }
 
-func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
-	var previewSvc *corev1.Service
-	var activeSvc *corev1.Service
-	var err error
-	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
-		previewSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.PreviewService)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
-				c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
-				newStatus := r.Status.DeepCopy()
-				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
-				conditions.SetRolloutCondition(newStatus, *cond)
-				c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
-			}
-			return nil, nil, err
-		}
-	}
-	if r.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
-		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
-	}
-	activeSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreenStrategy.ActiveService)
+// getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
+func (c *Controller) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
+	svc, err := c.servicesLister.Services(r.Namespace).Get(serviceName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
+			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, serviceName)
 			c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
 			newStatus := r.Status.DeepCopy()
 			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
 			conditions.SetRolloutCondition(newStatus, *cond)
 			c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
 		}
+		return nil, err
+	}
+	return svc, nil
+}
+
+func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+	var previewSvc *corev1.Service
+	var activeSvc *corev1.Service
+	var err error
+	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
+		previewSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	if r.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
+		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
+	}
+	activeSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
+	if err != nil {
 		return nil, nil, err
 	}
 	return previewSvc, activeSvc, nil
 }
 
-func (c *Controller) reconcileCanaryService(r *v1alpha1.Rollout) error {
-	if r.Spec.Strategy.CanaryStrategy != nil && r.Spec.Strategy.CanaryStrategy.CanaryService != "" {
-		svc, err := c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.CanaryStrategy.CanaryService)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, r.Spec.Strategy.CanaryStrategy.CanaryService)
-				c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
-				newStatus := r.Status.DeepCopy()
-				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
-				conditions.SetRolloutCondition(newStatus, *cond)
-				c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
-			}
-			return err
-		}
-
-		if svc.Spec.Selector == nil {
-			svc.Spec.Selector = make(map[string]string)
-		}
-
-		hash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
-		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != hash {
-			patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, hash)
-			_, err := c.kubeclientset.CoreV1().Services(svc.Namespace).Patch(svc.Name, patchtypes.StrategicMergePatchType, []byte(patch))
-			return err
-		}
+func (c *Controller) reconcileCanaryService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) error {
+	if r.Spec.Strategy.CanaryStrategy == nil || r.Spec.Strategy.CanaryStrategy.CanaryService == "" {
+		return nil
 	}
-	return nil
+
+	svc, err := c.getReferencedService(r, r.Spec.Strategy.CanaryStrategy.CanaryService)
+	if err != nil {
+		return err
+	}
+
+	return c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
 }
 
 func (c *Controller) getRolloutSelectorLabel(svc *corev1.Service) (string, bool) {
