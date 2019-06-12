@@ -73,6 +73,12 @@ spec:
                       description: Name of the service that the rollout modifies as
                         the active service.
                       type: string
+                    autoPromotionEnabled:
+                      description: AutoPromotionEnabled indicates if the rollout should
+                        automatically promote the new ReplicaSet to the active service
+                        or enter a paused state. If not specified, the default value
+                        is true.
+                      type: boolean
                     autoPromotionSeconds:
                       description: AutoPromotionSeconds automatically promotes the
                         current ReplicaSet to active after the specified pause delay

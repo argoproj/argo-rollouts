@@ -78,6 +78,10 @@ type BlueGreenStrategy struct {
 	// resumed the new replicaset will be full scaled up before the switch occurs
 	// +optional
 	PreviewReplicaCount *int32 `json:"previewReplicaCount,omitempty"`
+	// AutoPromotionEnabled indicates if the rollout should automatically promote the new ReplicaSet
+	// to the active service or enter a paused state. If not specified, the default value is true.
+	// +optional
+	AutoPromotionEnabled *bool `json:"autoPromotionEnabled,omitempty"`
 	// AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the
 	// specified pause delay in seconds after the ReplicaSet becomes ready.
 	// If omitted, the Rollout enters and remains in a paused state until manually resumed by

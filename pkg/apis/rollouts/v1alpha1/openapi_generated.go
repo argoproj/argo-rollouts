@@ -119,6 +119,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"autoPromotionEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AutoPromotionEnabled indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"autoPromotionSeconds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false.",
