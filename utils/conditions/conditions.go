@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/kubernetes/pkg/controller"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -222,7 +221,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
 			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
 		}
-		currentRSIsStable := newStatus.Canary.StableRS == controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+		currentRSIsStable := newStatus.Canary.StableRS != "" && newStatus.Canary.StableRS == newStatus.CurrentPodHash
 		completedStrategy = executedAllSteps && currentRSIsStable
 	}
 

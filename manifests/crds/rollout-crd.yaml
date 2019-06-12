@@ -2270,8 +2270,7 @@ spec:
                             type: boolean
                           volumeDevices:
                             description: volumeDevices is the list of block devices
-                              to be used by the container. This is an alpha feature
-                              and may change in the future.
+                              to be used by the container. This is a beta feature.
                             items:
                               properties:
                                 devicePath:
@@ -2375,6 +2374,12 @@ spec:
                         DNS options set along with hostNetwork, you have to specify
                         DNS policy explicitly to 'ClusterFirstWithHostNet'.
                       type: string
+                    enableServiceLinks:
+                      description: 'EnableServiceLinks indicates whether information
+                        about services should be injected into pod''s environment
+                        variables, matching the syntax of Docker links. Optional:
+                        Defaults to true.'
+                      type: boolean
                     hostAliases:
                       description: HostAliases is an optional list of hosts and IPs
                         that will be injected into the pod's hosts file if specified.
@@ -3263,8 +3268,7 @@ spec:
                             type: boolean
                           volumeDevices:
                             description: volumeDevices is the list of block devices
-                              to be used by the container. This is an alpha feature
-                              and may change in the future.
+                              to be used by the container. This is a beta feature.
                             items:
                               properties:
                                 devicePath:

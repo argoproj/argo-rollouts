@@ -156,8 +156,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
 		// the status of the Rollout and requeue to try the creation in the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
-		replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-		if controllerRef != nil && controllerRef.UID == rollout.UID && replicaSetName == rs.Name {
+		if controllerRef != nil && controllerRef.UID == rollout.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &rollout.Spec.Template) {
 			createdRS = rs
 			err = nil
 			break
@@ -301,8 +300,18 @@ func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *app
 		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
 	}
 
+	var currentPodHash string
+	if newRS == nil {
+		// newRS potentially might be nil when blue-green rollout receives a scaling event in
+		// Controller::sync(). This is probably dead code and ideally should be removed eventually.
+		logutil.WithRollout(rollout).Warn("Unexpected nil for newRS")
+		currentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	} else {
+		currentPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+
 	return v1alpha1.RolloutStatus{
-		CurrentPodHash:    controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
+		CurrentPodHash:    currentPodHash,
 		Replicas:          replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
 		UpdatedReplicas:   replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
 		ReadyReplicas:     replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
