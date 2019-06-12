@@ -358,7 +358,7 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 	if scalingEvent {
-		return c.sync(r, rsList)
+		return c.syncScalingEvent(r, rsList)
 	}
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		return c.rolloutBlueGreen(r, rsList)

@@ -19,7 +19,7 @@ import (
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 
-	if podTemplateOrStepsChanged(rollout, rsList) {
+	if replicasetutil.PodTemplateOrStepsChanged(rollout, rsList) {
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 		if err != nil {
 			return err
@@ -222,8 +222,8 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
 	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
 
-	if podTemplateOrStepsChanged(r, allRSs) {
-		newStatus.CurrentStepIndex = resetCurrentStepIndex(r)
+	if replicasetutil.PodTemplateOrStepsChanged(r, allRSs) {
+		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
 		if r.Status.Canary.StableRS == replicasetutil.GetPodTemplateHash(newRS) {
 			if newStatus.CurrentStepIndex != nil {
 				msg := "Skipping all steps because the newRS is the stableRS."
@@ -286,58 +286,4 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
-}
-
-// checkStepHashChange indicates if the rollout's step for the strategy have changed. This causes the rollout to reset the
-// currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
-func checkStepHashChange(rollout *v1alpha1.Rollout) bool {
-	if rollout.Status.CurrentStepHash == "" {
-		return false
-	}
-	// TODO: conditions.ComputeStepHash is not stable and will change
-	stepsHash := conditions.ComputeStepHash(rollout)
-	if rollout.Status.CurrentStepHash != conditions.ComputeStepHash(rollout) {
-		logCtx := logutil.WithRollout(rollout)
-		logCtx.Infof("Canary steps change detected (new: %s, old: %s)", stepsHash, rollout.Status.CurrentStepHash)
-		return true
-	}
-	return false
-}
-
-// checkPodSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
-// currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
-func checkPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
-	if rollout.Status.CurrentPodHash == "" {
-		return false
-	}
-	podHash := replicasetutil.GetPodTemplateHash(newRS)
-	if rollout.Status.CurrentPodHash != podHash {
-		logCtx := logutil.WithRollout(rollout)
-		logCtx.Infof("Pod template change detected (new: %s, old: %s)", podHash, rollout.Status.CurrentPodHash)
-		return true
-	}
-	return false
-}
-
-// podTemplateOrStepsChanged detects if there is a change in either the pod template, or canary steps
-func podTemplateOrStepsChanged(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) bool {
-	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
-	if newRS == nil {
-		return false
-	}
-	if checkPodSpecChange(rollout, newRS) {
-		return true
-	}
-	if checkStepHashChange(rollout) {
-		return true
-	}
-	return false
-}
-
-// resetCurrentStepIndex resets the index back to zero unless there are no steps
-func resetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) > 0 {
-		return pointer.Int32Ptr(0)
-	}
-	return nil
 }
