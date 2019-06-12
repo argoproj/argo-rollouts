@@ -127,6 +127,8 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 
 func TestBlueGreenHandlePause(t *testing.T) {
 	t.Run("AddPause", func(t *testing.T) {
+		defer freezeNowAt(time.Now())
+
 		f := newFixture(t)
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")

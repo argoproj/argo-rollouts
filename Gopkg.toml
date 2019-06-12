@@ -31,3 +31,7 @@ required = [
 [[override]]
   name = "k8s.io/apimachinery"
   branch = "release-1.12"
+
+[[constraint]]
+  name = "github.com/bouk/monkey"
+  version = "1.0.0"
