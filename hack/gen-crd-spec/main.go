@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -24,6 +25,9 @@ func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinitio
 		"output:crd:stdout",
 	).Output()
 	checkErr(err)
+	if len(crdYamlBytes) == 0 {
+		panic("controller-gen produced no output")
+	}
 
 	// clean up stuff left by controller-gen
 	deleteFile("config/webhook/manifests.yaml")
@@ -37,6 +41,7 @@ func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinitio
 	// which get marshalled to `null`, but are typed as as a `string` during Open API validation
 	removeValidataion(&un, "metadata.creationTimestamp")
 	removeValidataion(&un, "spec.template.metadata.creationTimestamp")
+	removeResourceValidation(&un)
 
 	crd := toCRD(&un)
 	crd.Spec.Scope = "Namespaced"
@@ -56,6 +61,28 @@ func removeValidataion(un *unstructured.Unstructured, path string) {
 		schemaPath = append(schemaPath, "properties", part)
 	}
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
+}
+
+var resourcesSchemaPath = []string{
+	"spec",
+	"validation",
+	"openAPIV3Schema", "properties",
+	"spec", "properties",
+	"template", "properties",
+	"spec", "properties",
+	"containers", "items", "properties",
+	"resources", "properties",
+}
+
+func removeResourceValidation(un *unstructured.Unstructured) {
+	containersFieldIf, ok, err := unstructured.NestedFieldNoCopy(un.Object, resourcesSchemaPath...)
+	checkErr(err)
+	if !ok {
+		panic(fmt.Sprintf("%s not found", resourcesSchemaPath))
+	}
+	containers := containersFieldIf.(map[string]interface{})
+	unstructured.RemoveNestedField(containers, "limits")
+	unstructured.RemoveNestedField(containers, "requests")
 }
 
 func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinition {

@@ -1,0 +1,33 @@
+# Test object to verify resource requests are accepted in multiple formats and not rejected by validation
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: container-resource-formats
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+      - name: a
+        image: "alpine:latest"
+        resources:
+          requests:
+            cpu: 0.001
+      - name: b
+        image: "alpine:latest"
+        resources:
+          requests:
+            cpu: '0.001'
+      - name: c
+        image: "alpine:latest"
+        resources:
+          requests:
+            cpu: 1m
+  strategy:
+    canary: {}
