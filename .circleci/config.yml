@@ -21,7 +21,7 @@ jobs:
           command: |
             set -x
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            make test | tee ${TEST_RESULTS}/go-test.ou
+            make test | tee ${TEST_RESULTS}/go-test.out
       - save_cache:
           key: v2-pkg-cache
           paths:
