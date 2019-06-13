@@ -16,7 +16,7 @@ jobs:
       - run:
           command: dep ensure
       - run:
-          command: make controller
+          command: sudo make controller
       - run:
           name: Run tests
           command: |
