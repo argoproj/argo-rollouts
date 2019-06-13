@@ -21,8 +21,11 @@ jobs:
             set -x
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
-      - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
+      - store_test_results: 
           path: /tmp/test-results
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - save_cache:
           key: v2-pkg-cache
           paths:
