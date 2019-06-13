@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
@@ -24,6 +25,7 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -771,4 +773,105 @@ requests:
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 	}
+}
+
+// TestComputeHashChangeTolerationBlueGreen verifies that we can tolerate a change in
+// controller.ComputeHash() for the blue-green strategy and do not redeploy any replicasets
+func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	updateBlueGreenRolloutStatus(r, "", "active", 1, 1, 1, false, true)
+	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.AvailableReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
+	r.Status.ObservedGeneration = "fakeobservedgeneration"
+	rs := newReplicaSet(r, 1)
+	r.Annotations[annotations.RevisionAnnotation] = "1"
+	rs.Annotations[annotations.RevisionAnnotation] = "1"
+	rs.OwnerReferences = append(rs.OwnerReferences, *newRolloutControllerRef(r))
+	rs.Name = "foo-fakepodhash"
+	rs.Status.AvailableReplicas = 1
+	rs.Status.ReadyReplicas = 1
+	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
+
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: "fakepodhash",
+			"foo":                                 "bar",
+		},
+	}
+	r.Status.Selector = metav1.FormatLabelSelector(&selector)
+	rs.Spec.Selector = &selector
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r.Status, availableCondition)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+
+	podTemplate := corev1.PodTemplate{
+		Template: rs.Spec.Template,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	rs.Spec.Template = podTemplate.Template
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	activeSvc := newService("active", 80, selector.MatchLabels)
+
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+	// this should only update observedGeneration and nothing else
+	expectedPatch := `{"status":{"observedGeneration":"7bbd997858"}}`
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+// TestComputeHashChangeTolerationCanary verifies that we can tolerate a change in
+// controller.ComputeHash() for the canary strategy and do not redeploy any replicasets
+func TestComputeHashChangeTolerationCanary(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+
+	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.Canary.StableRS = "fakepodhash"
+	r.Status.AvailableReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.ObservedGeneration = "fakeobservedgeneration"
+	rs := newReplicaSet(r, 1)
+	r.Annotations[annotations.RevisionAnnotation] = "1"
+	rs.Annotations[annotations.RevisionAnnotation] = "1"
+	rs.OwnerReferences = append(rs.OwnerReferences, *newRolloutControllerRef(r))
+	rs.Name = "foo-fakepodhash"
+	rs.Status.AvailableReplicas = 1
+	rs.Status.ReadyReplicas = 1
+	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r.Status, availableCondition)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+
+	podTemplate := corev1.PodTemplate{
+		Template: rs.Spec.Template,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	rs.Spec.Template = podTemplate.Template
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+	// this should only update observedGeneration and nothing else
+	expectedPatch := `{"status":{"observedGeneration":"7c8f97d5d6"}}`
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
 }
