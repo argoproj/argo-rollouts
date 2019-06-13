@@ -4,18 +4,28 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-rollouts
     docker:
       - image: circleci/golang:1.12
+    environment:
+      TEST_RESULTS: /tmp/test-results
     steps:
       - checkout
+      - run: mkdir -p $TEST_RESULTS
       - restore_cache:
           keys:
+            - v2-pkg-cache
             - v1-pkg-cache
+      - run: go get github.com/jstemmer/go-junit-report
       - run:
           command: dep ensure
       - run:
-          command: make test
+          name: Run tests
+          command: |
+            set -x
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            make test | tee ${TEST_RESULTS}/go-test.ou
       - save_cache:
-          key: v1-pkg-cache
+          key: v2-pkg-cache
           paths:
+            - /go/pkg
             - ~/.cache/go-build
 workflows:
   version: 2
