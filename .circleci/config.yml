@@ -11,8 +11,10 @@ jobs:
       - run: mkdir -p $TEST_RESULTS
       - restore_cache:
           keys:
+            - v3-pkg-cache
             - v2-pkg-cache
       - run: go get github.com/jstemmer/go-junit-report
+      - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run:
           command: dep ensure
       - run:
@@ -26,13 +28,15 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          # This occasionally takes 2m
+          background: true
       - run:
           command: make lint
       - run:
           name: Check nothing has changed after lint
           command: git diff --exit-code
       - save_cache:
-          key: v2-pkg-cache
+          key: v3-pkg-cache
           paths:
             - /go/pkg
             - ~/.cache/go-build
