@@ -1,7 +1,7 @@
 version: 2.1
 jobs:
   build:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-rollouts
+    working_directory: /go/src/github.com/argoproj/argo-rollouts
     docker:
       - image: circleci/golang:1.12
     steps:
