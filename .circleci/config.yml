@@ -27,6 +27,8 @@ jobs:
           paths:
             - /go/pkg
             - ~/.cache/go-build
+          # TODO - delete this line once stable
+          when: always
 workflows:
   version: 2
   workflow:
