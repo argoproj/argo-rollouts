@@ -6,10 +6,17 @@ jobs:
       - image: circleci/golang:1.12
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
       - run:
           command: dep ensure
       - run:
           command: make test
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - ~/.cache/go-build
 workflows:
   version: 2
   workflow:
