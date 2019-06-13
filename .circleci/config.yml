@@ -6,6 +6,8 @@ jobs:
       - image: circleci/golang:1.12
     steps:
       - checkout
+      - run:
+          command: dep ensure
 workflows:
   version: 2
   workflow:
