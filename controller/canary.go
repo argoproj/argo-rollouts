@@ -19,7 +19,8 @@ import (
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 
-	if replicasetutil.PodTemplateOrStepsChanged(rollout, rsList) {
+	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
+	if replicasetutil.PodTemplateOrStepsChanged(rollout, newRS) {
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 		if err != nil {
 			return err
@@ -222,9 +223,9 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
 	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
 
-	if replicasetutil.PodTemplateOrStepsChanged(r, allRSs) {
+	if replicasetutil.PodTemplateOrStepsChanged(r, newRS) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
-		if r.Status.Canary.StableRS == replicasetutil.GetPodTemplateHash(newRS) {
+		if newRS != nil && r.Status.Canary.StableRS == replicasetutil.GetPodTemplateHash(newRS) {
 			if newStatus.CurrentStepIndex != nil {
 				msg := "Skipping all steps because the newRS is the stableRS."
 				logCtx.Info(msg)

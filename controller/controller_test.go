@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
@@ -73,6 +74,10 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
+const (
+	defaultTestPodHash = "78574f5b57"
+)
+
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -107,8 +112,8 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 	return ro
 }
 
-func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, availableReplicas int) *appsv1.ReplicaSet {
-	rs := newReplicaSet(r, name, replicas)
+func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplicas int) *appsv1.ReplicaSet {
+	rs := newReplicaSet(r, replicas)
 	rs.Status.Replicas = int32(replicas)
 	rs.Status.AvailableReplicas = int32(availableReplicas)
 	return rs
@@ -230,17 +235,18 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 	return newRollout
 }
 
-func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.ReplicaSet {
+func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
 	newRSTemplate := *r.Spec.Template.DeepCopy()
+	podHash := controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount)
 	rsLabels := map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount),
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
 	for k, v := range r.Spec.Selector.MatchLabels {
 		rsLabels[k] = v
 	}
 	rs := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
+			Name:            fmt.Sprintf("%s-%s", r.Name, podHash),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
 			Labels:          rsLabels,
@@ -461,7 +467,7 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 		Version:  "v1",
 	}
 	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, []byte(patch)))
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, types.MergePatchType, []byte(patch)))
 	return len
 }
 
@@ -496,7 +502,7 @@ func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) int {
 		Version:  "v1alpha1",
 	}
 	len := len(f.actions)
-	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, nil))
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, types.MergePatchType, nil))
 	return len
 }
 
@@ -507,7 +513,7 @@ func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, p
 		Version:  "v1alpha1",
 	}
 	len := len(f.actions)
-	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, []byte(expectedPatch)))
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, types.MergePatchType, []byte(expectedPatch)))
 	return len
 }
 
@@ -593,7 +599,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 	previewSvc := newService("preview", 80, nil)
 	activeSvc := newService("active", 80, nil)
 
-	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+	rs := newReplicaSet(r, 1)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
@@ -723,7 +729,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
-	expectedReplicaSetName := "guestbook-796789b97b"
+	expectedReplicaSetName := "guestbook-75fc5957d4"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -759,7 +765,7 @@ requests:
 
 		_ = f.expectUpdateRolloutAction(r)
 		f.expectPatchRolloutAction(r)
-		rs := newReplicaSet(r, expectedReplicaSetName, 1)
+		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)

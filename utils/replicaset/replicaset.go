@@ -26,12 +26,19 @@ import (
 // FindNewReplicaSet returns the new RS this given rollout targets from the given list.
 // Returns nil if the ReplicaSet does not exist in the list.
 func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	var newRSList []*appsv1.ReplicaSet
+	for _, rs := range rsList {
+		if rs != nil {
+			newRSList = append(newRSList, rs)
+		}
+	}
+	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
 	// First, attempt to find the replicaset by the replicaset naming formula
 	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-	for i := range rsList {
-		if rsList[i].Name == replicaSetName {
-			return rsList[i]
+	for _, rs := range rsList {
+		if rs.Name == replicaSetName {
+			return rs
 		}
 	}
 	// Iterate the ReplicaSet list again, this time doing a deep equal against the template specs.
@@ -267,7 +274,10 @@ func checkPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) boo
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
-	podHash := GetPodTemplateHash(newRS)
+	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if newRS != nil {
+		podHash = GetPodTemplateHash(newRS)
+	}
 	if rollout.Status.CurrentPodHash != podHash {
 		logCtx := logutil.WithRollout(rollout)
 		logCtx.Infof("Pod template change detected (new: %s, old: %s)", podHash, rollout.Status.CurrentPodHash)
@@ -277,15 +287,11 @@ func checkPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) boo
 }
 
 // PodTemplateOrStepsChanged detects if there is a change in either the pod template, or canary steps
-func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) bool {
-	newRS := FindNewReplicaSet(rollout, rsList)
-	if newRS == nil {
-		return false
-	}
-	if checkPodSpecChange(rollout, newRS) {
+func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	if checkStepHashChange(rollout) {
 		return true
 	}
-	if checkStepHashChange(rollout) {
+	if checkPodSpecChange(rollout, newRS) {
 		return true
 	}
 	return false

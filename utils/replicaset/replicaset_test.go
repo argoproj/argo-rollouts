@@ -54,6 +54,10 @@ func generateRollout(image string) v1alpha1.Rollout {
 // generateRS creates a replica set, with the input rollout's template as its template
 func generateRS(rollout v1alpha1.Rollout) appsv1.ReplicaSet {
 	template := rollout.Spec.Template.DeepCopy()
+	podTemplateHash := controller.ComputeHash(&rollout.Spec.Template, nil)
+	template.Labels = map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: podTemplateHash,
+	}
 	return appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:    uuid.NewUUID(),
@@ -617,22 +621,23 @@ func TestMaxUnavailable(t *testing.T) {
 
 func TestCheckPodSpecChange(t *testing.T) {
 	ro := generateRollout("ngnix")
-	assert.False(t, CheckPodSpecChange(&ro))
+	rs := generateRS(ro)
+	assert.False(t, checkPodSpecChange(&ro, &rs))
 	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
-	assert.False(t, CheckPodSpecChange(&ro))
+	assert.False(t, checkPodSpecChange(&ro, &rs))
 
 	ro.Status.CurrentPodHash = "different-hash"
-	assert.True(t, CheckPodSpecChange(&ro))
+	assert.True(t, checkPodSpecChange(&ro, &rs))
 }
 
 func TestCheckStepHashChange(t *testing.T) {
 	ro := generateRollout("ngnix")
-	assert.False(t, CheckStepHashChange(&ro))
+	assert.False(t, checkStepHashChange(&ro))
 	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
-	assert.False(t, CheckStepHashChange(&ro))
+	assert.False(t, checkStepHashChange(&ro))
 
 	ro.Status.CurrentStepHash = "different-hash"
-	assert.True(t, CheckStepHashChange(&ro))
+	assert.True(t, checkStepHashChange(&ro))
 }
 
 func TestResetCurrentStepIndex(t *testing.T) {

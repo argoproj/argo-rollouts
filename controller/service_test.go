@@ -43,7 +43,7 @@ func TestReconcilePreviewService(t *testing.T) {
 	}{
 		{
 			name:                   "Continue if active service is already set to the newRS",
-			activeSvc:              newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
+			activeSvc:              newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
 			newRSDesiredReplicas:   5,
 			newRSAvailableReplicas: 5,
 			expectedResult:         false,
@@ -65,7 +65,7 @@ func TestReconcilePreviewService(t *testing.T) {
 		{
 			name:                   "Continue if preview service is already set to the newRS",
 			activeSvc:              newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "test"}),
-			previewSvc:             newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
+			previewSvc:             newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
 			newRSDesiredReplicas:   5,
 			newRSAvailableReplicas: 5,
 			expectedResult:         false,
@@ -83,7 +83,7 @@ func TestReconcilePreviewService(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
-			rs := newReplicaSetWithStatus(ro, "bar", test.newRSDesiredReplicas, test.newRSAvailableReplicas)
+			rs := newReplicaSetWithStatus(ro, test.newRSDesiredReplicas, test.newRSAvailableReplicas)
 			f := newFixture(t)
 
 			f.rolloutLister = append(f.rolloutLister, ro)
@@ -114,13 +114,13 @@ func TestReconcileActiveService(t *testing.T) {
 		},
 		{
 			name:           "Switch Preview selector to empty string",
-			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
-			previewSvc:     newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
+			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
+			previewSvc:     newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
 			expectedResult: true,
 		},
 		{
 			name:           "No switch required if the active service already points at new RS and the preview is not point at any RS",
-			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "57b9899597"}),
+			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
 			previewSvc:     newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""}),
 			expectedResult: false,
 		},
@@ -129,12 +129,12 @@ func TestReconcileActiveService(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
-			rs := newReplicaSetWithStatus(ro, "bar", 5, 5)
+			rs := newReplicaSetWithStatus(ro, 5, 5)
 			f := newFixture(t)
 
 			f.rolloutLister = append(f.rolloutLister, ro)
 			f.objects = append(f.objects, ro)
-			f.kubeobjects = append(f.kubeobjects, rs)
+			f.kubeobjects = append(f.kubeobjects, rs, test.activeSvc)
 			if test.previewSvc != nil {
 				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
 			}

@@ -608,7 +608,7 @@ func TestRolloutComplete(t *testing.T) {
 	}{
 		{
 			name:     "BlueGreen complete",
-			r:        blueGreenRollout(5, 5, 5, 5, true, "56548459cd", ""),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "685bdb47d8", ""),
 			expected: true,
 		},
 		{
@@ -642,8 +642,7 @@ func TestRolloutComplete(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "not complete: min but not all pods become available",
-
+			name:     "not complete: min but not all pods become available",
 			r:        rollout(5, 5, 5, 4, true),
 			expected: false,
 		},

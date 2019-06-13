@@ -28,8 +28,6 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -41,12 +39,6 @@ type Clientset struct {
 
 // ArgoprojV1alpha1 retrieves the ArgoprojV1alpha1Client
 func (c *Clientset) ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface {
-	return c.argoprojV1alpha1
-}
-
-// Deprecated: Argoproj retrieves the default version of ArgoprojClient.
-// Please explicitly pick a version.
-func (c *Clientset) Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface {
 	return c.argoprojV1alpha1
 }
 
