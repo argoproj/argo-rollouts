@@ -12,7 +12,6 @@ jobs:
       - restore_cache:
           keys:
             - v3-pkg-cache
-            - v2-pkg-cache
       - run: go get github.com/jstemmer/go-junit-report
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run:
