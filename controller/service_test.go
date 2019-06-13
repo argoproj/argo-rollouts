@@ -85,6 +85,7 @@ func TestReconcilePreviewService(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, "bar", test.newRSDesiredReplicas, test.newRSAvailableReplicas)
 			f := newFixture(t)
+			defer f.Close()
 
 			f.rolloutLister = append(f.rolloutLister, ro)
 			f.objects = append(f.objects, ro)
@@ -131,6 +132,7 @@ func TestReconcileActiveService(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, "bar", 5, 5)
 			f := newFixture(t)
+			defer f.Close()
 
 			f.rolloutLister = append(f.rolloutLister, ro)
 			f.objects = append(f.objects, ro)
@@ -149,6 +151,7 @@ func TestReconcileActiveService(t *testing.T) {
 func TestGetPreviewAndActiveServices(t *testing.T) {
 
 	f := newFixture(t)
+	defer f.Close()
 	expActive := newService("active", 80, nil)
 	expPreview := newService("preview", 80, nil)
 	f.kubeobjects = append(f.kubeobjects, expActive)
@@ -201,6 +204,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 
 func TestActiveServiceNotFound(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active-svc", "preview-svc")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
@@ -226,6 +230,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 
 func TestPreviewServiceNotFound(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active-svc", "preview-svc")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
@@ -295,6 +300,7 @@ func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 
 func TestSyncMissingService(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	ctrl, _, _ := f.newController(noResyncPeriodFunc)
 
 	err := ctrl.syncService("default/test-service")
@@ -303,6 +309,7 @@ func TestSyncMissingService(t *testing.T) {
 
 func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	svc := newService("test-service", 80, map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
 	})
@@ -321,6 +328,7 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 
 func TestSyncServiceReferencedByRollout(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	svc := newService("test-service", 80, map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
 	})
