@@ -5,6 +5,7 @@ jobs:
     docker:
       - image: circleci/golang:1.12.6
     environment:
+      GOROOT: /go
       TEST_RESULTS: /tmp/test-results
     steps:
       - checkout
@@ -16,7 +17,7 @@ jobs:
       - run:
           command: dep ensure
       - run:
-          command: sudo make controller
+          command: make controller
       - run:
           name: Run tests
           command: |
