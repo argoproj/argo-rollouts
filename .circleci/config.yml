@@ -12,7 +12,6 @@ jobs:
       - restore_cache:
           keys:
             - v2-pkg-cache
-            - v1-pkg-cache
       - run: go get github.com/jstemmer/go-junit-report
       - run:
           command: dep ensure
