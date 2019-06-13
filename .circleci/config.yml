@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-rollouts
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.12.6
     environment:
       TEST_RESULTS: /tmp/test-results
     steps:
@@ -16,6 +16,8 @@ jobs:
       - run:
           command: dep ensure
       - run:
+          command: make controller
+      - run:
           name: Run tests
           command: |
             set -x
@@ -26,6 +28,11 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - run:
+          command: make lint
+      - run:
+          name: Check nothing has changed after lint
+          command: git diff --exit-code
       - save_cache:
           key: v2-pkg-cache
           paths:
