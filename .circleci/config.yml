@@ -8,6 +8,8 @@ jobs:
       - checkout
       - run:
           command: dep ensure
+      - run:
+          command: make test
 workflows:
   version: 2
   workflow:
