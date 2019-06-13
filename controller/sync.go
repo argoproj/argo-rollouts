@@ -212,7 +212,7 @@ func (c *Controller) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if err != nil {
 		return err
 	}
-	// NOTE: it is possible for newRS to be nil (e.g. template and replicas changed at same time)
+	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if r.Spec.Strategy.BlueGreenStrategy != nil {
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {

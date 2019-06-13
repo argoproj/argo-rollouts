@@ -66,7 +66,7 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 	}
 
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if reconcileBlueGreenTemplateChange(rollout, newRS) {
+		if newRS == nil || reconcileBlueGreenTemplateChange(rollout, newRS) {
 			return nil, false
 		}
 	}

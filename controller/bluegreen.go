@@ -214,6 +214,8 @@ func calculateScaleUpPreviewCheckPoint(r *v1alpha1.Rollout, newRS *appsv1.Replic
 	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount {
 		return true
+	} else if newRS == nil {
+		return false
 	} else if reconcileBlueGreenTemplateChange(r, newRS) {
 		return false
 	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
