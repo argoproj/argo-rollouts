@@ -1,6 +1,7 @@
 package conditions
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -236,12 +237,17 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
 // be safe encoded to avoid bad words.
 func ComputeStepHash(rollout *v1alpha1.Rollout) string {
-	rolloutStepHasher := fnv.New32a()
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil || rollout.Spec.Strategy.CanaryStrategy == nil {
 		return ""
 	}
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
-		hashutil.DeepHashObject(rolloutStepHasher, rollout.Spec.Strategy.CanaryStrategy.Steps)
+	rolloutStepHasher := fnv.New32a()
+	stepsBytes, err := json.Marshal(rollout.Spec.Strategy.CanaryStrategy.Steps)
+	if err != nil {
+		panic(err)
+	}
+	_, err = rolloutStepHasher.Write(stepsBytes)
+	if err != nil {
+		panic(err)
 	}
 	return rand.SafeEncodeString(fmt.Sprint(rolloutStepHasher.Sum32()))
 }
