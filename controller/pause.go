@@ -3,6 +3,7 @@ package controller
 import (
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -44,7 +45,7 @@ func (c *Controller) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Rollout, st
 
 // calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
 // the rollout will use the previous values
-func calculatePauseStatus(rollout *v1alpha1.Rollout, addPause bool) (*metav1.Time, bool) {
+func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, addPause bool) (*metav1.Time, bool) {
 	logCtx := logutil.WithRollout(rollout)
 	pauseStartTime := rollout.Status.PauseStartTime
 	paused := rollout.Spec.Paused
@@ -65,7 +66,7 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, addPause bool) (*metav1.Tim
 	}
 
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if reconcileBlueGreenTemplateChange(rollout) {
+		if reconcileBlueGreenTemplateChange(rollout, newRS) {
 			return nil, false
 		}
 	}

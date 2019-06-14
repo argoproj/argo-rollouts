@@ -111,7 +111,8 @@ spec:
                 When an object is created, the system will populate this list with
                 the current set of initializers. Only privileged users may set or
                 modify this list. Once it is empty, it may not be modified further
-                by any user."
+                by any user. \n DEPRECATED - initializers are an alpha field and will
+                be removed in v1.15."
               properties:
                 pending:
                   description: Pending is a list of initializers that must execute
@@ -267,6 +268,44 @@ spec:
                 and categorize (scope and select) objects. May match selectors of
                 replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels'
               type: object
+            managedFields:
+              description: "ManagedFields maps workflow-id and version to the set
+                of fields that are managed by that workflow. This is mostly for internal
+                housekeeping, and users typically shouldn't need to set or understand
+                this field. A workflow can be the user's name, a controller's name,
+                or the name of a specific apply path like \"ci-cd\". The set of fields
+                is always in the version that the workflow used when modifying the
+                object. \n This field is alpha and can be changed or removed without
+                notice."
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion defines the version of this resource that
+                      this field set applies to. The format is "group/version" just
+                      like the top-level APIVersion field. It is necessary to track
+                      the version of a field set because it cannot be automatically
+                      converted.
+                    type: string
+                  fields:
+                    additionalProperties: true
+                    description: Fields identifies a set of fields.
+                    type: object
+                  manager:
+                    description: Manager is an identifier of the workflow managing
+                      these fields.
+                    type: string
+                  operation:
+                    description: Operation is the type of operation which lead to
+                      this ManagedFieldsEntry being created. The only valid values
+                      for this field are 'Apply' and 'Update'.
+                    type: string
+                  time:
+                    description: Time is timestamp of when these fields were set.
+                      It should always be empty if Operation is 'Apply'
+                    format: date-time
+                    type: string
+                type: object
+              type: array
             name:
               description: 'Name must be unique within a namespace. Is required when
                 creating resources, although some resources may allow a client to
@@ -615,7 +654,8 @@ spec:
                         is created, the system will populate this list with the current
                         set of initializers. Only privileged users may set or modify
                         this list. Once it is empty, it may not be modified further
-                        by any user."
+                        by any user. \n DEPRECATED - initializers are an alpha field
+                        and will be removed in v1.15."
                       properties:
                         pending:
                           description: Pending is a list of initializers that must
@@ -781,6 +821,45 @@ spec:
                         match selectors of replication controllers and services. More
                         info: http://kubernetes.io/docs/user-guide/labels'
                       type: object
+                    managedFields:
+                      description: "ManagedFields maps workflow-id and version to
+                        the set of fields that are managed by that workflow. This
+                        is mostly for internal housekeeping, and users typically shouldn't
+                        need to set or understand this field. A workflow can be the
+                        user's name, a controller's name, or the name of a specific
+                        apply path like \"ci-cd\". The set of fields is always in
+                        the version that the workflow used when modifying the object.
+                        \n This field is alpha and can be changed or removed without
+                        notice."
+                      items:
+                        properties:
+                          apiVersion:
+                            description: APIVersion defines the version of this resource
+                              that this field set applies to. The format is "group/version"
+                              just like the top-level APIVersion field. It is necessary
+                              to track the version of a field set because it cannot
+                              be automatically converted.
+                            type: string
+                          fields:
+                            additionalProperties: true
+                            description: Fields identifies a set of fields.
+                            type: object
+                          manager:
+                            description: Manager is an identifier of the workflow
+                              managing these fields.
+                            type: string
+                          operation:
+                            description: Operation is the type of operation which
+                              lead to this ManagedFieldsEntry being created. The only
+                              valid values for this field are 'Apply' and 'Update'.
+                            type: string
+                          time:
+                            description: Time is timestamp of when these fields were
+                              set. It should always be empty if Operation is 'Apply'
+                            format: date-time
+                            type: string
+                        type: object
+                      type: array
                     name:
                       description: 'Name must be unique within a namespace. Is required
                         when creating resources, although some resources may allow
@@ -1736,12 +1815,18 @@ spec:
                                 type: object
                               preStop:
                                 description: 'PreStop is called immediately before
-                                  a container is terminated. The container is terminated
-                                  after the handler completes. The reason for termination
-                                  is passed to the handler. Regardless of the outcome
-                                  of the handler, the container is eventually terminated.
-                                  Other management of the container blocks until the
-                                  hook completes. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
+                                  a container is terminated due to an API request
+                                  or management event such as liveness probe failure,
+                                  preemption, resource contention, etc. The handler
+                                  is not called if the container crashes or exits.
+                                  The reason for termination is passed to the handler.
+                                  The Pod''s termination grace period countdown begins
+                                  before the PreStop hooked is executed. Regardless
+                                  of the outcome of the handler, the container will
+                                  eventually terminate within the Pod''s termination
+                                  grace period. Other management of the container
+                                  blocks until the hook completes or until the termination
+                                  grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
                                 properties:
                                   exec:
                                     description: One and only one of the following
@@ -2254,8 +2339,7 @@ spec:
                             type: boolean
                           volumeDevices:
                             description: volumeDevices is the list of block devices
-                              to be used by the container. This is an alpha feature
-                              and may change in the future.
+                              to be used by the container. This is a beta feature.
                             items:
                               properties:
                                 devicePath:
@@ -2299,6 +2383,15 @@ spec:
                                   description: Path within the volume from which the
                                     container's volume should be mounted. Defaults
                                     to "" (volume's root).
+                                  type: string
+                                subPathExpr:
+                                  description: Expanded path within the volume from
+                                    which the container's volume should be mounted.
+                                    Behaves similarly to SubPath but environment variable
+                                    references $(VAR_NAME) are expanded using the
+                                    container's environment. Defaults to "" (volume's
+                                    root). SubPathExpr and SubPath are mutually exclusive.
+                                    This field is alpha in 1.14.
                                   type: string
                               required:
                               - name
@@ -2359,6 +2452,12 @@ spec:
                         DNS options set along with hostNetwork, you have to specify
                         DNS policy explicitly to 'ClusterFirstWithHostNet'.
                       type: string
+                    enableServiceLinks:
+                      description: 'EnableServiceLinks indicates whether information
+                        about services should be injected into pod''s environment
+                        variables, matching the syntax of Docker links. Optional:
+                        Defaults to true.'
+                      type: boolean
                     hostAliases:
                       description: HostAliases is an optional list of hosts and IPs
                         that will be injected into the pod's hosts file if specified.
@@ -2713,12 +2812,18 @@ spec:
                                 type: object
                               preStop:
                                 description: 'PreStop is called immediately before
-                                  a container is terminated. The container is terminated
-                                  after the handler completes. The reason for termination
-                                  is passed to the handler. Regardless of the outcome
-                                  of the handler, the container is eventually terminated.
-                                  Other management of the container blocks until the
-                                  hook completes. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
+                                  a container is terminated due to an API request
+                                  or management event such as liveness probe failure,
+                                  preemption, resource contention, etc. The handler
+                                  is not called if the container crashes or exits.
+                                  The reason for termination is passed to the handler.
+                                  The Pod''s termination grace period countdown begins
+                                  before the PreStop hooked is executed. Regardless
+                                  of the outcome of the handler, the container will
+                                  eventually terminate within the Pod''s termination
+                                  grace period. Other management of the container
+                                  blocks until the hook completes or until the termination
+                                  grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
                                 properties:
                                   exec:
                                     description: One and only one of the following
@@ -3247,8 +3352,7 @@ spec:
                             type: boolean
                           volumeDevices:
                             description: volumeDevices is the list of block devices
-                              to be used by the container. This is an alpha feature
-                              and may change in the future.
+                              to be used by the container. This is a beta feature.
                             items:
                               properties:
                                 devicePath:
@@ -3292,6 +3396,15 @@ spec:
                                   description: Path within the volume from which the
                                     container's volume should be mounted. Defaults
                                     to "" (volume's root).
+                                  type: string
+                                subPathExpr:
+                                  description: Expanded path within the volume from
+                                    which the container's volume should be mounted.
+                                    Behaves similarly to SubPath but environment variable
+                                    references $(VAR_NAME) are expanded using the
+                                    container's environment. Defaults to "" (volume's
+                                    root). SubPathExpr and SubPath are mutually exclusive.
+                                    This field is alpha in 1.14.
                                   type: string
                               required:
                               - name
@@ -3343,7 +3456,7 @@ spec:
                       description: 'If specified, all readiness gates will be evaluated
                         for pod readiness. A pod is ready when all its containers
                         are ready AND all conditions specified in the readiness gates
-                        have status equal to "True" More info: https://github.com/kubernetes/community/blob/master/keps/sig-network/0007-pod-ready%2B%2B.md'
+                        have status equal to "True" More info: https://git.k8s.io/enhancements/keps/sig-network/0007-pod-ready%2B%2B.md'
                       items:
                         properties:
                           conditionType:
@@ -3365,7 +3478,7 @@ spec:
                         pod.  If no RuntimeClass resource matches the named class,
                         the pod will not be run. If unset or empty, the "legacy" RuntimeClass
                         will be used, which is an implicit class with an empty definition
-                        that uses the default runtime handler. More info: https://github.com/kubernetes/community/blob/master/keps/sig-node/0014-runtime-class.md
+                        that uses the default runtime handler. More info: https://git.k8s.io/enhancements/keps/sig-node/runtime-class.md
                         This is an alpha feature and may change in the future.'
                       type: string
                     schedulerName:
@@ -3774,6 +3887,52 @@ spec:
                                 description: Specify whether the ConfigMap or it's
                                   keys must be defined
                                 type: boolean
+                            type: object
+                          csi:
+                            description: CSI (Container Storage Interface) represents
+                              storage that is handled by an external CSI driver (Alpha
+                              feature).
+                            properties:
+                              driver:
+                                description: Driver is the name of the CSI driver
+                                  that handles this volume. Consult with your admin
+                                  for the correct name as registered in the cluster.
+                                type: string
+                              fsType:
+                                description: Filesystem type to mount. Ex. "ext4",
+                                  "xfs", "ntfs". If not provided, the empty value
+                                  is passed to the associated CSI driver which will
+                                  determine the default filesystem to apply.
+                                type: string
+                              nodePublishSecretRef:
+                                description: NodePublishSecretRef is a reference to
+                                  the secret object containing sensitive information
+                                  to pass to the CSI driver to complete the CSI NodePublishVolume
+                                  and NodeUnpublishVolume calls. This field is optional,
+                                  and  may be empty if no secret is required. If the
+                                  secret object contains more than one secret, all
+                                  secret references are passed.
+                                properties:
+                                  name:
+                                    description: 'Name of the referent. More info:
+                                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind,
+                                      uid?'
+                                    type: string
+                                type: object
+                              readOnly:
+                                description: Specifies a read-only configuration for
+                                  the volume. Defaults to false (read/write).
+                                type: boolean
+                              volumeAttributes:
+                                additionalProperties:
+                                  type: string
+                                description: VolumeAttributes stores driver-specific
+                                  properties that are passed to the CSI driver. Consult
+                                  your driver's documentation for supported values.
+                                type: object
+                            required:
+                            - driver
                             type: object
                           downwardAPI:
                             description: DownwardAPI represents downward API about
@@ -4480,6 +4639,11 @@ spec:
                                   as host:port pair (multiple entries are separated
                                   with commas) which acts as the central registry
                                   for volumes
+                                type: string
+                              tenant:
+                                description: Tenant owning the given Quobyte volume
+                                  in the Backend Used with dynamically provisioned
+                                  Quobyte volumes, value is set by the plugin
                                 type: string
                               user:
                                 description: User to map volume access to Defaults

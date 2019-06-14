@@ -19,17 +19,8 @@ import (
 func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 
-	if replicasetutil.CheckStepHashChange(rollout) {
-		logCtx.Info("List of Canary steps have changed and need to reset CurrentStepIndex")
-		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
-		if err != nil {
-			return err
-		}
-		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
-	}
-	if replicasetutil.CheckPodSpecChange(rollout) {
-		logCtx.Info("Pod Spec changed and need to reset CurrentStepIndex")
+	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
+	if replicasetutil.PodTemplateOrStepsChanged(rollout, newRS) {
 		newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 		if err != nil {
 			return err
@@ -232,23 +223,9 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
 	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
 
-	if replicasetutil.CheckStepHashChange(r) {
+	if replicasetutil.PodTemplateOrStepsChanged(r, newRS) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
-		if r.Status.Canary.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
-			if newStatus.CurrentStepIndex != nil {
-				msg := "Skipping all steps because the newRS is the stableRS."
-				logCtx.Info(msg)
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepCount)
-				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
-			}
-		}
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
-	}
-
-	if replicasetutil.CheckPodSpecChange(r) {
-		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
-		if r.Status.Canary.StableRS == controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount) {
+		if newRS != nil && r.Status.Canary.StableRS == replicasetutil.GetPodTemplateHash(newRS) {
 			if newStatus.CurrentStepIndex != nil {
 				msg := "Skipping all steps because the newRS is the stableRS."
 				logCtx.Info(msg)
@@ -304,7 +281,7 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 
 	addPause := currentStep.Pause != nil
-	pauseStartTime, paused := calculatePauseStatus(r, addPause)
+	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause)
 	newStatus.PauseStartTime = pauseStartTime
 
 	newStatus.CurrentStepIndex = currentStepIndex

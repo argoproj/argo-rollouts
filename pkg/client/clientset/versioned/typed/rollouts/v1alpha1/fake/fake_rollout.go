@@ -119,7 +119,7 @@ func (c *FakeRollouts) DeleteCollection(options *v1.DeleteOptions, listOptions v
 // Patch applies the patch and returns the patched rollout.
 func (c *FakeRollouts) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Rollout, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(rolloutsResource, c.ns, name, data, subresources...), &v1alpha1.Rollout{})
+		Invokes(testing.NewPatchSubresourceAction(rolloutsResource, c.ns, name, pt, data, subresources...), &v1alpha1.Rollout{})
 
 	if obj == nil {
 		return nil, err

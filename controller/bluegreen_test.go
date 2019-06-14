@@ -42,8 +42,8 @@ func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2.Status.BlueGreen.PreviousActiveSelector = rs1PodHash
@@ -77,7 +77,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+	rs := newReplicaSet(r, 1)
 	generatedConditions := generateConditionsPatch(false, conditions.NewReplicaSetReason, rs, false)
 
 	f.expectCreateReplicaSetAction(rs)
@@ -110,7 +110,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	rs := newReplicaSetWithStatus(r, "foo-895c6c4f9", 1, 1)
+	rs := newReplicaSetWithStatus(r, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
@@ -134,8 +134,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -176,8 +176,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -215,8 +215,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -249,8 +249,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -283,8 +283,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds = pointer.Int32Ptr(10)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -328,8 +328,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 		r2 := bumpVersion(r1)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -379,8 +379,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 2, 1, 1, false, true)
@@ -419,7 +419,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r1 = updateBlueGreenRolloutStatus(r1, "", "", 1, 1, 1, false, false)
@@ -463,8 +463,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 
-		rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-		rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -529,7 +529,7 @@ func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	rs := newReplicaSetWithStatus(r, "foo-895c6c4f9", 1, 1)
+	rs := newReplicaSetWithStatus(r, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
@@ -549,8 +549,8 @@ func TestBlueGreenAddScaleDownDelayStartTime(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -595,11 +595,11 @@ func TestBlueGreenWaitForScaleDownDelay(t *testing.T) {
 	before := metav1.Now().Add(-1 * time.Second)
 	r2.Status.BlueGreen.ScaleDownDelayStartTime = &metav1.Time{Time: before}
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -635,11 +635,11 @@ func TestBlueGreenScaleDownOldRS(t *testing.T) {
 	before := metav1.Now().Add(-1 * time.Minute)
 	r2.Status.BlueGreen.ScaleDownDelayStartTime = &metav1.Time{Time: before}
 
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -664,9 +664,9 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	r.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r)
 
-	rs1 := newReplicaSetWithStatus(r, "foo-867bc46cdc", 1, 1)
+	rs1 := newReplicaSetWithStatus(r, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
@@ -705,7 +705,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
-	rs := newReplicaSetWithStatus(ro, "foo-1", 1, 1)
+	rs := newReplicaSetWithStatus(ro, 1, 1)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
 
@@ -713,6 +713,9 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 
 	f := newFixture(t)
+	f.objects = append(f.objects, ro)
+	f.rolloutLister = append(f.rolloutLister, ro)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	err := c.syncRolloutStatusBlueGreen([]*appsv1.ReplicaSet{}, rs, nil, activeSvc, ro, false)
@@ -738,10 +741,10 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f := newFixture(t)
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	r2 := bumpVersion(r1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -768,11 +771,11 @@ func TestBlueGreenRolloutScaleUpdatePreviewRS(t *testing.T) {
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r1.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount = pointer.Int32Ptr(123)
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 1, 1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1.Spec.Replicas = pointer.Int32Ptr(2)
 	r2 := bumpVersion(r1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -801,10 +804,10 @@ func TestBlueGreenRolloutScalePreviewActiveRS(t *testing.T) {
 	f := newFixture(t)
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	rs1 := newReplicaSetWithStatus(r1, "foo-895c6c4f9", 2, 2)
+	rs1 := newReplicaSetWithStatus(r1, 2, 2)
 	r2 := bumpVersion(r1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -832,7 +835,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 
-	rs2 := newReplicaSetWithStatus(r2, "foo-5f79b78d7f", 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
