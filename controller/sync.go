@@ -304,8 +304,8 @@ func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *app
 	var currentPodHash string
 	if newRS == nil {
 		// newRS potentially might be nil when called by Controller::syncScalingEvent(). For this
-		// to happen, the user would have had to simultaneously change to change the number of
-		// replicas, and the pod template spec at the same time.
+		// to happen, the user would have had to simultaneously change the number of replicas, and
+		// the pod template spec at the same time.
 		currentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 		logutil.WithRollout(rollout).Warnf("Assuming %s for new replicaset pod hash", currentPodHash)
 	} else {

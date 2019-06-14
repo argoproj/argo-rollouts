@@ -106,8 +106,11 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 }
 
 // reconcileBlueGreenTemplateChange returns true if we detect there was a change in the pod template
-// from our current pod hash.
+// from our current pod hash, or the newRS does not yet exist
 func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	if newRS == nil {
+		return true
+	}
 	return rollout.Status.CurrentPodHash != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
@@ -214,8 +217,6 @@ func calculateScaleUpPreviewCheckPoint(r *v1alpha1.Rollout, newRS *appsv1.Replic
 	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount {
 		return true
-	} else if newRS == nil {
-		return false
 	} else if reconcileBlueGreenTemplateChange(r, newRS) {
 		return false
 	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {

@@ -781,16 +781,12 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f := newFixture(t)
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
-	updateBlueGreenRolloutStatus(r, "", "active", 1, 1, 1, false, true)
 	r.Status.CurrentPodHash = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "fakeobservedgeneration"
 	rs := newReplicaSet(r, 1)
-	r.Annotations[annotations.RevisionAnnotation] = "1"
-	rs.Annotations[annotations.RevisionAnnotation] = "1"
-	rs.OwnerReferences = append(rs.OwnerReferences, *newRolloutControllerRef(r))
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
 	rs.Status.ReadyReplicas = 1
@@ -844,9 +840,6 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "fakeobservedgeneration"
 	rs := newReplicaSet(r, 1)
-	r.Annotations[annotations.RevisionAnnotation] = "1"
-	rs.Annotations[annotations.RevisionAnnotation] = "1"
-	rs.OwnerReferences = append(rs.OwnerReferences, *newRolloutControllerRef(r))
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
 	rs.Status.ReadyReplicas = 1
