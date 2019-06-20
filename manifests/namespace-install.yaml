@@ -5233,4 +5233,10 @@ spec:
         image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
         name: argo-rollouts
+        volumeMounts:
+        - name: tmp
+          volumeMount: /tmp
       serviceAccountName: argo-rollouts
+      volumes:
+      - emptyDir: {}
+        name: tmp
