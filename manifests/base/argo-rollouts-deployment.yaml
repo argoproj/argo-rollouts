@@ -24,7 +24,7 @@ spec:
         name: argo-rollouts
         volumeMounts:
         - name: tmp
-          volumeMount: /tmp
+          mountPath: /tmp
       volumes:
       - name: tmp
         emptyDir: {}

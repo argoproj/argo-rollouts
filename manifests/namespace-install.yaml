@@ -5234,8 +5234,8 @@ spec:
         imagePullPolicy: Always
         name: argo-rollouts
         volumeMounts:
-        - name: tmp
-          volumeMount: /tmp
+        - mountPath: /tmp
+          name: tmp
       serviceAccountName: argo-rollouts
       volumes:
       - emptyDir: {}
