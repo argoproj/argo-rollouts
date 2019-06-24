@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: example-experiment
+spec:
+  duration: 60
+  templates:
+  - replicas: 5
+    selector:
+      matchLabels:
+        app: guestbook
+    metadata:
+      labels:
+        app: guestbook
+    template:
+      spec:
+        containers:
+        - name: guestbook
+          # The image below can be flip from 0.1 to 0.2 
+          image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+          ports:
+          - containerPort: 80

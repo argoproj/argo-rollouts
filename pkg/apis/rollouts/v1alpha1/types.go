@@ -277,3 +277,132 @@ type RolloutList struct {
 
 	Items []Rollout `json:"items"`
 }
+
+// Experiment is a specification for a Rollout resource
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type Experiment struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ExperimentSpec   `json:"spec"`
+	Status ExperimentStatus `json:"status,omitempty"`
+}
+
+// ExperimentSpec is the spec for a Experiment resource
+type ExperimentSpec struct {
+	// Templates A list of PodSpecs that define the ReplicaSets that should be run during an experiment.
+	Templates []TemplateSpec `json:"templates"`
+	// Duration the amount of time for the experiment to run. If not listed, the experiment will run for an
+	// indefinite amount of time
+	// +optional
+	Duration *int32 `json:"duration,omitempty"`
+	// ProgressDeadlineSeconds The maximum time in seconds for a experiment to
+	// make progress before it is considered to be failed. Argo Rollouts will
+	// continue to process failed experiments and a condition with a
+	// ProgressDeadlineExceeded reason will be surfaced in the experiment status.
+	// Note that progress will not be estimated during the time a experiment is paused.
+	// Defaults to 600s.
+	// +optional
+	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
+}
+
+type TemplateSpec struct {
+	// Number of desired pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Label selector for pods. Existing ReplicaSets whose pods are
+	// selected by this will be the ones affected by this experiment.
+	// It must match the pod template's labels.
+	Selector *metav1.LabelSelector `json:"selector"`
+	// Template describes the pods that will be created.
+	Template corev1.PodTemplateSpec `json:"template"`
+}
+
+type TemplateHash struct {
+	// Name of the template used to identity which hash to compare to the hash
+	Name string `json:"name,omitempty"`
+	//Hash A hash of the podSpec
+	Hash string `json:"hash,omitempty"`
+}
+
+// ExperimentStatus is the status for a Experiment resource
+type ExperimentStatus struct {
+	// ExperimentHash the hash of the list of environment spec that is used to prevent changes in spec.
+	// +optional
+	TemplateHashes []TemplateHash `json:"templateHashes,omitempty"`
+	// Total number of non-terminated pods targeted by this experiment (their labels match the selector).
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+	// Total number of non-terminated pods targeted by this experiment that have the desired template spec.
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	// Total number of ready pods targeted by this experiment.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	// Total number of available pods (ready for at least minReadySeconds) targeted by this experiment.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+	// CollisionCount count of hash collisions for the Experiment. The Experiment controller uses this
+	// field as a collision avoidance mechanism when it needs to create the name for the
+	// newest ReplicaSet.
+	// +optional
+	CollisionCount *int32 `json:"collisionCount,omitempty"`
+	// The generation observed by the experiment controller by taking a hash of the spec.
+	// +optional
+	ObservedGeneration string `json:"observedGeneration,omitempty"`
+	// Conditions a list of conditions a experiment can have.
+	// +optional
+	Conditions []ExperimentCondition `json:"conditions,omitempty"`
+}
+
+// ExperimentConditionType defines the conditions of Experiment
+type ExperimentConditionType string
+
+// These are valid conditions of a experiment.
+const (
+	// InvalidExperimentSpec means the experiment has an invalid spec and will not progress until
+	// the spec is fixed.
+	InvalidExperimentSpec ExperimentConditionType = "InvalidSpec"
+	// ExperimentConcluded means the experiment is available, ie. the active service is pointing at a
+	// replicaset with the required replicas up and running for at least minReadySeconds.
+	ExperimentCompleted ExperimentConditionType = "Completed"
+	// ExperimentProgressing means the experiment is progressing. Progress for a experiment is
+	// considered when a new replica set is created or adopted, when pods scale
+	// up or old pods scale down, or when the services are updated. Progress is not estimated
+	// for paused experiment.
+	ExperimentProgressing ExperimentConditionType = "Progressing"
+	// ExperimentRunning means that an experiment has reached the desired state and is running for the duration
+	// specified in the spec
+	ExperimentRunning ExperimentConditionType = "Running"
+	// ExperimentReplicaFailure ReplicaFailure is added in a experiment when one of its pods
+	// fails to be created or deleted.
+	ExperimentReplicaFailure ExperimentConditionType = "ReplicaFailure"
+)
+
+// ExperimentCondition describes the state of a rollout at a certain point.
+type ExperimentCondition struct {
+	// Type of deployment condition.
+	Type ExperimentConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus `json:"status"`
+	// The last time this condition was updated.
+	LastUpdateTime metav1.Time `json:"lastUpdateTime"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
+	// The reason for the condition's last transition.
+	Reason string `json:"reason"`
+	// A human readable message indicating details about the transition.
+	Message string `json:"message"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ExperimentList is a list of Rollout resources
+type ExperimentList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []Experiment `json:"items"`
+}

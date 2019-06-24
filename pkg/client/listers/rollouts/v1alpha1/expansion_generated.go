@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+// ExperimentListerExpansion allows custom methods to be added to
+// ExperimentLister.
+type ExperimentListerExpansion interface{}
+
+// ExperimentNamespaceListerExpansion allows custom methods to be added to
+// ExperimentNamespaceLister.
+type ExperimentNamespaceListerExpansion interface{}
+
 // RolloutListerExpansion allows custom methods to be added to
 // RolloutLister.
 type RolloutListerExpansion interface{}
