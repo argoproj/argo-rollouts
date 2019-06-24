@@ -7,7 +7,6 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
 
 # build development images
 DEV_IMAGE=false
@@ -76,7 +75,7 @@ lint:
 
 .PHONY: test
 test:
-	$(TEST_CMD) -v -covermode=count -coverprofile=coverage.out `go list ./...`
+	go test -v -covermode=count -coverprofile=coverage.out `go list ./...`
 
 .PHONY: manifests
 manifests:

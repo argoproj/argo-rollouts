@@ -97,7 +97,7 @@ func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *M
 	errorCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "rollout_reconcile_error",
-			Help: "Error occuring during the rollout",
+			Help: "Error occurring during the rollout",
 		},
 		append(descRolloutDefaultLabels),
 	)

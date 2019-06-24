@@ -35,6 +35,7 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 
 func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 
@@ -67,6 +68,7 @@ func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
@@ -105,6 +107,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 
 func TestBlueGreenSetPreviewService(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -127,9 +130,8 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 
 func TestBlueGreenHandlePause(t *testing.T) {
 	t.Run("AddPause", func(t *testing.T) {
-		defer freezeNowAt(time.Now())
-
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -171,6 +173,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("AddPausedConditionWhilePaused", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -210,6 +214,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("NoActionsAfterPausing", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -243,6 +248,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("NoAutoPromoteBeforeDelayTimePasses", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -277,6 +283,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("AutoPromoteAfterDelayTimePasses", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -324,6 +331,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("NoPauseWhenAutoPromotionEnabledIsNotSet", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 		r2 := bumpVersion(r1)
@@ -374,6 +382,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("PauseWhenAutoPromotionEnabledIsFalse", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -415,6 +424,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("SkipPreviewWhenActiveHasNoSelector", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -458,6 +468,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 	t.Run("ContinueAfterUnpaused", func(t *testing.T) {
 		f := newFixture(t)
+		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 		r1.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -523,6 +534,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.AvailableReplicas = 1
@@ -545,6 +557,7 @@ func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 
 func TestBlueGreenAddScaleDownDelayStartTime(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
@@ -588,6 +601,7 @@ func TestBlueGreenAddScaleDownDelayStartTime(t *testing.T) {
 
 func TestBlueGreenWaitForScaleDownDelay(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
@@ -626,6 +640,7 @@ func TestBlueGreenWaitForScaleDownDelay(t *testing.T) {
 
 func TestBlueGreenScaleDownOldRS(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 
@@ -659,6 +674,7 @@ func TestBlueGreenScaleDownOldRS(t *testing.T) {
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled = pointer.BoolPtr(false)
@@ -713,9 +729,11 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 
 	f := newFixture(t)
+	defer f.Close()
 	f.objects = append(f.objects, ro)
 	f.rolloutLister = append(f.rolloutLister, ro)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
+
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	err := c.syncRolloutStatusBlueGreen([]*appsv1.ReplicaSet{}, rs, nil, activeSvc, ro, false)
@@ -739,6 +757,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 
 func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -768,6 +787,7 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 
 func TestBlueGreenRolloutScaleUpdatePreviewRS(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r1.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount = pointer.Int32Ptr(123)
@@ -802,6 +822,7 @@ func TestBlueGreenRolloutScaleUpdatePreviewRS(t *testing.T) {
 
 func TestBlueGreenRolloutScalePreviewActiveRS(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	rs1 := newReplicaSetWithStatus(r1, 2, 2)
@@ -831,6 +852,7 @@ func TestBlueGreenRolloutScalePreviewActiveRS(t *testing.T) {
 
 func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)

@@ -94,6 +94,7 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFixture(t)
+			defer f.Close()
 			f.rolloutLister = append(f.rolloutLister, rollout)
 			f.objects = append(f.objects, rollout)
 			f.replicaSetLister = append(f.replicaSetLister, test.existingRSs...)
@@ -244,6 +245,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 
 			f := newFixture(t)
+			defer f.Close()
 			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
 			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
 			c, informers, _ := f.newController(noResyncPeriodFunc)

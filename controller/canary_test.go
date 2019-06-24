@@ -76,6 +76,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -118,6 +119,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 
 func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -147,6 +149,7 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 
 func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -186,6 +189,7 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -231,6 +235,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 
 func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -271,6 +276,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 
 func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	steps := []v1alpha1.CanaryStep{
 		{
 			Pause: &v1alpha1.RolloutPause{},
@@ -314,6 +320,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 
 func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	steps := []v1alpha1.CanaryStep{
 		{
 			Pause: &v1alpha1.RolloutPause{},
@@ -355,6 +362,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 
 func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	r.Status.CurrentPodHash = ""
@@ -393,6 +401,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 
 func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
 	}}
@@ -433,6 +442,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -467,6 +477,7 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 
 func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(40),
@@ -495,6 +506,7 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 
 func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -525,6 +537,7 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 
 func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -564,6 +577,7 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 
 func TestRollBackToStable(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -608,6 +622,7 @@ func TestRollBackToStable(t *testing.T) {
 
 func TestRollBackToStableAndStepChange(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -654,6 +669,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
@@ -692,6 +708,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 
 func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -737,6 +754,7 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -775,6 +793,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 
 func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -814,6 +833,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: int32Ptr(10),
@@ -861,6 +881,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 
 func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -901,6 +922,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 
 func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	canarySvc := newService("canary", 80, nil)
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
@@ -919,6 +941,7 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 
 func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	canarySvc := newService("invalid-canary", 80, make(map[string]string))
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))

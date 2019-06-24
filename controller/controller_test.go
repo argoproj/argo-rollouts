@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,7 +35,6 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"github.com/bouk/monkey"
 )
 
 var (
@@ -65,6 +65,7 @@ type fixture struct {
 	kubeobjects     []runtime.Object
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
+	unfreezeTime    func()
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -73,7 +74,14 @@ func newFixture(t *testing.T) *fixture {
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
+	now := time.Now()
+	patch := monkey.Patch(time.Now, func() time.Time { return now })
+	f.unfreezeTime = patch.Unpatch
 	return f
+}
+
+func (f *fixture) Close() {
+	f.unfreezeTime()
 }
 
 const (
@@ -355,13 +363,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	return c, i, k8sI
 }
 
-func freezeNowAt(now time.Time) func() {
-	patch := monkey.Patch(time.Now, func() time.Time { return now })
-	return func() {
-		patch.Unpatch()
-	}
-}
-
 func (f *fixture) run(rolloutName string) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, true, false, c, i, k8sI)
@@ -582,6 +583,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "", "")
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -593,6 +595,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 
 func TestAdoptReplicaSet(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
@@ -684,6 +687,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			f := newFixture(t)
+			defer f.Close()
 			c, _, _ := f.newController(noResyncPeriodFunc)
 			duration := c.requeueStuckRollout(test.rollout, test.rollout.Status)
 			if test.noRequeue {
@@ -700,6 +704,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 
 func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "", "")
 	r.Spec.Selector = &metav1.LabelSelector{}
@@ -759,6 +764,7 @@ requests:
 
 	for _, r := range []*v1alpha1.Rollout{r1, r2} {
 		f := newFixture(t)
+		defer f.Close()
 		activeSvc := newService("active", 80, nil)
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.rolloutLister = append(f.rolloutLister, r)
