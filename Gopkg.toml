@@ -7,14 +7,14 @@ required = [
 
 [[constraint]]
   name = "k8s.io/client-go"
-  branch = "release-9.0"
+  branch = "release-11.0"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  branch = "release-1.12"
+  branch = "release-1.14"
 
 [[constraint]]
-  branch = "release-1.12"
+  branch = "release-1.14"
   name = "k8s.io/api"
 
 
@@ -24,13 +24,21 @@ required = [
   name = "github.com/docker/distribution"
   branch = "master"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apiserver"
-  branch = "release-1.12"
+  branch = "release-1.14"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apimachinery"
-  branch = "release-1.12"
+  branch = "release-1.14"
+
+[[constraint]]
+  name = "k8s.io/kubernetes"
+  branch = "release-1.14"
+
+[[constraint]]
+  name = "k8s.io/apiextensions-apiserver"
+  branch = "release-1.14"
 
 [[constraint]]
   name = "github.com/bouk/monkey"

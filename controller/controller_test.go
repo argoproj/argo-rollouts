@@ -17,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
@@ -24,6 +26,7 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -81,6 +84,10 @@ func (f *fixture) Close() {
 	f.unfreezeTime()
 }
 
+const (
+	defaultTestPodHash = "78574f5b57"
+)
+
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,8 +122,8 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 	return ro
 }
 
-func newReplicaSetWithStatus(r *v1alpha1.Rollout, name string, replicas int, availableReplicas int) *appsv1.ReplicaSet {
-	rs := newReplicaSet(r, name, replicas)
+func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplicas int) *appsv1.ReplicaSet {
+	rs := newReplicaSet(r, replicas)
 	rs.Status.Replicas = int32(replicas)
 	rs.Status.AvailableReplicas = int32(availableReplicas)
 	return rs
@@ -238,17 +245,18 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 	return newRollout
 }
 
-func newReplicaSet(r *v1alpha1.Rollout, name string, replicas int) *appsv1.ReplicaSet {
+func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
 	newRSTemplate := *r.Spec.Template.DeepCopy()
+	podHash := controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount)
 	rsLabels := map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount),
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
 	for k, v := range r.Spec.Selector.MatchLabels {
 		rsLabels[k] = v
 	}
 	rs := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
+			Name:            fmt.Sprintf("%s-%s", r.Name, podHash),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
 			Labels:          rsLabels,
@@ -462,7 +470,7 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 		Version:  "v1",
 	}
 	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, []byte(patch)))
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, types.MergePatchType, []byte(patch)))
 	return len
 }
 
@@ -497,7 +505,7 @@ func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) int {
 		Version:  "v1alpha1",
 	}
 	len := len(f.actions)
-	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, nil))
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, types.MergePatchType, nil))
 	return len
 }
 
@@ -508,7 +516,7 @@ func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, p
 		Version:  "v1alpha1",
 	}
 	len := len(f.actions)
-	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, []byte(expectedPatch)))
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, types.MergePatchType, []byte(expectedPatch)))
 	return len
 }
 
@@ -596,7 +604,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 	previewSvc := newService("preview", 80, nil)
 	activeSvc := newService("active", 80, nil)
 
-	rs := newReplicaSet(r, "foo-895c6c4f9", 1)
+	rs := newReplicaSet(r, 1)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
@@ -728,7 +736,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
-	expectedReplicaSetName := "guestbook-796789b97b"
+	expectedReplicaSetName := "guestbook-75fc5957d4"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -765,10 +773,104 @@ requests:
 
 		_ = f.expectUpdateRolloutAction(r)
 		f.expectPatchRolloutAction(r)
-		rs := newReplicaSet(r, expectedReplicaSetName, 1)
+		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 	}
+}
+
+// TestComputeHashChangeTolerationBlueGreen verifies that we can tolerate a change in
+// controller.ComputeHash() for the blue-green strategy and do not redeploy any replicasets
+func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.AvailableReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
+	r.Status.ObservedGeneration = "fakeobservedgeneration"
+	rs := newReplicaSet(r, 1)
+	rs.Name = "foo-fakepodhash"
+	rs.Status.AvailableReplicas = 1
+	rs.Status.ReadyReplicas = 1
+	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
+
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: "fakepodhash",
+			"foo":                                 "bar",
+		},
+	}
+	r.Status.Selector = metav1.FormatLabelSelector(&selector)
+	rs.Spec.Selector = &selector
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r.Status, availableCondition)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+
+	podTemplate := corev1.PodTemplate{
+		Template: rs.Spec.Template,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	rs.Spec.Template = podTemplate.Template
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	activeSvc := newService("active", 80, selector.MatchLabels)
+
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+	// this should only update observedGeneration and nothing else
+	expectedPatch := `{"status":{"observedGeneration":"7bbd997858"}}`
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+// TestComputeHashChangeTolerationCanary verifies that we can tolerate a change in
+// controller.ComputeHash() for the canary strategy and do not redeploy any replicasets
+func TestComputeHashChangeTolerationCanary(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+
+	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.Canary.StableRS = "fakepodhash"
+	r.Status.AvailableReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.ObservedGeneration = "fakeobservedgeneration"
+	rs := newReplicaSet(r, 1)
+	rs.Name = "foo-fakepodhash"
+	rs.Status.AvailableReplicas = 1
+	rs.Status.ReadyReplicas = 1
+	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r.Status, availableCondition)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+
+	podTemplate := corev1.PodTemplate{
+		Template: rs.Spec.Template,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	rs.Spec.Template = podTemplate.Template
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+	// this should only update observedGeneration and nothing else
+	expectedPatch := `{"status":{"observedGeneration":"7c8f97d5d6"}}`
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, expectedPatch, patch)
 }

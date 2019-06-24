@@ -1,6 +1,7 @@
 package conditions
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -11,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/kubernetes/pkg/controller"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -222,7 +222,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
 			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
 		}
-		currentRSIsStable := newStatus.Canary.StableRS == controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+		currentRSIsStable := newStatus.Canary.StableRS != "" && newStatus.Canary.StableRS == newStatus.CurrentPodHash
 		completedStrategy = executedAllSteps && currentRSIsStable
 	}
 
@@ -237,12 +237,17 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
 // be safe encoded to avoid bad words.
 func ComputeStepHash(rollout *v1alpha1.Rollout) string {
-	rolloutStepHasher := fnv.New32a()
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreenStrategy != nil || rollout.Spec.Strategy.CanaryStrategy == nil {
 		return ""
 	}
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
-		hashutil.DeepHashObject(rolloutStepHasher, rollout.Spec.Strategy.CanaryStrategy.Steps)
+	rolloutStepHasher := fnv.New32a()
+	stepsBytes, err := json.Marshal(rollout.Spec.Strategy.CanaryStrategy.Steps)
+	if err != nil {
+		panic(err)
+	}
+	_, err = rolloutStepHasher.Write(stepsBytes)
+	if err != nil {
+		panic(err)
 	}
 	return rand.SafeEncodeString(fmt.Sprint(rolloutStepHasher.Sum32()))
 }

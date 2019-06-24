@@ -22,5 +22,11 @@ spec:
         image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
         name: argo-rollouts
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
   strategy:
     type: Recreate

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-svc
+spec:
+  selector:
+    app: guestbook
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

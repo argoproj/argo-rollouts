@@ -27,10 +27,8 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if err != nil {
 		return err
 	}
-	templateChange := reconcileBlueGreenTemplateChange(r)
-	if templateChange {
-		newPodHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
-		logCtx.Infof("New Template '%s' detected", newPodHash)
+	if reconcileBlueGreenTemplateChange(r, newRS) {
+		logCtx.Infof("New pod template or template change detected")
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 	allRSs := append(oldRSs, newRS)
@@ -107,8 +105,13 @@ func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 }
 
-func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout) bool {
-	return rollout.Status.CurrentPodHash != controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+// reconcileBlueGreenTemplateChange returns true if we detect there was a change in the pod template
+// from our current pod hash, or the newRS does not yet exist
+func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	if newRS == nil {
+		return true
+	}
+	return rollout.Status.CurrentPodHash != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
 func (c *Controller) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
@@ -203,7 +206,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, new
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 	}
 
-	pauseStartTime, paused := calculatePauseStatus(r, addPause)
+	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause)
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(r, newRS, activeRS)
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
@@ -214,7 +217,7 @@ func calculateScaleUpPreviewCheckPoint(r *v1alpha1.Rollout, newRS *appsv1.Replic
 	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	if r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount {
 		return true
-	} else if reconcileBlueGreenTemplateChange(r) {
+	} else if reconcileBlueGreenTemplateChange(r, newRS) {
 		return false
 	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
 		return false

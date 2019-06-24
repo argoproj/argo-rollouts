@@ -7,9 +7,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -17,15 +20,37 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// FindNewReplicaSet returns the new RS this given rollout targets.
+// FindNewReplicaSet returns the new RS this given rollout targets from the given list.
+// Returns nil if the ReplicaSet does not exist in the list.
 func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	var newRSList []*appsv1.ReplicaSet
+	for _, rs := range rsList {
+		if rs != nil {
+			newRSList = append(newRSList, rs)
+		}
+	}
+	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
+	// First, attempt to find the replicaset by the replicaset naming formula
 	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-	for i := range rsList {
-		if rsList[i].Name == replicaSetName {
-			return rsList[i]
+	for _, rs := range rsList {
+		if rs.Name == replicaSetName {
+			return rs
+		}
+	}
+	// Iterate the ReplicaSet list again, this time doing a deep equal against the template specs.
+	// This covers the corner case in which the reason we did not find the replicaset, was because
+	// of a change in the controller.ComputeHash function (e.g. due to an update of k8s libraries).
+	// When this (rare) situation arises, we do not want to return nil, since nil is considered a
+	// PodTemplate change, which in turn would triggers an unexpected redeploy of the replicaset.
+	for _, rs := range rsList {
+		if PodTemplateEqualIgnoreHash(&rs.Spec.Template, &rollout.Spec.Template) {
+			logCtx := logutil.WithRollout(rollout)
+			logCtx.Infof("ComputeHash change detected (expected: %s, actual: %s)", replicaSetName, rs.Name)
+			return rs
 		}
 	}
 	// new ReplicaSet does not exist.
@@ -227,22 +252,49 @@ func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 	return maxSurge
 }
 
-// CheckStepHashChange indicates if the rollout's step for the strategy have changed. This causes the rollout to reset the
+// checkStepHashChange indicates if the rollout's step for the strategy have changed. This causes the rollout to reset the
 // currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
-func CheckStepHashChange(rollout *v1alpha1.Rollout) bool {
+func checkStepHashChange(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.CurrentStepHash == "" {
 		return false
 	}
-	return rollout.Status.CurrentStepHash != conditions.ComputeStepHash(rollout)
+	// TODO: conditions.ComputeStepHash is not stable and will change
+	stepsHash := conditions.ComputeStepHash(rollout)
+	if rollout.Status.CurrentStepHash != conditions.ComputeStepHash(rollout) {
+		logCtx := logutil.WithRollout(rollout)
+		logCtx.Infof("Canary steps change detected (new: %s, old: %s)", stepsHash, rollout.Status.CurrentStepHash)
+		return true
+	}
+	return false
 }
 
-// CheckPodSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
+// checkPodSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
 // currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
-func CheckPodSpecChange(rollout *v1alpha1.Rollout) bool {
+func checkPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
-	return rollout.Status.CurrentPodHash != controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if newRS != nil {
+		podHash = GetPodTemplateHash(newRS)
+	}
+	if rollout.Status.CurrentPodHash != podHash {
+		logCtx := logutil.WithRollout(rollout)
+		logCtx.Infof("Pod template change detected (new: %s, old: %s)", podHash, rollout.Status.CurrentPodHash)
+		return true
+	}
+	return false
+}
+
+// PodTemplateOrStepsChanged detects if there is a change in either the pod template, or canary steps
+func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	if checkStepHashChange(rollout) {
+		return true
+	}
+	if checkPodSpecChange(rollout, newRS) {
+		return true
+	}
+	return false
 }
 
 // ResetCurrentStepIndex resets the index back to zero unless there are no steps
@@ -251,4 +303,38 @@ func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 		return pointer.Int32Ptr(0)
 	}
 	return nil
+}
+
+// PodTemplateEqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
+// We ignore pod-template-hash because:
+// 1. The hash result would be different upon podTemplateSpec API changes
+//    (e.g. the addition of a new field will cause the hash code to change)
+// 2. The deployment template won't have hash labels
+//
+// NOTE: This is a modified version of deploymentutil.EqualIgnoreHash, but modified to perform
+// defaulting on the desired spec. This is so that defaulted fields by the replicaset controller
+// factor into the comparison. The reason this is necessary, is because unlike the deployment
+// controller, the rollout controller does not benefit/operate on a completely defaulted
+// rollout object.
+func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
+	live = live.DeepCopy()
+	desired = desired.DeepCopy()
+	// Remove hash labels from template.Labels before comparing
+	delete(live.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+	delete(desired.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+
+	podTemplate := corev1.PodTemplate{
+		Template: *desired,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	desired = &podTemplate.Template
+	return apiequality.Semantic.DeepEqual(live, desired)
+}
+
+// GetPodTemplateHash returns the rollouts-pod-template-hash value from a ReplicaSet's labels
+func GetPodTemplateHash(rs *appsv1.ReplicaSet) string {
+	if rs.Labels == nil {
+		return ""
+	}
+	return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }

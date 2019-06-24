@@ -156,8 +156,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
 		// the status of the Rollout and requeue to try the creation in the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
-		replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-		if controllerRef != nil && controllerRef.UID == rollout.UID && replicaSetName == rs.Name {
+		if controllerRef != nil && controllerRef.UID == rollout.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &rollout.Spec.Template) {
 			createdRS = rs
 			err = nil
 			break
@@ -205,14 +204,15 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 	return createdRS, err
 }
 
-// sync is responsible for reconciling rollouts on scaling events.
-func (c *Controller) sync(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+// syncScalingEvent is responsible for reconciling rollouts on scaling events.
+func (c *Controller) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
 	logCtx.Info("Reconciling scaling event")
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
 	if err != nil {
 		return err
 	}
+	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if r.Spec.Strategy.BlueGreenStrategy != nil {
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
@@ -301,8 +301,19 @@ func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *app
 		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
 	}
 
+	var currentPodHash string
+	if newRS == nil {
+		// newRS potentially might be nil when called by Controller::syncScalingEvent(). For this
+		// to happen, the user would have had to simultaneously change the number of replicas, and
+		// the pod template spec at the same time.
+		currentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+		logutil.WithRollout(rollout).Warnf("Assuming %s for new replicaset pod hash", currentPodHash)
+	} else {
+		currentPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+
 	return v1alpha1.RolloutStatus{
-		CurrentPodHash:    controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount),
+		CurrentPodHash:    currentPodHash,
 		Replicas:          replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
 		UpdatedReplicas:   replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
 		ReadyReplicas:     replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
