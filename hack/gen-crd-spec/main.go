@@ -42,6 +42,8 @@ func NewRolloutCustomResourceDefinition() *extensionsobj.CustomResourceDefinitio
 	removeValidataion(&un, "metadata.creationTimestamp")
 	removeValidataion(&un, "spec.template.metadata.creationTimestamp")
 	removeResourceValidation(&un)
+	removeNestedItems(&un)
+	removeDescriptions(&un)
 
 	crd := toCRD(&un)
 	crd.Spec.Scope = "Namespaced"
@@ -63,6 +65,49 @@ func removeValidataion(un *unstructured.Unstructured, path string) {
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
+// removeDescriptions removes all descriptions which bloats the API spec
+func removeDescriptions(un *unstructured.Unstructured) {
+	validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
+	removeDescriptionsHelper(validation)
+	unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
+}
+
+func removeDescriptionsHelper(obj map[string]interface{}) {
+	for k, v := range obj {
+		if k == "description" {
+			delete(obj, k)
+			continue
+		}
+		if vObj, ok := v.(map[string]interface{}); ok {
+			removeDescriptionsHelper(vObj)
+		}
+	}
+}
+
+// removeNestedItems completely removes validation for a field  whenever 'items' is used as a sub field name.
+// This is due to Kubernetes' inability to properly validate objects with fields with the name 'items'
+// (e.g. spec.template.spec.volumes.configMap)
+func removeNestedItems(un *unstructured.Unstructured) {
+	validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
+	removeNestedItemsHelper(validation)
+	unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
+}
+
+func removeNestedItemsHelper(obj map[string]interface{}) {
+	for k, v := range obj {
+		vObj, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		_, ok, _ = unstructured.NestedMap(vObj, "properties", "items", "items")
+		if ok {
+			delete(obj, k)
+		} else {
+			removeNestedItemsHelper(vObj)
+		}
+	}
+}
+
 var resourcesSchemaPath = []string{
 	"spec",
 	"validation",
@@ -74,6 +119,7 @@ var resourcesSchemaPath = []string{
 	"resources", "properties",
 }
 
+// removeResourceValidation needs to be removed since open api cannot accept both numbers and strings
 func removeResourceValidation(un *unstructured.Unstructured) {
 	containersFieldIf, ok, err := unstructured.NestedFieldNoCopy(un.Object, resourcesSchemaPath...)
 	checkErr(err)
