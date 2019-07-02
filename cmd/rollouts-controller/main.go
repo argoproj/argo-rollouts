@@ -81,6 +81,7 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
+				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
 				resyncDuration,
 				metricsPort)
 
@@ -89,7 +90,7 @@ func newCommand() *cobra.Command {
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
 
-			if err = cm.Run(1, 1, stopCh); err != nil {
+			if err = cm.Run(1, 1, 1, stopCh); err != nil {
 				glog.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
