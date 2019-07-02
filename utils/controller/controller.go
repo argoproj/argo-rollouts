@@ -8,6 +8,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"time"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -79,4 +81,34 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 	}
 
 	return true
+}
+
+func Enqueue(obj interface{}, q workqueue.RateLimitingInterface) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	q.Add(key)
+}
+
+func EnqueueAfter(obj interface{}, duration time.Duration, q workqueue.RateLimitingInterface) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	q.AddAfter(key, duration)
+}
+
+func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	q.AddRateLimited(key)
 }

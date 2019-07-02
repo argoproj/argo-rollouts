@@ -27,3 +27,19 @@ func TestWithRollout(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
 	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
 }
+
+func TestWithExperiment(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	ex := v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	logCtx := WithExperiment(&ex)
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.True(t, strings.Contains(logMessage, "experiment=test-name"))
+}

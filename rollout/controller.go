@@ -33,7 +33,7 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
-// Controller is the controller implementation for Rollout resources
+// RolloutController is the controller implementation for Rollout resources
 type RolloutController struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
@@ -68,7 +68,7 @@ type RolloutController struct {
 	resyncPeriod time.Duration
 }
 
-// NewController returns a new rollout controller
+// NewRolloutController returns a new rollout controller
 func NewRolloutController(
 	kubeclientset kubernetes.Interface,
 	rolloutsclientset clientset.Interface,

@@ -8,14 +8,15 @@ import (
 	"os/exec"
 	"strings"
 
+	"regexp"
+
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"regexp"
 )
 
 const (
-	rolloutCrdPath = "manifests/crds/rollout-crd.yaml"
+	rolloutCrdPath    = "manifests/crds/rollout-crd.yaml"
 	experimentCrdPath = "manifests/crds/experiment-crd.yaml"
 )
 
@@ -41,8 +42,8 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
-		 //We need to completely remove validation of problematic fields such as creationTimestamp,
-		 //which get marshalled to `null`, but are typed as as a `string` during Open API validation
+		//We need to completely remove validation of problematic fields such as creationTimestamp,
+		//which get marshalled to `null`, but are typed as as a `string` during Open API validation
 		removeValidataion(obj, "metadata.creationTimestamp")
 		removeValidataion(obj, "spec.template.metadata.creationTimestamp")
 		removeNestedItems(obj)
@@ -80,7 +81,6 @@ func splitYAML(out string) []*unstructured.Unstructured {
 	}
 	return objs
 }
-
 
 func deleteFile(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -207,6 +207,5 @@ func main() {
 		err = ioutil.WriteFile(path, yamlBytes, 0644)
 		checkErr(err)
 	}
-
 
 }
