@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"sort"
@@ -14,10 +14,11 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
-func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
 	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 	if err != nil {
@@ -114,7 +115,7 @@ func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout, newRS *appsv1.R
 	return rollout.Status.CurrentPodHash != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
-func (c *Controller) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
+func (c *RolloutController) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.BlueGreen.ScaleDownDelayStartTime == nil {
 		return true
 	}
@@ -125,7 +126,7 @@ func (c *Controller) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
 	return now.After(pauseEnd.Time)
 }
 
-func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
@@ -146,7 +147,7 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Servi
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
+func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
 	totalScaledDown := int32(0)
@@ -169,15 +170,15 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Replic
 	return totalScaledDown, nil
 }
 
-func (c *Controller) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout, addPause bool) error {
+func (c *RolloutController) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service, r *v1alpha1.Rollout, addPause bool) error {
 	allRSs := append(oldRSs, newRS)
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
-	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""
 	}
 	newStatus.BlueGreen.PreviewSelector = previewSelector
-	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	activeSelector, ok := serviceutil.GetRolloutSelectorLabel(activeSvc)
 	if !ok {
 		activeSelector = ""
 	}
@@ -226,13 +227,13 @@ func calculateScaleUpPreviewCheckPoint(r *v1alpha1.Rollout, newRS *appsv1.Replic
 }
 
 // Should run only on scaling events and not during the normal rollout process.
-func (c *Controller) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
+func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
-	previewSelector, ok := c.getRolloutSelectorLabel(previewSvc)
+	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""
 	}
-	activeSelector, ok := c.getRolloutSelectorLabel(activeSvc)
+	activeSelector, ok := serviceutil.GetRolloutSelectorLabel(activeSvc)
 	if !ok {
 		activeSelector = ""
 	}

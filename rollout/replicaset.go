@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
-func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
+func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimReplicaSets().
 	rsList, err := c.replicaSetLister.ReplicaSets(r.Namespace).List(labels.Everything())
@@ -44,7 +44,7 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	return cm.ClaimReplicaSets(rsList)
 }
 
-func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 		if *(newRS.Spec.Replicas) == rolloutReplicas {
@@ -65,7 +65,7 @@ func (c *Controller) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *
 	return scaled, err
 }
 
-func (c *Controller) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
@@ -97,7 +97,7 @@ func (c *Controller) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS 
 }
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, int32, error) {
+func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, int32, error) {
 	logCtx := logutil.WithRollout(rollout)
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order

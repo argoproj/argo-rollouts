@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ import (
 //
 // Note that currently the rollout controller is using caches to avoid querying the server for reads.
 // This may lead to stale reads of replica sets, thus incorrect  v status.
-func (c *Controller) getAllReplicaSetsAndSyncRevision(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet, error) {
+func (c *RolloutController) getAllReplicaSetsAndSyncRevision(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet, error) {
 	allOldRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
 
 	// Get new replica set with the updated revision number
@@ -52,7 +52,7 @@ func (c *Controller) getAllReplicaSetsAndSyncRevision(rollout *v1alpha1.Rollout,
 // 2. If there's existing new RS, update its revision number if it's smaller than (maxOldRevision + 1), where maxOldRevision is the max revision number among all old RSes.
 // 3. If there's no existing new RS and createIfNotExisted is true, create one with appropriate revision number (maxOldRevision + 1) and replicas.
 // Note that the pod-template-hash will be added to adopted RSes and pods.
-func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
+func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
 	logCtx := logutil.WithRollout(rollout)
 	existingNewRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 
@@ -205,7 +205,7 @@ func (c *Controller) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs 
 }
 
 // syncScalingEvent is responsible for reconciling rollouts on scaling events.
-func (c *Controller) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+func (c *RolloutController) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
 	logCtx.Info("Reconciling scaling event")
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
@@ -232,7 +232,7 @@ func (c *Controller) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 // by looking at the desired-replicas annotation in the active replica sets of the rollout.
 //
 // rsList should come from getReplicaSetsForRollout(r).
-func (c *Controller) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) (bool, error) {
+func (c *RolloutController) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) (bool, error) {
 	if rollout.Spec.Strategy.CanaryStrategy != nil {
 		return false, nil
 	}
@@ -255,7 +255,7 @@ func (c *Controller) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.
 	return false, nil
 }
 
-func (c *Controller) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout) (bool, *appsv1.ReplicaSet, error) {
+func (c *RolloutController) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout) (bool, *appsv1.ReplicaSet, error) {
 	// No need to scale
 	if *(rs.Spec.Replicas) == newScale {
 		return false, rs, nil
@@ -270,7 +270,7 @@ func (c *Controller) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newSca
 	return scaled, newRS, err
 }
 
-func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
+func (c *RolloutController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
 
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
@@ -292,7 +292,7 @@ func (c *Controller) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, roll
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
-func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
 	prevStatus := rollout.Status
 
 	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
@@ -326,7 +326,7 @@ func (c *Controller) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *app
 // cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
-func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
 	logCtx := logutil.WithRollout(rollout)
 	if !conditions.HasRevisionHistoryLimit(rollout) {
 		return nil
@@ -366,7 +366,7 @@ func (c *Controller) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alp
 // checkPausedConditions checks if the given rollout is paused or not and adds an appropriate condition.
 // These conditions are needed so that we won't accidentally report lack of progress for resumed rollouts
 // that were paused for longer than progressDeadlineSeconds.
-func (c *Controller) checkPausedConditions(r *v1alpha1.Rollout) error {
+func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	cond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
 	if cond != nil && cond.Reason == conditions.TimedOutReason {
 		// If we have reported lack of progress, do not overwrite it with a paused condition.
@@ -411,7 +411,7 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 	return patch, string(patch) != "{}", nil
 }
 
-func (c *Controller) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) v1alpha1.RolloutStatus {
 	if r.Spec.Paused {
 		return newStatus
 	}
@@ -493,7 +493,7 @@ func (c *Controller) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
-func (c *Controller) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, newPause *bool) error {
+func (c *RolloutController) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, newPause *bool) error {
 	specCopy := orig.Spec.DeepCopy()
 	paused := specCopy.Paused
 	if newPause != nil {
@@ -541,7 +541,7 @@ var nowFn = func() time.Time { return time.Now() }
 // requeueStuckRollout checks whether the provided rollout needs to be synced for a progress
 // check. It returns the time after the rollout will be requeued for the progress check, 0 if it
 // will be requeued now, or -1 if it does not need to be requeued.
-func (c *Controller) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus) time.Duration {
+func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus) time.Duration {
 	logctx := logutil.WithRollout(r)
 	currentCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
 	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
@@ -586,7 +586,7 @@ func (c *Controller) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1alpha1
 
 // getReplicaFailures will convert replica failure conditions from replica sets
 // to rollout conditions.
-func (c *Controller) getReplicaFailures(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) []v1alpha1.RolloutCondition {
+func (c *RolloutController) getReplicaFailures(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) []v1alpha1.RolloutCondition {
 	var errorConditions []v1alpha1.RolloutCondition
 	if newRS != nil {
 		for _, c := range newRS.Status.Conditions {

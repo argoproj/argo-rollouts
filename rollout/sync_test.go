@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"strconv"
@@ -167,7 +167,7 @@ func TestScaleBlueGreen(t *testing.T) {
 			_ = olderTimestamp
 			rolloutFake := fake.Clientset{}
 			k8sFake := k8sfake.Clientset{}
-			c := &Controller{
+			c := &RolloutController{
 				rolloutsclientset: &rolloutFake,
 				kubeclientset:     &k8sFake,
 				recorder:          &record.FakeRecorder{},
@@ -335,7 +335,7 @@ func TestCleanupRollouts(t *testing.T) {
 			r := newBlueGreenRollout("baz", 1, test.revisionHistoryLimit, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			c := &Controller{
+			c := &RolloutController{
 				rolloutsclientset: &fake,
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},

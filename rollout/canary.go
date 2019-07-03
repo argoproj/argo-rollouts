@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"sort"
@@ -16,7 +16,7 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(rollout)
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
@@ -88,7 +88,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 	return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, rollout)
 }
 
-func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if !replicasetutil.CheckStableRSExists(newRS, stableRS) {
 		logCtx.Info("No StableRS exists to reconcile")
@@ -99,7 +99,7 @@ func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *app
 	return scaled, err
 }
 
-func (c *Controller) reconcileCanaryPause(rollout *v1alpha1.Rollout) bool {
+func (c *RolloutController) reconcileCanaryPause(rollout *v1alpha1.Rollout) bool {
 	logCtx := logutil.WithRollout(rollout)
 	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
 		logCtx.Info("Rollout does not have any steps")
@@ -126,7 +126,7 @@ func (c *Controller) reconcileCanaryPause(rollout *v1alpha1.Rollout) bool {
 	return true
 }
 
-func (c *Controller) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
@@ -154,7 +154,7 @@ func (c *Controller) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, 
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *Controller) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
+func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
 	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
 	minAvailable := defaults.GetRolloutReplicasOrDefault(rollout) - replicasetutil.MaxUnavailable(rollout)
 	maxScaleDown := availablePodCount - minAvailable
@@ -208,7 +208,7 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 	return false
 }
 
-func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) error {
+func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) error {
 	logCtx := logutil.WithRollout(r)
 	allRSs := append(olderRSs, newRS)
 	if replicasetutil.CheckStableRSExists(newRS, stableRS) {

@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -252,94 +251,4 @@ func TestPreviewServiceNotFound(t *testing.T) {
 		}`
 	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc)
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
-}
-
-func TestGetRolloutServiceKeysForCanary(t *testing.T) {
-	keys := getRolloutServiceKeys(&v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{},
-			},
-		},
-	})
-	assert.Empty(t, keys)
-}
-
-func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
-	keys := getRolloutServiceKeys(&v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
-					CanaryService: "canary-service",
-				},
-			},
-		},
-	})
-	assert.ElementsMatch(t, keys, []string{"default/canary-service"})
-}
-
-func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
-	keys := getRolloutServiceKeys(&v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
-					PreviewService: "preview-service",
-					ActiveService:  "active-service",
-				},
-			},
-		},
-	})
-	assert.ElementsMatch(t, keys, []string{"default/preview-service", "default/active-service"})
-}
-
-func TestSyncMissingService(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-
-	err := ctrl.syncService("default/test-service")
-	assert.NoError(t, err)
-}
-
-func TestSyncServiceNotReferencedByRollout(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	svc := newService("test-service", 80, map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
-	})
-	f.serviceLister = append(f.serviceLister, svc)
-
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-
-	err := ctrl.syncService("default/test-service")
-	assert.NoError(t, err)
-	actions := f.kubeclient.Actions()
-	assert.Len(t, actions, 1)
-	patch, ok := actions[0].(k8stesting.PatchAction)
-	assert.True(t, ok)
-	assert.Equal(t, string(patch.GetPatch()), `[{ "op": "remove", "path": "/spec/selector/rollouts-pod-template-hash" }]`)
-}
-
-func TestSyncServiceReferencedByRollout(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	svc := newService("test-service", 80, map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
-	})
-	f.serviceLister = append(f.serviceLister, svc)
-	f.rolloutLister = append(f.rolloutLister, newBlueGreenRollout("test", 0, nil, "test-service", "test-service-preview"))
-
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-
-	err := ctrl.syncService("default/test-service")
-	assert.NoError(t, err)
-	actions := f.kubeclient.Actions()
-	assert.Len(t, actions, 0)
-	assert.Equal(t, 1, f.enqueuedObjects["default/test"])
 }

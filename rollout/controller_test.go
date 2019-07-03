@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"encoding/json"
@@ -30,11 +30,13 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"k8s.io/client-go/util/workqueue"
 )
 
 var (
@@ -316,21 +318,26 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+func (f *fixture) newController(resync resyncFunc) (*RolloutController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	c := NewController(f.kubeclient, f.client,
+	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
+
+	c := NewRolloutController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		resync(),
-		DefaultMetricsPort)
+		rolloutWorkqueue,
+		serviceWorkqueue,
+		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
+		&record.FakeRecorder{})
 
-	c.recorder = &record.FakeRecorder{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string
 		var err error
@@ -373,14 +380,14 @@ func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *RolloutController, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *RolloutController {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.servicesSynced, c.rolloutsSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
 	err := c.syncHandler(rolloutName)
