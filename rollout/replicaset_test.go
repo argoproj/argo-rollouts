@@ -1,4 +1,4 @@
-package controller
+package rollout
 
 import (
 	"strconv"
@@ -156,7 +156,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			controller := &Controller{
+			controller := &RolloutController{
 				rolloutsclientset: &fake,
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},

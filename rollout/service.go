@@ -1,22 +1,19 @@
-package controller
+package rollout
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	log "github.com/sirupsen/logrus"
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/cache"
 
-	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 const (
-	serviceIndexName    = "byService"
 	switchSelectorPatch = `{
 	"spec": {
 		"selector": {
@@ -24,11 +21,10 @@ const (
 		}
 	}
 }`
-	removeSelectorPatch = `[{ "op": "remove", "path": "/spec/selector/%s" }]`
 )
 
 // switchSelector switch the selector on an existing service to a new value
-func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
+func (c RolloutController) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
 	msg := fmt.Sprintf("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
 	logutil.WithRollout(r).Info(msg)
@@ -41,7 +37,7 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 	return err
 }
 
-func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
 	logCtx := logutil.WithRollout(r)
 	if previewSvc == nil {
 		return false, nil
@@ -83,7 +79,7 @@ func (c *Controller) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.
 	return true, nil
 }
 
-func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
 	switchActiveSvc := true
 	if activeSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -119,7 +115,7 @@ func (c *Controller) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.R
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
-func (c *Controller) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
+func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
 	svc, err := c.servicesLister.Services(r.Namespace).Get(serviceName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -135,7 +131,7 @@ func (c *Controller) getReferencedService(r *v1alpha1.Rollout, serviceName strin
 	return svc, nil
 }
 
-func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
@@ -155,7 +151,7 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	return previewSvc, activeSvc, nil
 }
 
-func (c *Controller) reconcileCanaryService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) error {
+func (c *RolloutController) reconcileCanaryService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) error {
 	if r.Spec.Strategy.CanaryStrategy == nil || r.Spec.Strategy.CanaryStrategy.CanaryService == "" {
 		return nil
 	}
@@ -166,95 +162,4 @@ func (c *Controller) reconcileCanaryService(r *v1alpha1.Rollout, newRS *appsv1.R
 	}
 
 	return c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
-}
-
-func (c *Controller) getRolloutSelectorLabel(svc *corev1.Service) (string, bool) {
-	if svc == nil {
-		return "", false
-	}
-	if svc.Spec.Selector == nil {
-		return "", false
-	}
-	currentSelectorValue, ok := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	return currentSelectorValue, ok
-}
-
-func (c *Controller) enqueueService(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		runtime.HandleError(err)
-		return
-	}
-	c.serviceWorkqueue.AddRateLimited(key)
-}
-
-func (c *Controller) syncService(key string) error {
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return err
-	}
-	svc, err := c.servicesLister.Services(namespace).Get(name)
-	if errors.IsNotFound(err) {
-		log.WithField(logutil.ServiceKey, key).Infof("Service %v has been deleted", key)
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	if rollouts, err := c.getRolloutsByService(svc.Namespace, svc.Name); err == nil {
-		for i := range rollouts {
-			c.enqueueRollout(rollouts[i])
-		}
-
-		if _, hasHashSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; hasHashSelector && len(rollouts) == 0 {
-			updatedSvc := svc.DeepCopy()
-			delete(updatedSvc.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey)
-			patch := fmt.Sprintf(removeSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey)
-			_, err := c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.JSONPatchType, []byte(patch))
-			if errors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-	}
-	return nil
-}
-
-// getRolloutsByService returns all rollouts which are referencing specified service
-func (c *Controller) getRolloutsByService(namespace string, serviceName string) ([]*v1alpha1.Rollout, error) {
-	objs, err := c.rolloutsIndexer.ByIndex(serviceIndexName, fmt.Sprintf("%s/%s", namespace, serviceName))
-	if err != nil {
-		return nil, err
-	}
-	var rollouts []*v1alpha1.Rollout
-	for i := range objs {
-		if r, ok := objs[i].(*v1alpha1.Rollout); ok {
-			rollouts = append(rollouts, r)
-		}
-	}
-	return rollouts, nil
-}
-
-// getRolloutServiceKeys returns services keys (namespace/serviceName) which are referenced by specified rollout
-func getRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
-	servicesSet := make(map[string]bool)
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.ActiveService)] = true
-		}
-		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.PreviewService)] = true
-		}
-	} else if rollout.Spec.Strategy.CanaryStrategy != nil {
-		if rollout.Spec.Strategy.CanaryStrategy.CanaryService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.CanaryStrategy.CanaryService)] = true
-		}
-	}
-	var services []string
-	for svc := range servicesSet {
-		services = append(services, svc)
-	}
-	return services
 }

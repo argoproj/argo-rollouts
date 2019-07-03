@@ -73,23 +73,23 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
-			rolloutInformerFactory := informers.NewSharedInformerFactoryWithOptions(
+			argoRolloutsInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 				rolloutClient,
 				resyncDuration,
 				informers.WithNamespace(namespace))
-			controller := controller.NewController(kubeClient, rolloutClient,
+			cm := controller.NewControllerManager(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
-				rolloutInformerFactory.Argoproj().V1alpha1().Rollouts(),
+				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				resyncDuration,
 				metricsPort)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			kubeInformerFactory.Start(stopCh)
-			rolloutInformerFactory.Start(stopCh)
+			argoRolloutsInformerFactory.Start(stopCh)
 
-			if err = controller.Run(2, stopCh); err != nil {
+			if err = cm.Run(1, 1, stopCh); err != nil {
 				glog.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
