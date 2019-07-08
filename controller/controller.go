@@ -37,7 +37,7 @@ const (
 	DefaultMetricsPort = 8090
 )
 
-// Manager is the controller implementation for Rollout resources
+// Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	metricsServer     *metrics.MetricsServer
 	rolloutController *rollout.RolloutController
@@ -51,8 +51,8 @@ type Manager struct {
 	serviceWorkqueue workqueue.RateLimitingInterface
 }
 
-// NewControllerManager returns a new rollout controller
-func NewControllerManager(
+// NewManager returns a new manager to manage all the controllers
+func NewManager(
 	kubeclientset kubernetes.Interface,
 	rolloutsclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
@@ -65,7 +65,7 @@ func NewControllerManager(
 	log.Info("Creating event broadcaster")
 
 	// Create event broadcaster
-	// Add rollouts-controller types to the default Kubernetes Scheme so Events can be
+	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(log.Infof)
