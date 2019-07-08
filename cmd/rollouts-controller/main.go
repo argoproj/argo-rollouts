@@ -77,7 +77,7 @@ func newCommand() *cobra.Command {
 				rolloutClient,
 				resyncDuration,
 				informers.WithNamespace(namespace))
-			cm := controller.NewControllerManager(kubeClient, rolloutClient,
+			cm := controller.NewManager(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
