@@ -17,6 +17,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -41,6 +42,10 @@ type ExperimentController struct {
 	replicaSetLister  appslisters.ReplicaSetLister
 	rolloutsLister    listers.RolloutLister
 	experimentsLister listers.ExperimentLister
+
+	replicaSetSynced cache.InformerSynced
+	experimentSynced cache.InformerSynced
+	rolloutSynced    cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
 
@@ -89,8 +94,12 @@ func NewExperimentController(
 		metricsServer:       metricsServer,
 		rolloutWorkqueue:    rolloutWorkQueue,
 		experimentWorkqueue: experimentWorkQueue,
-		recorder:            recorder,
-		resyncPeriod:        resyncPeriod,
+
+		replicaSetSynced: replicaSetInformer.Informer().HasSynced,
+		experimentSynced: experimentsInformer.Informer().HasSynced,
+		rolloutSynced:    rolloutsInformer.Informer().HasSynced,
+		recorder:         recorder,
+		resyncPeriod:     resyncPeriod,
 	}
 
 	controller.enqueueExperiment = controller.enqueue
