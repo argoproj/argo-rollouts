@@ -2,13 +2,12 @@ package controller
 
 import (
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-
-	"time"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"

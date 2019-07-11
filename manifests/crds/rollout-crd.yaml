@@ -1001,15 +1001,7 @@ spec:
                                 type: integer
                             type: object
                           resources:
-                            properties:
-                              limits:
-                                additionalProperties:
-                                  type: string
-                                type: object
-                              requests:
-                                additionalProperties:
-                                  type: string
-                                type: object
+                            properties: {}
                             type: object
                           securityContext:
                             properties:
