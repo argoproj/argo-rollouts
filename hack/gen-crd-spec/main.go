@@ -6,9 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
-
 	"regexp"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -184,6 +183,7 @@ func main() {
 	crds := NewCustomResourceDefinition()
 	for i := range crds {
 		crd := crds[i]
+		crdKind := crd.Spec.Names.Kind
 		jsonBytes, err := json.Marshal(crd)
 		checkErr(err)
 
@@ -194,6 +194,9 @@ func main() {
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
 		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
+		if crdKind == "Rollout" {
+			removeRolloutResourceValidation(&r)
+		}
 		jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
 		checkErr(err)
 
@@ -201,7 +204,7 @@ func main() {
 		checkErr(err)
 
 		path := rolloutCrdPath
-		if crd.Spec.Names.Kind == "Experiment" {
+		if crdKind == "Experiment" {
 			path = experimentCrdPath
 		}
 		err = ioutil.WriteFile(path, yamlBytes, 0644)
