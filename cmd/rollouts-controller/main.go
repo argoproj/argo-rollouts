@@ -38,6 +38,9 @@ func newCommand() *cobra.Command {
 		logLevel            string
 		glogLevel           int
 		metricsPort         int
+		rolloutThreads      int
+		experimentThreads   int
+		serviceThreads      int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -90,7 +93,7 @@ func newCommand() *cobra.Command {
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
 
-			if err = cm.Run(1, 1, 1, stopCh); err != nil {
+			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, stopCh); err != nil {
 				glog.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
@@ -101,6 +104,9 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
+	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experimentd controller")
+	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	return &command
 }
 

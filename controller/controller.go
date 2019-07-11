@@ -36,6 +36,15 @@ const (
 
 	// DefaultMetricsPort Default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
+
+	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	DefaultRolloutThreads = 1
+
+	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	DefaultExperimentThreads = 1
+
+	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	DefaultServiceThreads = 1
 )
 
 // Manager is the controller implementation for Argo-Rollout resources
