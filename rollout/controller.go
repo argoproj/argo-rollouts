@@ -102,9 +102,12 @@ func NewRolloutController(
 		resyncPeriod:      resyncPeriod,
 		metricsServer:     metricsServer,
 	}
-	controller.enqueueRollout = controller.enqueueRateLimited
-	controller.enqueueRolloutAfter = controller.enqueueAfter
-
+	controller.enqueueRollout = func(obj interface{}) {
+		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)
+	}
+	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+		controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
+	}
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -247,36 +250,6 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
-}
-
-func (c *RolloutController) enqueue(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		runtime.HandleError(err)
-		return
-	}
-	c.rolloutWorkqueue.Add(key)
-}
-
-func (c *RolloutController) enqueueRateLimited(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		runtime.HandleError(err)
-		return
-	}
-	c.rolloutWorkqueue.AddRateLimited(key)
-}
-
-func (c *RolloutController) enqueueAfter(obj interface{}, duration time.Duration) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		runtime.HandleError(err)
-		return
-	}
-	c.rolloutWorkqueue.AddAfter(key, duration)
 }
 
 // handleObject will take any resource implementing metav1.Object and attempt

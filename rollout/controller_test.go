@@ -350,7 +350,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		}
 		count++
 		f.enqueuedObjects[key] = count
-		c.enqueue(obj)
+		c.rolloutWorkqueue.Add(obj)
 	}
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueRollout(obj)

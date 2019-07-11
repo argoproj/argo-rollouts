@@ -574,13 +574,13 @@ func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
 		logctx.Infof("Queueing up Rollout for a progress check now")
-		c.enqueueRateLimited(r)
+		c.enqueueRollout(r)
 		return time.Duration(0)
 	}
 	logctx.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
-	c.enqueueAfter(r, after+time.Second)
+	c.enqueueRolloutAfter(r, after+time.Second)
 	return after
 }
 
