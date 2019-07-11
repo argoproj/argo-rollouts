@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -76,11 +75,15 @@ func NewServiceController(
 	}))
 
 	servicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueService,
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			controller.enqueueService(newObj)
+		AddFunc: func(obj interface{}) {
+			controllerutil.Enqueue(obj, serviceWorkQueue)
 		},
-		DeleteFunc: controller.enqueueService,
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controllerutil.Enqueue(newObj, serviceWorkQueue)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controllerutil.Enqueue(obj, serviceWorkQueue)
+		},
 	})
 
 	return controller
@@ -99,16 +102,6 @@ func (c *ServiceController) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Shutting down workers")
 
 	return nil
-}
-
-func (c *ServiceController) enqueueService(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		runtime.HandleError(err)
-		return
-	}
-	c.serviceWorkqueue.AddRateLimited(key)
 }
 
 func (c *ServiceController) syncService(key string) error {

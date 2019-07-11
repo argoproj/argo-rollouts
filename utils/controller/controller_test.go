@@ -78,7 +78,6 @@ func TestEnqueueInvalidObj(t *testing.T) {
 	assert.Equal(t, 0, q.Len())
 }
 
-
 func TestEnqueueAfter(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	r := &v1alpha1.Rollout{
@@ -100,7 +99,6 @@ func TestEnqueueAfterInvalidObj(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	assert.Equal(t, 0, q.Len())
 }
-
 
 func TestEnqueueRateLimited(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
