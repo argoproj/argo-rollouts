@@ -2,6 +2,7 @@ package experiments
 
 import (
 	"time"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,12 +12,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
-
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
-
-	"fmt"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -25,8 +25,7 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
+
 )
 
 // ExperimentController is the controller implementation for Experiment resources
@@ -210,7 +209,7 @@ func (ec *ExperimentController) enqueueRolloutFromExperiment(obj interface{}) {
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Processing object: %s", object.GetName())
+	log.WithField("Controller", "Experiment").Infof("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		// If this object is not owned by a Rollout, we should not do anything more
 		// with it.
