@@ -18,4 +18,4 @@ configurations:
 - rollout-transform.yaml
 ```
 
-A example kustomize app demonstrating the ability to use transformers with Rollouts can be seen [here](./kustomize) 
+A example kustomize app demonstrating the ability to use transformers with Rollouts can be seen [here](./kustomize).

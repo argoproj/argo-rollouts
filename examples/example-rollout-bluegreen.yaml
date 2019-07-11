@@ -24,3 +24,4 @@ spec:
     blueGreen: 
       activeService: active-service
       previewService: preview-service
+      autoPromotionEnabled: false

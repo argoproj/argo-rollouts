@@ -1,0 +1,32 @@
+site_name: Argo Rollouts - Advanced Kubernetes Deployment Controller
+repo_url: https://github.com/argoproj/argo-rollouts
+strict: true
+theme:
+  name: material
+  palette:
+    primary: teal
+  font:
+    text: 'Work Sans'
+  logo: 'assets/logo.png'
+google_analytics:
+- 'UA-105170809-3'
+- 'auto'
+markdown_extensions:
+- codehilite
+- admonition
+- toc:
+    permalink: true
+nav:
+  - Overview: index.md
+  - Concepts: deployment-concepts.md
+  - Getting Started: getting-started.md
+  - Features:
+    - features/index.md
+    - BlueGreen: features/bluegreen.md
+    - Canary: features/canary.md
+    - HPA Support: features/hpa-support.md
+    - Kustomize Support: features/kustomize.md
+    - Controller Metrics: features/controller-metrics.md
+  - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
+  - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
+  - Blog ⧉: https://blog.argoproj.io/
