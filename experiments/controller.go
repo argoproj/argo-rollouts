@@ -1,14 +1,11 @@
 package experiments
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,6 +16,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -100,8 +98,12 @@ func NewExperimentController(
 		resyncPeriod:     resyncPeriod,
 	}
 
-	controller.enqueueExperiment = controller.enqueue
-	controller.enqueueExperimentAfter = controller.enqueueAfter
+	controller.enqueueExperiment = func(obj interface{}) {
+		controllerutil.Enqueue(obj, experimentWorkQueue)
+	}
+	controller.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+		controllerutil.EnqueueAfter(obj, duration, experimentWorkQueue)
+	}
 
 	log.Info("Setting up experiments event handlers")
 	// Set up an event handler for when experiment resources change
@@ -110,13 +112,16 @@ func NewExperimentController(
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueExperiment(new)
 		},
-		DeleteFunc: func(obj interface{}) {
-			controller.enqueueExperiment(obj)
-		},
+		DeleteFunc: controller.enqueueExperiment,
 	})
 
 	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueRolloutFromExperiment,
+		AddFunc: func(obj interface{}) {
+			enqueueRollout := func(obj interface{}) {
+				controllerutil.Enqueue(obj, rolloutWorkQueue)
+			}
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.experimentsLister, enqueueRollout)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			newRollout := new.(*v1alpha1.Rollout)
 			oldRollout := old.(*v1alpha1.Rollout)
@@ -125,13 +130,23 @@ func NewExperimentController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controller.enqueueRolloutFromExperiment(new)
+			enqueueRollout := func(obj interface{}) {
+				controllerutil.Enqueue(obj, rolloutWorkQueue)
+			}
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.experimentsLister, enqueueRollout)
 		},
-		DeleteFunc: controller.enqueueRolloutFromExperiment,
+		DeleteFunc: func(obj interface{}) {
+			enqueueRollout := func(obj interface{}) {
+				controllerutil.Enqueue(obj, rolloutWorkQueue)
+			}
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.experimentsLister, enqueueRollout)
+		},
 	})
 
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.handleObject,
+		AddFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
@@ -140,91 +155,13 @@ func NewExperimentController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controller.handleObject(new)
+			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
 		},
-		DeleteFunc: controller.handleObject,
+		DeleteFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
+		},
 	})
 	return controller
-}
-
-func (ec *ExperimentController) handleObject(obj interface{}) {
-	var object metav1.Object
-	var ok bool
-	if object, ok = obj.(metav1.Object); !ok {
-		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-			return
-		}
-		object, ok = tombstone.Obj.(metav1.Object)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-			return
-		}
-		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
-	}
-	log.Infof("Processing object: %s", object.GetName())
-	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
-		// If this object is not owned by a experiment, we should not do anything more
-		// with it.
-		if ownerRef.Kind != "Experiment" {
-			return
-		}
-
-		experiment, err := ec.experimentsLister.Experiments(object.GetNamespace()).Get(ownerRef.Name)
-		if err != nil {
-			log.Infof("ignoring orphaned object '%s' of experiment '%s'", object.GetSelfLink(), ownerRef.Name)
-			return
-		}
-
-		controllerutil.Enqueue(experiment, ec.experimentWorkqueue)
-		return
-	}
-}
-
-func (ec *ExperimentController) enqueue(obj interface{}) {
-	controllerutil.Enqueue(obj, ec.experimentWorkqueue)
-
-}
-
-func (ec *ExperimentController) enqueueAfter(obj interface{}, duration time.Duration) {
-	controllerutil.EnqueueAfter(obj, duration, ec.experimentWorkqueue)
-
-}
-
-func (ec *ExperimentController) enqueueRolloutFromExperiment(obj interface{}) {
-	var object metav1.Object
-	var ok bool
-	if object, ok = obj.(metav1.Object); !ok {
-		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-			return
-		}
-		object, ok = tombstone.Obj.(metav1.Object)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-			return
-		}
-		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
-	}
-	log.WithField("Controller", "Experiment").Infof("Processing object: %s", object.GetName())
-	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
-		// If this object is not owned by a Rollout, we should not do anything more
-		// with it.
-		if ownerRef.Kind != "Rollout" {
-			return
-		}
-
-		rollout, err := ec.rolloutsLister.Rollouts(object.GetNamespace()).Get(ownerRef.Name)
-		if err != nil {
-			log.Infof("ignoring orphaned object '%s' of rollout '%s'", object.GetSelfLink(), ownerRef.Name)
-			return
-		}
-
-		controllerutil.Enqueue(rollout, ec.rolloutWorkqueue)
-		return
-	}
 }
 
 func (ec *ExperimentController) Run(threadiness int, stopCh <-chan struct{}) error {

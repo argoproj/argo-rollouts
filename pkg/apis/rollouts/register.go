@@ -17,10 +17,16 @@ limitations under the License.
 package rollouts
 
 const (
-	Kind      string = "Rollout"
-	Group     string = "argoproj.io"
-	Singular  string = "rollout"
-	Plural    string = "rollouts"
-	ShortName string = "ro"
-	FullName  string = Plural + "." + Group
+	Group            string = "argoproj.io"
+	RolloutKind      string = "Rollout"
+	RolloutSingular  string = "rollout"
+	RolloutPlural    string = "rollouts"
+	RolloutShortName string = "ro"
+	RolloutFullName  string = RolloutPlural + "." + Group
+
+	ExperimentKind      string = "Experiment"
+	ExperimentSingular  string = "experiment"
+	ExperimentPlural    string = "experiments"
+	ExperimentShortName string = "ex"
+	ExperimentFullName  string = ExperimentPlural + "." + Group
 )
