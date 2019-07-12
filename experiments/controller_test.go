@@ -152,7 +152,7 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		}
 		count++
 		f.enqueuedObjects[key] = count
-		c.enqueue(obj)
+		c.experimentWorkqueue.Add(obj)
 	}
 	c.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueExperiment(obj)

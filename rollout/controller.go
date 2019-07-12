@@ -9,8 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -23,6 +21,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -125,7 +124,9 @@ func NewRolloutController(
 	})
 
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.handleObject,
+		AddFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
@@ -134,9 +135,11 @@ func NewRolloutController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controller.handleObject(new)
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
 		},
-		DeleteFunc: controller.handleObject,
+		DeleteFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+		},
 	})
 	return controller
 }
@@ -250,44 +253,4 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
-}
-
-// handleObject will take any resource implementing metav1.Object and attempt
-// to find the Rollout resource that 'owns' it. It does this by looking at the
-// objects metadata.ownerReferences field for an appropriate OwnerReference.
-// It then enqueues that Rollout resource to be processed. If the object does not
-// have an appropriate OwnerReference, it will simply be skipped.
-func (c *RolloutController) handleObject(obj interface{}) {
-	var object metav1.Object
-	var ok bool
-	if object, ok = obj.(metav1.Object); !ok {
-		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-			return
-		}
-		object, ok = tombstone.Obj.(metav1.Object)
-		if !ok {
-			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-			return
-		}
-		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
-	}
-	log.Infof("Processing object: %s", object.GetName())
-	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
-		// If this object is not owned by a Rollout, we should not do anything more
-		// with it.
-		if ownerRef.Kind != "Rollout" {
-			return
-		}
-
-		rollout, err := c.rolloutsLister.Rollouts(object.GetNamespace()).Get(ownerRef.Name)
-		if err != nil {
-			log.Infof("ignoring orphaned object '%s' of rollout '%s'", object.GetSelfLink(), ownerRef.Name)
-			return
-		}
-
-		c.enqueueRollout(rollout)
-		return
-	}
 }

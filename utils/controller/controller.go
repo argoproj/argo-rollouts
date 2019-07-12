@@ -5,11 +5,14 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+	"github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -110,4 +113,53 @@ func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
 		return
 	}
 	q.AddRateLimited(key)
+}
+
+// EnqueueParentObject will take any resource implementing metav1.Object and attempt
+// to find the ownerType resource that 'owns' it. It does this by looking at the
+// objects metadata.ownerReferences field for an appropriate OwnerReference.
+// It then enqueues that ownerType resource to be processed. If the object does not
+// have an appropriate OwnerReference, it will simply be skipped.
+func EnqueueParentObject(obj interface{}, ownerType string, lister interface{}, enqueue func(obj interface{})) {
+	var object metav1.Object
+	var ok bool
+	if object, ok = obj.(metav1.Object); !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			return
+		}
+		object, ok = tombstone.Obj.(metav1.Object)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+			return
+		}
+		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+	}
+	log.Infof("Processing object: %s", object.GetName())
+	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
+		// If this object is not owned by the ownerType, we should not do anything more
+		// with it.
+		if ownerRef.Kind != ownerType {
+			return
+		}
+		var parentObj interface{}
+		var err error
+		switch ownerType {
+		case register.RolloutKind:
+			parentObj, err = lister.(v1alpha1.RolloutLister).Rollouts(object.GetNamespace()).Get(ownerRef.Name)
+		case register.ExperimentKind:
+			parentObj, err = lister.(v1alpha1.ExperimentLister).Experiments(object.GetNamespace()).Get(ownerRef.Name)
+		default:
+			panic("OwnerType of parent is not a Rollout or a Experiment")
+		}
+
+		if err != nil {
+			log.Infof("ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerType, ownerRef.Name)
+			return
+		}
+
+		enqueue(parentObj)
+		return
+	}
 }
