@@ -13,7 +13,7 @@ Deployments resources offer two strategies to deploy changes: `RollingUpdate` an
 Argo Rollouts can be installed by running the following commands:
 ```
 $ kubectl create namespace argo-rollouts
-$ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollout/tree/stable/manifests/install.yaml
+$ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
 ```
 
 Check out the [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
