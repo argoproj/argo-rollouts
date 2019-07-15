@@ -38,13 +38,13 @@ const (
 	DefaultMetricsPort = 8090
 
 	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
-	DefaultRolloutThreads = 1
+	DefaultRolloutThreads = 10
 
 	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
-	DefaultExperimentThreads = 1
+	DefaultExperimentThreads = 10
 
 	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
-	DefaultServiceThreads = 1
+	DefaultServiceThreads = 10
 )
 
 // Manager is the controller implementation for Argo-Rollout resources
