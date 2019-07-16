@@ -3122,15 +3122,7 @@ spec:
                                 type: integer
                             type: object
                           resources:
-                            properties:
-                              limits:
-                                additionalProperties:
-                                  type: string
-                                type: object
-                              requests:
-                                additionalProperties:
-                                  type: string
-                                type: object
+                            properties: {}
                             type: object
                           securityContext:
                             properties:
@@ -4337,6 +4329,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - watch
   - get
@@ -4386,6 +4379,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - create
   - delete
@@ -4410,6 +4404,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - create
   - delete
@@ -4434,6 +4429,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - get
   - list
@@ -4472,6 +4468,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - get
   - list

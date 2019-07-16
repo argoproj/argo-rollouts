@@ -11,6 +11,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - watch
   - get
