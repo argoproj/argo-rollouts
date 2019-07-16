@@ -31,6 +31,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - experiments
   verbs:
   - get
   - list
