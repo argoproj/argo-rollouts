@@ -26,6 +26,7 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
@@ -36,7 +37,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"k8s.io/client-go/util/workqueue"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 var (
@@ -707,6 +708,19 @@ func TestRequeueStuckRollout(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetReplicaToDefault(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Replicas = nil
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	updateIndex := f.expectUpdateRolloutAction(r)
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(updateIndex)
+	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
 
 func TestSwitchInvalidSpecMessage(t *testing.T) {
