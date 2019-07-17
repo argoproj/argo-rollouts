@@ -46,8 +46,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":         schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":       schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":     schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateHash":        schema_pkg_apis_rollouts_v1alpha1_TemplateHash(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":        schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":      schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
 	}
 }
 
@@ -440,52 +440,17 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentStatus is the status for a Experiment resource",
 				Properties: map[string]spec.Schema{
-					"templateHashes": {
+					"templateStatuses": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ExperimentHash the hash of the list of environment spec that is used to prevent changes in spec.",
+							Description: "TemplateStatuses the hash of the list of environment spec that is used to prevent changes in spec.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateHash"),
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus"),
 									},
 								},
 							},
-						},
-					},
-					"replicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of non-terminated pods targeted by this experiment (their labels match the selector).",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"updatedReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of non-terminated pods targeted by this experiment that have the desired template spec.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"readyReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of ready pods targeted by this experiment.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"availableReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this experiment.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"collisionCount": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CollisionCount count of hash collisions for the Experiment. The Experiment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",
-							Type:        []string{"integer"},
-							Format:      "int32",
 						},
 					},
 					"observedGeneration": {
@@ -493,6 +458,19 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 							Description: "The generation observed by the experiment controller by taking a hash of the spec.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"running": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Running indicates if the experiment has started. If the experiment is not running, the controller will scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"availableAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"conditions": {
@@ -512,7 +490,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateHash"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -895,37 +873,18 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_TemplateHash(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the template used to identity which hash to compare to the hash",
+							Description: "Name of the template used to identity replicaset running for this experiment",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"hash": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Hash A hash of the podSpec",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{},
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
@@ -933,9 +892,16 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback
 							Format:      "int32",
 						},
 					},
+					"minReadySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"selector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this experiment. It must match the pod template's labels.",
+							Description: "Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this experiment. It must match the pod template's labels. Each selector must be unique to the other selectors in the other templates",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
@@ -946,10 +912,66 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"selector", "template"},
+				Required: []string{"name", "selector", "template"},
 			},
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.PodTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TemplateStatus is the status of a specific template of an Experiment",
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the template used to identity which hash to compare to the hash",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this experiment (their labels match the selector).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"updatedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this experiment that have the desired template spec.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of ready pods targeted by this experiment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this experiment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"collisionCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollisionCount count of hash collisions for the Experiment. The Experiment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name", "replicas", "updatedReplicas", "readyReplicas", "availableReplicas"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }

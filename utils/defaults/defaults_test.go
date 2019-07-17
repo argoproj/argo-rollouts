@@ -22,6 +22,17 @@ func TestGetRolloutReplicasOrDefault(t *testing.T) {
 	assert.Equal(t, DefaultReplicas, GetRolloutReplicasOrDefault(rolloutDefaultValue))
 }
 
+func TestGetExperimentTemplateReplicasOrDefault(t *testing.T) {
+	replicas := int32(2)
+	exTemplateNonDefaultValue := v1alpha1.TemplateSpec{
+		Replicas: &replicas,
+	}
+
+	assert.Equal(t, replicas, GetExperimentTemplateReplicasOrDefault(exTemplateNonDefaultValue))
+	exTemplateDefaultValue := v1alpha1.TemplateSpec{}
+	assert.Equal(t, DefaultReplicas, GetExperimentTemplateReplicasOrDefault(exTemplateDefaultValue))
+}
+
 func TestGetRevisionHistoryOrDefault(t *testing.T) {
 	revisionHistoryLimit := int32(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{

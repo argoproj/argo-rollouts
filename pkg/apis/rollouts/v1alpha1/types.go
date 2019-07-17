@@ -308,50 +308,60 @@ type ExperimentSpec struct {
 }
 
 type TemplateSpec struct {
+	// Name of the template used to identity replicaset running for this experiment
+	Name string `json:"name"`
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Minimum number of seconds for which a newly created pod should be ready
+	// without any of its container crashing, for it to be considered available.
+	// Defaults to 0 (pod will be considered available as soon as it is ready)
+	// +optional
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 	// Label selector for pods. Existing ReplicaSets whose pods are
 	// selected by this will be the ones affected by this experiment.
-	// It must match the pod template's labels.
+	// It must match the pod template's labels. Each selector must be unique to the other selectors in the other templates
 	Selector *metav1.LabelSelector `json:"selector"`
 	// Template describes the pods that will be created.
 	Template corev1.PodTemplateSpec `json:"template"`
 }
 
-type TemplateHash struct {
+// TemplateStatus is the status of a specific template of an Experiment
+type TemplateStatus struct {
 	// Name of the template used to identity which hash to compare to the hash
-	Name string `json:"name,omitempty"`
-	//Hash A hash of the podSpec
-	Hash string `json:"hash,omitempty"`
-}
-
-// ExperimentStatus is the status for a Experiment resource
-type ExperimentStatus struct {
-	// ExperimentHash the hash of the list of environment spec that is used to prevent changes in spec.
-	// +optional
-	TemplateHashes []TemplateHash `json:"templateHashes,omitempty"`
+	Name string `json:"name"`
 	// Total number of non-terminated pods targeted by this experiment (their labels match the selector).
-	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas"`
 	// Total number of non-terminated pods targeted by this experiment that have the desired template spec.
-	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	UpdatedReplicas int32 `json:"updatedReplicas"`
 	// Total number of ready pods targeted by this experiment.
-	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	ReadyReplicas int32 `json:"readyReplicas"`
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this experiment.
-	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+	AvailableReplicas int32 `json:"availableReplicas"`
 	// CollisionCount count of hash collisions for the Experiment. The Experiment controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty"`
+}
+
+// ExperimentStatus is the status for a Experiment resource
+type ExperimentStatus struct {
+	// TemplateStatuses the hash of the list of environment spec that is used to prevent changes in spec.
+	// +optional
+	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty"`
 	// The generation observed by the experiment controller by taking a hash of the spec.
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty"`
+	// Running indicates if the experiment has started. If the experiment is not running, the controller will
+	// scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet.
+	// +optional
+	Running *bool `json:"running,omitempty"`
+	// AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
+	// run for the duration of specificed in the spec.
+	// +optional
+	AvailableAt *metav1.Time `json:"availableAt,omitempty"`
 	// Conditions a list of conditions a experiment can have.
 	// +optional
 	Conditions []ExperimentCondition `json:"conditions,omitempty"`

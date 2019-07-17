@@ -1,6 +1,8 @@
 package experiments
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -21,12 +24,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 var (
@@ -49,7 +53,7 @@ type fixture struct {
 	// Objects to put in the store.
 	// rolloutLister    []*v1alpha1.Rollout
 	experimentLister []*v1alpha1.Experiment
-	// replicaSetLister []*appsv1.ReplicaSet
+	replicaSetLister []*appsv1.ReplicaSet
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -76,37 +80,129 @@ func (f *fixture) Close() {
 	f.unfreezeTime()
 }
 
-func newExperiment(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Experiment {
+func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
+	templates := make([]v1alpha1.TemplateSpec, 0)
+	for _, imageName := range imageNames {
+		selector := map[string]string{
+			"key": imageName,
+		}
+		template := v1alpha1.TemplateSpec{
+			Name: imageName,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selector,
+			},
+			Replicas: pointer.Int32Ptr(1),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: imageName,
+						},
+					},
+				},
+			},
+		}
+		templates = append(templates, template)
+	}
+	return templates
+}
+
+func generateTemplatesStatus(name string, replica, availableReplicas int32) v1alpha1.TemplateStatus {
+	return v1alpha1.TemplateStatus{
+		Name:              name,
+		Replicas:          replica,
+		UpdatedReplicas:   availableReplicas,
+		ReadyReplicas:     availableReplicas,
+		AvailableReplicas: availableReplicas,
+	}
+}
+
+func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration int32, running *bool) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
-			Annotations: map[string]string{
-				annotations.RevisionAnnotation: "1",
-			},
 		},
 		Spec: v1alpha1.ExperimentSpec{
-			Templates: []v1alpha1.TemplateSpec{
-				{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: selector,
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Image: "foo/bar",
-								},
-							},
-						},
-					},
-				},
-			},
+			Templates: templates,
+			Duration:  &duration,
 		},
-		Status: v1alpha1.ExperimentStatus{},
+		Status: v1alpha1.ExperimentStatus{
+			Running: running,
+		},
 	}
 	return ex
+}
+
+func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, availableReplicas int32) *appsv1.ReplicaSet {
+	newRSTemplate := *template.Template.DeepCopy()
+	podHash := controller.ComputeHash(&newRSTemplate, nil)
+	rsLabels := map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+	}
+	for k, v := range template.Selector.MatchLabels {
+		rsLabels[k] = v
+	}
+	rs := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, podHash),
+			UID:             uuid.NewUUID(),
+			Namespace:       metav1.NamespaceDefault,
+			Labels:          rsLabels,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Selector: metav1.SetAsLabelSelector(rsLabels),
+			Replicas: template.Replicas,
+			Template: template.Template,
+		},
+		Status: appsv1.ReplicaSetStatus{
+			Replicas:          availableReplicas,
+			ReadyReplicas:     availableReplicas,
+			AvailableReplicas: availableReplicas,
+		},
+	}
+	return rs
+}
+
+func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) string {
+	return fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, controller.ComputeHash(&template.Template, nil))
+}
+
+func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus) string {
+	patchMap := make(map[string]interface{})
+	err := json.Unmarshal([]byte(patch), &patchMap)
+	if err != nil {
+		panic(err)
+	}
+	newStatus := patchMap["status"].(map[string]interface{})
+	newStatus["templateStatuses"] = templates
+	patchMap["status"] = newStatus
+	patchBytes, err := json.Marshal(patchMap)
+	if err != nil {
+		panic(err)
+	}
+
+	origBytes, err := json.Marshal(ex)
+	if err != nil {
+		panic(err)
+	}
+	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, patchBytes, v1alpha1.Experiment{})
+	if err != nil {
+		panic(err)
+	}
+
+	newEx := &v1alpha1.Experiment{}
+	json.Unmarshal(newBytes, newEx)
+
+	newPatch := make(map[string]interface{})
+	json.Unmarshal(patchBytes, &newPatch)
+	newPatchBytes, _ := json.Marshal(newPatch)
+	return string(newPatchBytes)
 }
 
 func getKey(experiment *v1alpha1.Experiment, t *testing.T) string {
@@ -158,17 +254,13 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		c.enqueueExperiment(obj)
 	}
 
-	//for _, r := range f.experimentLister {
-	//	i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(r)
-	//}
-	//
-	//for _, r := range f.rolloutLister {
-	//	i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(r)
-	//}
-	//
-	//for _, r := range f.replicaSetLister {
-	//	k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
-	//}
+	for _, e := range f.experimentLister {
+		i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(e)
+	}
+
+	for _, r := range f.replicaSetLister {
+		k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
+	}
 
 	return c, i, k8sI
 }
@@ -285,15 +377,9 @@ func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
-	return len
-}
-
 func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment.Name))
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment.Name))
 	return len
 }
 
@@ -301,6 +387,12 @@ func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) 
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) expectPatchReplicaSetAction(r *appsv1.ReplicaSet) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name, types.MergePatchType, nil))
 	return len
 }
 
@@ -318,7 +410,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
-		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
+		assert.Failf(f.t, "Expected Created action, not %s", action.GetVerb())
 	}
 	obj := createAction.GetObject()
 	rs := &appsv1.ReplicaSet{}
@@ -356,22 +448,11 @@ func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment {
 	return experiment
 }
 
-func (f *fixture) getPatchedRollout(index int) string {
+func (f *fixture) getPatchedExperiment(index int) string {
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	return string(patchAction.GetPatch())
-}
-
-func TestSyncExperiment(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	e := newExperiment("foo", 1, nil, nil)
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
-
-	f.run(getKey(e, t))
 }
