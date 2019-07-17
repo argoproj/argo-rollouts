@@ -6,13 +6,14 @@ spec:
   duration: 60
   templates:
   - replicas: 5
+    name: tests
     selector:
       matchLabels:
         app: guestbook
-    metadata:
-      labels:
-        app: guestbook
     template:
+      metadata:
+        labels:
+          app: guestbook
       spec:
         containers:
         - name: guestbook

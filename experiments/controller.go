@@ -201,5 +201,15 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		logCtx := logutil.WithExperiment(experiment).WithField("time_ms", duration.Seconds()*1e3)
 		logCtx.Info("Reconciliation completed")
 	}()
-	return nil
+
+	//TODO(dthomson) add validation
+
+	// List ReplicaSets owned by this Experiment, while reconciling ControllerRef
+	// through adoption/orphaning.
+	templateRSs, err := ec.getReplicaSetsForExperiment(experiment)
+	if err != nil {
+		return err
+	}
+
+	return ec.reconcileExperiment(experiment, templateRSs)
 }

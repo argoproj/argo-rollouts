@@ -167,6 +167,11 @@ spec:
             templates:
               items:
                 properties:
+                  minReadySeconds:
+                    format: int32
+                    type: integer
+                  name:
+                    type: string
                   replicas:
                     format: int32
                     type: integer
@@ -2048,6 +2053,7 @@ spec:
                         type: object
                     type: object
                 required:
+                - name
                 - selector
                 - template
                 type: object
@@ -2057,12 +2063,9 @@ spec:
           type: object
         status:
           properties:
-            availableReplicas:
-              format: int32
-              type: integer
-            collisionCount:
-              format: int32
-              type: integer
+            availableAt:
+              format: date-time
+              type: string
             conditions:
               items:
                 properties:
@@ -2091,24 +2094,36 @@ spec:
               type: array
             observedGeneration:
               type: string
-            readyReplicas:
-              format: int32
-              type: integer
-            replicas:
-              format: int32
-              type: integer
-            templateHashes:
+            running:
+              type: boolean
+            templateStatuses:
               items:
                 properties:
-                  hash:
-                    type: string
+                  availableReplicas:
+                    format: int32
+                    type: integer
+                  collisionCount:
+                    format: int32
+                    type: integer
                   name:
                     type: string
+                  readyReplicas:
+                    format: int32
+                    type: integer
+                  replicas:
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    format: int32
+                    type: integer
+                required:
+                - name
+                - replicas
+                - updatedReplicas
+                - readyReplicas
+                - availableReplicas
                 type: object
               type: array
-            updatedReplicas:
-              format: int32
-              type: integer
           type: object
       required:
       - spec

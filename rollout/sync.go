@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
@@ -20,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -394,23 +393,6 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	return err
 }
 
-// CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)
-func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, error) {
-	origBytes, err := json.Marshal(orig)
-	if err != nil {
-		return nil, false, err
-	}
-	newBytes, err := json.Marshal(new)
-	if err != nil {
-		return nil, false, err
-	}
-	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, newBytes, dataStruct)
-	if err != nil {
-		return nil, false, err
-	}
-	return patch, string(patch) != "{}", nil
-}
-
 func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) v1alpha1.RolloutStatus {
 	if r.Spec.Paused {
 		return newStatus
@@ -503,7 +485,7 @@ func (c *RolloutController) persistRolloutStatus(orig *v1alpha1.Rollout, newStat
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
 
 	logCtx := logutil.WithRollout(orig)
-	patch, modified, err := CreateTwoWayMergePatch(
+	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Paused: orig.Spec.Paused,
