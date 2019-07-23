@@ -1,9 +1,9 @@
 package experiment
 
 import (
-	"fmt"
+	"time"
 
-	"k8s.io/kubernetes/pkg/controller"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -17,6 +17,18 @@ func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Running != nil && !*experiment.Status.Running
 }
 
+func PassedDurations(experiment *v1alpha1.Experiment) bool {
+	if experiment.Spec.Duration == nil {
+		return false
+	}
+	if experiment.Status.AvailableAt == nil {
+		return false
+	}
+	now := metav1.Now()
+	expiredTime := experiment.Status.AvailableAt.Add(time.Duration(*experiment.Spec.Duration) * time.Second)
+	return now.After(expiredTime)
+}
+
 func CalculateTemplateReplicasCount(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) int32 {
 	if HasFinished(experiment) {
 		return int32(0)
@@ -24,27 +36,12 @@ func CalculateTemplateReplicasCount(experiment *v1alpha1.Experiment, template v1
 	return defaults.GetExperimentTemplateReplicasOrDefault(template)
 }
 
-func GetTemplateStatus(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) (*v1alpha1.TemplateStatus, *int) {
-	for i := range experiment.Status.TemplateStatuses {
-		status := experiment.Status.TemplateStatuses[i]
-		if status.Name == template.Name {
-			return &status, &i
-		}
+// GetTemplateStatusMapping returns a mapping of name to template statuses
+func GetTemplateStatusMapping(status v1alpha1.ExperimentStatus) map[string]v1alpha1.TemplateStatus {
+	mapping := make(map[string]v1alpha1.TemplateStatus, len(status.TemplateStatuses))
+	for i := range status.TemplateStatuses {
+		template := status.TemplateStatuses[i]
+		mapping[template.Name] = template
 	}
-	return nil, nil
-}
-
-func GetCollisionCountForTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) *int32 {
-	templateStatus, _ := GetTemplateStatus(experiment, template)
-	var collisionCount *int32
-	if templateStatus != nil && templateStatus.CollisionCount != nil {
-		collisionCount = templateStatus.CollisionCount
-	}
-	return collisionCount
-}
-
-func ReplicasetNameFromExperiment(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) string {
-	collisionCount := GetCollisionCountForTemplate(experiment, template)
-	podTemplateSpecHash := controller.ComputeHash(&template.Template, collisionCount)
-	return fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash)
+	return mapping
 }

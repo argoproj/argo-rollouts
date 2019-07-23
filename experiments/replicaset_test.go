@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 func TestCreateMultipleRS(t *testing.T) {
@@ -37,11 +39,12 @@ func TestCreateMultipleRS(t *testing.T) {
 		generateTemplatesStatus("bar", 0, 0),
 		generateTemplatesStatus("baz", 0, 0),
 	}
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, templateStatus)
+	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -71,11 +74,12 @@ func TestCreateMissingRS(t *testing.T) {
 
 	patch := f.getPatchedExperiment(patchIndex)
 	expectedPatch := `{"status":{}}`
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	templateStatuses := []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 0, 0),
 		generateTemplatesStatus("baz", 0, 0),
 	}
-	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses), patch)
+	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
 }
 
 func TestFailCreateRSWithInvalidSelector(t *testing.T) {
@@ -137,9 +141,43 @@ func TestAdoptRS(t *testing.T) {
 		generateTemplatesStatus("bar", 0, 0),
 	}
 
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, templateStatus)
+	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestNameCollision(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e.Status.Running = pointer.BoolPtr(true)
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "deploy",
+		},
+	}
+	rs := templateToRS(e, templates[0], 0)
+	rs.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(deploy, controllerKind)}
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.kubeobjects = append(f.kubeobjects, rs)
+
+	f.expectCreateReplicaSetAction(rs)
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.runExpectError(getKey(e, t), true)
+
+	patch := f.getPatchedExperiment(patchIndex)
+	templateStatuses := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0),
+	}
+	templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+	validatePatch(t, patch, nil, NoChange, templateStatuses, nil)
 }

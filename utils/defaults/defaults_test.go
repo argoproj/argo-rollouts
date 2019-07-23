@@ -169,3 +169,16 @@ func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {
 	}
 	assert.Equal(t, DefaultAutoPromotionEnabled, GetAutoPromotionEnabledOrDefault(rolloutNoAutoPromotionEnabled))
 }
+
+func TestGetExperimentProgressDeadlineSecondsOrDefault(t *testing.T) {
+	seconds := int32(2)
+	nonDefaultValue := &v1alpha1.Experiment{
+		Spec: v1alpha1.ExperimentSpec{
+			ProgressDeadlineSeconds: &seconds,
+		},
+	}
+
+	assert.Equal(t, seconds, GetExperimentProgressDeadlineSecondsOrDefault(nonDefaultValue))
+	defaultValue := &v1alpha1.Experiment{}
+	assert.Equal(t, DefaultProgressDeadlineSeconds, GetExperimentProgressDeadlineSecondsOrDefault(defaultValue))
+}
