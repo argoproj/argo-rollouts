@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 var (
@@ -138,6 +139,51 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration int3
 	return ex
 }
 
+func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.ExperimentCondition {
+	if reason == conditions.ReplicaSetUpdatedReason {
+		return &v1alpha1.ExperimentCondition{
+			Type:               v1alpha1.ExperimentProgressing,
+			Status:             corev1.ConditionTrue,
+			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
+			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			Reason:             reason,
+			Message:            fmt.Sprintf(conditions.ExperimentProgressingMessage, experiment.Name),
+		}
+	}
+	if reason == conditions.ExperimentCompleteReason {
+		return &v1alpha1.ExperimentCondition{
+			Type:               v1alpha1.ExperimentProgressing,
+			Status:             corev1.ConditionFalse,
+			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
+			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			Reason:             reason,
+			Message:            fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name),
+		}
+	}
+	if reason == conditions.ReplicaSetUpdatedReason {
+		return &v1alpha1.ExperimentCondition{
+			Type:               v1alpha1.ExperimentProgressing,
+			Status:             corev1.ConditionFalse,
+			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
+			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			Reason:             reason,
+			Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name),
+		}
+	}
+	if reason == conditions.TimedOutReason {
+		return &v1alpha1.ExperimentCondition{
+			Type:               v1alpha1.ExperimentProgressing,
+			Status:             corev1.ConditionFalse,
+			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
+			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			Reason:             reason,
+			Message:            fmt.Sprintf(conditions.ExperimentTimeOutMessage, experiment.Name),
+		}
+	}
+
+	return nil
+}
+
 func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, availableReplicas int32) *appsv1.ReplicaSet {
 	newRSTemplate := *template.Template.DeepCopy()
 	podHash := controller.ComputeHash(&newRSTemplate, nil)
@@ -173,15 +219,22 @@ func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) str
 	return fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, controller.ComputeHash(&template.Template, nil))
 }
 
-func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus) string {
+func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition) string {
 	patchMap := make(map[string]interface{})
 	err := json.Unmarshal([]byte(patch), &patchMap)
 	if err != nil {
 		panic(err)
 	}
 	newStatus := patchMap["status"].(map[string]interface{})
-	newStatus["templateStatuses"] = templates
-	patchMap["status"] = newStatus
+	if templates != nil {
+		newStatus["templateStatuses"] = templates
+		patchMap["status"] = newStatus
+	}
+	if condition != nil {
+		newStatus["conditions"] = []v1alpha1.ExperimentCondition{*condition}
+		patchMap["status"] = newStatus
+	}
+
 	patchBytes, err := json.Marshal(patchMap)
 	if err != nil {
 		panic(err)
@@ -390,6 +443,12 @@ func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) 
 	return len
 }
 
+func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
+	return len
+}
+
 func (f *fixture) expectPatchReplicaSetAction(r *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewPatchAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name, types.MergePatchType, nil))
@@ -469,4 +528,37 @@ func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	f.objects = append(f.objects, e)
 
 	f.run(getKey(e, t))
+}
+
+type availableAtResults string
+
+const (
+	Set      availableAtResults = "Set"
+	Nulled   availableAtResults = "NulledOut"
+	NoChange availableAtResults = "NoChange"
+)
+
+func validatePatch(t *testing.T, patch string, running *bool, availableleAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
+	e := v1alpha1.Experiment{}
+	err := json.Unmarshal([]byte(patch), &e)
+	if err != nil {
+		panic(err)
+	}
+	actualStatus := e.Status
+	if availableleAt == Set {
+		assert.NotNil(t, actualStatus.AvailableAt)
+	} else if availableleAt == Nulled {
+		assert.Contains(t, patch, `"availableAt": null`)
+	} else if availableleAt == NoChange {
+		assert.Nil(t, actualStatus.AvailableAt)
+	}
+	assert.Equal(t, e.Status.Running, running)
+	assert.Len(t, actualStatus.TemplateStatuses, len(templateStatuses))
+	for i := range templateStatuses {
+		assert.Contains(t, actualStatus.TemplateStatuses, templateStatuses[i])
+	}
+	assert.Len(t, actualStatus.Conditions, len(conditions))
+	for i := range conditions {
+		assert.Contains(t, actualStatus.Conditions, conditions[i])
+	}
 }

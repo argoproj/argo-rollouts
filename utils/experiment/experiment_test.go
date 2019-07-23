@@ -7,6 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	"time"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -29,23 +31,6 @@ func TestHasFinished(t *testing.T) {
 	assert.True(t, HasFinished(e))
 }
 
-func TestGetTemplateStatus(t *testing.T) {
-	e := &v1alpha1.Experiment{}
-	template := v1alpha1.TemplateSpec{
-		Name: "template",
-	}
-	templateStatus, index := GetTemplateStatus(e, template)
-	assert.Nil(t, templateStatus)
-	assert.Nil(t, index)
-
-	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
-		Name: "template",
-	}}
-	templateStatus, index = GetTemplateStatus(e, template)
-	assert.NotNil(t, templateStatus)
-	assert.Equal(t, 0, *index)
-}
-
 func TestCalculateTemplateReplicasCount(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	template := v1alpha1.TemplateSpec{
@@ -57,37 +42,40 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
 }
 
-func TestGetCollisionCountForTemplate(t *testing.T) {
-	e := &v1alpha1.Experiment{
-		Status: v1alpha1.ExperimentStatus{
-			TemplateStatuses: []v1alpha1.TemplateStatus{{
-				Name: "template",
-			}},
-		},
-	}
-	template := v1alpha1.TemplateSpec{
-		Name: "template",
-	}
-	assert.Nil(t, GetCollisionCountForTemplate(e, template))
-
-	e.Status.TemplateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
-	assert.Equal(t, int32(1), *GetCollisionCountForTemplate(e, template))
-
-}
-
-func TestReplicasetNameFromExperiment(t *testing.T) {
+func TestPassedDurations(t *testing.T) {
 	e := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo",
 		},
-		Status: v1alpha1.ExperimentStatus{
-			TemplateStatuses: []v1alpha1.TemplateStatus{{
-				Name: "template",
-			}},
+	}
+	assert.False(t, PassedDurations(e))
+
+	e.Spec.Duration = pointer.Int32Ptr(1)
+	assert.False(t, PassedDurations(e))
+
+	now := metav1.Now()
+	e.Status.AvailableAt = &now
+	assert.False(t, PassedDurations(e))
+
+	e.Status.AvailableAt = &metav1.Time{Time: now.Add(-2 * time.Second)}
+	assert.True(t, PassedDurations(e))
+}
+
+func TestGetTemplateStatusMapping(t *testing.T) {
+	ts := v1alpha1.ExperimentStatus{
+		TemplateStatuses: []v1alpha1.TemplateStatus{
+			{
+				Name:     "test",
+				Replicas: int32(1),
+			},
+			{
+				Name:     "test2",
+				Replicas: int32(2),
+			},
 		},
 	}
-	template := v1alpha1.TemplateSpec{
-		Name: "template",
-	}
-	assert.Equal(t, ReplicasetNameFromExperiment(e, template), "foo-template-685bdb47d8")
+	mapping := GetTemplateStatusMapping(ts)
+	assert.Len(t, mapping, 2)
+	assert.Equal(t, int32(1), mapping["test"].Replicas)
+	assert.Equal(t, int32(2), mapping["test2"].Replicas)
 }

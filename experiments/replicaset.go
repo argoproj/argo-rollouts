@@ -80,18 +80,18 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 	return templateToRS, nil
 }
 
-func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) (*appsv1.ReplicaSet, error) {
+func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (*appsv1.ReplicaSet, error) {
 	logCtx := log.WithExperiment(experiment)
 	newRSTemplate := *template.Template.DeepCopy()
 
-	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, experimentutil.GetCollisionCountForTemplate(experiment, template))
+	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, templateStatus.CollisionCount)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(template.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	//Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(template.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 
 	newRS := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            experimentutil.ReplicasetNameFromExperiment(experiment, template),
+			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
 			Namespace:       experiment.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
 			Labels:          newRSTemplate.Labels,
@@ -109,11 +109,11 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
-	// the Rollout.
+	// the Experiment.
 	alreadyExists := false
 	createdRS, err := ec.kubeclientset.AppsV1().ReplicaSets(experiment.Namespace).Create(&newRS)
 	switch {
-	// We may end up hitting this due to a slow cache or a fast resync of the Rollout.
+	// We may end up hitting this due to a slow cache or a fast resync of the Exlerj e t.
 	case errors.IsAlreadyExists(err):
 		alreadyExists = true
 
@@ -123,10 +123,10 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 			return nil, rsErr
 		}
 
-		// If the Rollout owns the ReplicaSet and the ReplicaSet's PodTemplateSpec is semantically
-		// deep equal to the PodTemplateSpec of the Rollout, it's the Rollout's new ReplicaSet.
+		// If the Experiment owns the ReplicaSet and the ReplicaSet's PodTemplateSpec is semantically
+		// deep equal to the PodTemplateSpec of the Experiment, it's the Experiment's new ReplicaSet.
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
-		// the status of the Rollout and requeue to try the creation in the next sync.
+		// the status of the Experiment and requeue to try the creation in the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
 		if controllerRef != nil && controllerRef.UID == experiment.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &template.Template) {
 			createdRS = rs
@@ -134,40 +134,32 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 			break
 		}
 
-		templateStatusPtr, statusIndex := experimentutil.GetTemplateStatus(experiment, template)
-		templateStatus := v1alpha1.TemplateStatus{
-			Name: template.Name,
-		}
-		if templateStatusPtr != nil {
-			templateStatus = *templateStatusPtr
+		// Since the replicaset is a collision, the experiment will not have a status for that rs and
+		// the controller needs to create a new template status for it
+		newTemplate := v1alpha1.TemplateStatus{
+			Name:           template.Name,
+			CollisionCount: new(int32),
 		}
 
-		// Matching ReplicaSet is not equal - increment the collisionCount in the RolloutStatus
-		// and requeue the Rollout.
-		if templateStatus.CollisionCount == nil {
-			templateStatus.CollisionCount = new(int32)
-		}
-		preCollisionCount := *templateStatus.CollisionCount
-		*templateStatus.CollisionCount++
+		// Matching ReplicaSet is not equal - increment the collisionCount in the ExperimentStatus
+		// and requeue the Experiment.
+		preCollisionCount := *newTemplate.CollisionCount
+		*newTemplate.CollisionCount++
 
 		statusCpy := experiment.Status.DeepCopy()
-		templateStatuses := statusCpy.TemplateStatuses
-		if statusIndex != nil {
-			templateStatuses[*statusIndex] = templateStatus
-		} else {
-			templateStatuses = append(templateStatuses, templateStatus)
-		}
-
-		templateStatusBytes, err := json.Marshal(templateStatuses)
-		if err != nil {
-			return nil, err
+		statusCpy.TemplateStatuses = append(statusCpy.TemplateStatuses, newTemplate)
+		templateStatusBytes, marshelErr := json.Marshal(statusCpy.TemplateStatuses)
+		if marshelErr != nil {
+			return nil, marshelErr
 		}
 
 		patch := fmt.Sprintf(CollisionCountPatch, string(templateStatusBytes))
-		_, err = ec.arogProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Patch(experiment.Name, patchtypes.MergePatchType, []byte(patch))
-		if err == nil {
-			logCtx.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *templateStatus.CollisionCount)
+		_, patchErr := ec.arogProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Patch(experiment.Name, patchtypes.MergePatchType, []byte(patch))
+		logCtx.WithField("patch", patch).Debug("Applied Patch")
+		if patchErr != nil {
+			logCtx.Errorf("Error patching service %s", err.Error())
 		}
+		logCtx.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *newTemplate.CollisionCount)
 		return nil, err
 	case err != nil:
 		msg := fmt.Sprintf(conditions.FailedRSCreateMessage, newRS.Name, err)

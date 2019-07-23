@@ -1,6 +1,8 @@
 package experiments
 
 import (
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -22,10 +24,15 @@ func (ec *ExperimentController) reconcileExperiment(experiment *v1alpha1.Experim
 		return ec.syncExperimentStatus(experiment, templateRSs)
 	}
 
+	if experiment.Status.AvailableAt != nil && !experimentutil.PassedDurations(experiment) {
+		ec.checkEnqueueExperimentDuringRun(experiment)
+	}
+
+	statuses := experimentutil.GetTemplateStatusMapping(experiment.Status)
 	for i := range experiment.Spec.Templates {
 		template := experiment.Spec.Templates[i]
 		logCtx.Infof("Reconciling template %s", template.Name)
-		templateReady, err := ec.reconcileTemplate(experiment, template, templateRSs)
+		templateReady, err := ec.reconcileTemplate(experiment, template, statuses[template.Name], templateRSs)
 		if err != nil {
 			return err
 		}
@@ -37,11 +44,11 @@ func (ec *ExperimentController) reconcileExperiment(experiment *v1alpha1.Experim
 	return ec.syncExperimentStatus(experiment, templateRSs)
 }
 
-func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, templateRSs map[string]*appsv1.ReplicaSet) (bool, error) {
+func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus, templateRSs map[string]*appsv1.ReplicaSet) (bool, error) {
 	name := template.Name
 	existingTemplateRS, ok := templateRSs[name]
 	if !ok {
-		newRS, err := ec.reconcileReplicaSet(experiment, template)
+		newRS, err := ec.reconcileReplicaSet(experiment, template, templateStatus)
 		if err != nil {
 			return false, err
 		}
@@ -64,21 +71,49 @@ func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experimen
 	return true, nil
 }
 
+func (ec *ExperimentController) checkEnqueueExperimentDuringRun(experiment *v1alpha1.Experiment) {
+	if experiment.Status.AvailableAt == nil || experiment.Spec.Duration == nil {
+		return
+	}
+	logCtx := logutil.WithExperiment(experiment)
+	now := metav1.Now()
+	startTime := experiment.Status.AvailableAt
+	expiredTime := startTime.Add(time.Duration(*experiment.Spec.Duration) * time.Second)
+	nextResync := now.Add(ec.resyncPeriod)
+	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
+		timeRemaining := expiredTime.Sub(now.Time)
+		logCtx.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
+		ec.enqueueExperimentAfter(experiment, timeRemaining)
+	}
+}
+
 func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experiment, templateRSs map[string]*appsv1.ReplicaSet) error {
-	newStatus := v1alpha1.ExperimentStatus{}
+	newStatus := v1alpha1.ExperimentStatus{
+		Conditions: experiment.Status.Conditions,
+	}
 
 	newStatus.Running = experiment.Status.Running
 	if !experimentutil.HasStarted(experiment) {
 		newStatus.Running = pointer.BoolPtr(true)
 	}
 
+	if experimentutil.PassedDurations(experiment) {
+		newStatus.Running = pointer.BoolPtr(false)
+	}
+
+	previousTemplateStatus := experimentutil.GetTemplateStatusMapping(experiment.Status)
+
 	allAvailable := true
 	for i := range experiment.Spec.Templates {
 		template := experiment.Spec.Templates[i]
-		rs, ok := templateRSs[template.Name]
 		templateStatus := v1alpha1.TemplateStatus{
 			Name: template.Name,
 		}
+		if previousStatus, ok := previousTemplateStatus[template.Name]; ok {
+			templateStatus.CollisionCount = previousStatus.CollisionCount
+		}
+
+		rs, ok := templateRSs[template.Name]
 		if ok {
 			replicaCount := defaults.GetExperimentTemplateReplicasOrDefault(template)
 			templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
@@ -100,6 +135,7 @@ func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experi
 		newStatus.AvailableAt = &now
 	}
 
+	newStatus = ec.calculateExperimentConditions(experiment, newStatus, templateRSs)
 	return ec.persistExperimentStatus(experiment, &newStatus)
 }
 
