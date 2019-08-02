@@ -2067,9 +2067,6 @@ spec:
             availableAt:
               format: date-time
               type: string
-            collisionCount:
-              format: int32
-              type: integer
             conditions:
               items:
                 properties:
@@ -2106,6 +2103,9 @@ spec:
                   availableReplicas:
                     format: int32
                     type: integer
+                  collisionCount:
+                    format: int32
+                    type: integer
                   name:
                     type: string
                   readyReplicas:
@@ -2139,6 +2139,25 @@ kind: CustomResourceDefinition
 metadata:
   name: rollouts.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.replicas
+    description: Number of desired pods
+    name: Desired
+    type: integer
+  - JSONPath: .status.replicas
+    description: Total number of non-terminated pods targeted by this rollout
+    name: Current
+    type: integer
+  - JSONPath: .status.updatedReplicas
+    description: Total number of non-terminated pods targeted by this rollout that
+      have the desired template spec
+    name: Up-to-date
+    type: integer
+  - JSONPath: .status.availableReplicas
+    description: Total number of available pods (ready for at least minReadySeconds)
+      targeted by this rollout
+    name: Available
+    type: integer
   group: argoproj.io
   names:
     kind: Rollout
