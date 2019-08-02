@@ -85,6 +85,9 @@ func NewServiceController(
 			controllerutil.Enqueue(obj, serviceWorkQueue)
 		},
 	})
+	controller.enqueueRollout = func(obj interface{}) {
+		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)
+	}
 
 	return controller
 }
