@@ -413,6 +413,29 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 	}
 }
 
+func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
+	r := func(maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					CanaryStrategy: &v1alpha1.CanaryStrategy{
+						MaxSurge:       &maxSurge,
+						MaxUnavailable: &maxUnavailable,
+					},
+				},
+			},
+		}
+	}
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromInt(0))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromInt(0))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromInt(0))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0"))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0%"))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromString("0"))))
+	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromString("0%"))))
+
+}
+
 func TestHasRevisionHistoryLimit(t *testing.T) {
 	r := &v1alpha1.Rollout{}
 	assert.False(t, HasRevisionHistoryLimit(r))

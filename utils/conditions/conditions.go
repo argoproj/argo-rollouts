@@ -6,12 +6,15 @@ import (
 	"hash/fnv"
 	"math"
 	"reflect"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/validation"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -308,12 +311,8 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	}
 
 	if rollout.Spec.Strategy.CanaryStrategy != nil {
-		maxSurge := rollout.Spec.Strategy.CanaryStrategy.MaxSurge
-		maxUnavailable := rollout.Spec.Strategy.CanaryStrategy.MaxUnavailable
-		if maxSurge != nil && maxUnavailable != nil {
-			if maxSurge.IntValue() == maxUnavailable.IntValue() && maxSurge.IntValue() == 0 {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
-			}
+		if invalidMaxSurgeMaxUnavailable(rollout) {
+			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
 		}
 		for _, step := range rollout.Spec.Strategy.CanaryStrategy.Steps {
 			if (step.Pause != nil && step.SetWeight != nil) || (step.Pause == nil && step.SetWeight == nil) {
@@ -329,6 +328,33 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	}
 
 	return nil
+}
+
+func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
+	if intOrStringValue.Type != intstr.String {
+		return 0, false
+	}
+	if len(validation.IsValidPercent(intOrStringValue.StrVal)) != 0 {
+		return 0, false
+	}
+	value, _ := strconv.Atoi(intOrStringValue.StrVal[:len(intOrStringValue.StrVal)-1])
+	return value, true
+}
+
+func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
+	value, isPercent := getPercentValue(intOrStringValue)
+	if isPercent {
+		return value
+	}
+	return intOrStringValue.IntValue()
+}
+
+func invalidMaxSurgeMaxUnavailable(r *v1alpha1.Rollout) bool {
+	maxSurge := defaults.GetMaxSurgeOrDefault(r)
+	maxUnavailable := defaults.GetMaxUnavailableOrDefault(r)
+	maxSurgeValue := getIntOrPercentValue(*maxSurge)
+	maxUnavailableValue := getIntOrPercentValue(*maxUnavailable)
+	return maxSurgeValue == 0 && maxUnavailableValue == 0
 }
 
 // HasRevisionHistoryLimit checks if the RevisionHistoryLimit field is set
