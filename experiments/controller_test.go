@@ -559,6 +559,19 @@ func validatePatch(t *testing.T, patch string, running *bool, availableleAt avai
 	}
 	assert.Len(t, actualStatus.Conditions, len(conditions))
 	for i := range conditions {
-		assert.Contains(t, actualStatus.Conditions, conditions[i])
+		expectedCond := conditions[i]
+		for j := range actualStatus.Conditions {
+			hasComparedConditions := false
+			actualCond := conditions[j]
+			if actualCond.Type == expectedCond.Type {
+				assert.Equal(t, expectedCond.Status, actualCond.Status)
+				assert.Equal(t, expectedCond.LastUpdateTime, actualCond.LastUpdateTime)
+				assert.Equal(t, expectedCond.LastTransitionTime, actualCond.LastTransitionTime)
+				assert.Equal(t, expectedCond.Reason, actualCond.Reason)
+				assert.Equal(t, expectedCond.Message, actualCond.Message)
+				hasComparedConditions = true
+			}
+			assert.True(t, hasComparedConditions)
+		}
 	}
 }
