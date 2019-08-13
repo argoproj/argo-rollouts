@@ -202,6 +202,11 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		logCtx.Info("Reconciliation completed")
 	}()
 
+	if experiment.DeletionTimestamp != nil {
+		logutil.WithExperiment(experiment).Info("No reconciliation as experiment marked for deletion")
+		return nil
+	}
+
 	//TODO(dthomson) add validation
 
 	// List ReplicaSets owned by this Experiment, while reconciling ControllerRef
