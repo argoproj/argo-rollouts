@@ -802,6 +802,20 @@ requests:
 	}
 }
 
+func TestNoReconcileForDeletedRollout(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newRollout("foo", 1, nil, nil)
+	now := metav1.Now()
+	r.DeletionTimestamp = &now
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.run(getKey(r, t))
+}
+
 // TestComputeHashChangeTolerationBlueGreen verifies that we can tolerate a change in
 // controller.ComputeHash() for the blue-green strategy and do not redeploy any replicasets
 func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {

@@ -188,6 +188,12 @@ func (c *RolloutController) syncHandler(key string) error {
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
+
+	if r.ObjectMeta.DeletionTimestamp != nil {
+		logCtx.Info("No reconciliation as rollout marked for deletion")
+		return nil
+	}
+
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {

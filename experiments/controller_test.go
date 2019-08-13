@@ -456,3 +456,17 @@ func (f *fixture) getPatchedExperiment(index int) string {
 	}
 	return string(patchAction.GetPatch())
 }
+
+func TestNoReconcileForDeletedExperiment(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	e := newExperiment("foo", nil, int32(10), pointer.BoolPtr(true))
+	now := metav1.Now()
+	e.DeletionTimestamp = &now
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	f.run(getKey(e, t))
+}
