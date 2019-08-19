@@ -27,10 +27,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -312,11 +314,20 @@ func (c *Controller) syncHandler(key string) error {
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
+	logCtx := logutil.WithRollout(r)
+	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
+	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
+	if rollout.Spec.Replicas == nil {
+		logCtx.Info("Setting .Spec.Replica to 1 from nil")
+		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+		return err
+
+	}
 	defer func() {
 		duration := time.Since(startTime)
 		c.metricsServer.IncReconcile(r, duration)
-		logCtx := logutil.WithRollout(r).WithField("time_ms", duration.Seconds()*1e3)
-		logCtx.Info("Reconciliation completed")
+		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)

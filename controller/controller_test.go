@@ -34,6 +34,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/bouk/monkey"
 )
 
@@ -867,4 +868,17 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	expectedPatch := `{"status":{"observedGeneration":"7c8f97d5d6"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestSetReplicaToDefault(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Replicas = nil
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	updateIndex := f.expectUpdateRolloutAction(r)
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(updateIndex)
+	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
