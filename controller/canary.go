@@ -91,7 +91,7 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 func (c *Controller) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	if !replicasetutil.CheckStableRSExists(newRS, stableRS) {
-		logCtx.Info("No StableRS exists to reconcile")
+		logCtx.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
 	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
@@ -253,8 +253,11 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	}
 
 	if stepCount == 0 {
-		logCtx.Info("Rollout has no steps so setting stableRS status to currentPodHash")
-		newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		logCtx.Info("Rollout has no steps")
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		}
 		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
@@ -262,7 +265,10 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 	if *currentStepIndex == stepCount {
 		logCtx.Info("Rollout has executed every step")
 		newStatus.CurrentStepIndex = &stepCount
-		newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		}
 		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
@@ -272,7 +278,6 @@ func (c *Controller) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newR
 		newStatus.CurrentStepIndex = currentStepIndex
 		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
 			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))

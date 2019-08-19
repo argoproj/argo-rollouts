@@ -216,9 +216,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 	"status":{
-		"canary": {
-			"stableRS":"` + rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
-		},
 		"pauseStartTime": null,
 		"conditions" : %s,
 		"currentStepIndex": 1
@@ -606,6 +603,49 @@ func TestRollBackToStable(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
+func TestGradualShiftToNewStable(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(3), intstr.FromInt(0))
+
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 4, 4)
+
+	rs1 := newReplicaSetWithStatus(r1, 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 13, 4, 13, false)
+	maxSurge := intstr.FromInt(3)
+	r2.Spec.Strategy.CanaryStrategy.MaxSurge = &maxSurge
+	r2.Status.CurrentPodHash = rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	updatedR2SIndex := f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r2, t))
+
+	updatedRS2 := f.getUpdatedReplicaSet(updatedR2SIndex)
+	assert.Equal(t, rs1.Name, updatedRS2.Name)
+	assert.Equal(t, int32(6), *updatedRS2.Spec.Replicas)
+
+	expectedPatchWithoutSub := `{
+		"status":{
+			"conditions": %s
+		}
+	}`
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newConditions)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
 func TestRollBackToStableAndStepChange(t *testing.T) {
 	f := newFixture(t)
 
@@ -679,9 +719,6 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status":{
-			"canary":{
-				"stableRS":"` + rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
-			},
 			"currentStepIndex":1,
 			"conditions": %s
 		}
