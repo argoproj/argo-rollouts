@@ -605,7 +605,6 @@ func TestRollBackToStable(t *testing.T) {
 
 func TestGradualShiftToNewStable(t *testing.T) {
 	f := newFixture(t)
-	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: pointer.Int32Ptr(10),
