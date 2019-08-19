@@ -70,6 +70,22 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 		olderRS *appsv1.ReplicaSet
 	}{
 		{
+			name:                "Do not add extra RSs in scaleDownCount when .Spec.Replica < AvailableReplicas",
+			rolloutSpecReplicas: 10,
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(3),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      7,
+			stableAvailableReplica: 8,
+
+			canarySpecReplica:      6,
+			canaryAvailableReplica: 3,
+
+			expectedStableReplicaCount: 7,
+			expectedCanaryReplicaCount: 6,
+		},
+		{
 			name:                "Use max surge int to scale up canary",
 			rolloutSpecReplicas: 10,
 			setWeight:           20,
@@ -296,7 +312,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 3,
 		},
 		{
-			name:                "Do not scale down newRS or stable when older RS count >= minAvailable",
+			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
