@@ -42,10 +42,6 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	}
 	// Scale down old non-active replicasets, if we can.
 	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-	if !c.scaleDownPreviousActiveRS(r) {
-		logCtx.Info("Filtering out previous active RS while reconciling old replica sets")
-		_, filteredOldRS = replicasetutil.GetReplicaSetByTemplateHash(filteredOldRS, r.Status.BlueGreen.PreviousActiveSelector)
-	}
 	logCtx.Info("Reconciling old replica sets")
 	scaledDown, err := c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), newRS, r)
 	if err != nil {
@@ -115,17 +111,6 @@ func reconcileBlueGreenTemplateChange(rollout *v1alpha1.Rollout, newRS *appsv1.R
 	return rollout.Status.CurrentPodHash != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
-func (c *RolloutController) scaleDownPreviousActiveRS(rollout *v1alpha1.Rollout) bool {
-	if rollout.Status.BlueGreen.ScaleDownDelayStartTime == nil {
-		return true
-	}
-	scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(rollout)
-	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.BlueGreen.ScaleDownDelayStartTime, scaleDownDelaySeconds)
-	pauseEnd := metav1.NewTime(rollout.Status.BlueGreen.ScaleDownDelayStartTime.Add(time.Duration(scaleDownDelaySeconds) * time.Second))
-	now := metav1.Now()
-	return now.After(pauseEnd.Time)
-}
-
 func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
@@ -152,16 +137,17 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 
 	totalScaledDown := int32(0)
 	for _, targetRS := range oldRSs {
-		if scaleDownAtStr, ok := targetRS.Labels[v1alpha1.DefaultReplicaSetScaleDownAtLabelKey]; ok {
+		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey]; ok {
 
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+			logCtx := logutil.WithRollout(rollout)
 			if err != nil {
-				logCtx := logutil.WithRollout(rollout)
 				logCtx.Info("Unable to read scaleDownAt label")
 			} else {
 				now := metav1.Now()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
-				if now.Before(&scaleDownAt) {
+				if scaleDownAt.After(now.Time) {
+					logCtx.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
 					continue
 				}
 			}
@@ -197,19 +183,14 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaS
 		activeSelector = ""
 	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
-
-	newStatus.BlueGreen.PreviousActiveSelector = r.Status.BlueGreen.PreviousActiveSelector
-	newStatus.BlueGreen.ScaleDownDelayStartTime = r.Status.BlueGreen.ScaleDownDelayStartTime
 	if newStatus.BlueGreen.ActiveSelector != r.Status.BlueGreen.ActiveSelector {
 		previousActiveRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.BlueGreen.ActiveSelector)
 		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousActiveRS}) > 0 {
-			newStatus.BlueGreen.PreviousActiveSelector = r.Status.BlueGreen.ActiveSelector
-			now := metav1.Now()
-			newStatus.BlueGreen.ScaleDownDelayStartTime = &now
+			err := c.addScaleDownDelay(r, previousActiveRS)
+			if err != nil {
+				return err
+			}
 		}
-	} else if c.scaleDownPreviousActiveRS(r) {
-		newStatus.BlueGreen.PreviousActiveSelector = ""
-		newStatus.BlueGreen.ScaleDownDelayStartTime = nil
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)

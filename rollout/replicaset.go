@@ -3,10 +3,12 @@ package rollout
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -16,6 +18,20 @@ import (
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
+
+const (
+	replicasSetScaleDownAtAnnotationsPatch = `[{ "op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`
+)
+
+func (c *RolloutController) addScaleDownDelay(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet) error {
+	logCtx := logutil.WithRollout(r)
+	logCtx.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey, rs.Name)
+	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(r))
+	now := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
+	patch := fmt.Sprintf(replicasSetScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey, now)
+	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(rs.Name, patchtypes.JSONPatchType, []byte(patch))
+	return err
+}
 
 func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
