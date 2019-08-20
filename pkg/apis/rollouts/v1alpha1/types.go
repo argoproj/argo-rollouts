@@ -63,6 +63,9 @@ const (
 	// to existing ReplicaSets (and label key that is added to its pods) to prevent the existing ReplicaSets
 	// to select new pods (and old pods being select by new ReplicaSet).
 	DefaultRolloutUniqueLabelKey string = "rollouts-pod-template-hash"
+	// DefaultReplicaSetScaleDownAtLabelKey is the default key attached to an old stable ReplicaSet after
+	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
+	DefaultReplicaSetScaleDownAtLabelKey = "scale-down-at"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout

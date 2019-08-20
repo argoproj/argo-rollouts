@@ -152,6 +152,20 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 
 	totalScaledDown := int32(0)
 	for _, targetRS := range oldRSs {
+		if scaleDownAtStr, ok := targetRS.Labels[v1alpha1.DefaultReplicaSetScaleDownAtLabelKey]; ok {
+
+			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+			if err != nil {
+				logCtx := logutil.WithRollout(rollout)
+				logCtx.Info("Unable to read scaleDownAt label")
+			} else {
+				now := metav1.Now()
+				scaleDownAt := metav1.NewTime(scaleDownAtTime)
+				if now.Before(&scaleDownAt) {
+					continue
+				}
+			}
+		}
 		if *(targetRS.Spec.Replicas) == 0 {
 			// cannot scale down this ReplicaSet.
 			continue
