@@ -48,17 +48,22 @@ func TestPassedDurations(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	assert.False(t, PassedDurations(e))
+	passedDuration, _ := PassedDurations(e)
+	assert.False(t, passedDuration)
 
 	e.Spec.Duration = pointer.Int32Ptr(1)
-	assert.False(t, PassedDurations(e))
+	passedDuration, _ = PassedDurations(e)
+	assert.False(t, passedDuration)
 
 	now := metav1.Now()
 	e.Status.AvailableAt = &now
-	assert.False(t, PassedDurations(e))
+	passedDuration, _ = PassedDurations(e)
+	assert.False(t, passedDuration)
 
 	e.Status.AvailableAt = &metav1.Time{Time: now.Add(-2 * time.Second)}
-	assert.True(t, PassedDurations(e))
+	passedDuration, _ = PassedDurations(e)
+	assert.True(t, passedDuration)
+
 }
 
 func TestGetTemplateStatusMapping(t *testing.T) {

@@ -17,16 +17,17 @@ func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Running != nil && !*experiment.Status.Running
 }
 
-func PassedDurations(experiment *v1alpha1.Experiment) bool {
+// PassedDurations indicates if the experiment has run longer than the duration
+func PassedDurations(experiment *v1alpha1.Experiment) (bool, time.Duration) {
 	if experiment.Spec.Duration == nil {
-		return false
+		return false, 0
 	}
 	if experiment.Status.AvailableAt == nil {
-		return false
+		return false, 0
 	}
 	now := metav1.Now()
 	expiredTime := experiment.Status.AvailableAt.Add(time.Duration(*experiment.Spec.Duration) * time.Second)
-	return now.After(expiredTime)
+	return now.After(expiredTime), expiredTime.Sub(now.Time)
 }
 
 func CalculateTemplateReplicasCount(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) int32 {

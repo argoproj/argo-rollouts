@@ -1,8 +1,6 @@
 package experiments
 
 import (
-	"time"
-
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -24,7 +22,8 @@ func (ec *ExperimentController) reconcileExperiment(experiment *v1alpha1.Experim
 		return ec.syncExperimentStatus(experiment, templateRSs)
 	}
 
-	if experiment.Status.AvailableAt != nil && !experimentutil.PassedDurations(experiment) {
+	passedDuration, _ := experimentutil.PassedDurations(experiment)
+	if experiment.Status.AvailableAt != nil && !passedDuration {
 		ec.checkEnqueueExperimentDuringRun(experiment)
 	}
 
@@ -72,16 +71,8 @@ func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experimen
 }
 
 func (ec *ExperimentController) checkEnqueueExperimentDuringRun(experiment *v1alpha1.Experiment) {
-	if experiment.Status.AvailableAt == nil || experiment.Spec.Duration == nil {
-		return
-	}
-	logCtx := logutil.WithExperiment(experiment)
-	now := metav1.Now()
-	startTime := experiment.Status.AvailableAt
-	expiredTime := startTime.Add(time.Duration(*experiment.Spec.Duration) * time.Second)
-	nextResync := now.Add(ec.resyncPeriod)
-	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
-		timeRemaining := expiredTime.Sub(now.Time)
+	if passed, timeRemaining := experimentutil.PassedDurations(experiment); !passed {
+		logCtx := logutil.WithExperiment(experiment)
 		logCtx.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
 		ec.enqueueExperimentAfter(experiment, timeRemaining)
 	}
@@ -97,7 +88,7 @@ func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experi
 		newStatus.Running = pointer.BoolPtr(true)
 	}
 
-	if experimentutil.PassedDurations(experiment) {
+	if passed, _ := experimentutil.PassedDurations(experiment); passed {
 		newStatus.Running = pointer.BoolPtr(false)
 	}
 
