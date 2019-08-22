@@ -76,7 +76,15 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
 	}
 
-	if !defaults.GetAutoPromotionEnabledOrDefault(r) {
+	noFastRollback := true
+	if newRS != nil {
+		_, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey]
+		noFastRollback = !ok
+		if !noFastRollback {
+			logCtx.Infof("Detected '%s' annotation and will skip pause", newRS.Name)
+		}
+	}
+	if !defaults.GetAutoPromotionEnabledOrDefault(r) && noFastRollback {
 		logCtx.Info("Reconciling pause")
 		pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, r, newRS)
 		if pauseBeforeSwitchActive {
@@ -148,6 +156,10 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
 				if scaleDownAt.After(now.Time) {
 					logCtx.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
+					remainingTime := scaleDownAt.Sub(now.Time)
+					if remainingTime < c.resyncPeriod {
+						c.enqueueRolloutAfter(rollout, remainingTime)
+					}
 					continue
 				}
 			}

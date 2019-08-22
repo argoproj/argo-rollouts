@@ -14,6 +14,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
@@ -909,6 +910,47 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.run(getKey(r2, t))
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
+
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestFastRollback(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	//Setting the scaleDownAt time
+	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inTheFuture
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inTheFuture
+
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	s := newService("bar", 80, serviceSelector)
+	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	// Switch back to version 1
+	r2.Spec.Template = r1.Spec.Template
+	r2.Annotations[annotations.RevisionAnnotation] = "3"
+	r2.Status.CurrentPodHash = rs1PodHash
+	rs1.Annotations[annotations.RevisionAnnotation] = "3"
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 2, 1, 1, false, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.serviceLister = append(f.serviceLister, s)
+
+	f.expectPatchReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)

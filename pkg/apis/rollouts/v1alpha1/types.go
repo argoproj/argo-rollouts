@@ -221,10 +221,11 @@ type BlueGreenStatus struct {
 	ActiveSelector string `json:"activeSelector,omitempty"`
 	// PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset
 	// to avoid scaling down for the scale down delay
+	// Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6
 	// +optional
 	PreviousActiveSelector string `json:"previousActiveSelector,omitempty"`
 	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
-	// Deprecated:
+	// Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6
 	// +optional
 	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused

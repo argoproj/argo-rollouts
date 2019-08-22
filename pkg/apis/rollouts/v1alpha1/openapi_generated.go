@@ -73,14 +73,14 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 					},
 					"previousActiveSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset to avoid scaling down for the scale down delay",
+							Description: "PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset to avoid scaling down for the scale down delay Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"scaleDownDelayStartTime": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ScaleDownDelayStartTime indicates the start of the scaleDownDelay",
+							Description: "ScaleDownDelayStartTime indicates the start of the scaleDownDelay Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},

@@ -110,6 +110,12 @@ func (c *RolloutController) reconcileActiveService(r *v1alpha1.Rollout, newRS *a
 		}
 		return true, nil
 	}
+	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey]; ok {
+		err := c.removeScaleDownDelay(r, newRS)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	return false, nil
 }
