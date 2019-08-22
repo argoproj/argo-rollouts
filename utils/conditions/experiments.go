@@ -167,5 +167,6 @@ func ExperimentCompleted(newStatus v1alpha1.ExperimentStatus) bool {
 
 // ExperimentRunning indicates when a experiment has become healthy and started to run for the `spec.duration` time
 func ExperimentRunning(experiment *v1alpha1.Experiment) bool {
-	return experiment.Status.AvailableAt != nil && !experimentutil.PassedDurations(experiment)
+	passedDuration, _ := experimentutil.PassedDurations(experiment)
+	return experiment.Status.AvailableAt != nil && !passedDuration
 }
