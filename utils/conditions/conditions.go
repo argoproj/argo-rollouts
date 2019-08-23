@@ -47,6 +47,8 @@ const (
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
 	DuplicatedServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
+	// ScaleDownLimitLargerThanRevisionLimit the message to indicate that the rollout's revision history limit can not be smaller than the rollout's scale down limit
+	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// AvailableReason the reason to indicate that the rollout is serving traffic from the active service
 	AvailableReason = "AvailableReason"
 	// NotAvailableMessage the message to indicate that the Rollout does not have min availability
@@ -307,6 +309,10 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		}
 		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == rollout.Spec.Strategy.BlueGreenStrategy.PreviewService {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
+		}
+		revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
+		if rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit {
+			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
 		}
 	}
 

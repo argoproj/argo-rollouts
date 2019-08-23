@@ -104,6 +104,9 @@ type BlueGreenStrategy struct {
 	// more information
 	// +optional
 	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty"`
+	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
+	// +optional
+	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
