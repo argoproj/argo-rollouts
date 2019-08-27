@@ -215,8 +215,8 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
-	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, hpaReplicas, pause)
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas, pause)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
 		selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = active
@@ -229,14 +229,14 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
-	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, hpaReplicas, pause)
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas, pause)
 	newRollout.Status.Canary.StableRS = stableRS
 	return newRollout
 }
 
-func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
+func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := r.DeepCopy()
-	newRollout.Status.Replicas = availableReplicas
+	newRollout.Status.Replicas = totalReplicas
 	newRollout.Status.AvailableReplicas = availableReplicas
 	newRollout.Status.UpdatedReplicas = updatedReplicas
 	newRollout.Status.HPAReplicas = hpaReplicas

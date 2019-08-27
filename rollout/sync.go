@@ -312,13 +312,12 @@ func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, new
 	}
 
 	return v1alpha1.RolloutStatus{
-		CurrentPodHash:    currentPodHash,
-		Replicas:          replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
-		UpdatedReplicas:   replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
-		ReadyReplicas:     replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
-		AvailableReplicas: replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs),
-		CollisionCount:    rollout.Status.CollisionCount,
-		Conditions:        prevStatus.Conditions,
+		CurrentPodHash:  currentPodHash,
+		Replicas:        replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
+		UpdatedReplicas: replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
+		ReadyReplicas:   replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
+		CollisionCount:  rollout.Status.CollisionCount,
+		Conditions:      prevStatus.Conditions,
 	}
 }
 
