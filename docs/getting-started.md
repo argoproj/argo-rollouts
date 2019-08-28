@@ -11,7 +11,7 @@ Argo Rollouts can be installed at a cluster or namespace level.
 
 ```bash
 kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/release-v0.4/manifests/install.yaml
 ```
 
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will live.
@@ -24,7 +24,7 @@ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=c
 
 ### Namespace-Level Installation
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/namespace-install.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/release-v0.4/manifests/namespace-install.yaml
 ```
 
 ## Converting Deployment to Rollout
