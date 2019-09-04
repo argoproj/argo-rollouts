@@ -16,19 +16,19 @@ nameReference:
   - kind: Secret
     fieldSpecs:
       - path: spec/template/spec/volumes/secret/secretName
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/containers/env/valueFrom/secretKeyRef/name
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/containers/envFrom/secretRef/name
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/initContainers/envFrom/secretRef/name
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/imagePullSecrets/name
-        kind: Deployment
+        kind: Rollout
       - path: spec/template/spec/volumes/projected/sources/secret/name
-        kind: Deployment
+        kind: Rollout
   - kind: Service
     fieldSpecs:
       - path: spec/strategy/blueGreen/activeService
