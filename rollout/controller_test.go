@@ -494,9 +494,15 @@ func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+func (f *fixture) expectPatchReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
+	f.kubeactions = append(f.kubeactions, core.NewPatchAction(schema.GroupVersionResource{Resource: "replicasets"}, rs.Namespace, rs.Name, types.MergePatchType, nil))
+	return len
+}
+
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+	len := len(f.actions)
+	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
 	return len
 }
 
@@ -554,6 +560,17 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rs)
 	return rs
+}
+
+func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) bool {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	return string(patchAction.GetPatch()) == patch
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string) bool {

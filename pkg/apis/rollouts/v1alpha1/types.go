@@ -63,6 +63,9 @@ const (
 	// to existing ReplicaSets (and label key that is added to its pods) to prevent the existing ReplicaSets
 	// to select new pods (and old pods being select by new ReplicaSet).
 	DefaultRolloutUniqueLabelKey string = "rollouts-pod-template-hash"
+	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
+	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
+	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
@@ -218,9 +221,11 @@ type BlueGreenStatus struct {
 	ActiveSelector string `json:"activeSelector,omitempty"`
 	// PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset
 	// to avoid scaling down for the scale down delay
+	// Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6
 	// +optional
 	PreviousActiveSelector string `json:"previousActiveSelector,omitempty"`
 	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
+	// Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6
 	// +optional
 	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
