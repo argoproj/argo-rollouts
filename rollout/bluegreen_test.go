@@ -47,7 +47,7 @@ func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	future := metav1.NewTime(metav1.Now().Add(10 * time.Second)).UTC().Format(time.RFC3339)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = future
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = future
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -824,7 +824,7 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = "Abcd123"
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = "Abcd123"
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector)
@@ -861,7 +861,7 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 
 	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
 
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inTheFuture
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector)
@@ -893,7 +893,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 
 	inThePast := metav1.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inThePast
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector)
@@ -929,8 +929,8 @@ func TestFastRollback(t *testing.T) {
 
 	//Setting the scaleDownAt time
 	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inTheFuture
-	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey] = inTheFuture
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	s := newService("bar", 80, serviceSelector)

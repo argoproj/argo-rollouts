@@ -26,18 +26,18 @@ const (
 
 func (c *RolloutController) removeScaleDownDelay(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
-	logCtx.Infof("Removing '%s' annotation on RS '%s'", v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey, rs.Name)
-	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey)
+	logCtx.Infof("Removing '%s' annotation on RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(rs.Name, patchtypes.JSONPatchType, []byte(patch))
 	return err
 }
 
 func (c *RolloutController) addScaleDownDelay(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet) error {
 	logCtx := logutil.WithRollout(r)
-	logCtx.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey, rs.Name)
+	logCtx.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(r))
 	now := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
-	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey, now)
+	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(rs.Name, patchtypes.JSONPatchType, []byte(patch))
 	return err
 }

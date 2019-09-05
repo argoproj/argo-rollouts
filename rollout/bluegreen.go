@@ -78,7 +78,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 
 	noFastRollback := true
 	if newRS != nil {
-		_, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey]
+		_, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 		noFastRollback = !ok
 		if !noFastRollback {
 			logCtx.Infof("Detected '%s' annotation and will skip pause", newRS.Name)
@@ -105,6 +105,15 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	if switchActiveSvc {
 		logCtx.Infof("Not finished reconciling active service '%s'", activeSvc.Name)
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
+	}
+
+	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
+		// when the active service changes to a different RS
+		err := c.removeScaleDownDelay(r, newRS)
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, false)
@@ -145,12 +154,12 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 
 	totalScaledDown := int32(0)
 	for _, targetRS := range oldRSs {
-		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownAtAnnotationKey]; ok {
+		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 			logCtx := logutil.WithRollout(rollout)
 			if err != nil {
-				logCtx.Info("Unable to read scaleDownAt label")
+				logCtx.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
 			} else {
 				now := metav1.Now()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
