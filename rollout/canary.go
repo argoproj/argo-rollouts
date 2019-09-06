@@ -215,6 +215,7 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 		allRSs = append(allRSs, stableRS)
 	}
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
+	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 
