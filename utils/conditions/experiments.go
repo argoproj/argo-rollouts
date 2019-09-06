@@ -1,6 +1,8 @@
 package conditions
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +27,16 @@ const (
 	ExperimentCompletedMessage = "Experiment %q has successfully ran and completed."
 	// ExperimentCompleteReason is added when the experiment is completed
 	ExperimentCompleteReason = "ExperimentCompleted"
+	// ExperimentTemplateNameRepeatedMessage message when name in spec.template is repeated
+	ExperimentTemplateNameRepeatedMessage = "Experiment %s has repeated template name '%s' in templates"
+	// ExperimentTemplateNameEmpty message when name in template is empty
+	ExperimentTemplateNameEmpty = "Experiment %s has empty template name at index %d"
+	// DurationLongerThanDeadlineMessage indicates the Duration is longer than ProgressDeadlineSeconds
+	DurationLongerThanDeadlineMessage = "Duration cannot be longer than ProgressDeadlineSeconds"
+	// ExperimentSelectAllMessage the message to indicate that the rollout has an empty selector
+	ExperimentSelectAllMessage = "This experiment is selecting all pods at index %d. A non-empty selector is required."
+	// ExperimentMinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
+	ExperimentMinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds. Check template index %d"
 )
 
 // NewExperimentConditions takes arguments to create new Condition
@@ -169,4 +181,47 @@ func ExperimentCompleted(newStatus v1alpha1.ExperimentStatus) bool {
 func ExperimentRunning(experiment *v1alpha1.Experiment) bool {
 	passedDuration, _ := experimentutil.PassedDurations(experiment)
 	return experiment.Status.AvailableAt != nil && !passedDuration
+}
+
+func newInvalidSpecExperimentCondition(prevCond *v1alpha1.ExperimentCondition, reason string, message string) *v1alpha1.ExperimentCondition {
+	if prevCond != nil && prevCond.Message == message {
+		prevCond.LastUpdateTime = metav1.Now()
+		return prevCond
+	}
+	return NewExperimentConditions(v1alpha1.InvalidExperimentSpec, corev1.ConditionTrue, reason, message)
+}
+
+// VerifyExperimentSpec Checks for a valid spec otherwise returns a invalidSpec condition.
+func VerifyExperimentSpec(experiment *v1alpha1.Experiment, prevCond *v1alpha1.ExperimentCondition) *v1alpha1.ExperimentCondition {
+	templateNameSet := make(map[string]bool)
+	for i := range experiment.Spec.Templates {
+		template := experiment.Spec.Templates[i]
+		if template.Selector == nil {
+			missingFieldPath := fmt.Sprintf(".Spec.Templates[%d].Selector", i)
+			message := fmt.Sprintf(MissingFieldMessage, missingFieldPath)
+			return newInvalidSpecExperimentCondition(prevCond, InvalidSpecReason, message)
+		}
+
+		everything := metav1.LabelSelector{}
+		if reflect.DeepEqual(template.Selector, &everything) {
+			message := fmt.Sprintf(ExperimentSelectAllMessage, i)
+			return newInvalidSpecExperimentCondition(prevCond, InvalidSpecReason, message)
+		}
+
+		if template.MinReadySeconds > defaults.GetExperimentProgressDeadlineSecondsOrDefault(experiment) {
+			message := fmt.Sprintf(ExperimentMinReadyLongerThanDeadlineMessage, i)
+			return newInvalidSpecExperimentCondition(prevCond, InvalidSpecReason, message)
+		}
+
+		if template.Name == "" {
+			message := fmt.Sprintf(ExperimentTemplateNameEmpty, experiment.Name, i)
+			return newInvalidSpecExperimentCondition(prevCond, InvalidSpecReason, message)
+		}
+		if ok := templateNameSet[template.Name]; ok {
+			message := fmt.Sprintf(ExperimentTemplateNameRepeatedMessage, experiment.Name, template.Name)
+			return newInvalidSpecExperimentCondition(prevCond, InvalidSpecReason, message)
+		}
+		templateNameSet[template.Name] = true
+	}
+	return nil
 }

@@ -11,6 +11,13 @@ import (
 )
 
 func (ec *ExperimentController) calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1alpha1.ExperimentStatus, templateRSs map[string]*appsv1.ReplicaSet) v1alpha1.ExperimentStatus {
+
+	prevCond := conditions.GetExperimentCondition(experiment.Status, v1alpha1.InvalidExperimentSpec)
+	invalidSpecCond := conditions.VerifyExperimentSpec(experiment, prevCond)
+	if prevCond != nil && invalidSpecCond == nil {
+		conditions.RemoveExperimentCondition(&newStatus, v1alpha1.InvalidExperimentSpec)
+	}
+
 	switch {
 	case conditions.ExperimentCompleted(newStatus):
 		msg := fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name)
