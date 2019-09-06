@@ -657,3 +657,86 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	assert.Nil(t, newStepIndex)
 
 }
+
+func TestReplicaSetsByRevisionNumber(t *testing.T) {
+
+	now := metav1.Now()
+	before := metav1.NewTime(metav1.Now().Add(-5 * time.Second))
+
+	newRS := func(revision string, createTimeStamp metav1.Time) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				CreationTimestamp: createTimeStamp,
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: revision,
+				},
+			},
+		}
+	}
+
+	t.Run("Sort only by revisionNumber", func(t *testing.T) {
+		replicaSets := []*appsv1.ReplicaSet{
+			newRS("1", now),
+			newRS("2", now),
+			newRS("0", now),
+		}
+		expected := []*appsv1.ReplicaSet{
+			newRS("0", now),
+			newRS("1", now),
+			newRS("2", now),
+		}
+		sort.Sort(ReplicaSetsByRevisionNumber(replicaSets))
+		assert.Equal(t, expected, replicaSets)
+	})
+
+	t.Run("Invalid Annotation goes first", func(t *testing.T) {
+		replicaSets := []*appsv1.ReplicaSet{
+			newRS("2", now),
+			newRS("", now),
+		}
+		expected := []*appsv1.ReplicaSet{
+			newRS("", now),
+			newRS("2", now),
+		}
+		sort.Sort(ReplicaSetsByRevisionNumber(replicaSets))
+		assert.Equal(t, expected, replicaSets)
+	})
+
+	t.Run("Invalid Annotation stays first", func(t *testing.T) {
+		replicaSets := []*appsv1.ReplicaSet{
+			newRS("", now),
+			newRS("2", now),
+		}
+		expected := []*appsv1.ReplicaSet{
+			newRS("", now),
+			newRS("2", now),
+		}
+		sort.Sort(ReplicaSetsByRevisionNumber(replicaSets))
+		assert.Equal(t, expected, replicaSets)
+	})
+
+	t.Run("Use creationTimeStamp if both have invalid annotation", func(t *testing.T) {
+		replicaSets := []*appsv1.ReplicaSet{
+			newRS("", now),
+			newRS("", before),
+		}
+		expected := []*appsv1.ReplicaSet{
+			newRS("", before),
+			newRS("", now),
+		}
+		sort.Sort(ReplicaSetsByRevisionNumber(replicaSets))
+		assert.Equal(t, expected, replicaSets)
+	})
+	t.Run("Use creationTimeStamp if both have same annotation", func(t *testing.T) {
+		replicaSets := []*appsv1.ReplicaSet{
+			newRS("1", now),
+			newRS("1", before),
+		}
+		expected := []*appsv1.ReplicaSet{
+			newRS("1", before),
+			newRS("1", now),
+		}
+		sort.Sort(ReplicaSetsByRevisionNumber(replicaSets))
+		assert.Equal(t, expected, replicaSets)
+	})
+}

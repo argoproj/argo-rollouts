@@ -263,6 +263,13 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.NotNil(t, sameSvcsCond)
 	assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
 	assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
+
+	scaleLimitLargerThanRevision := validRollout.DeepCopy()
+	scaleLimitLargerThanRevision.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(100)
+	scaleLimitLargerThanRevisionCond := VerifyRolloutSpec(scaleLimitLargerThanRevision, nil)
+	assert.NotNil(t, scaleLimitLargerThanRevisionCond)
+	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, scaleLimitLargerThanRevisionCond.Message)
+	assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
 }
 
 func TestVerifyRolloutSpecBaseCases(t *testing.T) {

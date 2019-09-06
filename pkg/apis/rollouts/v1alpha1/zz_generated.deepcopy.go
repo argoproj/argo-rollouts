@@ -69,6 +69,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ScaleDownDelayRevisionLimit != nil {
+		in, out := &in.ScaleDownDelayRevisionLimit, &out.ScaleDownDelayRevisionLimit
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

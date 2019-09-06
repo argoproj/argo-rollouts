@@ -338,3 +338,27 @@ func GetPodTemplateHash(rs *appsv1.ReplicaSet) string {
 	}
 	return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
+
+// ReplicaSetsByRevisionNumber sorts a list of ReplicaSet by revision timestamp, using their creation timestamp as a tie breaker.
+type ReplicaSetsByRevisionNumber []*appsv1.ReplicaSet
+
+func (o ReplicaSetsByRevisionNumber) Len() int      { return len(o) }
+func (o ReplicaSetsByRevisionNumber) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o ReplicaSetsByRevisionNumber) Less(i, j int) bool {
+	iRevision, iErr := strconv.Atoi(o[i].Annotations[annotations.RevisionAnnotation])
+	jRevision, jErr := strconv.Atoi(o[j].Annotations[annotations.RevisionAnnotation])
+	if iErr != nil && jErr != nil {
+		return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+	}
+	if iErr != nil {
+		return i > j
+	}
+	if jErr != nil {
+		return i < j
+
+	}
+	if iRevision == jRevision {
+		return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+	}
+	return iRevision < jRevision
+}

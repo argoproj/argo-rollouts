@@ -880,7 +880,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"7bbd997858"}}`
+	expectedPatch := `{"status":{"observedGeneration":"779b98dbc5"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
