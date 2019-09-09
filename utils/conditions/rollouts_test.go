@@ -250,13 +250,6 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService"), noActiveSvcCond.Message)
 	assert.Equal(t, InvalidSpecReason, noActiveSvcCond.Reason)
 
-	scaleDownDelayLongerThanProgressDeadline := validRollout.DeepCopy()
-	scaleDownDelayLongerThanProgressDeadline.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds = pointer.Int32Ptr(1000)
-	scaleDownDelayLongerThanProgressDeadlineCond := VerifyRolloutSpec(scaleDownDelayLongerThanProgressDeadline, nil)
-	assert.NotNil(t, scaleDownDelayLongerThanProgressDeadlineCond)
-	assert.Equal(t, InvalidSpecReason, scaleDownDelayLongerThanProgressDeadlineCond.Reason)
-	assert.Equal(t, ScaleDownDelayLongerThanDeadlineMessage, scaleDownDelayLongerThanProgressDeadlineCond.Message)
-
 	sameSvcs := validRollout.DeepCopy()
 	sameSvcs.Spec.Strategy.BlueGreenStrategy.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
