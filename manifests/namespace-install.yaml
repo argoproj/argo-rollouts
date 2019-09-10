@@ -2373,6 +2373,9 @@ spec:
                       type: integer
                     previewService:
                       type: string
+                    scaleDownDelayRevisionLimit:
+                      format: int32
+                      type: integer
                     scaleDownDelaySeconds:
                       format: int32
                       type: integer
