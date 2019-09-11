@@ -293,7 +293,7 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	selectorEverything.Spec.Selector = &metav1.LabelSelector{}
 	selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
 	assert.NotNil(t, selectorEverythingConf)
-	assert.Equal(t, SelectAllMessage, selectorEverythingConf.Message)
+	assert.Equal(t, RolloutSelectAllMessage, selectorEverythingConf.Message)
 	assert.Equal(t, InvalidSpecReason, selectorEverythingConf.Reason)
 
 	noSelector := validRollout.DeepCopy()
@@ -308,7 +308,7 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	minReadyLongerThanProgessDeadlineCond := VerifyRolloutSpec(minReadyLongerThanProgessDeadline, nil)
 	assert.NotNil(t, minReadyLongerThanProgessDeadlineCond)
 	assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgessDeadlineCond.Reason)
-	assert.Equal(t, MinReadyLongerThanDeadlineMessage, minReadyLongerThanProgessDeadlineCond.Message)
+	assert.Equal(t, RolloutMinReadyLongerThanDeadlineMessage, minReadyLongerThanProgessDeadlineCond.Message)
 }
 
 func TestVerifyRolloutSpecCanary(t *testing.T) {

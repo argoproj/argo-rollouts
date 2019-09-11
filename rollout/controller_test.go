@@ -746,7 +746,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 
 	r := newBlueGreenRollout("foo", 1, nil, "", "")
 	r.Spec.Selector = &metav1.LabelSelector{}
-	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.SelectAllMessage)
+	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
 	conditions.SetRolloutCondition(&r.Status, *cond)
 
 	r.Spec.Selector = nil

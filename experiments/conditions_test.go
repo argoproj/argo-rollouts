@@ -17,7 +17,7 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(2)
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
 	}}
@@ -53,7 +53,7 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
 	}}

@@ -29,8 +29,8 @@ const (
 	InvalidSpecReason = "InvalidSpec"
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
-	// SelectAllMessage the message to indicate that the rollout has an empty selector
-	SelectAllMessage = "This rollout is selecting all pods. A non-empty selector is required."
+	// RolloutSelectAllMessage the message to indicate that the rollout has an empty selector
+	RolloutSelectAllMessage = "This rollout is selecting all pods. A non-empty selector is required."
 	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
 	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
@@ -39,8 +39,10 @@ const (
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
 	InvalidStepMessage = "Step must have either setWeight or pause set"
-	// MinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
-	MinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds"
+	// ScaleDownDelayLongerThanDeadlineMessage indicates the ScaleDownDelaySeconds is longer than ProgressDeadlineSeconds
+	ScaleDownDelayLongerThanDeadlineMessage = "ScaleDownDelaySeconds cannot be longer than ProgressDeadlineSeconds"
+	// RolloutMinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
+	RolloutMinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds"
 	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
@@ -280,7 +282,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 
 	everything := metav1.LabelSelector{}
 	if reflect.DeepEqual(rollout.Spec.Selector, &everything) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, SelectAllMessage)
+		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutSelectAllMessage)
 	}
 
 	if rollout.Spec.Strategy.CanaryStrategy == nil && rollout.Spec.Strategy.BlueGreenStrategy == nil {
@@ -293,7 +295,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	}
 
 	if rollout.Spec.MinReadySeconds > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, MinReadyLongerThanDeadlineMessage)
+		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
 	}
 
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {

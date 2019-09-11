@@ -21,6 +21,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -207,7 +208,19 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		return nil
 	}
 
-	//TODO(dthomson) add validation
+	prevCond := conditions.GetExperimentCondition(experiment.Status, v1alpha1.InvalidExperimentSpec)
+	invalidSpecCond := conditions.VerifyExperimentSpec(experiment, prevCond)
+	if invalidSpecCond != nil {
+		logutil.WithExperiment(experiment).Error("Spec submitted is invalid")
+		newStatus := experiment.Status.DeepCopy()
+		// SetExperimentCondition only updates the condition when the status and/or reason changes, but
+		// the controller should update the invalidSpec if there is a change in why the spec is invalid
+		if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+			conditions.RemoveExperimentCondition(newStatus, v1alpha1.InvalidExperimentSpec)
+		}
+		conditions.SetExperimentCondition(newStatus, *invalidSpecCond)
+		return ec.persistExperimentStatus(experiment, newStatus)
+	}
 
 	// List ReplicaSets owned by this Experiment, while reconciling ControllerRef
 	// through adoption/orphaning.

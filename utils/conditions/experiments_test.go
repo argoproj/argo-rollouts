@@ -1,6 +1,7 @@
 package conditions
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -448,4 +449,70 @@ func TestExperimentTimeOut(t *testing.T) {
 			assert.Equal(t, test.expected, ExperimentTimeOut(experiment, test.newStatus))
 		})
 	}
+}
+
+func TestVerifyExperimentSpecBaseCases(t *testing.T) {
+	ex := &v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+		Spec: v1alpha1.ExperimentSpec{
+			Templates: []v1alpha1.TemplateSpec{{
+				Name: "test",
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"key": "value"},
+				},
+			}},
+		},
+	}
+	cond := VerifyExperimentSpec(ex, nil)
+	assert.Nil(t, cond)
+
+	sameNameTemplate := ex.DeepCopy()
+	sameNameTemplate.Spec.Templates = append(sameNameTemplate.Spec.Templates, sameNameTemplate.Spec.Templates[0])
+	sameNameTemplateConf := VerifyExperimentSpec(sameNameTemplate, nil)
+	assert.NotNil(t, sameNameTemplateConf)
+	sameNameTemplateConfMessage := fmt.Sprintf(ExperimentTemplateNameRepeatedMessage, sameNameTemplate.Name, sameNameTemplate.Spec.Templates[0].Name)
+	assert.Equal(t, sameNameTemplateConfMessage, sameNameTemplateConf.Message)
+	assert.Equal(t, InvalidSpecReason, sameNameTemplateConf.Reason)
+
+	noNameTemplate := ex.DeepCopy()
+	noNameTemplate.Spec.Templates[0].Name = ""
+	noNameTemplateConf := VerifyExperimentSpec(noNameTemplate, nil)
+	assert.NotNil(t, noNameTemplateConf)
+	noNameTemplateMessage := fmt.Sprintf(ExperimentTemplateNameEmpty, noNameTemplate.Name, 0)
+	assert.Equal(t, noNameTemplateMessage, noNameTemplateConf.Message)
+	assert.Equal(t, InvalidSpecReason, noNameTemplateConf.Reason)
+
+	selectorEverything := ex.DeepCopy()
+	selectorEverything.Spec.Templates[0].Selector = &metav1.LabelSelector{}
+	selectorEverythingConf := VerifyExperimentSpec(selectorEverything, nil)
+	assert.NotNil(t, selectorEverythingConf)
+	selectAllMessage := fmt.Sprintf(ExperimentSelectAllMessage, 0)
+	assert.Equal(t, selectAllMessage, selectorEverythingConf.Message)
+	assert.Equal(t, InvalidSpecReason, selectorEverythingConf.Reason)
+
+	noSelector := ex.DeepCopy()
+	noSelector.Spec.Templates[0].Selector = nil
+	noSelectorCond := VerifyExperimentSpec(noSelector, nil)
+	assert.NotNil(t, noSelectorCond)
+	missingField := fmt.Sprintf(".Spec.Templates[%d].Selector", 0)
+	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, missingField), noSelectorCond.Message)
+	assert.Equal(t, InvalidSpecReason, noSelectorCond.Reason)
+
+	minReadyLongerThanProgessDeadline := ex.DeepCopy()
+	minReadyLongerThanProgessDeadline.Spec.Templates[0].MinReadySeconds = 1000
+	minReadyLongerThanProgessDeadlineCond := VerifyExperimentSpec(minReadyLongerThanProgessDeadline, nil)
+	assert.NotNil(t, minReadyLongerThanProgessDeadlineCond)
+	assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgessDeadlineCond.Reason)
+	minReadyLongerMessage := fmt.Sprintf(ExperimentMinReadyLongerThanDeadlineMessage, 0)
+	assert.Equal(t, minReadyLongerMessage, minReadyLongerThanProgessDeadlineCond.Message)
+
+	//Test switching from a prev invalid spec to another
+	prevLastUpdateTime := selectorEverythingConf.LastUpdateTime
+	sameInvalidSpec := VerifyExperimentSpec(selectorEverything, selectorEverythingConf)
+	assert.NotNil(t, sameInvalidSpec)
+	assert.Equal(t, selectAllMessage, sameInvalidSpec.Message)
+	assert.Equal(t, InvalidSpecReason, sameInvalidSpec.Reason)
+	assert.NotEqual(t, prevLastUpdateTime, sameInvalidSpec.LastUpdateTime)
 }

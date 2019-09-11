@@ -19,7 +19,7 @@ func TestSetExperimentToRunning(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, 0, nil)
+	e := newExperiment("foo", templates, nil, nil)
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
 	f.experimentLister = append(f.experimentLister, e)
@@ -44,7 +44,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Running = pointer.BoolPtr(false)
 	cond := newCondition(conditions.ExperimentCompleteReason, e)
 
@@ -82,7 +82,7 @@ func TestSetAvailableAt(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Running = pointer.BoolPtr(true)
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -114,7 +114,7 @@ func TestNoPatch(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:               v1alpha1.ExperimentProgressing,
 		Reason:             conditions.NewRSAvailableReason,
@@ -147,7 +147,7 @@ func TestDisableRunningAfterDurationPasses(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 5, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, pointer.Int32Ptr(5), pointer.BoolPtr(true))
 
 	now := metav1.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: now}

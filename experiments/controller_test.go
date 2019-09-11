@@ -121,7 +121,7 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32) v1al
 	}
 }
 
-func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration int32, running *bool) *v1alpha1.Experiment {
+func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32, running *bool) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -130,11 +130,15 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration int3
 		},
 		Spec: v1alpha1.ExperimentSpec{
 			Templates: templates,
-			Duration:  &duration,
+			Duration:  duration,
 		},
 		Status: v1alpha1.ExperimentStatus{
 			Running: running,
 		},
+	}
+	if duration != nil {
+		// Ensure that the experiment created is valid by making the ProgressDeadlineSeconds smaller than the duration
+		ex.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(*duration - 1)
 	}
 	return ex
 }
@@ -178,6 +182,16 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 			LastTransitionTime: metav1.Now().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentTimeOutMessage, experiment.Name),
+		}
+	}
+	if reason == conditions.InvalidSpecReason {
+		return &v1alpha1.ExperimentCondition{
+			Type:               v1alpha1.InvalidExperimentSpec,
+			Status:             corev1.ConditionTrue,
+			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
+			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			Reason:             reason,
+			Message:            fmt.Sprintf(conditions.ExperimentTemplateNameEmpty, experiment.Name, 0),
 		}
 	}
 
@@ -520,7 +534,7 @@ func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	e := newExperiment("foo", nil, int32(10), pointer.BoolPtr(true))
+	e := newExperiment("foo", nil, pointer.Int32Ptr(10), pointer.BoolPtr(true))
 	now := metav1.Now()
 	e.DeletionTimestamp = &now
 
@@ -574,4 +588,124 @@ func validatePatch(t *testing.T, patch string, running *bool, availableleAt avai
 			assert.True(t, hasComparedConditions)
 		}
 	}
+}
+
+func TestAddInvalidSpec(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	templates := generateTemplates("bar", "baz")
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e.Spec.Templates[0].Name = ""
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patch := f.getPatchedExperiment(patchIndex)
+
+	cond := newCondition(conditions.InvalidSpecReason, e)
+
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+		}
+	}`, nil, cond)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestKeepInvalidSpec(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	templates := generateTemplates("bar", "baz")
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
+		Type:    v1alpha1.InvalidExperimentSpec,
+		Status:  corev1.ConditionTrue,
+		Reason:  conditions.InvalidSpecReason,
+		Message: fmt.Sprintf(conditions.ExperimentTemplateNameEmpty, e.Name, 0),
+	}}
+	e.Spec.Templates[0].Name = ""
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	f.run(getKey(e, t))
+
+}
+
+func TestUpdateInvalidSpec(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	templates := generateTemplates("bar", "baz")
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+
+	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
+		Type:    v1alpha1.InvalidExperimentSpec,
+		Status:  corev1.ConditionTrue,
+		Reason:  conditions.InvalidSpecReason,
+		Message: conditions.ExperimentSelectAllMessage,
+	}}
+
+	e.Spec.Templates[0].Name = ""
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patch := f.getPatchedExperiment(patchIndex)
+
+	cond := newCondition(conditions.InvalidSpecReason, e)
+
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+		}
+	}`, nil, cond)
+	assert.Equal(t, expectedPatch, patch)
+
+}
+
+func TestRemoveInvalidSpec(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	templates := generateTemplates("bar", "baz")
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+
+	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
+		Type:   v1alpha1.InvalidExperimentSpec,
+		Status: corev1.ConditionTrue,
+		Reason: conditions.InvalidSpecReason,
+	}}
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
+
+	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
+	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patch := f.getPatchedExperiment(patchIndex)
+	firstRS := f.getCreatedReplicaSet(createFirstRSIndex)
+	assert.NotNil(t, firstRS)
+	assert.Equal(t, generateRSName(e, templates[0]), firstRS.Name)
+
+	secondRS := f.getCreatedReplicaSet(createSecondRSIndex)
+	assert.NotNil(t, secondRS)
+	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
+
+	templateStatus := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0),
+		generateTemplatesStatus("baz", 0, 0),
+	}
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+		}
+	}`, templateStatus, cond)
+	assert.Equal(t, expectedPatch, patch)
 }

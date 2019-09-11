@@ -17,7 +17,7 @@ func TestCreateMultipleRS(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
@@ -53,7 +53,7 @@ func TestCreateMissingRS(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
 	}}
@@ -89,7 +89,7 @@ func TestFailCreateRSWithInvalidSelector(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Selector.MatchLabels = map[string]string{}
 	templates[0].Selector.MatchExpressions = []metav1.LabelSelectorRequirement{{}}
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
@@ -102,7 +102,7 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
@@ -121,7 +121,7 @@ func TestAdoptRS(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Running = pointer.BoolPtr(true)
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
@@ -155,7 +155,7 @@ func TestNameCollision(t *testing.T) {
 	defer f.Close()
 
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, 0, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Running = pointer.BoolPtr(true)
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
