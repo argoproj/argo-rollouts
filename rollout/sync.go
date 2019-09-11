@@ -401,7 +401,7 @@ func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newS
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this rollout.
 	currentCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
-	isCompleteRollout := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason
+	isCompleteRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason
 	// Check for progress only if the latest rollout hasn't completed yet.
 	if !isCompleteRollout {
 		switch {
