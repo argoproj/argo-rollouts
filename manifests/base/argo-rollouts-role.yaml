@@ -8,36 +8,37 @@ metadata:
     app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
-  - argoproj.io
-  resources:
-  - rollouts
-  - experiments
-  verbs:
-  - watch
-  - get
-  - list
-  - update
-  - patch
-- apiGroups:
   - apps
   resources:
   - replicasets
   verbs:
+  - watch
   - get
   - list
   - create
   - update
+  - patch
   - delete
-  - watch
 - apiGroups:
   - ""
   resources:
   - services
   verbs:
+  - watch
   - get
   - list
   - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  - experiments
+  verbs:
+  - get
+  - list
+  - update
   - watch
+  - patch
 - apiGroups:
   - ""
   resources:
