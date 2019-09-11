@@ -31,7 +31,7 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable
 Converting a Deployment to a Rollout simply is a core design principle of Argo Rollouts. There are two key changes:
 
 1. Changing the `apiVersion` value to `argoproj.io/v1alpha1` and changing the `kind` value from `Deployment` to `Rollout`
-1. Adding a new deployment strategy to the new Rollout. You can read up on the available strategies at [Argo Rollouts section](spec/index.md
+1. Adding a new deployment strategy to the new Rollout. You can read up on the available strategies at [Argo Rollouts section](index.md)
 
 Below is an example of a Rollout YAML using the Canary strategy.
 
