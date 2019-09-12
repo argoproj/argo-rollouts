@@ -375,20 +375,7 @@ func RolloutTimedOut(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	if condition == nil {
 		return false
 	}
-	// If the previous condition has been a successful rollout then we shouldn't try to
-	// estimate any progress. Scenario:
-	//
-	// * progressDeadlineSeconds is smaller than the difference between now and the time
-	//   the last rollout finished in the past.
-	// * the creation of a new ReplicaSet triggers a resync of the rollout prior to the
-	//   cached copy of the Rollout getting updated with the status.condition that indicates
-	//   the creation of the new ReplicaSet.
-	//
-	// The rollout will be resynced and eventually its Progressing condition will catch
-	// up with the state of the world.
-	if condition.Reason == NewRSAvailableReason {
-		return false
-	}
+
 	if condition.Reason == TimedOutReason {
 		return true
 	}

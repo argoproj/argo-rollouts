@@ -715,13 +715,6 @@ func TestRolloutTimedOut(t *testing.T) {
 		expected                bool
 	}{
 		{
-			name: "New RS is Available",
-			newStatus: v1alpha1.RolloutStatus{
-				Conditions: conditons(NewRSAvailableReason, metav1.Now()),
-			},
-			expected: false,
-		},
-		{
 			name: "Has no progressing condition",
 			newStatus: v1alpha1.RolloutStatus{
 				Conditions: []v1alpha1.RolloutCondition{},
