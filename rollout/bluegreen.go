@@ -150,7 +150,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
 func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
-	sort.Sort(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs))
+	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
 	totalScaledDown := int32(0)
 	annotationedRSs := int32(0)
