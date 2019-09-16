@@ -72,7 +72,7 @@ The initial creation of the above Rollout will bring up all 5 replicas of the Po
 To demonastrate this, we will update the rollout to use a new nginx image. You can either run `kubectl edit rollout example-rollout` and change the image from `nginx:1.15.4` to `nginx:1.15.5`, or run the following:
 
 ```bash
-$ kubectl patch rollout example-rollout -p '{"spec": {"template": { "spec": { "containers": [{"name": "ngnix","image": "nginx:1.15.5"}]}}}}'
+$ kubectl patch rollout example-rollout -p '{"spec": {"template": { "spec": { "containers": [{"name": "nginx","image": "nginx:1.15.5"}]}}}}'
 ```
 
 Once the patch is applied, you can watch the new replicaset came up as healthy by running 
