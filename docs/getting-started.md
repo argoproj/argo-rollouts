@@ -72,7 +72,7 @@ The initial creation of the above Rollout will bring up all 5 replicas of the Po
 To demonastrate this, we will update the rollout to use a new nginx image. You can either run `kubectl edit rollout example-rollout` and change the image from `nginx:1.15.4` to `nginx:1.15.5`, or run the following:
 
 ```bash
-$ kubectl patch rollout example-rollout -p '{"spec": {"template": { "spec": { "containers": [{"name": "ngnix","image": "nginx:1.15.5"}]}}}}'
+$ kubectl patch rollout example-rollout --type merge -p '{"spec": {"template": { "spec": { "containers": [{"name": "ngnix","image": "nginx:1.15.5"}]}}}}'
 ```
 
 Once the patch is applied, you can watch the new replicaset came up as healthy by running 
@@ -84,7 +84,7 @@ Once that replicaset is healthy, the rollout will enter a paused state by settin
 ## Unpausing the rollout
 The rollout can be unpaused by running `kubectl edit rollout example-rollout` and setting the `spec.paused` field to `false` or the following
 ```bash
-$ kubectl patch rollout example-rollout -p '{"spec": {"paused": false}}'
+$ kubectl patch rollout example-rollout --type merge -p '{"spec": {"paused": false}}'
 ```
 
 At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat this behavior if the Pod Spec Template is changed again.
