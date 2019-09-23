@@ -67,7 +67,7 @@ type Manager struct {
 // NewManager returns a new manager to manage all the controllers
 func NewManager(
 	kubeclientset kubernetes.Interface,
-	rolloutsclientset clientset.Interface,
+	argoprojclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
@@ -94,7 +94,8 @@ func NewManager(
 	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
 
 	rolloutController := rollout.NewRolloutController(kubeclientset,
-		rolloutsclientset,
+		argoprojclientset,
+		experimentsInformer,
 		replicaSetInformer,
 		servicesInformer,
 		rolloutsInformer,
@@ -105,7 +106,7 @@ func NewManager(
 		recorder)
 
 	experimentController := experiments.NewExperimentController(kubeclientset,
-		rolloutsclientset,
+		argoprojclientset,
 		replicaSetInformer,
 		rolloutsInformer,
 		experimentsInformer,

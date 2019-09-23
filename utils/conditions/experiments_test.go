@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -303,7 +304,10 @@ func TestExperimentProgressing(t *testing.T) {
 }
 
 func TestExperimentComplete(t *testing.T) {
-	experiment := func(current, updated, available, ready int32, running bool) *v1alpha1.Experiment {
+	now := metav1.Now()
+	isTrue := pointer.BoolPtr(true)
+	isFalse := pointer.BoolPtr(false)
+	experiment := func(current, updated, available, ready int32, running *bool, availableAt *metav1.Time) *v1alpha1.Experiment {
 		e := &v1alpha1.Experiment{
 			Spec: v1alpha1.ExperimentSpec{},
 			Status: v1alpha1.ExperimentStatus{
@@ -314,10 +318,9 @@ func TestExperimentComplete(t *testing.T) {
 					AvailableReplicas: available,
 					ReadyReplicas:     ready,
 				}},
+				Running:     running,
+				AvailableAt: availableAt,
 			},
-		}
-		if running {
-			e.Status.Running = &running
 		}
 		return e
 	}
@@ -330,33 +333,43 @@ func TestExperimentComplete(t *testing.T) {
 
 		{
 			name:     "Experiment not running",
-			e:        experiment(0, 0, 0, 0, false),
+			e:        experiment(0, 0, 0, 0, nil, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: running set to true",
+			e:        experiment(0, 0, 0, 0, isTrue, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: not available yet",
+			e:        experiment(0, 0, 0, 0, isFalse, nil),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: waiting for no ready replicas",
+			e:        experiment(0, 0, 0, 5, isFalse, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: waiting for no available replicas",
+			e:        experiment(0, 0, 5, 0, isFalse, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: waiting for no updated replicas",
+			e:        experiment(0, 5, 0, 0, isFalse, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment not finished: waiting for no replicas",
+			e:        experiment(5, 0, 0, 0, isFalse, &now),
+			expected: false,
+		},
+		{
+			name:     "Experiment Completed",
+			e:        experiment(0, 0, 0, 0, isFalse, &now),
 			expected: true,
-		},
-		{
-			name:     "Experiment running: running set to true",
-			e:        experiment(5, 5, 5, 5, true),
-			expected: false,
-		},
-		{
-			name:     "Experiment running: waiting for no ready replicas",
-			e:        experiment(0, 0, 0, 5, false),
-			expected: false,
-		},
-		{
-			name:     "Experiment running: waiting for no available replicas",
-			e:        experiment(0, 0, 5, 0, false),
-			expected: false,
-		},
-		{
-			name:     "Experiment running: waiting for no updated replicas",
-			e:        experiment(0, 5, 0, 0, false),
-			expected: false,
-		},
-		{
-			name:     "Experiment running: waiting for no replicas",
-			e:        experiment(5, 0, 0, 0, false),
-			expected: false,
 		},
 	}
 

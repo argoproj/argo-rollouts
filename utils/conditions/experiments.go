@@ -155,7 +155,10 @@ func ExperimentTimeOut(experiment *v1alpha1.Experiment, newStatus v1alpha1.Exper
 
 // ExperimentCompleted Indicates when the experiment has finished and completely scaled down
 func ExperimentCompleted(newStatus v1alpha1.ExperimentStatus) bool {
-	if newStatus.Running != nil && *newStatus.Running {
+	if newStatus.Running == nil || *newStatus.Running {
+		return false
+	}
+	if newStatus.AvailableAt == nil {
 		return false
 	}
 	new := experimentutil.GetTemplateStatusMapping(newStatus)

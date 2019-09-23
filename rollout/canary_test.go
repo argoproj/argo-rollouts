@@ -55,7 +55,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	fake := fake.Clientset{}
 	k8sfake := k8sfake.Clientset{}
 	controller := &RolloutController{
-		rolloutsclientset: &fake,
+		argoprojclientset: &fake,
 		kubeclientset:     &k8sfake,
 		recorder:          &record.FakeRecorder{},
 	}

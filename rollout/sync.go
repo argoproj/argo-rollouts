@@ -91,7 +91,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		if needsUpdate {
 			var err error
 			logCtx.Info("Setting revision annotation after creating a new replicaset")
-			if rollout, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout); err != nil {
+			if rollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout); err != nil {
 				logCtx.WithError(err).Errorf("Error: Setting rollout revision annotation after creating a new replicaset")
 				return nil, err
 			}
@@ -170,7 +170,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		*rollout.Status.CollisionCount++
 		// Update the collisionCount for the Rollout and let it requeue by returning the original
 		// error.
-		_, roErr := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 		if roErr == nil {
 			logCtx.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *rollout.Status.CollisionCount)
 		}
@@ -198,7 +198,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 	}
 
 	if needsUpdate {
-		_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 	}
 	return createdRS, err
 }
@@ -392,7 +392,7 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	return err
 }
 
-func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment) v1alpha1.RolloutStatus {
 	if r.Spec.Paused {
 		return newStatus
 	}
@@ -414,7 +414,10 @@ func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newS
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
-
+		case newStatus.Canary.ExperimentFailed:
+			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, currentEx.Name, r.Name)
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutExperimentFailedReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *condition)
 		case conditions.RolloutProgressing(r, &newStatus):
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.
@@ -437,7 +440,6 @@ func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newS
 				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(&newStatus, *condition)
-
 		case conditions.RolloutTimedOut(r, &newStatus):
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
@@ -507,7 +509,7 @@ func (c *RolloutController) persistRolloutStatus(orig *v1alpha1.Rollout, newStat
 		return nil
 	}
 	logCtx.Debugf("Rollout Patch: %s", patch)
-	_, err = c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
 		logCtx.Warningf("Error updating application: %v", err)
 		return err

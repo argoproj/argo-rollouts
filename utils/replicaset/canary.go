@@ -275,3 +275,19 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 	}
 	return stableRS, olderRSs
 }
+
+// GetCurrentExperimentStep grabs the latest Experiment step
+func GetCurrentExperimentStep(r *v1alpha1.Rollout) *v1alpha1.RolloutCanaryExperimentStep {
+	currentStep, currentStepIndex := GetCurrentCanaryStep(r)
+	if currentStep == nil {
+		return nil
+	}
+
+	for i := *currentStepIndex; i >= 0; i-- {
+		step := r.Spec.Strategy.CanaryStrategy.Steps[i]
+		if step.Experiment != nil {
+			return step.Experiment
+		}
+	}
+	return nil
+}

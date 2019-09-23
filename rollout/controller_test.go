@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
 var (
@@ -59,6 +60,7 @@ type fixture struct {
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
 	rolloutLister    []*v1alpha1.Rollout
+	experimentLister []*v1alpha1.Experiment
 	replicaSetLister []*appsv1.ReplicaSet
 	serviceLister    []*corev1.Service
 	// Actions expected to happen on the client.
@@ -152,6 +154,10 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 	case *v1alpha1.Rollout:
 		if reason == conditions.ReplicaSetUpdatedReason {
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
+		}
+		if reason == conditions.RolloutExperimentFailedReason {
+			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, experimentutil.ExperimentNameFromRollout(resource), resource.Name)
+			status = corev1.ConditionFalse
 		}
 	case *corev1.Service:
 		if reason == conditions.ServiceNotFoundReason {
@@ -330,6 +336,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 
 	c := NewRolloutController(f.kubeclient, f.client,
+		i.Argoproj().V1alpha1().Experiments(),
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
 		i.Argoproj().V1alpha1().Rollouts(),
@@ -359,6 +366,10 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 
 	for _, r := range f.rolloutLister {
 		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(r)
+	}
+
+	for _, e := range f.experimentLister {
+		i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(e)
 	}
 
 	for _, r := range f.replicaSetLister {
@@ -457,7 +468,9 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 func filterInformerActions(actions []core.Action) []core.Action {
 	ret := []core.Action{}
 	for _, action := range actions {
-		if action.Matches("list", "rollouts") ||
+		if action.Matches("list", "experiments") ||
+			action.Matches("watch", "experiments") ||
+			action.Matches("list", "rollouts") ||
 			action.Matches("watch", "rollouts") ||
 			action.Matches("list", "replicaSets") ||
 			action.Matches("watch", "replicaSets") ||
@@ -506,10 +519,34 @@ func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
 	return len
 }
 
+func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
+	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int {
+	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
 func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) int {
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) expectPatchExperimentAction(ex *v1alpha1.Experiment) int {
+	experimentSchema := schema.GroupVersionResource{
+		Resource: "experiments",
+		Version:  "v1alpha1",
+	}
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(experimentSchema, ex.Namespace, ex.Name, types.MergePatchType, nil))
 	return len
 }
 
@@ -595,6 +632,20 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
 	return rollout
+}
+
+func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	e := v1alpha1.Experiment{}
+	err := json.Unmarshal(patchAction.GetPatch(), &e)
+	if err != nil {
+		panic(err)
+	}
+	return &e
 }
 
 func (f *fixture) getPatchedRollout(index int) string {

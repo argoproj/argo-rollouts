@@ -144,6 +144,48 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 
+// RolloutCanaryExperimentStep defines a template that is used to create a experiment for a step
+type RolloutCanaryExperimentStep struct {
+	// Indicates if the rollout should wait for the experiment to finish
+	Duration int32 `json:"duration"`
+	// Templates what templates that should be added to the experiment. Should be non-nil
+	Templates []RolloutExperimentTemplate `json:"templates"`
+	//ProgressingDeadlineSeconds Is it ncessary?
+}
+
+// RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
+type RolloutExperimentTemplate struct {
+	// Name description of template that passed to the template
+	Name string `json:"name"`
+	// Type indicates where the rollout should get the RS template from
+	SpecRef ReplicaSetSpecRef `json:"specRef"`
+	// Replicas replica count for the template
+	Replicas int32 `json:"replicas"`
+	// AdditionalSelectors additional selectors to use for the RS created from the template
+	// +optional
+	Metadata RolloutExperimentAdditionalMetadata `json:"metadata,omitempty"`
+}
+
+//RolloutExperimentAdditionalMetadata extra labels to add to the template
+type RolloutExperimentAdditionalMetadata struct {
+	// Labels Additional labels to add to the experiment
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations additional annotations to add to the experiment
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// ReplicaSetSpecRef defines which RS that the experiment's template will use.
+type ReplicaSetSpecRef string
+
+const (
+	// CanarySpecRef indicates the RS template should be pulled from the newRS's template
+	CanarySpecRef ReplicaSetSpecRef = "canary"
+	// StableSpecRef indicates the RS template should be pulled from the stableRS's template
+	StableSpecRef ReplicaSetSpecRef = "stable"
+)
+
 // CanaryStep defines a step of a canary deployment.
 type CanaryStep struct {
 	// SetWeight sets what percentage of the newRS should receive
@@ -152,6 +194,8 @@ type CanaryStep struct {
 	// A Rollout will resume when spec.Paused is reset to false.
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
+	// Experiment defines the experiment object that should be created
+	Experiment *RolloutCanaryExperimentStep `json:"experiment,omitempty"`
 }
 
 // RolloutPause defines a pause stage for a rollout
@@ -241,6 +285,9 @@ type CanaryStatus struct {
 	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
+	// ExperimentFailed indicates the most recent executed experiment in the canary steps failed
+	// +optional
+	ExperimentFailed bool `json:"experimentFailed,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

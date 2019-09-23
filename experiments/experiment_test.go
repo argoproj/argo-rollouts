@@ -45,6 +45,8 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	now := metav1.Now()
+	e.Status.AvailableAt = &now
 	e.Status.Running = pointer.BoolPtr(false)
 	cond := newCondition(conditions.ExperimentCompleteReason, e)
 

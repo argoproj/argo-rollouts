@@ -168,7 +168,7 @@ func TestScaleBlueGreen(t *testing.T) {
 			rolloutFake := fake.Clientset{}
 			k8sFake := k8sfake.Clientset{}
 			c := &RolloutController{
-				rolloutsclientset: &rolloutFake,
+				argoprojclientset: &rolloutFake,
 				kubeclientset:     &k8sFake,
 				recorder:          &record.FakeRecorder{},
 			}
@@ -336,7 +336,7 @@ func TestCleanupRollouts(t *testing.T) {
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			c := &RolloutController{
-				rolloutsclientset: &fake,
+				argoprojclientset: &fake,
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}

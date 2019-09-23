@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
-	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -85,10 +84,6 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 	newRSTemplate := *template.Template.DeepCopy()
 
 	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, templateStatus.CollisionCount)
-	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(template.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
-	//Add podTemplateHash label to selector.
-	newRSSelector := labelsutil.CloneSelectorAndAddLabel(template.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
-
 	newRS := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
@@ -99,7 +94,7 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas:        new(int32),
 			MinReadySeconds: template.MinReadySeconds,
-			Selector:        newRSSelector,
+			Selector:        template.Selector,
 			Template:        newRSTemplate,
 		},
 	}

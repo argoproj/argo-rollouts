@@ -7,6 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -418,5 +419,44 @@ func TestGetCurrentSetWeight(t *testing.T) {
 	stepIndex = 0
 	setWeight = GetCurrentSetWeight(rollout)
 	assert.Equal(t, setWeight, int32(10))
+
+}
+
+func TestGetCurrentExperiment(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				CanaryStrategy: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+								Duration: int32(1),
+							},
+						}, {
+							Pause: &v1alpha1.RolloutPause{},
+						},
+					},
+				},
+			},
+		},
+	}
+	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+
+	e := GetCurrentExperimentStep(rollout)
+	assert.Equal(t, int32(1), e.Duration)
+
+	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+
+	e = GetCurrentExperimentStep(rollout)
+	assert.Equal(t, int32(1), e.Duration)
+
+	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(2)
+
+	assert.Nil(t, GetCurrentExperimentStep(rollout))
+
+	rollout.Spec.Strategy.CanaryStrategy.Steps[0] = v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(10)}
+	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+
+	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
 }

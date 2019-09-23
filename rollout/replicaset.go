@@ -56,7 +56,7 @@ func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*a
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing ReplicaSets (see #42639).
 	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Get(r.Name, metav1.GetOptions{})
+		fresh, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Get(r.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
