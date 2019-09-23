@@ -20,6 +20,7 @@ nav:
   - Overview: index.md
   - Concepts: deployment-concepts.md
   - Getting Started: getting-started.md
+  - Experiments: experiments/index.md
   - Features:
     - features/index.md
     - BlueGreen: features/bluegreen.md
