@@ -69,7 +69,7 @@ spec:
 ## Updating the Rollout
 The initial creation of the above Rollout will bring up all 5 replicas of the Pod Spec listed. Since the rollout was not in a stable state beforehand (as it was just created), the rollout will skip the steps listed in the `.spec.strategy.canary.steps` field to first become stable. Once the new ReplicaSet is healthy, updating any field in the `spec.template` will cause the rollout to create a new ReplicaSet and execute the steps in `spec.strategy.canary.steps` to transition to the new version.
 
-To demonastrate this, we will update the rollout to use a new nginx image. You can either run `kubectl edit rollout example-rollout` and change the image from `nginx:1.15.4` to `nginx:1.15.5`, or run the following:
+To demonstrate this, we will update the rollout to use a new nginx image. You can either run `kubectl edit rollout example-rollout` and change the image from `nginx:1.15.4` to `nginx:1.15.5`, or run the following:
 
 ```bash
 $ kubectl patch rollout example-rollout --type merge -p '{"spec": {"template": { "spec": { "containers": [{"name": "ngnix","image": "nginx:1.15.5"}]}}}}'
