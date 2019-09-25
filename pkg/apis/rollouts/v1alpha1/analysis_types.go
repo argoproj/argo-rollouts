@@ -116,7 +116,7 @@ type Argument struct {
 // AnalysisRunStatus is the status for a AnalysisRun resource
 type AnalysisRunStatus struct {
 	// Status is the status of the analysis run
-	status AnalysisStatus `json:"status"`
+	Status AnalysisStatus `json:"status"`
 	// Metrics contains the metrics collected during the run
 	MetricResults map[string]MetricResult `json:"metricResults"`
 }
