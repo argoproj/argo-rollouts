@@ -5,11 +5,12 @@ metadata:
 spec:
   duration: 60
   templates:
-  - replicas: 5
-    name: tests
+  - replicas: 1
+    name: baseline
     selector:
       matchLabels:
         app: guestbook
+        version: v1
     template:
       metadata:
         labels:
@@ -17,7 +18,23 @@ spec:
       spec:
         containers:
         - name: guestbook
-          # The image below can be flip from 0.1 to 0.2 
           image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+          ports:
+          - containerPort: 80
+  - replicas: 1
+    name: canary
+    selector:
+      matchLabels:
+        app: guestbook
+        version: v2
+    template:
+      metadata:
+        labels:
+          app: guestbook
+          version: v2
+      spec:
+        containers:
+        - name: guestbook
+          image: gcr.io/heptio-images/ks-guestbook-demo:0.2
           ports:
           - containerPort: 80

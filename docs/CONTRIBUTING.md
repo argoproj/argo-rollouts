@@ -4,6 +4,7 @@ Argo Rollouts is written in Golang. If you do not have a good grounding in Go, t
 
 ## Pre-requisites
 Install:
+
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
 * [dep](https://github.com/golang/dep)
@@ -12,6 +13,7 @@ Install:
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 Argo Rollout uses the `controller-gen` binary in order to auto-generate the crd manifest and golangci-lint to lint the project. Please run the following commands to install them:
+
 * `go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen`
 * `go get -u github.com/golangci/golangci-lint/cmd/golangci-lint`
 
@@ -101,3 +103,11 @@ Install the manifests:
 ```bash
 kubectl -n argo-rollouts apply -f manifests/install.yaml
 ```
+
+## Documentation Changes
+If you need to run the mkdocs server, you will need to do the following:
+
+* Follow the instruction guide to install [mkDocs](https://www.mkdocs.org/#installation)
+* Install the `material` theme with the (following guide](https://squidfunk.github.io/mkdocs-material/#quick-start)
+
+Afterwards, you can run `mkdocs serve` and access your documentation at [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
