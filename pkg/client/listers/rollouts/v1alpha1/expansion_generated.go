@@ -18,6 +18,22 @@ limitations under the License.
 
 package v1alpha1
 
+// AnalysisRunListerExpansion allows custom methods to be added to
+// AnalysisRunLister.
+type AnalysisRunListerExpansion interface{}
+
+// AnalysisRunNamespaceListerExpansion allows custom methods to be added to
+// AnalysisRunNamespaceLister.
+type AnalysisRunNamespaceListerExpansion interface{}
+
+// AnalysisTemplateListerExpansion allows custom methods to be added to
+// AnalysisTemplateLister.
+type AnalysisTemplateListerExpansion interface{}
+
+// AnalysisTemplateNamespaceListerExpansion allows custom methods to be added to
+// AnalysisTemplateNamespaceLister.
+type AnalysisTemplateNamespaceListerExpansion interface{}
+
 // ExperimentListerExpansion allows custom methods to be added to
 // ExperimentLister.
 type ExperimentListerExpansion interface{}

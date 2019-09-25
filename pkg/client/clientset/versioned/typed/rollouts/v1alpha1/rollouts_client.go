@@ -27,6 +27,8 @@ import (
 
 type ArgoprojV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AnalysisRunsGetter
+	AnalysisTemplatesGetter
 	ExperimentsGetter
 	RolloutsGetter
 }
@@ -34,6 +36,14 @@ type ArgoprojV1alpha1Interface interface {
 // ArgoprojV1alpha1Client is used to interact with features provided by the argoproj.io group.
 type ArgoprojV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *ArgoprojV1alpha1Client) AnalysisRuns(namespace string) AnalysisRunInterface {
+	return newAnalysisRuns(c, namespace)
+}
+
+func (c *ArgoprojV1alpha1Client) AnalysisTemplates(namespace string) AnalysisTemplateInterface {
+	return newAnalysisTemplates(c, namespace)
 }
 
 func (c *ArgoprojV1alpha1Client) Experiments(namespace string) ExperimentInterface {

@@ -6,7 +6,9 @@ spec:
   group: argoproj.io
   names:
     kind: Experiment
+    listKind: ExperimentList
     plural: experiments
+    singular: experiment
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -16,145 +18,6 @@ spec:
         kind:
           type: string
         metadata:
-          properties:
-            annotations:
-              additionalProperties:
-                type: string
-              type: object
-            clusterName:
-              type: string
-            deletionGracePeriodSeconds:
-              format: int64
-              type: integer
-            deletionTimestamp:
-              format: date-time
-              type: string
-            finalizers:
-              items:
-                type: string
-              type: array
-            generateName:
-              type: string
-            generation:
-              format: int64
-              type: integer
-            initializers:
-              properties:
-                pending:
-                  items:
-                    properties:
-                      name:
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  type: array
-                result:
-                  properties:
-                    apiVersion:
-                      type: string
-                    code:
-                      format: int32
-                      type: integer
-                    details:
-                      properties:
-                        causes:
-                          items:
-                            properties:
-                              field:
-                                type: string
-                              message:
-                                type: string
-                              reason:
-                                type: string
-                            type: object
-                          type: array
-                        group:
-                          type: string
-                        kind:
-                          type: string
-                        name:
-                          type: string
-                        retryAfterSeconds:
-                          format: int32
-                          type: integer
-                        uid:
-                          type: string
-                      type: object
-                    kind:
-                      type: string
-                    message:
-                      type: string
-                    metadata:
-                      properties:
-                        continue:
-                          type: string
-                        resourceVersion:
-                          type: string
-                        selfLink:
-                          type: string
-                      type: object
-                    reason:
-                      type: string
-                    status:
-                      type: string
-                  type: object
-              required:
-              - pending
-              type: object
-            labels:
-              additionalProperties:
-                type: string
-              type: object
-            managedFields:
-              items:
-                properties:
-                  apiVersion:
-                    type: string
-                  fields:
-                    additionalProperties: true
-                    type: object
-                  manager:
-                    type: string
-                  operation:
-                    type: string
-                  time:
-                    format: date-time
-                    type: string
-                type: object
-              type: array
-            name:
-              type: string
-            namespace:
-              type: string
-            ownerReferences:
-              items:
-                properties:
-                  apiVersion:
-                    type: string
-                  blockOwnerDeletion:
-                    type: boolean
-                  controller:
-                    type: boolean
-                  kind:
-                    type: string
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - apiVersion
-                - kind
-                - name
-                - uid
-                type: object
-              type: array
-            resourceVersion:
-              type: string
-            selfLink:
-              type: string
-            uid:
-              type: string
           type: object
         spec:
           properties:
@@ -201,148 +64,6 @@ spec:
                   template:
                     properties:
                       metadata:
-                        properties:
-                          annotations:
-                            additionalProperties:
-                              type: string
-                            type: object
-                          clusterName:
-                            type: string
-                          creationTimestamp:
-                            format: date-time
-                            type: string
-                          deletionGracePeriodSeconds:
-                            format: int64
-                            type: integer
-                          deletionTimestamp:
-                            format: date-time
-                            type: string
-                          finalizers:
-                            items:
-                              type: string
-                            type: array
-                          generateName:
-                            type: string
-                          generation:
-                            format: int64
-                            type: integer
-                          initializers:
-                            properties:
-                              pending:
-                                items:
-                                  properties:
-                                    name:
-                                      type: string
-                                  required:
-                                  - name
-                                  type: object
-                                type: array
-                              result:
-                                properties:
-                                  apiVersion:
-                                    type: string
-                                  code:
-                                    format: int32
-                                    type: integer
-                                  details:
-                                    properties:
-                                      causes:
-                                        items:
-                                          properties:
-                                            field:
-                                              type: string
-                                            message:
-                                              type: string
-                                            reason:
-                                              type: string
-                                          type: object
-                                        type: array
-                                      group:
-                                        type: string
-                                      kind:
-                                        type: string
-                                      name:
-                                        type: string
-                                      retryAfterSeconds:
-                                        format: int32
-                                        type: integer
-                                      uid:
-                                        type: string
-                                    type: object
-                                  kind:
-                                    type: string
-                                  message:
-                                    type: string
-                                  metadata:
-                                    properties:
-                                      continue:
-                                        type: string
-                                      resourceVersion:
-                                        type: string
-                                      selfLink:
-                                        type: string
-                                    type: object
-                                  reason:
-                                    type: string
-                                  status:
-                                    type: string
-                                type: object
-                            required:
-                            - pending
-                            type: object
-                          labels:
-                            additionalProperties:
-                              type: string
-                            type: object
-                          managedFields:
-                            items:
-                              properties:
-                                apiVersion:
-                                  type: string
-                                fields:
-                                  additionalProperties: true
-                                  type: object
-                                manager:
-                                  type: string
-                                operation:
-                                  type: string
-                                time:
-                                  format: date-time
-                                  type: string
-                              type: object
-                            type: array
-                          name:
-                            type: string
-                          namespace:
-                            type: string
-                          ownerReferences:
-                            items:
-                              properties:
-                                apiVersion:
-                                  type: string
-                                blockOwnerDeletion:
-                                  type: boolean
-                                controller:
-                                  type: boolean
-                                kind:
-                                  type: string
-                                name:
-                                  type: string
-                                uid:
-                                  type: string
-                              required:
-                              - apiVersion
-                              - kind
-                              - name
-                              - uid
-                              type: object
-                            type: array
-                          resourceVersion:
-                            type: string
-                          selfLink:
-                            type: string
-                          uid:
-                            type: string
                         type: object
                       spec:
                         properties:
@@ -395,8 +116,8 @@ spec:
                                           format: int32
                                           type: integer
                                       required:
-                                      - weight
                                       - preference
+                                      - weight
                                       type: object
                                     type: array
                                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -485,8 +206,8 @@ spec:
                                           format: int32
                                           type: integer
                                       required:
-                                      - weight
                                       - podAffinityTerm
+                                      - weight
                                       type: object
                                     type: array
                                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -569,8 +290,8 @@ spec:
                                           format: int32
                                           type: integer
                                       required:
-                                      - weight
                                       - podAffinityTerm
+                                      - weight
                                       type: object
                                     type: array
                                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -1021,8 +742,8 @@ spec:
                                       name:
                                         type: string
                                     required:
-                                    - name
                                     - devicePath
+                                    - name
                                     type: object
                                   type: array
                                 volumeMounts:
@@ -1041,8 +762,8 @@ spec:
                                       subPathExpr:
                                         type: string
                                     required:
-                                    - name
                                     - mountPath
+                                    - name
                                     type: object
                                   type: array
                                 workingDir:
@@ -1509,8 +1230,8 @@ spec:
                                       name:
                                         type: string
                                     required:
-                                    - name
                                     - devicePath
+                                    - name
                                     type: object
                                   type: array
                                 volumeMounts:
@@ -1529,8 +1250,8 @@ spec:
                                       subPathExpr:
                                         type: string
                                     required:
-                                    - name
                                     - mountPath
+                                    - name
                                     type: object
                                   type: array
                                 workingDir:
@@ -1868,9 +1589,9 @@ spec:
                                     targetPortal:
                                       type: string
                                   required:
-                                  - targetPortal
                                   - iqn
                                   - lun
+                                  - targetPortal
                                   type: object
                                 name:
                                   type: string
@@ -1883,8 +1604,8 @@ spec:
                                     server:
                                       type: string
                                   required:
-                                  - server
                                   - path
+                                  - server
                                   type: object
                                 persistentVolumeClaim:
                                   properties:
@@ -1982,8 +1703,8 @@ spec:
                                     user:
                                       type: string
                                   required:
-                                  - monitors
                                   - image
+                                  - monitors
                                   type: object
                                 scaleIO:
                                   properties:
@@ -2012,8 +1733,8 @@ spec:
                                       type: string
                                   required:
                                   - gateway
-                                  - system
                                   - secretRef
+                                  - system
                                   type: object
                                 storageos:
                                   properties:
@@ -2084,12 +1805,12 @@ spec:
                   type:
                     type: string
                 required:
-                - type
-                - status
-                - lastUpdateTime
                 - lastTransitionTime
-                - reason
+                - lastUpdateTime
                 - message
+                - reason
+                - status
+                - type
                 type: object
               type: array
             observedGeneration:
@@ -2117,17 +1838,18 @@ spec:
                     format: int32
                     type: integer
                 required:
+                - availableReplicas
                 - name
+                - readyReplicas
                 - replicas
                 - updatedReplicas
-                - readyReplicas
-                - availableReplicas
                 type: object
               type: array
           type: object
       required:
       - spec
       type: object
+  version: v1alpha1
   versions:
   - name: v1alpha1
     served: true

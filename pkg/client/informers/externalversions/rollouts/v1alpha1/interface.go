@@ -24,6 +24,10 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// AnalysisRuns returns a AnalysisRunInformer.
+	AnalysisRuns() AnalysisRunInformer
+	// AnalysisTemplates returns a AnalysisTemplateInformer.
+	AnalysisTemplates() AnalysisTemplateInformer
 	// Experiments returns a ExperimentInformer.
 	Experiments() ExperimentInformer
 	// Rollouts returns a RolloutInformer.
@@ -39,6 +43,16 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// AnalysisRuns returns a AnalysisRunInformer.
+func (v *version) AnalysisRuns() AnalysisRunInformer {
+	return &analysisRunInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// AnalysisTemplates returns a AnalysisTemplateInformer.
+func (v *version) AnalysisTemplates() AnalysisTemplateInformer {
+	return &analysisTemplateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Experiments returns a ExperimentInformer.

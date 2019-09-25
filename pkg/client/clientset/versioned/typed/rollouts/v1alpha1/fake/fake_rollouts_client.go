@@ -28,6 +28,14 @@ type FakeArgoprojV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeArgoprojV1alpha1) AnalysisRuns(namespace string) v1alpha1.AnalysisRunInterface {
+	return &FakeAnalysisRuns{c, namespace}
+}
+
+func (c *FakeArgoprojV1alpha1) AnalysisTemplates(namespace string) v1alpha1.AnalysisTemplateInterface {
+	return &FakeAnalysisTemplates{c, namespace}
+}
+
 func (c *FakeArgoprojV1alpha1) Experiments(namespace string) v1alpha1.ExperimentInterface {
 	return &FakeExperiments{c, namespace}
 }
