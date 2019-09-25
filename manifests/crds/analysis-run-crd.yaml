@@ -1,0 +1,129 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: analysisruns.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: AnalysisRun
+    listKind: AnalysisRunList
+    plural: analysisruns
+    singular: analysisrun
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            analysisSpec:
+              properties:
+                metrics:
+                  items:
+                    properties:
+                      failFast:
+                        type: boolean
+                      failureCondition:
+                        type: string
+                      interval:
+                        format: int32
+                        type: integer
+                      maxFailures:
+                        format: int32
+                        type: integer
+                      name:
+                        type: string
+                      prometheus:
+                        properties:
+                          query:
+                            type: string
+                          server:
+                            type: string
+                        type: object
+                      successCondition:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  type: array
+              required:
+              - metrics
+              type: object
+            arguments:
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                - value
+                type: object
+              type: array
+            replicaSets:
+              items:
+                type: string
+              type: array
+          required:
+          - analysisSpec
+          type: object
+        status:
+          properties:
+            metricResults:
+              additionalProperties:
+                properties:
+                  failures:
+                    format: int32
+                    type: integer
+                  measurements:
+                    items:
+                      properties:
+                        finishedAt:
+                          format: date-time
+                          type: string
+                        metadata:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        startedAt:
+                          format: date-time
+                          type: string
+                        status:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - status
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  status:
+                    type: string
+                required:
+                - failures
+                - measurements
+                - name
+                - status
+                type: object
+              type: object
+            status:
+              type: string
+          required:
+          - metricResults
+          - status
+          type: object
+      required:
+      - spec
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true

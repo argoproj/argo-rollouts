@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	rolloutCrdPath    = "manifests/crds/rollout-crd.yaml"
-	experimentCrdPath = "manifests/crds/experiment-crd.yaml"
+	rolloutCrdPath          = "manifests/crds/rollout-crd.yaml"
+	experimentCrdPath       = "manifests/crds/experiment-crd.yaml"
+	analysisRunCrdPath      = "manifests/crds/analysis-run-crd.yaml"
+	analysisTemplateCrdPath = "manifests/crds/analysis-template-crd.yaml"
 )
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
@@ -204,8 +206,13 @@ func main() {
 		checkErr(err)
 
 		path := rolloutCrdPath
-		if crdKind == "Experiment" {
+		switch crdKind {
+		case "Experiment":
 			path = experimentCrdPath
+		case "AnalysisTemplate":
+			path = analysisTemplateCrdPath
+		case "AnalysisRun":
+			path = analysisRunCrdPath
 		}
 		err = ioutil.WriteFile(path, yamlBytes, 0644)
 		checkErr(err)

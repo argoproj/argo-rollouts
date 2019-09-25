@@ -905,26 +905,26 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 					},
 					"startedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StartedAt is the timestamp in which this measurement was collected",
+							Description: "StartedAt is the timestamp in which this measurement started to be measured",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"time": {
+					"finishedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StartedAt is the timestamp in which this measurement was collected",
+							Description: "FinishedAt is the timestamp in which this measurement completed and value was collected",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Value is the measured value of the metric.",
+							Description: "Value is the measured value of the metric",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Metadata stores additional metadata about this metric result used by the different providers (e.g. kayenta run ID, job name)",
+							Description: "Metadata stores additional metadata about this metric result, used by the different providers (e.g. kayenta run ID, job name)",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Schema: &spec.Schema{

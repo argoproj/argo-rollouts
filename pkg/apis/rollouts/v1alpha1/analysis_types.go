@@ -137,13 +137,13 @@ type MetricResult struct {
 type Measurement struct {
 	// Status is the status of this single measurement
 	Status AnalysisStatus `json:"status"`
-	// StartedAt is the timestamp in which this measurement was collected
+	// StartedAt is the timestamp in which this measurement started to be measured
 	StartedAt metav1.Time `json:"startedAt,omitempty"`
-	// StartedAt is the timestamp in which this measurement was collected
-	FinishedAt metav1.Time `json:"time,omitempty"`
-	// Value is the measured value of the metric.
+	// FinishedAt is the timestamp in which this measurement completed and value was collected
+	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
+	// Value is the measured value of the metric
 	Value string `json:"value,omitempty"`
-	// Metadata stores additional metadata about this metric result used by the different providers
+	// Metadata stores additional metadata about this metric result, used by the different providers
 	// (e.g. kayenta run ID, job name)
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
