@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	batchv1 "k8s.io/apimachinery/pkg/apis/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,8 +32,6 @@ type AnalysisTemplateSpec struct {
 type AnalysisMetric struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
-	// ExecutionPhase specifies when the analysis should be performed
-	ExecutionPhase string `json:"executionPhase,omitempty"`
 	// Interval defines the interval in seconds between each metric analysis
 	// If omitted, will perform the metric analysis only once
 	Interval *int32 `json:"interval,omitempty"`
@@ -57,25 +54,19 @@ type AnalysisMetric struct {
 	FailFast bool `json:"failFast,omitempty"`
 	// PrometheusMetric specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
-	// WebhookMetric specifies the webhook metric to query
-	Webhook *WebhookMetric `json:"webhook,omitempty"`
-	// JobMetric specifies the job metric to run
-	Job *JobMetric `json:"job,omitempty"`
 }
-type MetricResultStatus string
 
+// AnalysisStatus is the overall status of the AnalysisRun, MetricResults, or Measurement
+type AnalysisStatus string
+
+// AnalysisStatus is the overall status of the AnalysisRun, MetricResults
 const (
-	MetricResultStatusSuccessful   MetricResultStatus = "Successful"
-	MetricResultStatusFailed       MetricResultStatus = "Failed"
-	MetricResultStatusInconclusive MetricResultStatus = "Inconclusive"
-)
-
-type MetricResultStatus string
-
-const (
-	MetricResultStatusSuccessful   MetricResultStatus = "Successful"
-	MetricResultStatusFailed       MetricResultStatus = "Failed"
-	MetricResultStatusInconclusive MetricResultStatus = "Inconclusive"
+	AnalysisStatusPending      AnalysisStatus = "Pending"
+	AnalysisStatusRunning      AnalysisStatus = "Running"
+	AnalysisStatusSuccessful   AnalysisStatus = "Successful"
+	AnalysisStatusFailed       AnalysisStatus = "Failed"
+	AnalysisStatusError        AnalysisStatus = "Error"
+	AnalysisStatusInconclusive AnalysisStatus = "Inconclusive"
 )
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
@@ -84,18 +75,6 @@ type PrometheusMetric struct {
 	Server string `json:"server,omitempty"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty"`
-}
-
-// WebhookMetric defines the webhook to perform canary analysis
-type WebhookMetric struct {
-	// URL is the URL to perform a webhook query. Non 2XX return codes are considered failures
-	URL string `json:"url"`
-}
-
-// JobMetric defines a kubernetes job to perform canary analysis
-type JobMetric struct {
-	// Spec is a Kuberenetes Job spec
-	Spec batchv1.JobSpec `json:"spec"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate
@@ -136,27 +115,18 @@ type Argument struct {
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
 type AnalysisRunStatus struct {
-	// Phase is the phase of the analysis run
-	Phase AnysisPhase `json:"phase"`
+	// Status is the status of the analysis run
+	status AnalysisStatus `json:"status"`
 	// Metrics contains the metrics collected during the run
-	Metrics map[string]MetricResults `json:"metrics"`
+	MetricResults map[string]MetricResult `json:"metricResults"`
 }
 
-type AnysisPhase string
-
-const (
-	AnalysisPhasePending      AnysisPhase = "Pending"
-	AnalysisPhaseRunning      AnysisPhase = "Running"
-	AnalysisPhaseSuccessful   AnysisPhase = "Successful"
-	AnalysisPhaseFailed       AnysisPhase = "Failed"
-	AnalysisPhaseError        AnysisPhase = "Error"
-	AnalysisPhaseInconclusive AnysisPhase = "Inconclusive"
-)
-
-// MetricResult
-type MetricResults struct {
+// MetricResult contain a list of the most recent measurements for a single metric
+type MetricResult struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
+	// Status is the overall aggregate status of the metric
+	Status AnalysisStatus `json:"status"`
 	// Measurements holds the most recent measurements collected for the metric
 	Measurements []Measurement `json:"measurements"`
 	// Failures counts the number of times the measurement was measured as a failure
@@ -165,10 +135,15 @@ type MetricResults struct {
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
 type Measurement struct {
+	// Status is the status of this single measurement
+	Status AnalysisStatus `json:"status"`
+	// StartedAt is the timestamp in which this measurement was collected
+	StartedAt metav1.Time `json:"startedAt,omitempty"`
+	// StartedAt is the timestamp in which this measurement was collected
+	FinishedAt metav1.Time `json:"time,omitempty"`
 	// Value is the measured value of the metric.
 	Value string `json:"value,omitempty"`
-	// Time is the timestamp in which this measurement was collected
-	Time metav1.Time `json:"time"`
-	// Metadata contains additional metadata about this metric result used by metrics (e.g. kayenta run ID)
+	// Metadata stores additional metadata about this metric result used by the different providers
+	// (e.g. kayenta run ID, job name)
 	Metadata map[string]string `json:"metadata,omitempty"`
 }

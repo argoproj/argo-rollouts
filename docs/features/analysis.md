@@ -1,6 +1,7 @@
+# Canary Analysis & Progressive Delivery
 
-
-# Progressive Delivery
+> NOTE: this is the API spec for Rollouts (v0.6) to perform canary analysis and progressive
+delivery during a rollout and is subject to change
 
 Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
