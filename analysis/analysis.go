@@ -47,7 +47,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
 // sync, based on the last completion times of measurement was taken (if ever). If any metrics
-// are failed, will not perform further measurements.
+// are failed, will not perform further measurements on other metrics (fast fail).
 func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	log := logutil.WithAnalysisRun(run)
 	isFailing := analysisutil.IsFailing(run)
@@ -93,9 +93,8 @@ func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	for _, task := range tasks {
 		wg.Add(1)
 		//var provider provider.MetricProvider
-		if task.metric.Prometheus != nil {
-			//provider = provider.NewPrometheusProvider()
-		}
+		//provider = provider.NewProvider(task.metric)
+
 		//go func(p provider.Provider, t metricTask) {
 		go func(p interface{}, t metricTask) {
 			defer wg.Done()

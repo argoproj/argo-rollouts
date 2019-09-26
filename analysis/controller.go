@@ -28,7 +28,7 @@ type AnalysisController struct {
 
 	analysisRunLister listers.AnalysisRunLister
 
-	analysisSynced cache.InformerSynced
+	analysisRunSynced cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
 
@@ -41,7 +41,7 @@ type AnalysisController struct {
 	// means we can ensure we only process a fixed amount of resources at a
 	// time, and makes it easy to ensure we are never processing the same item
 	// simultaneously in two different workers.
-	analysisWorkqueue workqueue.RateLimitingInterface
+	analysisRunWorkQueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder     record.EventRecorder
@@ -54,27 +54,27 @@ func NewAnalysisController(
 	arogProjClientset clientset.Interface,
 	analysisRunInformer informers.AnalysisRunInformer,
 	resyncPeriod time.Duration,
-	analysisWorkQueue workqueue.RateLimitingInterface,
+	analysisRunWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
 	recorder record.EventRecorder) *AnalysisController {
 
 	controller := &AnalysisController{
-		kubeclientset:     kubeclientset,
-		arogProjClientset: arogProjClientset,
-		analysisRunLister: analysisRunInformer.Lister(),
-		metricsServer:     metricsServer,
-		analysisWorkqueue: analysisWorkQueue,
+		kubeclientset:        kubeclientset,
+		arogProjClientset:    arogProjClientset,
+		analysisRunLister:    analysisRunInformer.Lister(),
+		metricsServer:        metricsServer,
+		analysisRunWorkQueue: analysisRunWorkQueue,
 
-		analysisSynced: analysisRunInformer.Informer().HasSynced,
-		recorder:       recorder,
-		resyncPeriod:   resyncPeriod,
+		analysisRunSynced: analysisRunInformer.Informer().HasSynced,
+		recorder:          recorder,
+		resyncPeriod:      resyncPeriod,
 	}
 
 	controller.enqueueAnalysis = func(obj interface{}) {
-		controllerutil.Enqueue(obj, analysisWorkQueue)
+		controllerutil.Enqueue(obj, analysisRunWorkQueue)
 	}
 	controller.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
-		controllerutil.EnqueueAfter(obj, duration, analysisWorkQueue)
+		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
 	}
 
 	log.Info("Setting up analysis event handlers")
@@ -93,7 +93,7 @@ func (c *AnalysisController) Run(threadiness int, stopCh <-chan struct{}) error 
 	log.Info("Starting analysis workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.analysisWorkqueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
+			controllerutil.RunWorker(c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
 		}, time.Second, stopCh)
 	}
 	log.Infof("Started %d analysis workers", threadiness)
