@@ -29,7 +29,6 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisMetric":            schema_pkg_apis_rollouts_v1alpha1_AnalysisMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":               schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":           schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":           schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
@@ -49,6 +48,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":            schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":          schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":               schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                    schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":              schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":       schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":          schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
@@ -63,69 +63,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":           schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":              schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":            schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_AnalysisMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "AnalysisMetric defines a metric in which to perform analysis",
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of the metric",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"interval": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Interval defines the interval in seconds between each metric analysis If omitted, will perform the metric analysis only once",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"successCondition": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90\n  result IN (red, yellow)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"failureCondition": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailureCondition is an expression which determines if a measurement is considered failed If both success and failure conditions are specified, and the measurement does not fall into either condition, the measurement is considered Inconclusive",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"maxFailures": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered failed (default: 1)",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"failFast": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailFast will fail the entire analysis run prematurely",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"prometheus": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PrometheusMetric specifies the prometheus metric to query",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"),
-						},
-					},
-				},
-				Required: []string{"name"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
 	}
 }
 
@@ -400,7 +337,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisMetric"),
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
 									},
 								},
 							},
@@ -411,7 +348,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
 	}
 }
 
@@ -961,11 +898,74 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Metric defines a metric in which to perform analysis",
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the metric",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"interval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Interval defines the interval in seconds between each metric analysis If omitted, will perform the metric analysis only once",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"successCondition": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90\n  result IN (red, yellow)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"failureCondition": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailureCondition is an expression which determines if a measurement is considered failed If both success and failure conditions are specified, and the measurement does not fall into either condition, the measurement is considered Inconclusive",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Count is the number of times to run measurement. If omitted, runs indefinitely",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxFailures": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered failed (default: 0)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"prometheus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrometheusMetric specifies the prometheus metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MetricResult contain a list of the most recent measurements for a single metric",
+				Description: "MetricResult contain a list of the most recent measurements for a single metric along with counters on how often the measurement",
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -994,15 +994,43 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							},
 						},
 					},
-					"failures": {
+					"count": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Failures counts the number of times the measurement was measured as a failure",
+							Description: "Count is the total number of measurements that have been taken",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"successful": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Successful is the number of times the metric was measured Successful",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"failed": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Failed is the number of times the metric was measured Failed",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"error": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Error is the number of times an error was encountered during measurement",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"inconclusive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Inconclusive is the number of times the metric was measured Inconclusive",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 				},
-				Required: []string{"name", "status", "measurements", "failures"},
+				Required: []string{"name", "status"},
 			},
 		},
 		Dependencies: []string{

@@ -26,8 +26,9 @@ spec:
                 metrics:
                   items:
                     properties:
-                      failFast:
-                        type: boolean
+                      count:
+                        format: int32
+                        type: integer
                       failureCondition:
                         type: string
                       interval:
@@ -78,7 +79,16 @@ spec:
             metricResults:
               additionalProperties:
                 properties:
-                  failures:
+                  count:
+                    format: int32
+                    type: integer
+                  error:
+                    format: int32
+                    type: integer
+                  failed:
+                    format: int32
+                    type: integer
+                  inconclusive:
                     format: int32
                     type: integer
                   measurements:
@@ -106,9 +116,10 @@ spec:
                     type: string
                   status:
                     type: string
+                  successful:
+                    format: int32
+                    type: integer
                 required:
-                - failures
-                - measurements
                 - name
                 - status
                 type: object

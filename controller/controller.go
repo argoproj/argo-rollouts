@@ -37,13 +37,13 @@ const (
 	// DefaultMetricsPort Default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
 
-	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	// DefaultRolloutThreads Default number of worker threads to start with the controller
 	DefaultRolloutThreads = 10
 
-	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	// DefaultExperimentThreads Default number of worker threads to start with the controller
 	DefaultExperimentThreads = 10
 
-	// DefaultRolloutThreads Default numnber of worker threads to start with the controller
+	// DefaultServiceThreads Default number of worker threads to start with the controller
 	DefaultServiceThreads = 10
 )
 

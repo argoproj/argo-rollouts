@@ -24,8 +24,9 @@ spec:
             metrics:
               items:
                 properties:
-                  failFast:
-                    type: boolean
+                  count:
+                    format: int32
+                    type: integer
                   failureCondition:
                     type: string
                   interval:

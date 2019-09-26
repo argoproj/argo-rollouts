@@ -25,11 +25,11 @@ type AnalysisTemplateList struct {
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
-	Metrics []AnalysisMetric `json:"metrics"`
+	Metrics []Metric `json:"metrics"`
 }
 
-// AnalysisMetric defines a metric in which to perform analysis
-type AnalysisMetric struct {
+// Metric defines a metric in which to perform analysis
+type Metric struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
 	// Interval defines the interval in seconds between each metric analysis
@@ -47,11 +47,11 @@ type AnalysisMetric struct {
 	// If both success and failure conditions are specified, and the measurement does not fall into
 	// either condition, the measurement is considered Inconclusive
 	FailureCondition string `json:"failureCondition,omitempty"`
+	// Count is the number of times to run measurement. If omitted, runs indefinitely
+	Count int32 `json:"count,omitempty"`
 	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
-	// entire metric is considered failed (default: 1)
-	MaxFailures *int32 `json:"maxFailures,omitempty"`
-	// FailFast will fail the entire analysis run prematurely
-	FailFast bool `json:"failFast,omitempty"`
+	// entire metric is considered failed (default: 0)
+	MaxFailures int32 `json:"maxFailures,omitempty"`
 	// PrometheusMetric specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 }
@@ -68,6 +68,15 @@ const (
 	AnalysisStatusError        AnalysisStatus = "Error"
 	AnalysisStatusInconclusive AnalysisStatus = "Inconclusive"
 )
+
+// Completed returns whether or not the analysis status is considered completed
+func (as AnalysisStatus) Completed() bool {
+	switch as {
+	case AnalysisStatusSuccessful, AnalysisStatusFailed, AnalysisStatusError, AnalysisStatusInconclusive:
+		return true
+	}
+	return false
+}
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
 type PrometheusMetric struct {
@@ -121,16 +130,25 @@ type AnalysisRunStatus struct {
 	MetricResults map[string]MetricResult `json:"metricResults"`
 }
 
-// MetricResult contain a list of the most recent measurements for a single metric
+// MetricResult contain a list of the most recent measurements for a single metric along with
+// counters on how often the measurement
 type MetricResult struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
 	// Status is the overall aggregate status of the metric
 	Status AnalysisStatus `json:"status"`
 	// Measurements holds the most recent measurements collected for the metric
-	Measurements []Measurement `json:"measurements"`
-	// Failures counts the number of times the measurement was measured as a failure
-	Failures *int32 `json:"failures"`
+	Measurements []Measurement `json:"measurements,omitempty"`
+	// Count is the total number of measurements that have been taken
+	Count int32 `json:"count,omitempty"`
+	// Successful is the number of times the metric was measured Successful
+	Successful int32 `json:"successful,omitempty"`
+	// Failed is the number of times the metric was measured Failed
+	Failed int32 `json:"failed,omitempty"`
+	// Error is the number of times an error was encountered during measurement
+	Error int32 `json:"error,omitempty"`
+	// Inconclusive is the number of times the metric was measured Inconclusive
+	Inconclusive int32 `json:"inconclusive,omitempty"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
