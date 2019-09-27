@@ -38,7 +38,7 @@ const (
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
-	InvalidStepMessage = "Step must have either setWeight or pause set"
+	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, or pause"
 	// ScaleDownDelayLongerThanDeadlineMessage indicates the ScaleDownDelaySeconds is longer than ProgressDeadlineSeconds
 	ScaleDownDelayLongerThanDeadlineMessage = "ScaleDownDelaySeconds cannot be longer than ProgressDeadlineSeconds"
 	// RolloutMinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
@@ -85,7 +85,10 @@ const (
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available pods that need to run for the rollout.
 	NewRSAvailableReason = "NewReplicaSetAvailable"
-
+	// RolloutExperimentFailedReason is added in a rollout when the experiment owned by a rollout fails to show any progress
+	RolloutExperimentFailedReason = "ExperimentFailed"
+	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
+	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 	// TimedOutReason is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
@@ -317,7 +320,10 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
 		}
 		for _, step := range rollout.Spec.Strategy.CanaryStrategy.Steps {
-			if (step.Pause != nil && step.SetWeight != nil) || (step.Pause == nil && step.SetWeight == nil) {
+			if hasMultipleStepsType(step) {
+				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
+			}
+			if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}
 			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
@@ -330,6 +336,23 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	}
 
 	return nil
+}
+
+func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
+	oneOf := make([]bool, 3)
+	oneOf = append(oneOf, s.SetWeight != nil)
+	oneOf = append(oneOf, s.Pause != nil)
+	oneOf = append(oneOf, s.Experiment != nil)
+	hasMultipleStepTypes := false
+	for i := range oneOf {
+		if oneOf[i] {
+			if hasMultipleStepTypes {
+				return true
+			}
+			hasMultipleStepTypes = true
+		}
+	}
+	return false
 }
 
 func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {

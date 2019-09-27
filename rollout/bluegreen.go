@@ -230,7 +230,7 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaS
 	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause)
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(r, newRS, activeRS)
-	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS)
+	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, nil)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 

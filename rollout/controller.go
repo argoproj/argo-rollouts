@@ -41,16 +41,17 @@ type RolloutController struct {
 
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
-	// rolloutsclientset is a clientset for our own API group
-	rolloutsclientset clientset.Interface
+	// argoprojclientset is a clientset for our own API group
+	argoprojclientset clientset.Interface
 
-	replicaSetLister appslisters.ReplicaSetLister
-	replicaSetSynced cache.InformerSynced
-	rolloutsLister   listers.RolloutLister
-	rolloutsSynced   cache.InformerSynced
-	rolloutsIndexer  cache.Indexer
-	servicesLister   v1.ServiceLister
-	metricsServer    *metrics.MetricsServer
+	replicaSetLister  appslisters.ReplicaSetLister
+	replicaSetSynced  cache.InformerSynced
+	rolloutsLister    listers.RolloutLister
+	rolloutsSynced    cache.InformerSynced
+	rolloutsIndexer   cache.Indexer
+	servicesLister    v1.ServiceLister
+	experimentsLister listers.ExperimentLister
+	metricsServer     *metrics.MetricsServer
 
 	// used for unit testing
 	enqueueRollout      func(obj interface{})
@@ -72,7 +73,8 @@ type RolloutController struct {
 // NewRolloutController returns a new rollout controller
 func NewRolloutController(
 	kubeclientset kubernetes.Interface,
-	rolloutsclientset clientset.Interface,
+	argoprojclientset clientset.Interface,
+	experimentInformer informers.ExperimentInformer,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
@@ -89,7 +91,7 @@ func NewRolloutController(
 
 	controller := &RolloutController{
 		kubeclientset:     kubeclientset,
-		rolloutsclientset: rolloutsclientset,
+		argoprojclientset: argoprojclientset,
 		replicaSetControl: replicaSetControl,
 		replicaSetLister:  replicaSetInformer.Lister(),
 		replicaSetSynced:  replicaSetInformer.Informer().HasSynced,
@@ -99,6 +101,7 @@ func NewRolloutController(
 		rolloutWorkqueue:  rolloutWorkQueue,
 		serviceWorkqueue:  serviceWorkQueue,
 		servicesLister:    servicesInformer.Lister(),
+		experimentsLister: experimentInformer.Lister(),
 		recorder:          recorder,
 		resyncPeriod:      resyncPeriod,
 		metricsServer:     metricsServer,
@@ -199,7 +202,7 @@ func (c *RolloutController) syncHandler(key string) error {
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Setting .Spec.Replica to 1 from nil")
 		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
-		_, err := c.rolloutsclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
 		return err
 
 	}

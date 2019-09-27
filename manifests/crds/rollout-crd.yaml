@@ -122,6 +122,42 @@ spec:
                     steps:
                       items:
                         properties:
+                          experiment:
+                            properties:
+                              duration:
+                                format: int32
+                                type: integer
+                              templates:
+                                items:
+                                  properties:
+                                    metadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
+                                    name:
+                                      type: string
+                                    replicas:
+                                      format: int32
+                                      type: integer
+                                    specRef:
+                                      type: string
+                                  required:
+                                  - name
+                                  - replicas
+                                  - specRef
+                                  type: object
+                                type: array
+                            required:
+                            - duration
+                            - templates
+                            type: object
                           pause:
                             properties:
                               duration:
@@ -1867,6 +1903,8 @@ spec:
               type: object
             canary:
               properties:
+                experimentFailed:
+                  type: boolean
                 stableRS:
                   type: string
               type: object

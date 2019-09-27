@@ -344,7 +344,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			message:  InvalidStepMessage,
 		},
 		{
-			name:  "Nether setWeight and pause are set",
+			name:  "experiment, setWeight, and pause are not set",
 			steps: []v1alpha1.CanaryStep{{}},
 
 			notValid: true,

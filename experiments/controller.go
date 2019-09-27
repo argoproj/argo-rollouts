@@ -116,17 +116,17 @@ func NewExperimentController(
 		DeleteFunc: controller.enqueueExperiment,
 	})
 
-	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	experimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.experimentsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newRollout := new.(*v1alpha1.Rollout)
-			oldRollout := old.(*v1alpha1.Rollout)
-			if newRollout.ResourceVersion == oldRollout.ResourceVersion {
+			newExperiment := new.(*v1alpha1.Experiment)
+			oldExperiment := old.(*v1alpha1.Experiment)
+			if newExperiment.ResourceVersion == oldExperiment.ResourceVersion {
 				// Periodic resync will send update events for all known replicas.
 				// Two different versions of the same Replica will always have different RVs.
 				return
@@ -134,13 +134,13 @@ func NewExperimentController(
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.experimentsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.experimentsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
 		},
 	})
 
