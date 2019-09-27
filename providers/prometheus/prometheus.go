@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/query"
+
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -31,6 +33,13 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+func failOnError(m v1alpha1.Measurement, err error) (v1alpha1.Measurement, error) {
+	finishedTime := metav1.Now()
+	m.Status = v1alpha1.AnalysisStatusError
+	m.FinishedAt = &finishedTime
+	return m, err
+}
+
 // Run queries prometheus for the metric
 func (p *Provider) Run(metric v1alpha1.AnalysisMetric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
 	startTime := metav1.Now()
@@ -41,21 +50,21 @@ func (p *Provider) Run(metric v1alpha1.AnalysisMetric, args []v1alpha1.Argument)
 	//TODO(dthomson) make timeout configuriable
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	//TODO(dthomson) build query with args
-	response, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+
+	query, err := query.BuildQuery(metric.Provider.Prometheus.Query, args)
 	if err != nil {
-		finishedTime := metav1.Now()
-		newMeasurement.Status = v1alpha1.AnalysisStatusError
-		newMeasurement.FinishedAt = &finishedTime
-		return newMeasurement, err
+		return failOnError(newMeasurement, err)
+	}
+
+	response, err := p.api.Query(ctx, query, time.Now())
+	if err != nil {
+		return failOnError(newMeasurement, err)
 	}
 
 	newValue, newStatus, err := p.processResponse(metric, response)
 	if err != nil {
-		finishedTime := metav1.Now()
-		newMeasurement.Status = v1alpha1.AnalysisStatusError
-		newMeasurement.FinishedAt = &finishedTime
-		return newMeasurement, err
+		return failOnError(newMeasurement, err)
+
 	}
 	newMeasurement.Value = newValue
 

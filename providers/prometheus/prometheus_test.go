@@ -77,6 +77,29 @@ func TestRunWithQueryError(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
 }
 
+func TestRunWithBuildQueryError(t *testing.T) {
+	e := log.Entry{}
+	expectedErr := fmt.Errorf("failed to resolve {{inputs.var}}")
+	mock := mockAPI{
+		err: expectedErr,
+	}
+	p := NewPrometheusProvider(mock, e)
+	metric := v1alpha1.AnalysisMetric{
+		Name: "foo",
+		Provider: v1alpha1.AnalysisProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test-{{inputs.var}}",
+			},
+		},
+	}
+	measurement, err := p.Run(metric, []v1alpha1.Argument{})
+	assert.Equal(t, expectedErr, err)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+}
+
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
