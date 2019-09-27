@@ -30,6 +30,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisMetric":       schema_pkg_apis_rollouts_v1alpha1_AnalysisMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider":     schema_pkg_apis_rollouts_v1alpha1_AnalysisProvider(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":          schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":      schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":      schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
@@ -111,6 +112,27 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisMetric(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provider configuration to the external system to use to verify the analysis",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider"),
+						},
+					},
+				},
+				Required: []string{"name", "provider"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AnalysisProvider(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AnalysisProvider which external system to use to verify the analysis Only one of the fields in this struct should be non-nil",
+				Properties: map[string]spec.Schema{
 					"prometheus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PrometheusMetric specifies the prometheus metric to query",
@@ -118,7 +140,6 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisMetric(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{

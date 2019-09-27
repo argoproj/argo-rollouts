@@ -38,17 +38,21 @@ spec:
                         type: integer
                       name:
                         type: string
-                      prometheus:
+                      provider:
                         properties:
-                          query:
-                            type: string
-                          server:
-                            type: string
+                          prometheus:
+                            properties:
+                              query:
+                                type: string
+                              server:
+                                type: string
+                            type: object
                         type: object
                       successCondition:
                         type: string
                     required:
                     - name
+                    - provider
                     type: object
                   type: array
               required:

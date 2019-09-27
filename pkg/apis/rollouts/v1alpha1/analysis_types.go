@@ -52,6 +52,13 @@ type AnalysisMetric struct {
 	MaxFailures *int32 `json:"maxFailures,omitempty"`
 	// FailFast will fail the entire analysis run prematurely
 	FailFast bool `json:"failFast,omitempty"`
+	// Provider configuration to the external system to use to verify the analysis
+	Provider AnalysisProvider `json:"provider"`
+}
+
+// AnalysisProvider which external system to use to verify the analysis
+// Only one of the fields in this struct should be non-nil
+type AnalysisProvider struct {
 	// PrometheusMetric specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 }
@@ -138,9 +145,9 @@ type Measurement struct {
 	// Status is the status of this single measurement
 	Status AnalysisStatus `json:"status"`
 	// StartedAt is the timestamp in which this measurement started to be measured
-	StartedAt metav1.Time `json:"startedAt,omitempty"`
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// FinishedAt is the timestamp in which this measurement completed and value was collected
-	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty"`
 	// Value is the measured value of the metric
 	Value string `json:"value,omitempty"`
 	// Metadata stores additional metadata about this metric result, used by the different providers
