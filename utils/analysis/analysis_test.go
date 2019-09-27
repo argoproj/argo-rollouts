@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -13,19 +14,22 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
+					Name:        "success-rate",
 					Count:       1,
 					MaxFailures: 2,
 				},
 			},
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
-		assert.Error(t, err)
+		assert.EqualError(t, err, "metrics[0]: count must be >= maxFailures")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
+					Name:        "success-rate",
 					Count:       2,
+					Interval:    pointer.Int32Ptr(60),
 					MaxFailures: 2,
 				},
 			},
@@ -38,7 +42,33 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{},
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
-		assert.Error(t, err)
+		assert.EqualError(t, err, "no metrics specified")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:  "success-rate",
+					Count: 2,
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: interval must be specified when count > 1")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+				{
+					Name: "success-rate",
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
 	}
 }
 

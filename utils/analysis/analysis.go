@@ -11,7 +11,12 @@ func ValidateAnalysisTemplateSpec(spec v1alpha1.AnalysisTemplateSpec) error {
 	if len(spec.Metrics) == 0 {
 		return fmt.Errorf("no metrics specified")
 	}
+	duplicateNames := make(map[string]bool)
 	for i, metric := range spec.Metrics {
+		if _, ok := duplicateNames[metric.Name]; ok {
+			return fmt.Errorf("metrics[%d]: duplicate name '%s", i, metric.Name)
+		}
+		duplicateNames[metric.Name] = true
 		if err := ValidateMetric(metric); err != nil {
 			return fmt.Errorf("metrics[%d]: %v", i, err)
 		}
@@ -23,6 +28,9 @@ func ValidateAnalysisTemplateSpec(spec v1alpha1.AnalysisTemplateSpec) error {
 func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Count < metric.MaxFailures {
 		return fmt.Errorf("count must be >= maxFailures")
+	}
+	if metric.Count > 1 && metric.Interval == nil {
+		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	return nil
 }

@@ -62,7 +62,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			continue
 		}
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
-		if lastMeasurement != nil && lastMeasurement.FinishedAt.IsZero() {
+		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			// last measurement is still in-progress. need to complete it
 			log.WithField("metric", metric.Name).Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
@@ -217,25 +217,28 @@ func assessMetricStatus(metric *v1alpha1.Metric, result *v1alpha1.MetricResult, 
 }
 
 // calculateNextReconcileTime calculates the next time that this AnalysisRun should be reconciled,
-// based on the earliest time of all metrics intervals and their finishedAt timestamps
+// based on the earliest time of all metrics intervals, counts, and their finishedAt timestamps
 func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 	log := logutil.WithAnalysisRun(run)
 	var reconcileTime *time.Time
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
+			// NOTE: this also coveres the case where metric.Count is reached
 			continue
 		}
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement == nil {
-			// no measurement was started. we should not get here
+			// no measurement was started. we should never get here
 			log.WithField("metric", metric.Name).Warnf("metric never started. not factored into enqueue time")
 			continue
 		}
-		if lastMeasurement.FinishedAt.IsZero() {
+		if lastMeasurement.FinishedAt == nil {
+			// unfinished in-flight measurement.
+			// TODO(jessesuen) perhaps ask provider for an appropriate time to poll?
 			continue
 		}
 		if metric.Interval == nil {
-			// a measurement was already taken, and reoccurrence was not desired. no need to re-enqueue
+			// a measurement was already taken, and reoccurrence was not desired
 			continue
 		}
 		// Take the earliest time of all metrics
@@ -244,5 +247,8 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			reconcileTime = &metricReconcileTime
 		}
 	}
-	return reconcileTime
+	if reconcileTime != nil {
+		return reconcileTime
+	}
+	return nil
 }

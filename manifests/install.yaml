@@ -76,7 +76,6 @@ spec:
               type: boolean
           required:
           - analysisSpec
-          - terminate
           type: object
         status:
           properties:
@@ -116,6 +115,8 @@ spec:
                       - status
                       type: object
                     type: array
+                  message:
+                    type: string
                   name:
                     type: string
                   status:

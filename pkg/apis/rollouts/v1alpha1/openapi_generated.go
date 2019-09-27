@@ -203,7 +203,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"analysisSpec", "terminate"},
+				Required: []string{"analysisSpec"},
 			},
 		},
 		Dependencies: []string{
@@ -1001,9 +1001,16 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							},
 						},
 					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message contains a message describing current condition (e.g. error messages)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"count": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Count is the total number of measurements that have been taken",
+							Description: "Count is the number of times the metric was measured without Error This is equal to the sum of Successful, Failed, Inconclusive",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1022,16 +1029,16 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							Format:      "int32",
 						},
 					},
-					"error": {
+					"inconclusive": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Error is the number of times an error was encountered during measurement",
+							Description: "Inconclusive is the number of times the metric was measured Inconclusive",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"inconclusive": {
+					"error": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Inconclusive is the number of times the metric was measured Inconclusive",
+							Description: "Error is the number of times an error was encountered during measurement",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

@@ -113,7 +113,7 @@ type AnalysisRunSpec struct {
 	// ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis
 	ReplicaSets []string `json:"replicaSets,omitempty"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
-	Terminate bool `json:"terminate,bool"`
+	Terminate bool `json:"terminate,omitempty"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -161,9 +161,9 @@ type Measurement struct {
 	// Status is the status of this single measurement
 	Status AnalysisStatus `json:"status"`
 	// StartedAt is the timestamp in which this measurement started to be measured
-	StartedAt metav1.Time `json:"startedAt,omitempty"`
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// FinishedAt is the timestamp in which this measurement completed and value was collected
-	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty"`
 	// Value is the measured value of the metric
 	Value string `json:"value,omitempty"`
 	// Metadata stores additional metadata about this metric result, used by the different providers
