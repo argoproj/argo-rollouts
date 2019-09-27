@@ -108,10 +108,12 @@ type AnalysisRunList struct {
 type AnalysisRunSpec struct {
 	// AnalysisSpec holds the AnalysisSpec definition for performing analysis
 	AnalysisSpec AnalysisTemplateSpec `json:"analysisSpec"`
-	// Arguments hold the arguments to
+	// Arguments hold the arguments to the run to be used by metric providers
 	Arguments []Argument `json:"arguments,omitempty"`
 	// ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis
 	ReplicaSets []string `json:"replicaSets,omitempty"`
+	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
+	Terminate bool `json:"terminate,bool"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -139,16 +141,19 @@ type MetricResult struct {
 	Status AnalysisStatus `json:"status"`
 	// Measurements holds the most recent measurements collected for the metric
 	Measurements []Measurement `json:"measurements,omitempty"`
-	// Count is the total number of measurements that have been taken
+	// Message contains a message describing current condition (e.g. error messages)
+	Message string `json:"message,omitempty"`
+	// Count is the number of times the metric was measured without Error
+	// This is equal to the sum of Successful, Failed, Inconclusive
 	Count int32 `json:"count,omitempty"`
 	// Successful is the number of times the metric was measured Successful
 	Successful int32 `json:"successful,omitempty"`
 	// Failed is the number of times the metric was measured Failed
 	Failed int32 `json:"failed,omitempty"`
-	// Error is the number of times an error was encountered during measurement
-	Error int32 `json:"error,omitempty"`
 	// Inconclusive is the number of times the metric was measured Inconclusive
 	Inconclusive int32 `json:"inconclusive,omitempty"`
+	// Error is the number of times an error was encountered during measurement
+	Error int32 `json:"error,omitempty"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured

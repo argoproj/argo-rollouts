@@ -72,8 +72,11 @@ spec:
               items:
                 type: string
               type: array
+            terminate:
+              type: boolean
           required:
           - analysisSpec
+          - terminate
           type: object
         status:
           properties:

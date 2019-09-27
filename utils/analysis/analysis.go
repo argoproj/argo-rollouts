@@ -54,6 +54,11 @@ func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
 	return newIndex > currentIndex
 }
 
+// IsTerminating returns whether or not the analysis run is terminating
+func IsTerminating(run *v1alpha1.AnalysisRun) bool {
+	return run.Spec.Terminate || IsFailing(run)
+}
+
 // IsFailing returns whether or not any metric has measured Failed or Error, which will eventually
 // cause the entire run to fail.
 func IsFailing(run *v1alpha1.AnalysisRun) bool {
@@ -95,4 +100,19 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 		return nil
 	}
 	return &result.Measurements[totalMeasurements-1]
+}
+
+// ConsecutiveErrors returns number of most recent consecutive errors
+func ConsecutiveErrors(result *v1alpha1.MetricResult) int {
+	consecutiveErrors := 0
+	for i := len(result.Measurements) - 1; i >= 0; i-- {
+		measurement := result.Measurements[i]
+		switch measurement.Status {
+		case v1alpha1.AnalysisStatusError:
+			consecutiveErrors++
+		default:
+			return consecutiveErrors
+		}
+	}
+	return consecutiveErrors
 }

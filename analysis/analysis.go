@@ -7,6 +7,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	MaxConsecutiveErrors = 4
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -30,7 +35,6 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		}
 		return nil
 	}
-
 	tasks := generateMetricTasks(run)
 
 	runMeasurements(run, tasks)
@@ -46,12 +50,13 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
-// sync, based on the last completion times of measurement was taken (if ever). If any metrics
-// are failed, will not perform further measurements on other metrics (fast fail).
+// sync, based on the last completion times that metric was measured (if ever). If the run is
+// terminating (e.g. due to manual termination or failing metric), will not schedule further
+// measurements other than to resume any in-flight measurements.
 func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	log := logutil.WithAnalysisRun(run)
-	isFailing := analysisutil.IsFailing(run)
 	var tasks []metricTask
+	terminating := analysisutil.IsTerminating(run)
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
@@ -59,19 +64,21 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt.IsZero() {
 			// last measurement is still in-progress. need to complete it
+			log.WithField("metric", metric.Name).Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
 				metric:                &metric,
 				incompleteMeasurement: lastMeasurement,
 			})
 			continue
 		}
-		if isFailing {
-			log.WithField("metric", metric.Name).Infof("skipping measurement: run is failing")
+		if terminating {
+			log.WithField("metric", metric.Name).Infof("skipping measurement: run is terminating")
 			continue
 		}
 		if lastMeasurement == nil {
 			// measurement never taken
 			tasks = append(tasks, metricTask{metric: &metric})
+			log.WithField("metric", metric.Name).Infof("running initial measurement")
 			continue
 		}
 		if metric.Interval == nil {
@@ -81,6 +88,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		if time.Now().After(lastMeasurement.FinishedAt.Add(time.Duration(*metric.Interval) * time.Second)) {
 			// we are due for a measurement
 			tasks = append(tasks, metricTask{metric: &metric})
+			log.WithField("metric", metric.Name).Infof("running overdue measurement")
 			continue
 		}
 	}
@@ -108,16 +116,18 @@ func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 				metricResult.Measurements[len(metricResult.Measurements)-1] = newMeasurement
 			}
 			if newMeasurement.Status.Completed() {
-				metricResult.Count++
 				switch newMeasurement.Status {
 				case v1alpha1.AnalysisStatusSuccessful:
 					metricResult.Successful++
+					metricResult.Count++
 				case v1alpha1.AnalysisStatusFailed:
 					metricResult.Failed++
-				case v1alpha1.AnalysisStatusError:
-					metricResult.Error++
+					metricResult.Count++
 				case v1alpha1.AnalysisStatusInconclusive:
 					metricResult.Inconclusive++
+					metricResult.Count++
+				case v1alpha1.AnalysisStatusError:
+					metricResult.Error++
 				}
 			}
 		}(nil, task)
@@ -126,14 +136,15 @@ func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	wg.Wait()
 }
 
-// asssessRunStatus assesses the overall status of this analysis run
-// If any metric is still not yet completed, the AnalysisRun is still considered running
+// asssessRunStatus assesses the overall status of this AnalysisRun
+// If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
 func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	var worstStatus v1alpha1.AnalysisStatus
+	terminating := analysisutil.IsTerminating(run)
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if result, ok := run.Status.MetricResults[metric.Name]; ok {
-			metricStatus := assessMetricStatus(&metric, &result)
+			metricStatus := assessMetricStatus(&metric, &result, terminating)
 			if !metricStatus.Completed() {
 				// if any metric is not completed, then entire analysis run is considered running
 				return v1alpha1.AnalysisStatusRunning
@@ -150,49 +161,58 @@ func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	return worstStatus
 }
 
-// assessMetricStatus assesses the status of a single metric based on current/latest measurements
-// and the parameters given by the metric (maxFailures, count, etc...)
-func assessMetricStatus(metric *v1alpha1.Metric, result *v1alpha1.MetricResult) v1alpha1.AnalysisStatus {
+// assessMetricStatus assesses the status of a single metric based on:
+// * current/latest measurement status
+// * parameters given by the metric (maxFailures, count, etc...)
+// * whether or not we are terminating (e.g. due to failing run, or termination request)
+func assessMetricStatus(metric *v1alpha1.Metric, result *v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisStatus {
 	if result.Status.Completed() {
 		return result.Status
 	}
-	if result.Count == int32(0) || len(result.Measurements) == 0 {
+	log := log.WithField("metric", metric.Name)
+	if len(result.Measurements) == 0 {
+		if terminating {
+			// we have yet to take a single measurement, but have already been instructed to stop
+			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisStatusSuccessful)
+			return v1alpha1.AnalysisStatusSuccessful
+		}
 		return v1alpha1.AnalysisStatusPending
 	}
 	lastMeasurement := result.Measurements[len(result.Measurements)-1]
 	if !lastMeasurement.Status.Completed() {
+		// we still have a in-flight measurement
 		return v1alpha1.AnalysisStatusRunning
 	}
 	if result.Failed > metric.MaxFailures {
+		log.Infof("metric assessed %s: failed (%d) > maxFailures (%d)", v1alpha1.AnalysisStatusFailed, result.Failed, metric.MaxFailures)
 		return v1alpha1.AnalysisStatusFailed
 	}
-	// TODO(jessesuen):
-	// We need a way mark metrics as error if the last N number of measurements were measured
-	// error. NOTE that we shouldn't base this on result.Errors since that number is cumulative,
-	// and failing a metric due to errors should happen when N number of errors happens in sequence.
-
-	// If a count was specified, and we reached that count, then we assess the status based on
-	// most recent measurement. Note that any Failures are ignored because failure check is already
-	// taken into account above, and we do not want to fail the metric if failures < maxFailures.
-	if metric.Count > 0 && result.Count >= metric.Count {
-		for i := len(result.Measurements) - 1; i >= 0; i-- {
-			measurement := result.Measurements[i]
-			switch measurement.Status {
-			case v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusInconclusive:
-				return measurement.Status
-			}
-		}
-		// if we get here, it means no measurements were Successful or Inconclusive and everything
-		// was either Failed, Error.
-		for i := len(result.Measurements) - 1; i >= 0; i-- {
-			measurement := result.Measurements[i]
-			switch measurement.Status {
-			case v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusInconclusive:
-				return measurement.Status
-			}
-		}
+	consecutiveErrors := analysisutil.ConsecutiveErrors(result)
+	if consecutiveErrors > MaxConsecutiveErrors {
+		log.Infof("metric assessed %s: consecutiveErrors (%d) > MaxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, consecutiveErrors, MaxConsecutiveErrors)
+		return v1alpha1.AnalysisStatusError
 	}
-
+	// If a count was specified, and we reached that count, then we assess the status based on
+	// the greater of the Successful & Inconclusive status counters.
+	// Error and Failed counters are ignored because those checks have already been taken into
+	// consideration above, and we do not want to fail the metric if failures < maxFailures.
+	// TODO(jessesuen): may need to tweak this logic
+	if metric.Count > 0 && result.Count >= metric.Count {
+		var status v1alpha1.AnalysisStatus
+		if result.Successful > result.Inconclusive {
+			status = v1alpha1.AnalysisStatusSuccessful
+		} else {
+			status = v1alpha1.AnalysisStatusInconclusive
+		}
+		log.Infof("metric assessed %s: count %d reached, successful: %d, inconclusive: %d, errors: %d, failures: %d",
+			status, result.Count, result.Successful, result.Inconclusive, result.Error, result.Failed)
+		return status
+	}
+	// if we get here, this metric runs indefinitely
+	if terminating {
+		log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisStatusSuccessful)
+		return v1alpha1.AnalysisStatusSuccessful
+	}
 	return v1alpha1.AnalysisStatusRunning
 }
 
@@ -207,7 +227,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		}
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement == nil {
-			// no measurement was not started. we should not get here
+			// no measurement was started. we should not get here
 			log.WithField("metric", metric.Name).Warnf("metric never started. not factored into enqueue time")
 			continue
 		}

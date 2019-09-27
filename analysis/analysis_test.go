@@ -165,3 +165,170 @@ func TestGenerateMetricTasksIncomplete(t *testing.T) {
 		assert.NotNil(t, tasks[0].incompleteMeasurement)
 	}
 }
+
+func TestAssessRunStatus(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "latency",
+					},
+					{
+						Name: "success-rate",
+					},
+				},
+			},
+		},
+	}
+	{
+		// ensure if one metric is still running, entire run is still running
+		run.Status = &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: map[string]v1alpha1.MetricResult{
+				"latency": {
+					Status: v1alpha1.AnalysisStatusSuccessful,
+				},
+				"success-rate": {
+					Status: v1alpha1.AnalysisStatusRunning,
+				},
+			},
+		}
+		assert.Equal(t, v1alpha1.AnalysisStatusRunning, asssessRunStatus(run))
+	}
+	{
+		// ensure we take the worst of the completed metrics
+		run.Status = &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: map[string]v1alpha1.MetricResult{
+				"latency": {
+					Status: v1alpha1.AnalysisStatusSuccessful,
+				},
+				"success-rate": {
+					Status: v1alpha1.AnalysisStatusFailed,
+				},
+			},
+		}
+		assert.Equal(t, v1alpha1.AnalysisStatusFailed, asssessRunStatus(run))
+	}
+}
+
+func TestAssessMetricStatusNoMeasurements(t *testing.T) {
+	// no measurements yet taken
+	metric := &v1alpha1.Metric{
+		Name: "success-rate",
+	}
+	result := &v1alpha1.MetricResult{
+		Measurements: nil,
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusPending, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
+}
+func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
+	// in-flight measurement
+	metric := &v1alpha1.Metric{
+		Name: "success-rate",
+	}
+	result := &v1alpha1.MetricResult{
+		Measurements: []v1alpha1.Measurement{
+			{
+				Value:      "99",
+				Status:     v1alpha1.AnalysisStatusSuccessful,
+				StartedAt:  metav1.NewTime(time.Now().Add(-60 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-60 * time.Second)),
+			},
+			{
+				Value:     "99",
+				Status:    v1alpha1.AnalysisStatusRunning,
+				StartedAt: metav1.NewTime(time.Now()),
+			},
+		},
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, true))
+}
+func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
+	metric := &v1alpha1.Metric{
+		Name:        "success-rate",
+		MaxFailures: 2,
+	}
+	result := &v1alpha1.MetricResult{
+		Failed: 3,
+		Measurements: []v1alpha1.Measurement{
+			{
+				Value:      "99",
+				Status:     v1alpha1.AnalysisStatusFailed,
+				StartedAt:  metav1.NewTime(time.Now().Add(-60 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-60 * time.Second)),
+			},
+		},
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, assessMetricStatus(metric, result, true))
+}
+func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
+	metric := &v1alpha1.Metric{
+		Name: "success-rate",
+	}
+	result := &v1alpha1.MetricResult{
+		Measurements: []v1alpha1.Measurement{
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  metav1.NewTime(time.Now().Add(-60 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-60 * time.Second)),
+			},
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  metav1.NewTime(time.Now().Add(-50 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-50 * time.Second)),
+			},
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  metav1.NewTime(time.Now().Add(-40 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-40 * time.Second)),
+			},
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  metav1.NewTime(time.Now().Add(-30 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-30 * time.Second)),
+			},
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  metav1.NewTime(time.Now().Add(-20 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-20 * time.Second)),
+			},
+		},
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusError, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusError, assessMetricStatus(metric, result, true))
+	result.Measurements[2] = v1alpha1.Measurement{
+		Status:     v1alpha1.AnalysisStatusSuccessful,
+		StartedAt:  metav1.NewTime(time.Now().Add(-40 * time.Second)),
+		FinishedAt: metav1.NewTime(time.Now().Add(-40 * time.Second)),
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, false))
+}
+
+func TestAssessMetricStatusCountReached(t *testing.T) {
+	metric := &v1alpha1.Metric{
+		Name:  "success-rate",
+		Count: 10,
+	}
+	result := &v1alpha1.MetricResult{
+		Successful: 10,
+		Count:      10,
+		Measurements: []v1alpha1.Measurement{
+			{
+				Value:      "99",
+				Status:     v1alpha1.AnalysisStatusSuccessful,
+				StartedAt:  metav1.NewTime(time.Now().Add(-60 * time.Second)),
+				FinishedAt: metav1.NewTime(time.Now().Add(-60 * time.Second)),
+			},
+		},
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, false))
+	result.Successful = 5
+	result.Inconclusive = 5
+	assert.Equal(t, v1alpha1.AnalysisStatusInconclusive, assessMetricStatus(metric, result, false))
+}

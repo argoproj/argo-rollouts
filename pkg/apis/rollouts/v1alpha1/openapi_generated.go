@@ -170,7 +170,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 					},
 					"arguments": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments hold the arguments to",
+							Description: "Arguments hold the arguments to the run to be used by metric providers",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -195,8 +195,15 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"terminate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"analysisSpec"},
+				Required: []string{"analysisSpec", "terminate"},
 			},
 		},
 		Dependencies: []string{

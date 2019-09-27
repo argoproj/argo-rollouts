@@ -150,3 +150,78 @@ func TestLastMeasurement(t *testing.T) {
 	run.Status.MetricResults["success-rate"] = successRate
 	assert.Nil(t, LastMeasurement(run, "success-rate"))
 }
+
+func TestIsTerminating(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: map[string]v1alpha1.MetricResult{
+				"other-metric": {
+					Status: v1alpha1.AnalysisStatusRunning,
+				},
+				"success-rate": {
+					Status: v1alpha1.AnalysisStatusRunning,
+				},
+			},
+		},
+	}
+	assert.False(t, IsTerminating(run))
+	run.Spec.Terminate = true
+	assert.True(t, IsTerminating(run))
+	run.Spec.Terminate = false
+	successRate := run.Status.MetricResults["success-rate"]
+	successRate.Status = v1alpha1.AnalysisStatusError
+	run.Status.MetricResults["success-rate"] = successRate
+	assert.True(t, IsTerminating(run))
+}
+
+func TestConsecutiveErrors(t *testing.T) {
+	{
+		result := &v1alpha1.MetricResult{
+			Measurements: []v1alpha1.Measurement{},
+		}
+		assert.Equal(t, 0, ConsecutiveErrors(result))
+	}
+	{
+		result := &v1alpha1.MetricResult{
+			Measurements: []v1alpha1.Measurement{
+				{
+					Status: v1alpha1.AnalysisStatusError,
+				},
+				{
+					Status: v1alpha1.AnalysisStatusSuccessful,
+				},
+				{
+					Status: v1alpha1.AnalysisStatusError,
+				},
+			},
+		}
+		assert.Equal(t, 1, ConsecutiveErrors(result))
+	}
+	{
+		result := &v1alpha1.MetricResult{
+			Measurements: []v1alpha1.Measurement{
+				{
+					Status: v1alpha1.AnalysisStatusError,
+				},
+				{
+					Status: v1alpha1.AnalysisStatusSuccessful,
+				},
+			},
+		}
+		assert.Equal(t, 0, ConsecutiveErrors(result))
+	}
+	{
+		result := &v1alpha1.MetricResult{
+			Measurements: []v1alpha1.Measurement{
+				{
+					Status: v1alpha1.AnalysisStatusError,
+				},
+				{
+					Status: v1alpha1.AnalysisStatusError,
+				},
+			},
+		}
+		assert.Equal(t, 2, ConsecutiveErrors(result))
+	}
+}
