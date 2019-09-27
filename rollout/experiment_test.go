@@ -19,7 +19,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
@@ -54,7 +54,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{},
+		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
@@ -82,7 +82,7 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{},
+		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
@@ -126,7 +126,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{},
+		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
@@ -170,7 +170,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
@@ -218,7 +218,7 @@ func TestRolloutDoNotCreateExperimentWithoutNewRS(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "canary-template",
 				SpecRef:  v1alpha1.CanarySpecRef,
@@ -255,7 +255,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
@@ -289,7 +289,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 
 // 	steps := []v1alpha1.CanaryStep{
 // 		{
-// 			Experiment: &v1alpha1.RolloutCanaryExperimentStep{},
+// 			Experiment: &v1alpha1.RolloutExperimentStep{},
 // 		},
 // 		{
 // 			SetWeight: pointer.Int32Ptr(30),
@@ -322,7 +322,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 
 func TestGetExperimentFromTemplate(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,

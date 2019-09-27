@@ -144,8 +144,8 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 
-// RolloutCanaryExperimentStep defines a template that is used to create a experiment for a step
-type RolloutCanaryExperimentStep struct {
+// RolloutExperimentStep defines a template that is used to create a experiment for a step
+type RolloutExperimentStep struct {
 	// Indicates if the rollout should wait for the experiment to finish
 	Duration int32 `json:"duration"`
 	// Templates what templates that should be added to the experiment. Should be non-nil
@@ -163,11 +163,11 @@ type RolloutExperimentTemplate struct {
 	Replicas int32 `json:"replicas"`
 	// AdditionalSelectors additional selectors to use for the RS created from the template
 	// +optional
-	Metadata RolloutExperimentAdditionalMetadata `json:"metadata,omitempty"`
+	Metadata PodTemplateMetadata `json:"metadata,omitempty"`
 }
 
-//RolloutExperimentAdditionalMetadata extra labels to add to the template
-type RolloutExperimentAdditionalMetadata struct {
+//PodTemplateMetadata extra labels to add to the template
+type PodTemplateMetadata struct {
 	// Labels Additional labels to add to the experiment
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
@@ -195,7 +195,7 @@ type CanaryStep struct {
 	// +optional
 	Pause *RolloutPause `json:"pause,omitempty"`
 	// Experiment defines the experiment object that should be created
-	Experiment *RolloutCanaryExperimentStep `json:"experiment,omitempty"`
+	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 }
 
 // RolloutPause defines a pause stage for a rollout

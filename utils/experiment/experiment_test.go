@@ -182,7 +182,7 @@ func TestExperimentNameFromRollout(t *testing.T) {
 			Strategy: v1alpha1.RolloutStrategy{
 				CanaryStrategy: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{{
-						Experiment: &v1alpha1.RolloutCanaryExperimentStep{},
+						Experiment: &v1alpha1.RolloutExperimentStep{},
 					}},
 				},
 			},

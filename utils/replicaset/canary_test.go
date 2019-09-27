@@ -429,7 +429,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 				CanaryStrategy: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							Experiment: &v1alpha1.RolloutCanaryExperimentStep{
+							Experiment: &v1alpha1.RolloutExperimentStep{
 								Duration: int32(1),
 							},
 						}, {
