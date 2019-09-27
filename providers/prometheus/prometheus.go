@@ -92,11 +92,8 @@ func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.AnalysisMe
 		return v1alpha1.AnalysisStatusInconclusive
 	}
 
-	if successCondition {
-		return v1alpha1.AnalysisStatusSuccessful
-	}
-
-	return v1alpha1.AnalysisStatusPending
+	// If we reach this code path, failCondition is false and successCondition is true
+	return v1alpha1.AnalysisStatusSuccessful
 }
 
 func (p *Provider) processResponse(metric v1alpha1.AnalysisMetric, response model.Value) (string, v1alpha1.AnalysisStatus, error) {
