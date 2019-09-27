@@ -38,6 +38,13 @@ func TestEvaluateArray(t *testing.T) {
 	assert.True(t, b)
 }
 
+func TestEvaluatInOperator(t *testing.T) {
+	floats := []float64{float64(2), float64(2)}
+	b, err := EvalCondition(floats, "2 in result")
+	assert.Nil(t, err)
+	assert.True(t, b)
+}
+
 func TestEvaluateFloat64(t *testing.T) {
 	b, err := EvalCondition(float64(5), "result > 1")
 	assert.Nil(t, err)

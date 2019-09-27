@@ -29,9 +29,14 @@ spec:
                       count:
                         format: int32
                         type: integer
+                      failFast:
+                        type: boolean
                       failureCondition:
                         type: string
                       interval:
+                        format: int32
+                        type: integer
+                      maxConsecutiveErrors:
                         format: int32
                         type: integer
                       maxFailures:
@@ -39,17 +44,21 @@ spec:
                         type: integer
                       name:
                         type: string
-                      prometheus:
+                      provider:
                         properties:
-                          query:
-                            type: string
-                          server:
-                            type: string
+                          prometheus:
+                            properties:
+                              query:
+                                type: string
+                              server:
+                                type: string
+                            type: object
                         type: object
                       successCondition:
                         type: string
                     required:
                     - name
+                    - provider
                     type: object
                   type: array
               required:
