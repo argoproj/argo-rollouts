@@ -26,6 +26,33 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  digest = "1:d006584293547a5a28116ac4e02e250a07911e59b3db7fb1b7ab93c25721cdcb"
+  name = "github.com/antlr/antlr4"
+  packages = ["runtime/Go/antlr"]
+  pruneopts = ""
+  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
+  version = "4.7.2"
+
+[[projects]]
+  digest = "1:3fbdd1c39fb005519b1cb4a58723527614d78368868bb7e24a45526e2d5f1740"
+  name = "github.com/antonmedv/expr"
+  packages = [
+    ".",
+    "ast",
+    "checker",
+    "compiler",
+    "internal/conf",
+    "internal/file",
+    "optimizer",
+    "parser",
+    "parser/gen",
+    "vm",
+  ]
+  pruneopts = ""
+  revision = "4d40254bf70e2ba6f90dea9cc5d36e96336bbe84"
+  version = "v2.1.2"
+
+[[projects]]
   branch = "master"
   digest = "1:c0bec5f9b98d0bc872ff5e834fac186b807b656683bd29cb82fb207a1513fabb"
   name = "github.com/beorn7/perks"
@@ -303,6 +330,8 @@
   digest = "1:6f218995d6a74636cfcab45ce03005371e682b4b9bee0e5eb0ccfd83ef85364f"
   name = "github.com/prometheus/client_golang"
   packages = [
+    "api",
+    "api/prometheus/v1",
     "prometheus",
     "prometheus/internal",
     "prometheus/promhttp",
@@ -376,6 +405,22 @@
   pruneopts = ""
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
+
+[[projects]]
+  digest = "1:857a9ecd5cb13379ecc8f798f6e6b6b574c98b9355657d91e068275f1120aaf7"
+  name = "github.com/valyala/bytebufferpool"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:1ad3ae8a5edf223abb8435e16ccc0696ce886c6f889e100809122e931e7423b2"
+  name = "github.com/valyala/fasttemplate"
+  packages = ["."]
+  pruneopts = ""
+  revision = "8b5e4e491ab636663841c42ea3c5a9adebabaf36"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -1008,17 +1053,22 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/antonmedv/expr",
     "github.com/bouk/monkey",
     "github.com/emicklei/go-restful",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/spec",
     "github.com/golang/glog",
     "github.com/pkg/errors",
+    "github.com/prometheus/client_golang/api",
+    "github.com/prometheus/client_golang/api/prometheus/v1",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
+    "github.com/prometheus/common/model",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cobra",
     "github.com/stretchr/testify/assert",
+    "github.com/valyala/fasttemplate",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",

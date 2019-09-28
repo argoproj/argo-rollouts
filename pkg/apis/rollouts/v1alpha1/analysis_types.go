@@ -55,6 +55,15 @@ type Metric struct {
 	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
 	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
+	// FailFast will fail the entire analysis run prematurely
+	FailFast bool `json:"failFast,omitempty"`
+	// Provider configuration to the external system to use to verify the analysis
+	Provider AnalysisProvider `json:"provider"`
+}
+
+// AnalysisProvider which external system to use to verify the analysis
+// Only one of the fields in this struct should be non-nil
+type AnalysisProvider struct {
 	// PrometheusMetric specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 }
