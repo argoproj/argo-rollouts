@@ -13,15 +13,15 @@ import (
 type Provider interface {
 	// Run start a new external system call for a measurement
 	// should be idoponent and do nothing is a call has been started
-	Run(v1alpha1.AnalysisMetric, []v1alpha1.Argument) (v1alpha1.Measurement, error)
+	Run(v1alpha1.Metric, []v1alpha1.Argument) (v1alpha1.Measurement, error)
 	// Checks if the external system call is finished and returns the current measuremtn
-	Resume(v1alpha1.AnalysisMetric, []v1alpha1.Argument, v1alpha1.Measurement) (v1alpha1.Measurement, error)
+	Resume(v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) (v1alpha1.Measurement, error)
 	// Type gets the provider type
 	Type() string
 }
 
-// NewProvider creates the correct provider based on the provider type of the analysisMetric
-func NewProvider(logCtx log.Entry, metric v1alpha1.AnalysisMetric) (Provider, error) {
+// NewProvider creates the correct provider based on the provider type of the Metric
+func NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {
 	if metric.Provider.Prometheus != nil {
 		api, err := prometheus.NewPrometheusAPI(metric)
 		if err != nil {

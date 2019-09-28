@@ -41,7 +41,7 @@ func failOnError(m v1alpha1.Measurement, err error) (v1alpha1.Measurement, error
 }
 
 // Run queries prometheus for the metric
-func (p *Provider) Run(metric v1alpha1.AnalysisMetric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
+func (p *Provider) Run(metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
@@ -77,12 +77,12 @@ func (p *Provider) Run(metric v1alpha1.AnalysisMetric, args []v1alpha1.Argument)
 }
 
 // Resume should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Resume(metric v1alpha1.AnalysisMetric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *Provider) Resume(metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
 	p.logCtx.Warn("Prometheus provider should not execute the Resume method")
 	return measurement, nil
 }
 
-func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.AnalysisMetric) v1alpha1.AnalysisStatus {
+func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1alpha1.AnalysisStatus {
 	successCondition, err := evaluate.EvalCondition(result, metric.SuccessCondition)
 	if err != nil {
 		p.logCtx.Warning(err.Error())
@@ -105,7 +105,7 @@ func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.AnalysisMe
 	return v1alpha1.AnalysisStatusSuccessful
 }
 
-func (p *Provider) processResponse(metric v1alpha1.AnalysisMetric, response model.Value) (string, v1alpha1.AnalysisStatus, error) {
+func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value) (string, v1alpha1.AnalysisStatus, error) {
 	switch value := response.(type) {
 	case *model.Scalar:
 		valueStr := value.Value.String()
@@ -143,7 +143,7 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 }
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
-func NewPrometheusAPI(metric v1alpha1.AnalysisMetric) (v1.API, error) {
+func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	client, err := api.NewClient(api.Config{
 		Address: metric.Provider.Prometheus.Server,
 	})

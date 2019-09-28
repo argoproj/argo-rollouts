@@ -34,7 +34,7 @@ func TestRunSuccessFully(t *testing.T) {
 		value: newScalar(10),
 	}
 	p := NewPrometheusProvider(mock, e)
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
@@ -59,7 +59,7 @@ func TestRunWithQueryError(t *testing.T) {
 		err: expectedErr,
 	}
 	p := NewPrometheusProvider(mock, e)
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
@@ -84,7 +84,7 @@ func TestRunWithBuildQueryError(t *testing.T) {
 		err: expectedErr,
 	}
 	p := NewPrometheusProvider(mock, e)
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.AnalysisProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
@@ -104,7 +104,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
 	p := NewPrometheusProvider(mock, *e)
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
@@ -126,7 +126,7 @@ func TestResume(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
 	p := NewPrometheusProvider(mock, *e)
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
@@ -148,7 +148,7 @@ func TestResume(t *testing.T) {
 
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	p := Provider{}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
 		FailureCondition: "false",
 	}
@@ -158,7 +158,7 @@ func TestEvaluateResultWithSuccess(t *testing.T) {
 
 func TestEvaluateResultWithFailure(t *testing.T) {
 	p := Provider{}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
 		FailureCondition: "true",
 	}
@@ -169,7 +169,7 @@ func TestEvaluateResultWithFailure(t *testing.T) {
 
 func TestEvaluateResultInconclusive(t *testing.T) {
 	p := Provider{}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "false",
 		FailureCondition: "false",
 	}
@@ -182,7 +182,7 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 	p := Provider{
 		logCtx: *logCtx,
 	}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "a == true",
 		FailureCondition: "true",
 	}
@@ -196,7 +196,7 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	p := Provider{
 		logCtx: *logCtx,
 	}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
 		FailureCondition: "a == true",
 	}
@@ -210,7 +210,7 @@ func TestProcessScalarResponse(t *testing.T) {
 	p := Provider{
 		logCtx: *logCtx,
 	}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
 	}
@@ -232,7 +232,7 @@ func TestProcessVectorResponse(t *testing.T) {
 	p := Provider{
 		logCtx: *logCtx,
 	}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "10 in result",
 		FailureCondition: "false",
 	}
@@ -259,7 +259,7 @@ func TestProcessInvalidResponse(t *testing.T) {
 	p := Provider{
 		logCtx: *logCtx,
 	}
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
 		FailureCondition: "true",
 	}
@@ -272,7 +272,7 @@ func TestProcessInvalidResponse(t *testing.T) {
 }
 
 func TestNewPrometheusAPI(t *testing.T) {
-	metric := v1alpha1.AnalysisMetric{
+	metric := v1alpha1.Metric{
 		Provider: v1alpha1.AnalysisProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Server: ":invalid::url",
