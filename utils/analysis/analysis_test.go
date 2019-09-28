@@ -17,6 +17,9 @@ func TestValidateMetrics(t *testing.T) {
 					Name:        "success-rate",
 					Count:       1,
 					MaxFailures: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -31,6 +34,9 @@ func TestValidateMetrics(t *testing.T) {
 					Count:       2,
 					Interval:    pointer.Int32Ptr(60),
 					MaxFailures: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -50,6 +56,9 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:  "success-rate",
 					Count: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -61,9 +70,15 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name: "success-rate",
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 				{
 					Name: "success-rate",
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -76,6 +91,9 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:        "success-rate",
 					MaxFailures: -1,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -88,11 +106,26 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:                 "success-rate",
 					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: maxConsecutiveErrors must be >= 0")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:  "success-rate",
+					Count: 1,
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: no provider specified")
 	}
 }
 

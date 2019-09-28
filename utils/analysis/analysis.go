@@ -38,6 +38,16 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
 		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
 	}
+	numProviders := 0
+	if metric.Provider.Prometheus != nil {
+		numProviders++
+	}
+	if numProviders == 0 {
+		return fmt.Errorf("no provider specified")
+	}
+	if numProviders > 1 {
+		return fmt.Errorf("multiple providers specified")
+	}
 	return nil
 }
 

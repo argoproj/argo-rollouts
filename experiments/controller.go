@@ -31,7 +31,7 @@ type ExperimentController struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// experimentsclientset is a clientset for our own API group
-	arogProjClientset clientset.Interface
+	argoProjClientset clientset.Interface
 
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
@@ -66,7 +66,7 @@ type ExperimentController struct {
 // NewExperimentController returns a new experiment controller
 func NewExperimentController(
 	kubeclientset kubernetes.Interface,
-	arogProjClientset clientset.Interface,
+	argoProjClientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
@@ -83,7 +83,7 @@ func NewExperimentController(
 
 	controller := &ExperimentController{
 		kubeclientset:       kubeclientset,
-		arogProjClientset:   arogProjClientset,
+		argoProjClientset:   argoProjClientset,
 		replicaSetControl:   replicaSetControl,
 		replicaSetLister:    replicaSetInformer.Lister(),
 		rolloutsLister:      rolloutsInformer.Lister(),

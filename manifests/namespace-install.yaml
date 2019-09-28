@@ -88,6 +88,8 @@ spec:
           type: object
         status:
           properties:
+            message:
+              type: string
             metricResults:
               additionalProperties:
                 properties:
@@ -141,7 +143,6 @@ spec:
             status:
               type: string
           required:
-          - metricResults
           - status
           type: object
       required:

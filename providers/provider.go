@@ -14,7 +14,7 @@ type Provider interface {
 	// Run start a new external system call for a measurement
 	//idempotent and do nothing if a call has been started
 	Run(v1alpha1.Metric, []v1alpha1.Argument) (v1alpha1.Measurement, error)
-	// Checks if the external system call is finished and returns the current measuremtn
+	// Checks if the external system call is finished and returns the current measurement
 	Resume(v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) (v1alpha1.Measurement, error)
 	// Type gets the provider type
 	Type() string

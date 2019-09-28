@@ -245,6 +245,13 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is a message explaining current statuss",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"metricResults": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Metrics contains the metrics collected during the run",
@@ -259,7 +266,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 						},
 					},
 				},
-				Required: []string{"status", "metricResults"},
+				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{
@@ -946,6 +953,13 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Format:      "int32",
 						},
 					},
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Count is the number of times to run measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. A count > 1 must specify an interval.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"successCondition": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90\n  result IN (red, yellow)",
@@ -958,13 +972,6 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Description: "FailureCondition is an expression which determines if a measurement is considered failed If both success and failure conditions are specified, and the measurement does not fall into either condition, the measurement is considered Inconclusive",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"count": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Count is the number of times to run measurement. If omitted, runs indefinitely",
-							Type:        []string{"integer"},
-							Format:      "int32",
 						},
 					},
 					"maxFailures": {

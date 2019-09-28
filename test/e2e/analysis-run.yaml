@@ -1,0 +1,11 @@
+kind: AnalysisRun
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  generateName: sample-run-
+spec:
+  analysisSpec:
+    metrics:
+    - name: success-rate
+      provider:
+        prometheus:
+          server: http://prometheus-operator-prometheus.prometheus-operator:9090

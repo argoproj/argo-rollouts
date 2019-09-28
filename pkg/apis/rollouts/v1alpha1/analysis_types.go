@@ -35,6 +35,10 @@ type Metric struct {
 	// Interval defines the interval in seconds between each metric analysis
 	// If omitted, will perform the metric analysis only once
 	Interval *int32 `json:"interval,omitempty"`
+	// Count is the number of times to run measurement. If both interval and count are omitted,
+	// the effective count is 1. If only interval is specified, metric runs indefinitely.
+	// A count > 1 must specify an interval.
+	Count int32 `json:"count,omitempty"`
 	// SuccessCondition is an expression which determines if a measurement is considered successful
 	// Expression is a goevaluate expression. The keyword `result` is a variable reference to the
 	// value of measurement. Results can be both structured data or primitive.
@@ -47,8 +51,6 @@ type Metric struct {
 	// If both success and failure conditions are specified, and the measurement does not fall into
 	// either condition, the measurement is considered Inconclusive
 	FailureCondition string `json:"failureCondition,omitempty"`
-	// Count is the number of times to run measurement. If omitted, runs indefinitely
-	Count int32 `json:"count,omitempty"`
 	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered failed (default: 0)
 	MaxFailures int32 `json:"maxFailures,omitempty"`
@@ -59,6 +61,21 @@ type Metric struct {
 	FailFast bool `json:"failFast,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider AnalysisProvider `json:"provider"`
+}
+
+// EffectiveCount is the effective count based on whether or not count/interval is specified
+// If neither count or interval is specified, the effective count is 1
+// If only interval is specified, metric runs indefinitely and there is no effective count (nil)
+// Otherwise, it is the user specified value
+func (m *Metric) EffectiveCount() *int32 {
+	if m.Count == 0 {
+		if m.Interval == nil {
+			one := int32(1)
+			return &one
+		}
+		return nil
+	}
+	return &m.Count
 }
 
 // AnalysisProvider which external system to use to verify the analysis
@@ -140,8 +157,10 @@ type Argument struct {
 type AnalysisRunStatus struct {
 	// Status is the status of the analysis run
 	Status AnalysisStatus `json:"status"`
+	// Message is a message explaining current statuss
+	Message string `json:"message,omitempty"`
 	// Metrics contains the metrics collected during the run
-	MetricResults map[string]MetricResult `json:"metricResults"`
+	MetricResults map[string]MetricResult `json:"metricResults,omitempty"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

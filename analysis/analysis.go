@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -24,32 +26,45 @@ type metricTask struct {
 	incompleteMeasurement *v1alpha1.Measurement
 }
 
-func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) error {
-	if origRun.Status.Status.Completed() {
-		return nil
+func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
+	if origRun.Status != nil && origRun.Status.Status.Completed() {
+		return origRun
 	}
 	log := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
-	if run.Status.Status == "" {
+
+	if run.Status == nil {
+		run.Status = &v1alpha1.AnalysisRunStatus{
+			MetricResults: make(map[string]v1alpha1.MetricResult),
+		}
 		err := analysisutil.ValidateAnalysisTemplateSpec(run.Spec.AnalysisSpec)
 		if err != nil {
-			log.Warnf("analysis spec invalid: %v", err)
+			message := fmt.Sprintf("analysis spec invalid: %v", err)
+			log.Warn(message)
 			run.Status.Status = v1alpha1.AnalysisStatusError
+			run.Status.Message = message
+			return run
 		}
-		return nil
 	}
 	tasks := generateMetricTasks(run)
+	log.Infof("taking %d measurements", len(tasks))
+	c.runMeasurements(run, tasks)
 
-	runMeasurements(run, tasks)
-
-	asssessRunStatus(run)
+	newStatus := asssessRunStatus(run)
+	if newStatus != run.Status.Status {
+		log.Infof("analysis transitioned from %s -> %s", run.Status.Status, newStatus)
+		run.Status.Status = newStatus
+	}
 
 	nextReconcileTime := calculateNextReconcileTime(run)
 	if nextReconcileTime != nil {
 		enqueueSeconds := nextReconcileTime.Sub(time.Now())
+		if enqueueSeconds < 0 {
+			enqueueSeconds = 0
+		}
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
-	return nil
+	return run
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -84,12 +99,20 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			log.WithField("metric", metric.Name).Infof("running initial measurement")
 			continue
 		}
-		if metric.Interval == nil {
-			// a measurement was already taken, and reoccurrence was not desired
+		metricResult := analysisutil.MetricResult(run, metric.Name)
+		effectiveCount := metric.EffectiveCount()
+		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
+			// we have reached desired count
 			continue
 		}
-		if time.Now().After(lastMeasurement.FinishedAt.Add(time.Duration(*metric.Interval) * time.Second)) {
-			// we are due for a measurement
+		// if we get here, we know we need to take a measurement (eventually). check last measurement
+		// to decide if it should be taken now. metric.Interval can be null because we may be
+		// retrying a metric due to error.
+		interval := int32(10)
+		if metric.Interval != nil {
+			interval = *metric.Interval
+		}
+		if time.Now().After(lastMeasurement.FinishedAt.Add(time.Duration(interval) * time.Second)) {
 			tasks = append(tasks, metricTask{metric: metric})
 			log.WithField("metric", metric.Name).Infof("running overdue measurement")
 			continue
@@ -99,26 +122,44 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 }
 
 // runMeasurements iterates a list of metric tasks, and runs or resumes measurements
-func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
+func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	var wg sync.WaitGroup
+	var resultsLock sync.Mutex
 	for _, task := range tasks {
 		wg.Add(1)
-		//var provider provider.MetricProvider
-		//provider = provider.NewProvider(task.metric)
 
-		//go func(p provider.Provider, t metricTask) {
-		go func(p interface{}, t metricTask) {
+		go func(t metricTask) {
 			defer wg.Done()
-			var newMeasurement v1alpha1.Measurement
+
+			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
+
+			resultsLock.Lock()
 			metricResult := run.Status.MetricResults[t.metric.Name]
-			if t.incompleteMeasurement == nil {
-				// newMeasurement = p.Run(metric)
-				metricResult.Measurements = append(metricResult.Measurements, newMeasurement)
+			resultsLock.Unlock()
+
+			var newMeasurement v1alpha1.Measurement
+			provider, err := c.newProvider(*log, t.metric)
+			if err != nil {
+				if t.incompleteMeasurement != nil {
+					newMeasurement = *t.incompleteMeasurement
+				} else {
+					startedAt := metav1.Now()
+					newMeasurement.StartedAt = &startedAt
+				}
+				newMeasurement.Status = v1alpha1.AnalysisStatusError
 			} else {
-				// newMeasurement = p.Resume(metric, measurement)
-				metricResult.Measurements[len(metricResult.Measurements)-1] = newMeasurement
+				if t.incompleteMeasurement == nil {
+					newMeasurement, err = provider.Run(t.metric, run.Spec.Arguments)
+				} else {
+					newMeasurement, err = provider.Resume(t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+				}
 			}
+
 			if newMeasurement.Status.Completed() {
+				if newMeasurement.FinishedAt == nil {
+					finishedAt := metav1.Now()
+					newMeasurement.FinishedAt = &finishedAt
+				}
 				switch newMeasurement.Status {
 				case v1alpha1.AnalysisStatusSuccessful:
 					metricResult.Successful++
@@ -133,8 +174,22 @@ func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 					metricResult.Error++
 				}
 			}
-		}(nil, task)
-		//}(provider, task)
+			if t.incompleteMeasurement == nil {
+				metricResult.Measurements = append(metricResult.Measurements, newMeasurement)
+			} else {
+				metricResult.Measurements[len(metricResult.Measurements)-1] = newMeasurement
+			}
+			if err != nil {
+				metricResult.Message = err.Error()
+			} else {
+				metricResult.Message = ""
+			}
+			metricResult.Name = t.metric.Name
+			resultsLock.Lock()
+			run.Status.MetricResults[t.metric.Name] = metricResult
+			resultsLock.Unlock()
+
+		}(task)
 	}
 	wg.Wait()
 }
@@ -145,9 +200,16 @@ func runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	var worstStatus v1alpha1.AnalysisStatus
 	terminating := analysisutil.IsTerminating(run)
+
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if result, ok := run.Status.MetricResults[metric.Name]; ok {
+			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 			metricStatus := assessMetricStatus(metric, result, terminating)
+			if result.Status != metricStatus {
+				log.Infof("metric transitioned from %s -> %s", result.Status, metricStatus)
+				result.Status = metricStatus
+				run.Status.MetricResults[metric.Name] = result
+			}
 			if !metricStatus.Completed() {
 				// if any metric is not completed, then entire analysis run is considered running
 				return v1alpha1.AnalysisStatusRunning
@@ -204,7 +266,8 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	// Error and Failed counters are ignored because those checks have already been taken into
 	// consideration above, and we do not want to fail the metric if failures < maxFailures.
 	// TODO(jessesuen): may need to tweak this logic
-	if metric.Count > 0 && result.Count >= metric.Count {
+	effectiveCount := metric.EffectiveCount()
+	if effectiveCount != nil && result.Count >= *effectiveCount {
 		var status v1alpha1.AnalysisStatus
 		if result.Successful > result.Inconclusive {
 			status = v1alpha1.AnalysisStatusSuccessful

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bouk/monkey"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +25,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/providers"
+	"github.com/argoproj/argo-rollouts/providers/mocks"
 )
 
 var (
@@ -43,6 +46,8 @@ type fixture struct {
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
 	unfreezeTime    func()
+	// fake provider
+	provider *mocks.Provider
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -106,6 +111,10 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 	}
 	c.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueAnalysis(obj)
+	}
+	f.provider = &mocks.Provider{}
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (providers.Provider, error) {
+		return f.provider, nil
 	}
 
 	for _, ar := range f.analysisRunLister {

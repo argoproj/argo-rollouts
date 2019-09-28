@@ -45,7 +45,7 @@ endif
 all: controller image
 
 .PHONY: codegen
-codegen:
+codegen: mocks
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	go run ./hack/gen-crd-spec/main.go
@@ -76,6 +76,10 @@ lint:
 .PHONY: test
 test:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./...`
+
+.PHONY: mocks
+mocks:
+	mockery -dir ./providers -name Provider -output ./providers/mocks
 
 .PHONY: manifests
 manifests:
