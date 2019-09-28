@@ -9,8 +9,10 @@ import (
 const (
 	// RolloutKey defines the key for the rollout field
 	RolloutKey = "rollout"
-	// ExperimentKey defines the key for the rollout field
+	// ExperimentKey defines the key for the experiment field
 	ExperimentKey = "experiment"
+	// AnalysisRunKey defines the key for the analysisrun field
+	AnalysisRunKey = "analysisrun"
 	// ServiceKey defines the key for the service field
 	ServiceKey = "service"
 	// NamespaceKey defines the key for the namespace field
@@ -24,4 +26,8 @@ func WithRollout(rollout *v1alpha1.Rollout) *log.Entry {
 
 func WithExperiment(experiment *v1alpha1.Experiment) *log.Entry {
 	return log.WithField(ExperimentKey, experiment.Name).WithField(NamespaceKey, experiment.Namespace)
+}
+
+func WithAnalysisRun(ar *v1alpha1.AnalysisRun) *log.Entry {
+	return log.WithField(AnalysisRunKey, ar.Name).WithField(NamespaceKey, ar.Namespace)
 }

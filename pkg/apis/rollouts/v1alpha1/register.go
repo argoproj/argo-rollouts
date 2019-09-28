@@ -33,6 +33,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&RolloutList{},
 		&Experiment{},
 		&ExperimentList{},
+		&AnalysisTemplate{},
+		&AnalysisTemplateList{},
+		&AnalysisRun{},
+		&AnalysisRunList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

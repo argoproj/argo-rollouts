@@ -2,22 +2,21 @@ package metrics
 
 import (
 	"context"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/ghodss/yaml"
-
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	informer "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	lister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	informer "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	lister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 )
 
 // assertMetricsPrinted asserts every line in the expected lines appears in the body

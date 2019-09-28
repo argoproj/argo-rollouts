@@ -43,3 +43,19 @@ func TestWithExperiment(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
 	assert.True(t, strings.Contains(logMessage, "experiment=test-name"))
 }
+
+func TestWithAnalysis(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	logCtx := WithAnalysisRun(&run)
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.True(t, strings.Contains(logMessage, "analysisrun=test-name"))
+}

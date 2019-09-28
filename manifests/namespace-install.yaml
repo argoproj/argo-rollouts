@@ -27,8 +27,9 @@ spec:
                 metrics:
                   items:
                     properties:
-                      failFast:
-                        type: boolean
+                      count:
+                        format: int32
+                        type: integer
                       failureCondition:
                         type: string
                       interval:
@@ -71,6 +72,8 @@ spec:
               items:
                 type: string
               type: array
+            terminate:
+              type: boolean
           required:
           - analysisSpec
           type: object
@@ -79,7 +82,16 @@ spec:
             metricResults:
               additionalProperties:
                 properties:
-                  failures:
+                  count:
+                    format: int32
+                    type: integer
+                  error:
+                    format: int32
+                    type: integer
+                  failed:
+                    format: int32
+                    type: integer
+                  inconclusive:
                     format: int32
                     type: integer
                   measurements:
@@ -103,13 +115,16 @@ spec:
                       - status
                       type: object
                     type: array
+                  message:
+                    type: string
                   name:
                     type: string
                   status:
                     type: string
+                  successful:
+                    format: int32
+                    type: integer
                 required:
-                - failures
-                - measurements
                 - name
                 - status
                 type: object
@@ -155,8 +170,9 @@ spec:
             metrics:
               items:
                 properties:
-                  failFast:
-                    type: boolean
+                  count:
+                    format: int32
+                    type: integer
                   failureCondition:
                     type: string
                   interval:
@@ -2173,6 +2189,42 @@ spec:
                     steps:
                       items:
                         properties:
+                          experiment:
+                            properties:
+                              duration:
+                                format: int32
+                                type: integer
+                              templates:
+                                items:
+                                  properties:
+                                    metadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
+                                    name:
+                                      type: string
+                                    replicas:
+                                      format: int32
+                                      type: integer
+                                    specRef:
+                                      type: string
+                                  required:
+                                  - name
+                                  - replicas
+                                  - specRef
+                                  type: object
+                                type: array
+                            required:
+                            - duration
+                            - templates
+                            type: object
                           pause:
                             properties:
                               duration:
@@ -3918,6 +3970,8 @@ spec:
               type: object
             canary:
               properties:
+                experimentFailed:
+                  type: boolean
                 stableRS:
                   type: string
               type: object
