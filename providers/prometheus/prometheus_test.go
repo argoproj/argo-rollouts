@@ -28,7 +28,7 @@ func TestType(t *testing.T) {
 	assert.Equal(t, ProviderType, p.Type())
 }
 
-func TestRunSuccessFully(t *testing.T) {
+func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mock := mockAPI{
 		value: newScalar(10),
@@ -48,8 +48,8 @@ func TestRunSuccessFully(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10", measurement.Value)
-	// assert.NotNil(t, measurement.FinishedAt)
-	// assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
 }
 
 func TestRunWithQueryError(t *testing.T) {

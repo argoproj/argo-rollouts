@@ -69,10 +69,8 @@ func (p *Provider) Run(metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alph
 	newMeasurement.Value = newValue
 
 	newMeasurement.Status = newStatus
-	// if newStatus.Completed() {
-	// 	finishedTime := metav1.Now()
-	// 	p.measurement.FinishedAt = &finishedTime
-	// }
+	finishedTime := metav1.Now()
+	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement, nil
 }
 
