@@ -70,6 +70,30 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
 	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:        "success-rate",
+					MaxFailures: -1,
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: maxFailures must be >= 0")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:                 "success-rate",
+					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: maxConsecutiveErrors must be >= 0")
+	}
 }
 
 func TestIsWorst(t *testing.T) {
@@ -207,13 +231,13 @@ func TestIsTerminating(t *testing.T) {
 
 func TestConsecutiveErrors(t *testing.T) {
 	{
-		result := &v1alpha1.MetricResult{
+		result := v1alpha1.MetricResult{
 			Measurements: []v1alpha1.Measurement{},
 		}
 		assert.Equal(t, 0, ConsecutiveErrors(result))
 	}
 	{
-		result := &v1alpha1.MetricResult{
+		result := v1alpha1.MetricResult{
 			Measurements: []v1alpha1.Measurement{
 				{
 					Status: v1alpha1.AnalysisStatusError,
@@ -229,7 +253,7 @@ func TestConsecutiveErrors(t *testing.T) {
 		assert.Equal(t, 1, ConsecutiveErrors(result))
 	}
 	{
-		result := &v1alpha1.MetricResult{
+		result := v1alpha1.MetricResult{
 			Measurements: []v1alpha1.Measurement{
 				{
 					Status: v1alpha1.AnalysisStatusError,
@@ -242,7 +266,7 @@ func TestConsecutiveErrors(t *testing.T) {
 		assert.Equal(t, 0, ConsecutiveErrors(result))
 	}
 	{
-		result := &v1alpha1.MetricResult{
+		result := v1alpha1.MetricResult{
 			Measurements: []v1alpha1.Measurement{
 				{
 					Status: v1alpha1.AnalysisStatusError,

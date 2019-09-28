@@ -213,7 +213,7 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectUpdateExperimentAction(analysisRun *v1alpha1.AnalysisRun) int {
+func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)

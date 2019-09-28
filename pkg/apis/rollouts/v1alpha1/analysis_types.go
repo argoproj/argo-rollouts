@@ -52,6 +52,9 @@ type Metric struct {
 	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered failed (default: 0)
 	MaxFailures int32 `json:"maxFailures,omitempty"`
+	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
+	// succession, before the metric is considered error (default: 4)
+	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
 	// PrometheusMetric specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 }

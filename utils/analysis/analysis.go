@@ -32,6 +32,12 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Count > 1 && metric.Interval == nil {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
+	if metric.MaxFailures < 0 {
+		return fmt.Errorf("maxFailures must be >= 0")
+	}
+	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
+		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
+	}
 	return nil
 }
 
@@ -111,7 +117,7 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 }
 
 // ConsecutiveErrors returns number of most recent consecutive errors
-func ConsecutiveErrors(result *v1alpha1.MetricResult) int {
+func ConsecutiveErrors(result v1alpha1.MetricResult) int {
 	consecutiveErrors := 0
 	for i := len(result.Measurements) - 1; i >= 0; i-- {
 		measurement := result.Measurements[i]

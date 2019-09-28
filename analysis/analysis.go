@@ -4,20 +4,23 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
-	MaxConsecutiveErrors = 4
+	// DefaultMaxConsecutiveErrors is the default number times a metric can error in sequence before
+	// erroring the entire metric.
+	DefaultMaxConsecutiveErrors = 4
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
 // an in-progress measurement
 type metricTask struct {
-	metric                *v1alpha1.Metric
+	metric                v1alpha1.Metric
 	incompleteMeasurement *v1alpha1.Measurement
 }
 
@@ -66,7 +69,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			// last measurement is still in-progress. need to complete it
 			log.WithField("metric", metric.Name).Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
-				metric:                &metric,
+				metric:                metric,
 				incompleteMeasurement: lastMeasurement,
 			})
 			continue
@@ -77,7 +80,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		}
 		if lastMeasurement == nil {
 			// measurement never taken
-			tasks = append(tasks, metricTask{metric: &metric})
+			tasks = append(tasks, metricTask{metric: metric})
 			log.WithField("metric", metric.Name).Infof("running initial measurement")
 			continue
 		}
@@ -87,7 +90,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		}
 		if time.Now().After(lastMeasurement.FinishedAt.Add(time.Duration(*metric.Interval) * time.Second)) {
 			// we are due for a measurement
-			tasks = append(tasks, metricTask{metric: &metric})
+			tasks = append(tasks, metricTask{metric: metric})
 			log.WithField("metric", metric.Name).Infof("running overdue measurement")
 			continue
 		}
@@ -144,7 +147,7 @@ func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	terminating := analysisutil.IsTerminating(run)
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if result, ok := run.Status.MetricResults[metric.Name]; ok {
-			metricStatus := assessMetricStatus(&metric, &result, terminating)
+			metricStatus := assessMetricStatus(metric, result, terminating)
 			if !metricStatus.Completed() {
 				// if any metric is not completed, then entire analysis run is considered running
 				return v1alpha1.AnalysisStatusRunning
@@ -165,7 +168,7 @@ func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 // * current/latest measurement status
 // * parameters given by the metric (maxFailures, count, etc...)
 // * whether or not we are terminating (e.g. due to failing run, or termination request)
-func assessMetricStatus(metric *v1alpha1.Metric, result *v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisStatus {
+func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisStatus {
 	if result.Status.Completed() {
 		return result.Status
 	}
@@ -188,8 +191,12 @@ func assessMetricStatus(metric *v1alpha1.Metric, result *v1alpha1.MetricResult, 
 		return v1alpha1.AnalysisStatusFailed
 	}
 	consecutiveErrors := analysisutil.ConsecutiveErrors(result)
-	if consecutiveErrors > MaxConsecutiveErrors {
-		log.Infof("metric assessed %s: consecutiveErrors (%d) > MaxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, consecutiveErrors, MaxConsecutiveErrors)
+	maxConsecutiveErrors := DefaultMaxConsecutiveErrors
+	if metric.MaxConsecutiveErrors != nil {
+		maxConsecutiveErrors = int(*metric.MaxConsecutiveErrors)
+	}
+	if consecutiveErrors > maxConsecutiveErrors {
+		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, consecutiveErrors, maxConsecutiveErrors)
 		return v1alpha1.AnalysisStatusError
 	}
 	// If a count was specified, and we reached that count, then we assess the status based on
@@ -223,7 +230,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 	var reconcileTime *time.Time
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
-			// NOTE: this also coveres the case where metric.Count is reached
+			// NOTE: this also covers the case where metric.Count is reached
 			continue
 		}
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
@@ -247,8 +254,5 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			reconcileTime = &metricReconcileTime
 		}
 	}
-	if reconcileTime != nil {
-		return reconcileTime
-	}
-	return nil
+	return reconcileTime
 }

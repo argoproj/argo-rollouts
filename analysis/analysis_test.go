@@ -219,10 +219,10 @@ func TestAssessRunStatus(t *testing.T) {
 
 func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	// no measurements yet taken
-	metric := &v1alpha1.Metric{
+	metric := v1alpha1.Metric{
 		Name: "success-rate",
 	}
-	result := &v1alpha1.MetricResult{
+	result := v1alpha1.MetricResult{
 		Measurements: nil,
 	}
 	assert.Equal(t, v1alpha1.AnalysisStatusPending, assessMetricStatus(metric, result, false))
@@ -230,10 +230,10 @@ func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 }
 func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	// in-flight measurement
-	metric := &v1alpha1.Metric{
+	metric := v1alpha1.Metric{
 		Name: "success-rate",
 	}
-	result := &v1alpha1.MetricResult{
+	result := v1alpha1.MetricResult{
 		Measurements: []v1alpha1.Measurement{
 			{
 				Value:      "99",
@@ -252,11 +252,11 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, true))
 }
 func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
-	metric := &v1alpha1.Metric{
+	metric := v1alpha1.Metric{
 		Name:        "success-rate",
 		MaxFailures: 2,
 	}
-	result := &v1alpha1.MetricResult{
+	result := v1alpha1.MetricResult{
 		Failed: 3,
 		Measurements: []v1alpha1.Measurement{
 			{
@@ -271,10 +271,10 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	assert.Equal(t, v1alpha1.AnalysisStatusFailed, assessMetricStatus(metric, result, true))
 }
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
-	metric := &v1alpha1.Metric{
+	metric := v1alpha1.Metric{
 		Name: "success-rate",
 	}
-	result := &v1alpha1.MetricResult{
+	result := v1alpha1.MetricResult{
 		Measurements: []v1alpha1.Measurement{
 			{
 				Status:     v1alpha1.AnalysisStatusError,
@@ -315,11 +315,11 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 }
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
-	metric := &v1alpha1.Metric{
+	metric := v1alpha1.Metric{
 		Name:  "success-rate",
 		Count: 10,
 	}
-	result := &v1alpha1.MetricResult{
+	result := v1alpha1.MetricResult{
 		Successful: 10,
 		Count:      10,
 		Measurements: []v1alpha1.Measurement{
