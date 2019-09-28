@@ -12,7 +12,7 @@ import (
 // Provider methods to query a external systems and generate a measurement
 type Provider interface {
 	// Run start a new external system call for a measurement
-	// should be idoponent and do nothing is a call has been started
+	//idempotent and do nothing if a call has been started
 	Run(v1alpha1.Metric, []v1alpha1.Argument) (v1alpha1.Measurement, error)
 	// Checks if the external system call is finished and returns the current measuremtn
 	Resume(v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) (v1alpha1.Measurement, error)
