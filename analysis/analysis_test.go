@@ -532,6 +532,41 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
 }
 
+func TestCalculateNextReconcileUponError(t *testing.T) {
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "success-rate",
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Error:  1,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "99",
+							Status:     v1alpha1.AnalysisStatusError,
+							StartedAt:  &now,
+							FinishedAt: &now,
+						},
+					},
+				},
+			},
+		},
+	}
+	// ensure we requeue at correct interval
+	assert.Equal(t, now.Add(time.Second*time.Duration(DefaultErrorRetryInterval)), *calculateNextReconcileTime(run))
+}
+
 func TestReconcileAnalysisRunInitial(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

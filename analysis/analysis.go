@@ -17,6 +17,9 @@ const (
 	// DefaultMaxConsecutiveErrors is the default number times a metric can error in sequence before
 	// erroring the entire metric.
 	DefaultMaxConsecutiveErrors = 4
+	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
+	// event an interval was not specified
+	DefaultErrorRetryInterval int32 = 10
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -62,6 +65,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		if enqueueSeconds < 0 {
 			enqueueSeconds = 0
 		}
+		log.Infof("enqueuing analysis after %v", enqueueSeconds)
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
@@ -108,7 +112,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		// if we get here, we know we need to take a measurement (eventually). check last measurement
 		// to decide if it should be taken now. metric.Interval can be null because we may be
 		// retrying a metric due to error.
-		interval := int32(10)
+		interval := DefaultErrorRetryInterval
 		if metric.Interval != nil {
 			interval = *metric.Interval
 		}
@@ -310,12 +314,24 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// TODO(jessesuen) perhaps ask provider for an appropriate time to poll?
 			continue
 		}
-		if metric.Interval == nil {
-			// a measurement was already taken, and reoccurrence was not desired
+		metricResult := analysisutil.MetricResult(run, metric.Name)
+		effectiveCount := metric.EffectiveCount()
+		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
+			// we have reached desired count
 			continue
 		}
+		var interval int32
+		if metric.Interval != nil {
+			interval = *metric.Interval
+		} else {
+			if lastMeasurement.Status == v1alpha1.AnalysisStatusError {
+				interval = DefaultErrorRetryInterval
+			} else {
+				continue
+			}
+		}
 		// Take the earliest time of all metrics
-		metricReconcileTime := lastMeasurement.FinishedAt.Add(time.Duration(*metric.Interval) * time.Second)
+		metricReconcileTime := lastMeasurement.FinishedAt.Add(time.Duration(interval) * time.Second)
 		if reconcileTime == nil || reconcileTime.After(metricReconcileTime) {
 			reconcileTime = &metricReconcileTime
 		}
