@@ -40,8 +40,9 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -62,10 +63,10 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 	}
 	{
 		// ensure we do take measurements when outside interval
-		successRate := run.Status.MetricResults["success-rate"]
+		successRate := run.Status.MetricResults[0]
 		successRate.Measurements[0].StartedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
 		successRate.Measurements[0].FinishedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
-		run.Status.MetricResults["success-rate"] = successRate
+		run.Status.MetricResults[0] = successRate
 		tasks := generateMetricTasks(run)
 		assert.Equal(t, 1, len(tasks))
 	}
@@ -87,8 +88,9 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"latency": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "latency",
 					Status: v1alpha1.AnalysisStatusFailed,
 				},
 			},
@@ -116,8 +118,9 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "success-rate",
 					Count: 1,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -138,10 +141,10 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 	}
 	{
 		// ensure we do take measurements when measurement has not been taken
-		successRate := run.Status.MetricResults["success-rate"]
+		successRate := run.Status.MetricResults[0]
 		successRate.Measurements = nil
 		successRate.Count = 0
-		run.Status.MetricResults["success-rate"] = successRate
+		run.Status.MetricResults[0] = successRate
 		tasks := generateMetricTasks(run)
 		assert.Equal(t, 1, len(tasks))
 	}
@@ -160,8 +163,9 @@ func TestGenerateMetricTasksIncomplete(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -195,8 +199,9 @@ func TestGenerateMetricTasksError(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Error:  1,
 					Measurements: []v1alpha1.Measurement{
@@ -234,11 +239,13 @@ func TestAssessRunStatus(t *testing.T) {
 		// ensure if one metric is still running, entire run is still running
 		run.Status = &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"latency": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "latency",
 					Status: v1alpha1.AnalysisStatusSuccessful,
 				},
-				"success-rate": {
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
 			},
@@ -249,11 +256,13 @@ func TestAssessRunStatus(t *testing.T) {
 		// ensure we take the worst of the completed metrics
 		run.Status = &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"latency": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "latency",
 					Status: v1alpha1.AnalysisStatusSuccessful,
 				},
-				"success-rate": {
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusFailed,
 				},
 			},
@@ -398,8 +407,9 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -416,12 +426,12 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 	// ensure we requeue at correct interval
 	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run))
 	// when in-flight is not set, we do not requeue
-	run.Status.MetricResults["success-rate"].Measurements[0].FinishedAt = nil
-	run.Status.MetricResults["success-rate"].Measurements[0].Status = v1alpha1.AnalysisStatusRunning
+	run.Status.MetricResults[0].Measurements[0].FinishedAt = nil
+	run.Status.MetricResults[0].Measurements[0].Status = v1alpha1.AnalysisStatusRunning
 	assert.Nil(t, calculateNextReconcileTime(run))
 	// do not queue completed metrics
 	nowMinus120 := metav1.NewTime(now.Add(time.Second * -120))
-	run.Status.MetricResults["success-rate"] = v1alpha1.MetricResult{
+	run.Status.MetricResults[0] = v1alpha1.MetricResult{
 		Status: v1alpha1.AnalysisStatusSuccessful,
 		Measurements: []v1alpha1.Measurement{
 			{
@@ -450,8 +460,9 @@ func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusSuccessful,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -489,8 +500,9 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 		},
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -501,7 +513,8 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 						},
 					},
 				},
-				"latency": {
+				{
+					Name:   "latency",
 					Status: v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{
 						{
@@ -541,28 +554,28 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	f.provider.On("Run", mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
 	{
 		newRun := c.reconcileAnalysisRun(run)
-		assert.Equal(t, v1alpha1.AnalysisStatusRunning, newRun.Status.MetricResults["success-rate"].Status)
+		assert.Equal(t, v1alpha1.AnalysisStatusRunning, newRun.Status.MetricResults[0].Status)
 		assert.Equal(t, v1alpha1.AnalysisStatusRunning, newRun.Status.Status)
-		assert.Equal(t, 1, len(newRun.Status.MetricResults["success-rate"].Measurements))
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults["success-rate"].Measurements[0].Status)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	}
 	{
 		// now set count to one and run should be completed immediately
 		run.Spec.AnalysisSpec.Metrics[0].Count = 1
 		newRun := c.reconcileAnalysisRun(run)
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults["success-rate"].Status)
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.Status)
-		assert.Equal(t, 1, len(newRun.Status.MetricResults["success-rate"].Measurements))
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults["success-rate"].Measurements[0].Status)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	}
 	{
 		// the same is true if both count and interval are omitted completed immediately
 		run.Spec.AnalysisSpec.Metrics[0].Count = 0
 		run.Spec.AnalysisSpec.Metrics[0].Interval = nil
 		newRun := c.reconcileAnalysisRun(run)
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults["success-rate"].Status)
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.Status)
-		assert.Equal(t, 1, len(newRun.Status.MetricResults["success-rate"].Measurements))
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults["success-rate"].Measurements[0].Status)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	}
 }

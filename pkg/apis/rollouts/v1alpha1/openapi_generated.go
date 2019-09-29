@@ -255,8 +255,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 					"metricResults": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Metrics contains the metrics collected during the run",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult"),

@@ -35,7 +35,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 
 	if run.Status == nil {
 		run.Status = &v1alpha1.AnalysisRunStatus{
-			MetricResults: make(map[string]v1alpha1.MetricResult),
+			MetricResults: make([]v1alpha1.MetricResult, 0),
 		}
 		err := analysisutil.ValidateAnalysisTemplateSpec(run.Spec.AnalysisSpec)
 		if err != nil {
@@ -134,7 +134,10 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
 
 			resultsLock.Lock()
-			metricResult := run.Status.MetricResults[t.metric.Name]
+			metricResult := analysisutil.MetricResult(run, t.metric.Name)
+			if metricResult == nil {
+				metricResult = &v1alpha1.MetricResult{}
+			}
 			resultsLock.Unlock()
 
 			var newMeasurement v1alpha1.Measurement
@@ -186,7 +189,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			}
 			metricResult.Name = t.metric.Name
 			resultsLock.Lock()
-			run.Status.MetricResults[t.metric.Name] = metricResult
+			analysisutil.SetResult(run, *metricResult)
 			resultsLock.Unlock()
 
 		}(task)
@@ -202,13 +205,13 @@ func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	terminating := analysisutil.IsTerminating(run)
 
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
-		if result, ok := run.Status.MetricResults[metric.Name]; ok {
+		if result := analysisutil.MetricResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			metricStatus := assessMetricStatus(metric, result, terminating)
+			metricStatus := assessMetricStatus(metric, *result, terminating)
 			if result.Status != metricStatus {
 				log.Infof("metric transitioned from %s -> %s", result.Status, metricStatus)
 				result.Status = metricStatus
-				run.Status.MetricResults[metric.Name] = result
+				analysisutil.SetResult(run, *result)
 			}
 			if !metricStatus.Completed() {
 				// if any metric is not completed, then entire analysis run is considered running

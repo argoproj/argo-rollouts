@@ -160,7 +160,7 @@ type AnalysisRunStatus struct {
 	// Message is a message explaining current statuss
 	Message string `json:"message,omitempty"`
 	// Metrics contains the metrics collected during the run
-	MetricResults map[string]MetricResult `json:"metricResults,omitempty"`
+	MetricResults []MetricResult `json:"metricResults,omitempty"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

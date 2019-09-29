@@ -144,9 +144,9 @@ func (in *AnalysisRunStatus) DeepCopyInto(out *AnalysisRunStatus) {
 	*out = *in
 	if in.MetricResults != nil {
 		in, out := &in.MetricResults, &out.MetricResults
-		*out = make(map[string]MetricResult, len(*in))
-		for key, val := range *in {
-			(*out)[key] = *val.DeepCopy()
+		*out = make([]MetricResult, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	return
