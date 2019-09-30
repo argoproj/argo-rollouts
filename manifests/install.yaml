@@ -88,8 +88,10 @@ spec:
           type: object
         status:
           properties:
+            message:
+              type: string
             metricResults:
-              additionalProperties:
+              items:
                 properties:
                   count:
                     format: int32
@@ -137,11 +139,10 @@ spec:
                 - name
                 - status
                 type: object
-              type: object
+              type: array
             status:
               type: string
           required:
-          - metricResults
           - status
           type: object
       required:

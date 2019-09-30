@@ -38,6 +38,16 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
 		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
 	}
+	numProviders := 0
+	if metric.Provider.Prometheus != nil {
+		numProviders++
+	}
+	if numProviders == 0 {
+		return fmt.Errorf("no provider specified")
+	}
+	if numProviders > 1 {
+		return fmt.Errorf("multiple providers specified")
+	}
 	return nil
 }
 
@@ -85,35 +95,45 @@ func IsFailing(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
-// MetricResult returns the metric result by name
-func MetricResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
-	metricResult, ok := run.Status.MetricResults[metricName]
-	if !ok {
-		return nil
+// GetResult returns the metric result by name
+func GetResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
+	for _, result := range run.Status.MetricResults {
+		if result.Name == metricName {
+			return &result
+		}
 	}
-	return &metricResult
+	return nil
+}
+
+// SetResult updates the metric result
+func SetResult(run *v1alpha1.AnalysisRun, result v1alpha1.MetricResult) {
+	for i, r := range run.Status.MetricResults {
+		if r.Name == result.Name {
+			run.Status.MetricResults[i] = result
+			return
+		}
+	}
+	run.Status.MetricResults = append(run.Status.MetricResults, result)
 }
 
 // MetricCompleted returns whether or not a metric was completed or not
 func MetricCompleted(run *v1alpha1.AnalysisRun, metricName string) bool {
-	metricResult, ok := run.Status.MetricResults[metricName]
-	if !ok {
-		return false
+	if result := GetResult(run, metricName); result != nil {
+		return result.Status.Completed()
 	}
-	return metricResult.Status.Completed()
+	return false
 }
 
 // LastMeasurement returns the last measurement started or completed for a specific metric
 func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Measurement {
-	result, ok := run.Status.MetricResults[metricName]
-	if !ok {
-		return nil
+	if result := GetResult(run, metricName); result != nil {
+		totalMeasurements := len(result.Measurements)
+		if totalMeasurements == 0 {
+			return nil
+		}
+		return &result.Measurements[totalMeasurements-1]
 	}
-	totalMeasurements := len(result.Measurements)
-	if totalMeasurements == 0 {
-		return nil
-	}
-	return &result.Measurements[totalMeasurements-1]
+	return nil
 }
 
 // ConsecutiveErrors returns number of most recent consecutive errors

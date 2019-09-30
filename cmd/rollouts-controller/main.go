@@ -40,6 +40,7 @@ func newCommand() *cobra.Command {
 		metricsPort         int
 		rolloutThreads      int
 		experimentThreads   int
+		analysisThreads     int
 		serviceThreads      int
 	)
 	var command = cobra.Command{
@@ -85,6 +86,7 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory.Core().V1().Services(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
+				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				resyncDuration,
 				metricsPort)
 
@@ -93,7 +95,7 @@ func newCommand() *cobra.Command {
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
 
-			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, stopCh); err != nil {
+			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, analysisThreads, stopCh); err != nil {
 				glog.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
@@ -106,6 +108,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
+	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	return &command
 }

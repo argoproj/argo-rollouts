@@ -17,6 +17,9 @@ func TestValidateMetrics(t *testing.T) {
 					Name:        "success-rate",
 					Count:       1,
 					MaxFailures: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -31,6 +34,9 @@ func TestValidateMetrics(t *testing.T) {
 					Count:       2,
 					Interval:    pointer.Int32Ptr(60),
 					MaxFailures: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -50,6 +56,9 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:  "success-rate",
 					Count: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -61,9 +70,15 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name: "success-rate",
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 				{
 					Name: "success-rate",
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -76,6 +91,9 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:        "success-rate",
 					MaxFailures: -1,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
@@ -88,11 +106,26 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:                 "success-rate",
 					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
 				},
 			},
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: maxConsecutiveErrors must be >= 0")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:  "success-rate",
+					Count: 1,
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: no provider specified")
 	}
 }
 
@@ -122,47 +155,67 @@ func TestIsFailing(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"other-metric": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "other-metric",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
-				"success-rate": {
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
 			},
 		},
 	}
-	successRate := run.Status.MetricResults["success-rate"]
+	successRate := run.Status.MetricResults[1]
 	assert.False(t, IsFailing(run))
 	successRate.Status = v1alpha1.AnalysisStatusError
-	run.Status.MetricResults["success-rate"] = successRate
+	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsFailing(run))
 	successRate.Status = v1alpha1.AnalysisStatusFailed
-	run.Status.MetricResults["success-rate"] = successRate
+	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsFailing(run))
 }
 
-func TestMetricResult(t *testing.T) {
+func TestGetResult(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
 			},
 		},
 	}
-	assert.Nil(t, MetricResult(run, "non-existent"))
-	assert.Equal(t, run.Status.MetricResults["success-rate"], *MetricResult(run, "success-rate"))
+	assert.Nil(t, GetResult(run, "non-existent"))
+	assert.Equal(t, run.Status.MetricResults[0], *GetResult(run, "success-rate"))
+}
+
+func TestSetResult(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Status: &v1alpha1.AnalysisRunStatus{},
+	}
+	res := v1alpha1.MetricResult{
+		Name:   "success-rate",
+		Status: v1alpha1.AnalysisStatusRunning,
+	}
+
+	SetResult(run, res)
+	assert.Equal(t, res, run.Status.MetricResults[0])
+	res.Status = v1alpha1.AnalysisStatusFailed
+	SetResult(run, res)
+	assert.Equal(t, res, run.Status.MetricResults[0])
 }
 
 func TestMetricCompleted(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
 			},
@@ -171,7 +224,8 @@ func TestMetricCompleted(t *testing.T) {
 	assert.False(t, MetricCompleted(run, "non-existent"))
 	assert.False(t, MetricCompleted(run, "success-rate"))
 
-	run.Status.MetricResults["success-rate"] = v1alpha1.MetricResult{
+	run.Status.MetricResults[0] = v1alpha1.MetricResult{
+		Name:   "success-rate",
 		Status: v1alpha1.AnalysisStatusError,
 	}
 	assert.True(t, MetricCompleted(run, "success-rate"))
@@ -189,8 +243,9 @@ func TestLastMeasurement(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"success-rate": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:         "success-rate",
 					Status:       v1alpha1.AnalysisStatusRunning,
 					Measurements: []v1alpha1.Measurement{m1, m2},
 				},
@@ -199,9 +254,9 @@ func TestLastMeasurement(t *testing.T) {
 	}
 	assert.Nil(t, LastMeasurement(run, "non-existent"))
 	assert.Equal(t, m2, *LastMeasurement(run, "success-rate"))
-	successRate := run.Status.MetricResults["success-rate"]
+	successRate := run.Status.MetricResults[0]
 	successRate.Measurements = []v1alpha1.Measurement{}
-	run.Status.MetricResults["success-rate"] = successRate
+	run.Status.MetricResults[0] = successRate
 	assert.Nil(t, LastMeasurement(run, "success-rate"))
 }
 
@@ -209,11 +264,13 @@ func TestIsTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
-			MetricResults: map[string]v1alpha1.MetricResult{
-				"other-metric": {
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "other-metric",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
-				"success-rate": {
+				{
+					Name:   "success-rate",
 					Status: v1alpha1.AnalysisStatusRunning,
 				},
 			},
@@ -223,9 +280,9 @@ func TestIsTerminating(t *testing.T) {
 	run.Spec.Terminate = true
 	assert.True(t, IsTerminating(run))
 	run.Spec.Terminate = false
-	successRate := run.Status.MetricResults["success-rate"]
+	successRate := run.Status.MetricResults[1]
 	successRate.Status = v1alpha1.AnalysisStatusError
-	run.Status.MetricResults["success-rate"] = successRate
+	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
 }
 

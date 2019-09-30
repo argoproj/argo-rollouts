@@ -12,10 +12,17 @@ Install:
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
-Argo Rollout uses the `controller-gen` binary in order to auto-generate the crd manifest and golangci-lint to lint the project. Please run the following commands to install them:
+Argo Rollout additionally uses
+* `controller-gen` binary in order to auto-generate the crd manifest
+* `golangci-lint` to lint the project.
+* `mockery` to generate mock objects.
 
-* `go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen`
-* `go get -u github.com/golangci/golangci-lint/cmd/golangci-lint`
+Run the following commands to install them:
+```bash
+go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+go get -u github.com/vektra/mockery/.../
+```
 
 
 Brew users can quickly install the lot:

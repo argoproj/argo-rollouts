@@ -12,9 +12,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/providers"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -24,13 +26,15 @@ type AnalysisController struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// analysisclientset is a clientset for our own API group
-	arogProjClientset clientset.Interface
+	argoProjClientset clientset.Interface
 
 	analysisRunLister listers.AnalysisRunLister
 
 	analysisRunSynced cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
+
+	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (providers.Provider, error)
 
 	// used for unit testing
 	enqueueAnalysis      func(obj interface{})
@@ -51,7 +55,7 @@ type AnalysisController struct {
 // NewAnalysisController returns a new analysis controller
 func NewAnalysisController(
 	kubeclientset kubernetes.Interface,
-	arogProjClientset clientset.Interface,
+	argoProjClientset clientset.Interface,
 	analysisRunInformer informers.AnalysisRunInformer,
 	resyncPeriod time.Duration,
 	analysisRunWorkQueue workqueue.RateLimitingInterface,
@@ -60,7 +64,7 @@ func NewAnalysisController(
 
 	controller := &AnalysisController{
 		kubeclientset:        kubeclientset,
-		arogProjClientset:    arogProjClientset,
+		argoProjClientset:    argoProjClientset,
 		analysisRunLister:    analysisRunInformer.Lister(),
 		metricsServer:        metricsServer,
 		analysisRunWorkQueue: analysisRunWorkQueue,
@@ -76,6 +80,8 @@ func NewAnalysisController(
 	controller.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
 	}
+
+	controller.newProvider = providers.NewProvider
 
 	log.Info("Setting up analysis event handlers")
 	// Set up an event handler for when analysis resources change
@@ -110,7 +116,7 @@ func (c *AnalysisController) syncHandler(key string) error {
 		return err
 	}
 	log.WithField(logutil.AnalysisRunKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing Analysis at (%v)", startTime)
-	ar, err := c.analysisRunLister.AnalysisRuns(namespace).Get(name)
+	run, err := c.analysisRunLister.AnalysisRuns(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
 		log.WithField(logutil.AnalysisRunKey, name).WithField(logutil.NamespaceKey, namespace).Info("Analysis has been deleted")
 		return nil
@@ -121,16 +127,17 @@ func (c *AnalysisController) syncHandler(key string) error {
 
 	defer func() {
 		duration := time.Since(startTime)
-		//TODO(jesseseun) Add metrics for analysis
+		//TODO(jessesuen) Add metrics for analysis
 		//arc.metricsServer.IncReconcile(r, duration)
-		logCtx := logutil.WithAnalysisRun(ar).WithField("time_ms", duration.Seconds()*1e3)
+		logCtx := logutil.WithAnalysisRun(run).WithField("time_ms", duration.Seconds()*1e3)
 		logCtx.Info("Reconciliation completed")
 	}()
 
-	if ar.DeletionTimestamp != nil {
-		logutil.WithAnalysisRun(ar).Info("No reconciliation as analysis marked for deletion")
+	if run.DeletionTimestamp != nil {
+		logutil.WithAnalysisRun(run).Info("No reconciliation as analysis marked for deletion")
 		return nil
 	}
 
-	return c.reconcileAnalysisRun(ar)
+	newRun := c.reconcileAnalysisRun(run)
+	return c.persistAnalysisRunStatus(run, newRun.Status)
 }

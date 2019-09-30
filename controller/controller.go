@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-rollouts/analysis"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/experiments"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -37,13 +38,16 @@ const (
 	// DefaultMetricsPort Default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
 
-	// DefaultRolloutThreads Default number of worker threads to start with the controller
+	// DefaultRolloutThreads Default number of rollout worker threads to start with the controller
 	DefaultRolloutThreads = 10
 
-	// DefaultExperimentThreads Default number of worker threads to start with the controller
+	// DefaultExperimentThreads Default number of experiment worker threads to start with the controller
 	DefaultExperimentThreads = 10
 
-	// DefaultServiceThreads Default number of worker threads to start with the controller
+	// DefaultAnalysisThreads Default number of analysis worker threads to start with the controller
+	DefaultAnalysisThreads = 30
+
+	// DefaultServiceThreads Default number of service worker threads to start with the controller
 	DefaultServiceThreads = 10
 )
 
@@ -52,16 +56,19 @@ type Manager struct {
 	metricsServer        *metrics.MetricsServer
 	rolloutController    *rollout.RolloutController
 	experimentController *experiments.ExperimentController
+	analysisController   *analysis.AnalysisController
 	serviceController    *service.ServiceController
 
 	rolloutSynced     cache.InformerSynced
 	experimentSynced  cache.InformerSynced
+	analysisRunSynced cache.InformerSynced
 	serviceSynced     cache.InformerSynced
 	replicasSetSynced cache.InformerSynced
 
-	rolloutWorkqueue    workqueue.RateLimitingInterface
-	serviceWorkqueue    workqueue.RateLimitingInterface
-	experimentWorkqueue workqueue.RateLimitingInterface
+	rolloutWorkqueue     workqueue.RateLimitingInterface
+	serviceWorkqueue     workqueue.RateLimitingInterface
+	experimentWorkqueue  workqueue.RateLimitingInterface
+	analysisRunWorkqueue workqueue.RateLimitingInterface
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -72,6 +79,7 @@ func NewManager(
 	servicesInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
+	analysisRunInformer informers.AnalysisRunInformer,
 	resyncPeriod time.Duration,
 	metricsPort int) *Manager {
 
@@ -89,6 +97,7 @@ func NewManager(
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")
+	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 
 	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
@@ -110,10 +119,17 @@ func NewManager(
 		replicaSetInformer,
 		rolloutsInformer,
 		experimentsInformer,
-
 		resyncPeriod,
 		rolloutWorkqueue,
 		experimentWorkqueue,
+		metricsServer,
+		recorder)
+
+	analysisController := analysis.NewAnalysisController(kubeclientset,
+		argoprojclientset,
+		analysisRunInformer,
+		resyncPeriod,
+		analysisRunWorkqueue,
 		metricsServer,
 		recorder)
 
@@ -131,13 +147,16 @@ func NewManager(
 		rolloutSynced:        rolloutsInformer.Informer().HasSynced,
 		serviceSynced:        servicesInformer.Informer().HasSynced,
 		experimentSynced:     experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
 		replicasSetSynced:    replicaSetInformer.Informer().HasSynced,
 		rolloutWorkqueue:     rolloutWorkqueue,
 		experimentWorkqueue:  experimentWorkqueue,
+		analysisRunWorkqueue: analysisRunWorkqueue,
 		serviceWorkqueue:     serviceWorkqueue,
 		rolloutController:    rolloutController,
 		serviceController:    serviceController,
 		experimentController: experimentController,
+		analysisController:   analysisController,
 	}
 
 	return cm
@@ -147,15 +166,16 @@ func NewManager(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadiness int, stopCh <-chan struct{}) error {
+func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
 
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
 	defer c.rolloutWorkqueue.ShutDown()
 	defer c.experimentWorkqueue.ShutDown()
+	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.rolloutSynced, c.experimentSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -164,6 +184,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadin
 	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, stopCh) }, time.Second, stopCh)
 	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, stopCh) }, time.Second, stopCh)
 	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, stopCh) }, time.Second, stopCh)
+	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, stopCh) }, time.Second, stopCh)
 	log.Info("Started controller")
 
 	go func() {

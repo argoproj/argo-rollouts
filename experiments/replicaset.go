@@ -40,7 +40,7 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing ReplicaSets (see #42639).
 	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.arogProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Get(experiment.Name, metav1.GetOptions{})
+		fresh, err := c.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Get(experiment.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,7 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		}
 
 		patch := fmt.Sprintf(CollisionCountPatch, string(templateStatusBytes))
-		_, patchErr := ec.arogProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Patch(experiment.Name, patchtypes.MergePatchType, []byte(patch))
+		_, patchErr := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Patch(experiment.Name, patchtypes.MergePatchType, []byte(patch))
 		logCtx.WithField("patch", patch).Debug("Applied Patch")
 		if patchErr != nil {
 			logCtx.Errorf("Error patching service %s", err.Error())

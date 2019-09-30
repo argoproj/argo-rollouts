@@ -148,7 +148,7 @@ func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experimen
 		return nil
 	}
 	logCtx.Debugf("Experiment Patch: %s", patch)
-	_, err = ec.arogProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
 		logCtx.Warningf("Error updating experiment: %v", err)
 		return err
