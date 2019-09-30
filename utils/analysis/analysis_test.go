@@ -177,7 +177,7 @@ func TestIsFailing(t *testing.T) {
 	assert.True(t, IsFailing(run))
 }
 
-func TestMetricResult(t *testing.T) {
+func TestGetResult(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
@@ -189,8 +189,8 @@ func TestMetricResult(t *testing.T) {
 			},
 		},
 	}
-	assert.Nil(t, MetricResult(run, "non-existent"))
-	assert.Equal(t, run.Status.MetricResults[0], *MetricResult(run, "success-rate"))
+	assert.Nil(t, GetResult(run, "non-existent"))
+	assert.Equal(t, run.Status.MetricResults[0], *GetResult(run, "success-rate"))
 }
 
 func TestSetResult(t *testing.T) {

@@ -175,7 +175,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadin
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.rolloutSynced, c.experimentSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 

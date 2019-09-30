@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -20,6 +21,12 @@ const (
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval int32 = 10
+)
+
+// Event reasons for analysis events
+const (
+	EventReasonStatusFailed    = "Failed"
+	EventReasonStatusCompleted = "Complete"
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -46,6 +53,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 			log.Warn(message)
 			run.Status.Status = v1alpha1.AnalysisStatusError
 			run.Status.Message = message
+			c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Status)
 			return run
 		}
 	}
@@ -53,9 +61,18 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	log.Infof("taking %d measurements", len(tasks))
 	c.runMeasurements(run, tasks)
 
-	newStatus := asssessRunStatus(run)
+	newStatus := c.asssessRunStatus(run)
 	if newStatus != run.Status.Status {
-		log.Infof("analysis transitioned from %s -> %s", run.Status.Status, newStatus)
+		message := fmt.Sprintf("analysis transitioned from %s -> %s", run.Status.Status, newStatus)
+		if newStatus.Completed() {
+			switch newStatus {
+			case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+				c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", newStatus)
+			default:
+				c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "analysis completed %s", newStatus)
+			}
+		}
+		log.Info(message)
 		run.Status.Status = newStatus
 	}
 
@@ -103,7 +120,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			log.WithField("metric", metric.Name).Infof("running initial measurement")
 			continue
 		}
-		metricResult := analysisutil.MetricResult(run, metric.Name)
+		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
 			// we have reached desired count
@@ -128,6 +145,8 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 // runMeasurements iterates a list of metric tasks, and runs or resumes measurements
 func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	var wg sync.WaitGroup
+	// resultsLock should be held whenever we are accessing or setting status.metricResults since
+	// we are performing queries in parallel
 	var resultsLock sync.Mutex
 	for _, task := range tasks {
 		wg.Add(1)
@@ -138,11 +157,11 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
 
 			resultsLock.Lock()
-			metricResult := analysisutil.MetricResult(run, t.metric.Name)
+			metricResult := analysisutil.GetResult(run, t.metric.Name)
+			resultsLock.Unlock()
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{}
 			}
-			resultsLock.Unlock()
 
 			var newMeasurement v1alpha1.Measurement
 			provider, err := c.newProvider(*log, t.metric)
@@ -204,16 +223,24 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 // asssessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
+func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	var worstStatus v1alpha1.AnalysisStatus
 	terminating := analysisutil.IsTerminating(run)
 
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
-		if result := analysisutil.MetricResult(run, metric.Name); result != nil {
+		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 			metricStatus := assessMetricStatus(metric, *result, terminating)
 			if result.Status != metricStatus {
 				log.Infof("metric transitioned from %s -> %s", result.Status, metricStatus)
+				if metricStatus.Completed() {
+					switch metricStatus {
+					case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+						c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "metric '%s' completed %s", metric.Name, metricStatus)
+					default:
+						c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "metric '%s' completed %s", metric.Name, metricStatus)
+					}
+				}
 				result.Status = metricStatus
 				analysisutil.SetResult(run, *result)
 			}
@@ -314,7 +341,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// TODO(jessesuen) perhaps ask provider for an appropriate time to poll?
 			continue
 		}
-		metricResult := analysisutil.MetricResult(run, metric.Name)
+		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
 			// we have reached desired count
@@ -323,12 +350,15 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		var interval int32
 		if metric.Interval != nil {
 			interval = *metric.Interval
+		} else if lastMeasurement.Status == v1alpha1.AnalysisStatusError {
+			interval = DefaultErrorRetryInterval
 		} else {
-			if lastMeasurement.Status == v1alpha1.AnalysisStatusError {
-				interval = DefaultErrorRetryInterval
-			} else {
-				continue
-			}
+			// if we get here, an interval was not set (meaning reoccurrence was not desired), and
+			// there was no error (meaning we don't need to retry). no need to requeue this metric.
+			// NOTE: we shouldn't ever get here since it means we are not doing proper bookkeeping
+			// of count.
+			log.WithField("metric", metric.Name).Warnf("skipping requeue. no interval or error (count: %d, effectiveCount: %d)", metricResult.Count, metric.EffectiveCount())
+			continue
 		}
 		// Take the earliest time of all metrics
 		metricReconcileTime := lastMeasurement.FinishedAt.Add(time.Duration(interval) * time.Second)

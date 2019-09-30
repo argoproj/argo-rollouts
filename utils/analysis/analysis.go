@@ -95,8 +95,8 @@ func IsFailing(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
-// MetricResult returns the metric result by name
-func MetricResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
+// GetResult returns the metric result by name
+func GetResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
 	for _, result := range run.Status.MetricResults {
 		if result.Name == metricName {
 			return &result
@@ -118,7 +118,7 @@ func SetResult(run *v1alpha1.AnalysisRun, result v1alpha1.MetricResult) {
 
 // MetricCompleted returns whether or not a metric was completed or not
 func MetricCompleted(run *v1alpha1.AnalysisRun, metricName string) bool {
-	if result := MetricResult(run, metricName); result != nil {
+	if result := GetResult(run, metricName); result != nil {
 		return result.Status.Completed()
 	}
 	return false
@@ -126,7 +126,7 @@ func MetricCompleted(run *v1alpha1.AnalysisRun, metricName string) bool {
 
 // LastMeasurement returns the last measurement started or completed for a specific metric
 func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Measurement {
-	if result := MetricResult(run, metricName); result != nil {
+	if result := GetResult(run, metricName); result != nil {
 		totalMeasurements := len(result.Measurements)
 		if totalMeasurements == 0 {
 			return nil

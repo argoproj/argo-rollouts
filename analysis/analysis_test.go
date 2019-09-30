@@ -221,6 +221,9 @@ func TestGenerateMetricTasksError(t *testing.T) {
 }
 
 func TestAssessRunStatus(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
@@ -250,7 +253,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisStatusRunning, asssessRunStatus(run))
+		assert.Equal(t, v1alpha1.AnalysisStatusRunning, c.asssessRunStatus(run))
 	}
 	{
 		// ensure we take the worst of the completed metrics
@@ -267,7 +270,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisStatusFailed, asssessRunStatus(run))
+		assert.Equal(t, v1alpha1.AnalysisStatusFailed, c.asssessRunStatus(run))
 	}
 }
 
@@ -604,7 +607,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	}
 	{
-		// the same is true if both count and interval are omitted completed immediately
+		// run should complete immediately if both count and interval are omitted
 		run.Spec.AnalysisSpec.Metrics[0].Count = 0
 		run.Spec.AnalysisSpec.Metrics[0].Interval = nil
 		newRun := c.reconcileAnalysisRun(run)
@@ -613,4 +616,23 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	}
+}
+
+func TestReconcileAnalysisRunInvalid(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "success-rate",
+					},
+				},
+			},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisStatusError, newRun.Status.Status)
 }

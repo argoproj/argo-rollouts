@@ -159,7 +159,7 @@ type AnalysisRunStatus struct {
 	Status AnalysisStatus `json:"status"`
 	// Message is a message explaining current statuss
 	Message string `json:"message,omitempty"`
-	// Metrics contains the metrics collected during the run
+	// MetricResults contains the metrics collected during the run
 	MetricResults []MetricResult `json:"metricResults,omitempty"`
 }
 
