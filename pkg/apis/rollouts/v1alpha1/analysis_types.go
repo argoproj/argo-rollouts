@@ -52,8 +52,11 @@ type Metric struct {
 	// either condition, the measurement is considered Inconclusive
 	FailureCondition string `json:"failureCondition,omitempty"`
 	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
-	// entire metric is considered failed (default: 0)
+	// entire metric is considered Failed (default: 0)
 	MaxFailures int32 `json:"maxFailures,omitempty"`
+	// MaxInconclusive is the maximum number of times the measurement is allowed to measure
+	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
+	MaxInconclusive int32 `json:"maxInconclusive,omitempty"`
 	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
 	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
@@ -85,10 +88,10 @@ type AnalysisProvider struct {
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 }
 
-// AnalysisStatus is the overall status of the AnalysisRun, MetricResults, or Measurement
+// AnalysisStatus is the overall status of an AnalysisRun, MetricResult, or Measurement
 type AnalysisStatus string
 
-// AnalysisStatus is the overall status of the AnalysisRun, MetricResults
+// Possible AnalysisStatus values
 const (
 	AnalysisStatusPending      AnalysisStatus = "Pending"
 	AnalysisStatusRunning      AnalysisStatus = "Running"

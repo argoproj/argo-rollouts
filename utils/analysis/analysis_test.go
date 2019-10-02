@@ -151,7 +151,7 @@ func TestIsWorst(t *testing.T) {
 	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusFailed))
 }
 
-func TestIsFailing(t *testing.T) {
+func TestIsFastFailTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
@@ -168,13 +168,16 @@ func TestIsFailing(t *testing.T) {
 		},
 	}
 	successRate := run.Status.MetricResults[1]
-	assert.False(t, IsFailing(run))
+	assert.False(t, IsTerminating(run))
 	successRate.Status = v1alpha1.AnalysisStatusError
 	run.Status.MetricResults[1] = successRate
-	assert.True(t, IsFailing(run))
+	assert.True(t, IsTerminating(run))
 	successRate.Status = v1alpha1.AnalysisStatusFailed
 	run.Status.MetricResults[1] = successRate
-	assert.True(t, IsFailing(run))
+	assert.True(t, IsTerminating(run))
+	successRate.Status = v1alpha1.AnalysisStatusInconclusive
+	run.Status.MetricResults[1] = successRate
+	assert.True(t, IsTerminating(run))
 }
 
 func TestGetResult(t *testing.T) {
