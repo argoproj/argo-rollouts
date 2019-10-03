@@ -2195,6 +2195,29 @@ spec:
                   type: object
                 canary:
                   properties:
+                    analysis:
+                      properties:
+                        arguments:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                              valueFrom:
+                                properties:
+                                  podTemplateHashValue:
+                                    type: string
+                                type: object
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        templateName:
+                          type: string
+                      required:
+                      - templateName
+                      type: object
                     canaryService:
                       type: string
                     maxSurge:
@@ -2208,6 +2231,29 @@ spec:
                     steps:
                       items:
                         properties:
+                          analysis:
+                            properties:
+                              arguments:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                    valueFrom:
+                                      properties:
+                                        podTemplateHashValue:
+                                          type: string
+                                      type: object
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                              templateName:
+                                type: string
+                            required:
+                            - templateName
+                            type: object
                           experiment:
                             properties:
                               duration:
@@ -3989,6 +4035,10 @@ spec:
               type: object
             canary:
               properties:
+                currentParellelAnalysisRun:
+                  type: string
+                currentStepAnalysisRun:
+                  type: string
                 experimentFailed:
                   type: boolean
                 stableRS:

@@ -51,6 +51,7 @@ const (
 				"observedGeneration": ""
 			}
 	}`
+	MockGeneratedNameSuffix = "abc123"
 )
 
 type fixture struct {
@@ -389,6 +390,19 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
 	}
 
+	f.client.PrependReactor("create", "analysisruns", func(action core.Action) (bool, runtime.Object, error) {
+		createAction, ok := action.(core.CreateAction)
+		if !ok {
+			assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
+		}
+		ar := &v1alpha1.AnalysisRun{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(createAction.GetObject())
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
+		ar.Name = ar.GenerateName + "-" + MockGeneratedNameSuffix
+		return true, ar.DeepCopyObject(), nil
+	})
+
 	return c, i, k8sI
 }
 
@@ -686,11 +700,11 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	obj := createAction.GetObject()
-	ar := v1alpha1.AnalysisRun{}
+	ar := &v1alpha1.AnalysisRun{}
 	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
-	return &ar
+	return ar
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
@@ -1032,7 +1046,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"7c8f97d5d6"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6479797d56"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
