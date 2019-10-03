@@ -87,6 +87,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
+				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				resyncDuration,
 				metricsPort)
 

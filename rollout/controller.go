@@ -44,14 +44,16 @@ type RolloutController struct {
 	// argoprojclientset is a clientset for our own API group
 	argoprojclientset clientset.Interface
 
-	replicaSetLister  appslisters.ReplicaSetLister
-	replicaSetSynced  cache.InformerSynced
-	rolloutsLister    listers.RolloutLister
-	rolloutsSynced    cache.InformerSynced
-	rolloutsIndexer   cache.Indexer
-	servicesLister    v1.ServiceLister
-	experimentsLister listers.ExperimentLister
-	metricsServer     *metrics.MetricsServer
+	replicaSetLister       appslisters.ReplicaSetLister
+	replicaSetSynced       cache.InformerSynced
+	rolloutsLister         listers.RolloutLister
+	rolloutsSynced         cache.InformerSynced
+	rolloutsIndexer        cache.Indexer
+	servicesLister         v1.ServiceLister
+	experimentsLister      listers.ExperimentLister
+	analysisRunLister      listers.AnalysisRunLister
+	analysisTemplateLister listers.AnalysisTemplateLister
+	metricsServer          *metrics.MetricsServer
 
 	// used for unit testing
 	enqueueRollout      func(obj interface{})
@@ -75,6 +77,8 @@ func NewRolloutController(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	experimentInformer informers.ExperimentInformer,
+	analysisRunInformer informers.AnalysisRunInformer,
+	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	rolloutsInformer informers.RolloutInformer,
@@ -90,21 +94,23 @@ func NewRolloutController(
 	}
 
 	controller := &RolloutController{
-		kubeclientset:     kubeclientset,
-		argoprojclientset: argoprojclientset,
-		replicaSetControl: replicaSetControl,
-		replicaSetLister:  replicaSetInformer.Lister(),
-		replicaSetSynced:  replicaSetInformer.Informer().HasSynced,
-		rolloutsIndexer:   rolloutsInformer.Informer().GetIndexer(),
-		rolloutsLister:    rolloutsInformer.Lister(),
-		rolloutsSynced:    rolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:  rolloutWorkQueue,
-		serviceWorkqueue:  serviceWorkQueue,
-		servicesLister:    servicesInformer.Lister(),
-		experimentsLister: experimentInformer.Lister(),
-		recorder:          recorder,
-		resyncPeriod:      resyncPeriod,
-		metricsServer:     metricsServer,
+		kubeclientset:          kubeclientset,
+		argoprojclientset:      argoprojclientset,
+		replicaSetControl:      replicaSetControl,
+		replicaSetLister:       replicaSetInformer.Lister(),
+		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:        rolloutsInformer.Informer().GetIndexer(),
+		rolloutsLister:         rolloutsInformer.Lister(),
+		rolloutsSynced:         rolloutsInformer.Informer().HasSynced,
+		rolloutWorkqueue:       rolloutWorkQueue,
+		serviceWorkqueue:       serviceWorkQueue,
+		servicesLister:         servicesInformer.Lister(),
+		experimentsLister:      experimentInformer.Lister(),
+		analysisRunLister:      analysisRunInformer.Lister(),
+		analysisTemplateLister: analysisTemplateInformer.Lister(),
+		recorder:               recorder,
+		resyncPeriod:           resyncPeriod,
+		metricsServer:          metricsServer,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)
@@ -138,6 +144,24 @@ func NewRolloutController(
 			if newRS.ResourceVersion == oldRS.ResourceVersion {
 				// Periodic resync will send update events for all known replicas.
 				// Two different versions of the same Replica will always have different RVs.
+				return
+			}
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+		},
+	})
+
+	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newAR := new.(*v1alpha1.AnalysisRun)
+			oldAR := old.(*v1alpha1.AnalysisRun)
+			if newAR.Status.Status == oldAR.Status.Status {
+				// Only enqueue rollout if the status changed
 				return
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
