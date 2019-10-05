@@ -135,7 +135,7 @@ func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 	})
 	invalidObject := "invalid-object"
 	enqueueFunc := func(obj interface{}) {}
-	EnqueueParentObject(invalidObject, register.RolloutKind, nil, enqueueFunc)
+	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Error(t, errorMessages[0], "error decoding object, invalid type")
 }
@@ -148,7 +148,7 @@ func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 
 	invalidObject := cache.DeletedFinalStateUnknown{}
 	enqueueFunc := func(obj interface{}) {}
-	EnqueueParentObject(invalidObject, register.RolloutKind, nil, enqueueFunc)
+	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Equal(t, "error decoding object tombstone, invalid type", errorMessages[0])
 }
@@ -168,7 +168,7 @@ func TestEnqueueParentObjectNoOwner(t *testing.T) {
 	enqueueFunc := func(obj interface{}) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
-	EnqueueParentObject(rs, register.RolloutKind, nil, enqueueFunc)
+	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 0)
 }
@@ -197,12 +197,12 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 	enqueueFunc := func(obj interface{}) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
-	EnqueueParentObject(rs, register.RolloutKind, nil, enqueueFunc)
+	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 0)
 }
 
-func TestEnqueueParentObjectPanicNonValidOwnerType(t *testing.T) {
+func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 	deploymentKind := appsv1.SchemeGroupVersion.WithKind("Deployment")
 
 	errorMessages := make([]string, 0)
@@ -226,12 +226,9 @@ func TestEnqueueParentObjectPanicNonValidOwnerType(t *testing.T) {
 	enqueueFunc := func(obj interface{}) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
-	panicFunc := func() {
-		EnqueueParentObject(rs, "Deployment", nil, enqueueFunc)
-	}
-	assert.Panics(t, panicFunc, "OwnerType of parent is not a Rollout or a Experiment")
+	EnqueueParentObject(rs, "Deployment", enqueueFunc)
 	assert.Len(t, errorMessages, 0)
-	assert.Len(t, enqueuedObjs, 0)
+	assert.Len(t, enqueuedObjs, 1)
 }
 
 func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
@@ -262,8 +259,7 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 	i := informers.NewSharedInformerFactory(client, 0)
 	i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(experiment)
 
-	lister := i.Argoproj().V1alpha1().Experiments().Lister()
-	EnqueueParentObject(rs, register.ExperimentKind, lister, enqueueFunc)
+	EnqueueParentObject(rs, register.ExperimentKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 1)
 }
@@ -296,42 +292,9 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 	i := informers.NewSharedInformerFactory(client, 0)
 	i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(rollout)
 
-	lister := i.Argoproj().V1alpha1().Rollouts().Lister()
-	EnqueueParentObject(rs, register.RolloutKind, lister, enqueueFunc)
+	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 1)
-}
-
-func TestEnqueueParentListerError(t *testing.T) {
-	rolloutKind := v1alpha1.SchemeGroupVersion.WithKind("Rollout")
-
-	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
-		errorMessages = append(errorMessages, err.Error())
-	})
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rollout",
-			Namespace: "default",
-		},
-	}
-	rs := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "rs",
-			Namespace:       "default",
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rollout, rolloutKind)},
-		},
-	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
-		enqueuedObjs = append(enqueuedObjs, obj)
-	}
-	client := fake.NewSimpleClientset(rollout)
-	i := informers.NewSharedInformerFactory(client, 0)
-	lister := i.Argoproj().V1alpha1().Rollouts().Lister()
-	EnqueueParentObject(rs, register.RolloutKind, lister, enqueueFunc)
-	assert.Len(t, errorMessages, 0)
-	assert.Len(t, enqueuedObjs, 0)
 }
 
 func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
@@ -366,8 +329,7 @@ func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 	i := informers.NewSharedInformerFactory(client, 0)
 	i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(experiment)
 
-	lister := i.Argoproj().V1alpha1().Experiments().Lister()
-	EnqueueParentObject(invalidObject, register.ExperimentKind, lister, enqueueFunc)
+	EnqueueParentObject(invalidObject, register.ExperimentKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 1)
 }

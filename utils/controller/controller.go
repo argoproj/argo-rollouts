@@ -11,12 +11,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
-	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
-	"github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// runWorker is a long-running function that will continually call the
+// RunWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
 func RunWorker(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
@@ -120,7 +118,8 @@ func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
 // objects metadata.ownerReferences field for an appropriate OwnerReference.
 // It then enqueues that ownerType resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
-func EnqueueParentObject(obj interface{}, ownerType string, lister interface{}, enqueue func(obj interface{})) {
+// This function assumes parent object is in the same namespace as the child
+func EnqueueParentObject(obj interface{}, ownerType string, enqueue func(obj interface{})) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -136,30 +135,15 @@ func EnqueueParentObject(obj interface{}, ownerType string, lister interface{}, 
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Processing %s %s/%s", ownerType, object.GetNamespace(), object.GetName())
+
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
-		// If this object is not owned by the ownerType, we should not do anything more
-		// with it.
+		// If this object is not owned by the ownerType, we should not do anything more with it.
 		if ownerRef.Kind != ownerType {
 			return
 		}
-		var parentObj interface{}
-		var err error
-		switch ownerType {
-		case register.RolloutKind:
-			parentObj, err = lister.(v1alpha1.RolloutLister).Rollouts(object.GetNamespace()).Get(ownerRef.Name)
-		case register.ExperimentKind:
-			parentObj, err = lister.(v1alpha1.ExperimentLister).Experiments(object.GetNamespace()).Get(ownerRef.Name)
-		default:
-			panic("OwnerType of parent is not a Rollout or a Experiment")
-		}
-
-		if err != nil {
-			log.Infof("ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerType, ownerRef.Name)
-			return
-		}
-
-		enqueue(parentObj)
-		return
+		namespace := object.GetNamespace()
+		parent := cache.ExplicitKey(namespace + "/" + ownerRef.Name)
+		log.Infof("Enqueuing parent of %s %s/%s: %s", ownerType, namespace, object.GetName(), parent)
+		enqueue(parent)
 	}
 }

@@ -84,7 +84,6 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
-	// Not sure why we need to have separate informers jobs, but without this it panics
 	jobI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
@@ -93,7 +92,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		f.kubeclient,
 		f.client,
 		i.Argoproj().V1alpha1().AnalysisRuns(),
-		jobI.Batch().V1().Jobs().Lister(),
+		jobI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),

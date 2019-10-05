@@ -620,7 +620,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 			},
 		},
 	}
-	f.provider.On("Run", mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
 	{
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisStatusRunning, newRun.Status.MetricResults[0].Status)

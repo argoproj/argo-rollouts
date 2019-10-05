@@ -136,7 +136,7 @@ func NewRolloutController(
 
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newRS := new.(*appsv1.ReplicaSet)
@@ -146,16 +146,16 @@ func NewRolloutController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
 
 	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newAR := new.(*v1alpha1.AnalysisRun)
@@ -164,10 +164,10 @@ func NewRolloutController(
 				// Only enqueue rollout if the status changed
 				return
 			}
-			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, controller.enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
 	return controller

@@ -7,24 +7,21 @@ import (
 	"strconv"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-
-	// load the gcp plugin (required to authenticate against GKE clusters).
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-
-	// load the oidc plugin (required to authenticate with OpenID Connect).
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	jobprovider "github.com/argoproj/argo-rollouts/providers/job"
 )
 
 const (
@@ -43,7 +40,6 @@ func newCommand() *cobra.Command {
 		experimentThreads   int
 		analysisThreads     int
 		serviceThreads      int
-		jobThreads          int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -87,7 +83,7 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
-					options.LabelSelector = "rollouts.argoproj.io/analysisrun"
+					options.LabelSelector = jobprovider.AnalysisRunLabelKey
 				}))
 			cm := controller.NewManager(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
@@ -106,7 +102,7 @@ func newCommand() *cobra.Command {
 			argoRolloutsInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
-			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, analysisThreads, jobThreads, stopCh); err != nil {
+			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, analysisThreads, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
@@ -121,7 +117,6 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
-	command.Flags().IntVar(&jobThreads, "job-threads", controller.DefaultJobThreads, "Set the number of worker threads for the Job controller")
 	return &command
 }
 

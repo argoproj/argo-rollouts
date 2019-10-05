@@ -23,7 +23,6 @@ import (
 	"github.com/argoproj/argo-rollouts/analysis"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/experiments"
-	"github.com/argoproj/argo-rollouts/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -51,9 +50,6 @@ const (
 
 	// DefaultServiceThreads Default number of service worker threads to start with the controller
 	DefaultServiceThreads = 10
-
-	// DefaultJobThreads Default number of job worker threads to start with the controller
-	DefaultJobThreads = 10
 )
 
 // Manager is the controller implementation for Argo-Rollout resources
@@ -63,7 +59,6 @@ type Manager struct {
 	experimentController *experiments.ExperimentController
 	analysisController   *analysis.AnalysisController
 	serviceController    *service.ServiceController
-	jobController        *job.JobController
 
 	rolloutSynced          cache.InformerSynced
 	experimentSynced       cache.InformerSynced
@@ -75,7 +70,6 @@ type Manager struct {
 
 	rolloutWorkqueue     workqueue.RateLimitingInterface
 	serviceWorkqueue     workqueue.RateLimitingInterface
-	jobWorkqueue         workqueue.RateLimitingInterface
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
 }
@@ -111,7 +105,6 @@ func NewManager(
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
-	jobWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Jobs")
 
 	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
 
@@ -146,7 +139,7 @@ func NewManager(
 		kubeclientset,
 		argoprojclientset,
 		analysisRunInformer,
-		jobInformer.Lister(),
+		jobInformer,
 		resyncPeriod,
 		analysisRunWorkqueue,
 		metricsServer,
@@ -159,14 +152,6 @@ func NewManager(
 		resyncPeriod,
 		rolloutWorkqueue,
 		serviceWorkqueue,
-		metricsServer)
-
-	jobController := job.NewJobController(
-		kubeclientset,
-		jobInformer,
-		resyncPeriod,
-		analysisRunWorkqueue,
-		jobWorkqueue,
 		metricsServer)
 
 	cm := &Manager{
@@ -182,10 +167,8 @@ func NewManager(
 		experimentWorkqueue:    experimentWorkqueue,
 		analysisRunWorkqueue:   analysisRunWorkqueue,
 		serviceWorkqueue:       serviceWorkqueue,
-		jobWorkqueue:           jobWorkqueue,
 		rolloutController:      rolloutController,
 		serviceController:      serviceController,
-		jobController:          jobController,
 		experimentController:   experimentController,
 		analysisController:     analysisController,
 	}
@@ -197,11 +180,10 @@ func NewManager(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, jobThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
+func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
 
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
-	defer c.jobWorkqueue.ShutDown()
 	defer c.rolloutWorkqueue.ShutDown()
 	defer c.experimentWorkqueue.ShutDown()
 	defer c.analysisRunWorkqueue.ShutDown()
@@ -215,7 +197,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, jobThreadiness, ex
 	log.Info("Starting Controllers")
 	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, stopCh) }, time.Second, stopCh)
 	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.jobController.Run(jobThreadiness, stopCh) }, time.Second, stopCh)
 	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, stopCh) }, time.Second, stopCh)
 	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, stopCh) }, time.Second, stopCh)
 	log.Info("Started controller")

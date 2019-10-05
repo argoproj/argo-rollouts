@@ -142,23 +142,25 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	return tasks
 }
 
-// runMeasurements iterates a list of metric tasks, and runs or resumes measurements
+// runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
 func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
 	var resultsLock sync.Mutex
+	terminating := analysisutil.IsTerminating(run)
+
 	for _, task := range tasks {
 		wg.Add(1)
 
 		go func(t metricTask) {
 			defer wg.Done()
-
 			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
 
 			resultsLock.Lock()
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
 			resultsLock.Unlock()
+
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{}
 			}
@@ -175,9 +177,11 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				newMeasurement.Status = v1alpha1.AnalysisStatusError
 			} else {
 				if t.incompleteMeasurement == nil {
-					newMeasurement, err = provider.Run(t.metric, run.Spec.Arguments)
+					newMeasurement, err = provider.Run(run, t.metric, run.Spec.Arguments)
+				} else if terminating {
+					newMeasurement, err = provider.Terminate(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
 				} else {
-					newMeasurement, err = provider.Resume(t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+					newMeasurement, err = provider.Resume(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
 				}
 			}
 
@@ -207,6 +211,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			}
 			if err != nil {
 				metricResult.Message = err.Error()
+				log.Warnf("metric errored: %s", metricResult.Message)
 			} else {
 				metricResult.Message = ""
 			}
