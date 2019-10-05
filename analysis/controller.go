@@ -7,6 +7,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	batchv1 "k8s.io/client-go/listers/batch/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -57,6 +58,7 @@ func NewAnalysisController(
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	analysisRunInformer informers.AnalysisRunInformer,
+	jobLister batchv1.JobLister,
 	resyncPeriod time.Duration,
 	analysisRunWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
@@ -80,7 +82,10 @@ func NewAnalysisController(
 		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
 	}
 
-	controller.newProvider = providers.NewProvider
+	providerFactory := providers.ProviderFactory{
+		JobLister: jobLister,
+	}
+	controller.newProvider = providerFactory.NewProvider
 
 	log.Info("Setting up analysis event handlers")
 	// Set up an event handler for when analysis resources change

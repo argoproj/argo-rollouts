@@ -38,6 +38,7 @@ type fixture struct {
 
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
+
 	// Objects to put in the store.
 	analysisRunLister []*v1alpha1.AnalysisRun
 	// Actions expected to happen on the client.
@@ -83,6 +84,8 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
+	// Not sure why we need to have separate informers jobs, but without this it panics
+	jobI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 
@@ -90,6 +93,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		f.kubeclient,
 		f.client,
 		i.Argoproj().V1alpha1().AnalysisRuns(),
+		jobI.Batch().V1().Jobs().Lister(),
 		resync(),
 		analysisRunWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),

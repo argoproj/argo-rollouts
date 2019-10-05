@@ -136,7 +136,7 @@ func EnqueueParentObject(obj interface{}, ownerType string, lister interface{}, 
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Processing object: %s", object.GetName())
+	log.Infof("Processing %s %s/%s", ownerType, object.GetNamespace(), object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		// If this object is not owned by the ownerType, we should not do anything more
 		// with it.

@@ -15,6 +15,8 @@ const (
 	AnalysisRunKey = "analysisrun"
 	// ServiceKey defines the key for the service field
 	ServiceKey = "service"
+	// JobKey defines the key for the job field
+	JobKey = "job"
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )
