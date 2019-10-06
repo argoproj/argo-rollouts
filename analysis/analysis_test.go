@@ -274,6 +274,65 @@ func TestAssessRunStatus(t *testing.T) {
 	}
 }
 
+// TestAssessRunStatusUpdateResult ensures we update the metricresult status properly
+// based on latest measurements
+func TestAssessRunStatusUpdateResult(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "sleep-infinity",
+						Provider: v1alpha1.AnalysisProvider{
+							Prometheus: &v1alpha1.PrometheusMetric{},
+						},
+					},
+					{
+						Name: "fail-after-30",
+						Provider: v1alpha1.AnalysisProvider{
+							Prometheus: &v1alpha1.PrometheusMetric{},
+						},
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "sleep-infinity",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Status:    v1alpha1.AnalysisStatusRunning,
+							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+				{
+					Name:   "fail-after-30",
+					Count:  1,
+					Failed: 1,
+					Status: v1alpha1.AnalysisStatusRunning, // This should flip to Failed
+					Measurements: []v1alpha1.Measurement{
+						{
+							Status:     v1alpha1.AnalysisStatusFailed,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+	status := c.asssessRunStatus(run)
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, status)
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, run.Status.MetricResults[1].Status)
+}
+
 func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	// no measurements yet taken
 	metric := v1alpha1.Metric{
@@ -333,7 +392,7 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
 }
 
-func TestAssessMetricStatusMaxInconclusive(t *testing.T) { // max failures
+func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Name:            "success-rate",
 		MaxInconclusive: 2,

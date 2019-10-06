@@ -25,28 +25,29 @@ var (
 	analysisRunGVK = v1alpha1.SchemeGroupVersion.WithKind("AnalysisRun")
 )
 
-type Provider struct {
+type JobProvider struct {
 	kubeclientset kubernetes.Interface
 	jobLister     batchlisters.JobLister
 	logCtx        log.Entry
 }
 
-func NewProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister) *Provider {
-	return &Provider{
+func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister) *JobProvider {
+	return &JobProvider{
 		kubeclientset: kubeclientset,
 		logCtx:        logCtx,
 		jobLister:     jobLister,
 	}
 }
 
-func (p *Provider) Type() string {
+func (p *JobProvider) Type() string {
 	return ProviderType
 }
 
-func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
+func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
+		Status:    v1alpha1.AnalysisStatusRunning,
 	}
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,18 +62,19 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args [
 	}
 	createdJob, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).Create(&job)
 	if err != nil {
+		p.logCtx.Errorf("job created (generateName: %s) failed: %v", job.ObjectMeta.GenerateName, err)
 		measurement.FinishedAt = &now
 		measurement.Status = v1alpha1.AnalysisStatusError
 		return measurement, err
 	}
-	p.logCtx.Infof("job %s/%s created", createdJob.Namespace, createdJob.Name)
 	measurement.Metadata = map[string]string{
 		JobNameKey: createdJob.Name,
 	}
+	p.logCtx.Infof("job %s/%s created", createdJob.Namespace, createdJob.Name)
 	return measurement, nil
 }
 
-func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
 	jobName, err := getJobName(measurement)
 	now := metav1.Now()
 	if err != nil {
@@ -102,7 +104,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, arg
 	return measurement, nil
 }
 
-func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
 	jobName, err := getJobName(measurement)
 	now := metav1.Now()
 	if err != nil {
@@ -111,7 +113,9 @@ func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 		return measurement, err
 	}
 	// TODO(jessesuen): retry
-	err = p.kubeclientset.BatchV1().Jobs(run.Namespace).Delete(jobName, nil)
+	foregroundDelete := metav1.DeletePropagationForeground
+	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &foregroundDelete}
+	err = p.kubeclientset.BatchV1().Jobs(run.Namespace).Delete(jobName, &deleteOpts)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		measurement.FinishedAt = &now
 		measurement.Status = v1alpha1.AnalysisStatusError
@@ -127,5 +131,5 @@ func getJobName(measurement v1alpha1.Measurement) (string, error) {
 	if measurement.Metadata != nil && measurement.Metadata[JobNameKey] != "" {
 		return measurement.Metadata[JobNameKey], nil
 	}
-	return "", errors.New("job reference missing")
+	return "", errors.New("job metadata reference missing")
 }

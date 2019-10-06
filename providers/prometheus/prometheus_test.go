@@ -146,6 +146,21 @@ func TestResume(t *testing.T) {
 	assert.Equal(t, previousMeasurement, measurement)
 }
 
+func TestTerminate(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{}
+	now := metav1.Now()
+	previousMeasurement := v1alpha1.Measurement{
+		StartedAt: &now,
+		Status:    v1alpha1.AnalysisStatusRunning,
+	}
+	measurement, err := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
+	assert.Nil(t, err)
+	assert.Equal(t, previousMeasurement, measurement)
+}
+
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	p := Provider{}
 	metric := v1alpha1.Metric{

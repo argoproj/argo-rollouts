@@ -39,7 +39,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return prometheus.NewPrometheusProvider(api, logCtx), nil
 	} else if metric.Provider.Job != nil {
-		return job.NewProvider(logCtx, f.KubeClient, f.JobLister), nil
+		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
 	}
 	return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 }

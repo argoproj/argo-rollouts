@@ -14,7 +14,7 @@ spec:
                 containers:
                 - name: sleep
                   image: alpine:3.8
-                  command: [sleep, infinity]
+                  command: [sleep, 365d]
                 restartPolicy: Never
             backoffLimit: 0
     - name: fail-after-30

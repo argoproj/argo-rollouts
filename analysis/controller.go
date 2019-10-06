@@ -173,6 +173,7 @@ func (c *AnalysisController) enqueueIfCompleted(obj interface{}) {
 		switch condition.Type {
 		case batchv1.JobFailed, batchv1.JobComplete:
 			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis)
+			return
 		}
 	}
 }
