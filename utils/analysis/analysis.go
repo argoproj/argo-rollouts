@@ -38,6 +38,9 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.MaxFailures < 0 {
 		return fmt.Errorf("maxFailures must be >= 0")
 	}
+	if metric.MaxInconclusive < 0 {
+		return fmt.Errorf("maxInconclusive must be >= 0")
+	}
 	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
 		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
 	}
@@ -88,10 +91,12 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	if run.Spec.Terminate {
 		return true
 	}
-	for _, res := range run.Status.MetricResults {
-		switch res.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
-			return true
+	if run.Status != nil {
+		for _, res := range run.Status.MetricResults {
+			switch res.Status {
+			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+				return true
+			}
 		}
 	}
 	return false

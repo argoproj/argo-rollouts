@@ -30,6 +30,22 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
+					Name:            "success-rate",
+					Count:           1,
+					MaxInconclusive: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: count must be >= maxInconclusive")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
 					Name:        "success-rate",
 					Count:       2,
 					Interval:    pointer.Int32Ptr(60),
@@ -99,6 +115,21 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: maxFailures must be >= 0")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:            "success-rate",
+					MaxInconclusive: -1,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: maxInconclusive must be >= 0")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
@@ -178,6 +209,10 @@ func TestIsFastFailTerminating(t *testing.T) {
 	successRate.Status = v1alpha1.AnalysisStatusInconclusive
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
+	run.Status.MetricResults = nil
+	assert.False(t, IsTerminating(run))
+	run.Status = nil
+	assert.False(t, IsTerminating(run))
 }
 
 func TestGetResult(t *testing.T) {
