@@ -82,6 +82,10 @@ func ReplicasAnnotationsNeedUpdate(rs *appsv1.ReplicaSet, desiredReplicas int32)
 	if hasString := rs.Annotations[DesiredReplicasAnnotation]; hasString != desiredString {
 		return true
 	}
+	hasScaleDownDelay := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	if desiredReplicas == int32(0) && hasScaleDownDelay != "" {
+		return true
+	}
 	return false
 }
 

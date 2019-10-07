@@ -272,6 +272,7 @@ func (c *RolloutController) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet,
 func (c *RolloutController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
 
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
+	fullScaleDown := newScale == int32(0)
 	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
@@ -281,6 +282,9 @@ func (c *RolloutController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int3
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
+		if fullScaleDown {
+			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		}
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(rsCopy)
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
