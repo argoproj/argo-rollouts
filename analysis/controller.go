@@ -68,10 +68,9 @@ func NewAnalysisController(
 		analysisRunLister:    analysisRunInformer.Lister(),
 		metricsServer:        metricsServer,
 		analysisRunWorkQueue: analysisRunWorkQueue,
-
-		analysisRunSynced: analysisRunInformer.Informer().HasSynced,
-		recorder:          recorder,
-		resyncPeriod:      resyncPeriod,
+		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
+		recorder:             recorder,
+		resyncPeriod:         resyncPeriod,
 	}
 
 	controller.enqueueAnalysis = func(obj interface{}) {

@@ -142,6 +142,8 @@ type CanaryStrategy struct {
 	// at any time during the update is atmost 130% of original pods.
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
+	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
+	Analysis *RolloutAnalysisRun `json:"analysis,omitempty"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
@@ -196,7 +198,54 @@ type CanaryStep struct {
 	Pause *RolloutPause `json:"pause,omitempty"`
 	// Experiment defines the experiment object that should be created
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
+	// Analysis defines the AnalysisRun that will run for a step
+	Analysis *RolloutAnalysisRun `json:"analysis,omitempty"`
 }
+
+// RolloutAnalysisRun defines a template that is used to create a analysisRun
+type RolloutAnalysisRun struct {
+	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
+	TemplateName string `json:"templateName"`
+	// Arguments the arguments that will be added to the AnalysisRuns
+	Arguments []AnalysisRunArgument `json:"arguments,omitempty"`
+}
+
+// AnalysisRunArgument argument to add to analysisRun
+type AnalysisRunArgument struct {
+	// Name argument name
+	Name string `json:"name"`
+	// Value a hardcoded value for the argument. This field is a one of field with valueFrom
+	Value string `json:"value,omitempty"`
+	// ValueFrom A reference to where the value is stored. This field is a one of field with valueFrom
+	ValueFrom *ArgumentValueFrom `json:"valueFrom,omitempty"`
+}
+
+// ArgumentValueFrom defines references to fields within resources to grab for the value (i.e. Pod Template Hash)
+type ArgumentValueFrom struct {
+	// PodTemplateHashValue gets the value from one of the children ReplicaSet's Pod Template Hash
+	PodTemplateHashValue *ValueFromPodTemplateHash `json:"podTemplateHashValue,omitempty"`
+}
+
+// ValueFromPodTemplateHash indicates which ReplicaSet pod template pod hash to use
+type ValueFromPodTemplateHash string
+
+const (
+	// Stable tells the Rollout to get the pod template hash from the stable ReplicaSet
+	Stable ValueFromPodTemplateHash = "Stable"
+	// Latest tells the Rollout to get the pod template hash from the latest ReplicaSet
+	Latest ValueFromPodTemplateHash = "Latest"
+)
+
+const (
+	// RolloutTypeLabel indicates how the rollout created the analysisRun
+	RolloutTypeLabel = "rollout-type"
+	// RolloutTypeStepLabel indicates that the analysisRun was created as a canary step
+	RolloutTypeStepLabel = "Step"
+	// RolloutTypeParellelRunLabel indicates that the analysisRun was created in parellel to an execution
+	RolloutTypeParellelRunLabel = "Parellel"
+	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
+	RolloutCanaryStepIndexLabel = "step-index"
+)
 
 // RolloutPause defines a pause stage for a rollout
 type RolloutPause struct {
@@ -288,6 +337,10 @@ type CanaryStatus struct {
 	// ExperimentFailed indicates the most recent executed experiment in the canary steps failed
 	// +optional
 	ExperimentFailed bool `json:"experimentFailed,omitempty"`
+	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
+	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
+	// CurrentParellelAnalysisRun indicates the analysisRun for the parellel step
+	CurrentParellelAnalysisRun string `json:"currentParellelAnalysisRun,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

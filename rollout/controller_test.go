@@ -51,6 +51,7 @@ const (
 				"observedGeneration": ""
 			}
 	}`
+	MockGeneratedNameSuffix = "abc123"
 )
 
 type fixture struct {
@@ -59,10 +60,12 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	rolloutLister    []*v1alpha1.Rollout
-	experimentLister []*v1alpha1.Experiment
-	replicaSetLister []*appsv1.ReplicaSet
-	serviceLister    []*corev1.Service
+	rolloutLister          []*v1alpha1.Rollout
+	experimentLister       []*v1alpha1.Experiment
+	analysisRunLister      []*v1alpha1.AnalysisRun
+	analysisTemplateLister []*v1alpha1.AnalysisTemplate
+	replicaSetLister       []*appsv1.ReplicaSet
+	serviceLister          []*corev1.Service
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -337,6 +340,8 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 
 	c := NewRolloutController(f.kubeclient, f.client,
 		i.Argoproj().V1alpha1().Experiments(),
+		i.Argoproj().V1alpha1().AnalysisRuns(),
+		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
 		i.Argoproj().V1alpha1().Rollouts(),
@@ -378,6 +383,25 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	for _, s := range f.serviceLister {
 		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
 	}
+	for _, at := range f.analysisTemplateLister {
+		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
+	}
+	for _, ar := range f.analysisRunLister {
+		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
+	}
+
+	f.client.PrependReactor("create", "analysisruns", func(action core.Action) (bool, runtime.Object, error) {
+		createAction, ok := action.(core.CreateAction)
+		if !ok {
+			assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
+		}
+		ar := &v1alpha1.AnalysisRun{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(createAction.GetObject())
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
+		ar.Name = ar.GenerateName + "-" + MockGeneratedNameSuffix
+		return true, ar.DeepCopyObject(), nil
+	})
 
 	return c, i, k8sI
 }
@@ -470,6 +494,10 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	for _, action := range actions {
 		if action.Matches("list", "experiments") ||
 			action.Matches("watch", "experiments") ||
+			action.Matches("list", "analysisruns") ||
+			action.Matches("watch", "analysisruns") ||
+			action.Matches("list", "analysistemplates") ||
+			action.Matches("watch", "analysistemplates") ||
 			action.Matches("list", "rollouts") ||
 			action.Matches("watch", "rollouts") ||
 			action.Matches("list", "replicaSets") ||
@@ -528,6 +556,23 @@ func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 
 func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int {
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) expectPatchAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
+	analysisRunSchema := schema.GroupVersionResource{
+		Resource: "analysisruns",
+		Version:  "v1alpha1",
+	}
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(analysisRunSchema, ar.Namespace, ar.Name, types.MergePatchType, nil))
+	return len
+}
+
+func (f *fixture) expectCreateAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
+	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "analysisruns"}, ar.Namespace, ar)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
 	return len
@@ -632,6 +677,34 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
 	return rollout
+}
+
+func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	ar := v1alpha1.AnalysisRun{}
+	err := json.Unmarshal(patchAction.GetPatch(), &ar)
+	if err != nil {
+		panic(err)
+	}
+	return &ar
+}
+
+func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+	action := filterInformerActions(f.client.Actions())[index]
+	createAction, ok := action.(core.CreateAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	obj := createAction.GetObject()
+	ar := &v1alpha1.AnalysisRun{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
+	return ar
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
@@ -973,7 +1046,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"7c8f97d5d6"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6479797d56"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
