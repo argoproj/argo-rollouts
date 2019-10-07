@@ -227,10 +227,10 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(oldRSs []*appsv1.ReplicaS
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 	}
 
-	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause)
+	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause, nil)
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(r, newRS, activeRS)
-	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, nil)
+	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, nil, nil)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 

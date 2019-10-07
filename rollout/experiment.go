@@ -103,7 +103,7 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (bool, error) {
+func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) error {
 	logCtx := logutil.WithRollout(rollout)
 	for i := range otherExs {
 		otherEx := otherExs[i]
@@ -111,36 +111,33 @@ func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stab
 			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace).Patch(otherEx.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
 			if err != nil {
-				return false, err
+				return err
 			}
 		}
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
 	if step == nil || step.Experiment == nil {
-		return false, nil
+		return nil
 	}
 	if currentEx == nil {
 		// An new experiment can not be created if the newRS or stableRS is not created yet
 		if newRS == nil || stableRS == nil {
 			logCtx.Infof("Cannot create experiment until newRS and stableRS both exist")
-			return true, nil
+			return nil
 		}
 
 		newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
 		if err != nil {
-			return false, err
+			return err
 		}
 
-		currentEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
+		newEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
 		if err != nil {
-			return false, err
+			return err
 		}
 		msg := fmt.Sprintf("Created Experiment '%s'", newEx.Name)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 	}
-	if experimentutil.HasFinished(currentEx) {
-		return true, nil
-	}
-	return false, nil
+	return nil
 }

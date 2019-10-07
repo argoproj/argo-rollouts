@@ -45,7 +45,7 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 
 // calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
 // the rollout will use the previous values
-func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, addPause bool) (*metav1.Time, bool) {
+func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, addPause bool, currArs []*v1alpha1.AnalysisRun) (*metav1.Time, bool) {
 	logCtx := logutil.WithRollout(rollout)
 	pauseStartTime := rollout.Status.PauseStartTime
 	paused := rollout.Spec.Paused
@@ -56,7 +56,15 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 		return nil, false
 	}
 
-	if addPause {
+	pauseForInconclusiveAnalysisRun := false
+	for i := range currArs {
+		ar := currArs[i]
+		if ar != nil && ar.Status != nil && ar.Status.Status == v1alpha1.AnalysisStatusInconclusive {
+			pauseForInconclusiveAnalysisRun = true
+		}
+	}
+
+	if addPause || pauseForInconclusiveAnalysisRun {
 		if pauseStartTime == nil {
 			now := metav1.Now()
 			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
@@ -80,9 +88,7 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 				return nil, false
 			}
 			return pauseStartTime, true
-
 		}
-
 	}
 	return pauseStartTime, paused
 }

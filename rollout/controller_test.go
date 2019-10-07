@@ -163,6 +163,16 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, experimentutil.ExperimentNameFromRollout(resource), resource.Name)
 			status = corev1.ConditionFalse
 		}
+		if reason == conditions.RolloutAnalysisRunFailedReason {
+			atName := ""
+			if resource.Spec.Strategy.CanaryStrategy.Steps != nil && resource.Status.CurrentStepIndex != nil {
+				atName = resource.Spec.Strategy.CanaryStrategy.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
+			}
+			//TODO(dthomson) Add support for parellel analysisRuns too
+			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, atName, resource.Status.CurrentPodHash, MockGeneratedNameSuffix)
+			msg = fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, arName, resource.Name)
+			status = corev1.ConditionFalse
+		}
 	case *corev1.Service:
 		if reason == conditions.ServiceNotFoundReason {
 			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)
@@ -669,6 +679,15 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string) bool {
 	return string(patchAction.GetPatch()) == patch
 }
 
+func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	return ar.Name == patchAction.GetName() && string(patchAction.GetPatch()) == cancelAnalysisRun
+}
+
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
@@ -1050,7 +1069,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"6479797d56"}}`
+	expectedPatch := `{"status":{"observedGeneration":"56c55d698f"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

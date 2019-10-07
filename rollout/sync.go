@@ -396,9 +396,18 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	return err
 }
 
-func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, currArs []*v1alpha1.AnalysisRun) v1alpha1.RolloutStatus {
 	if r.Spec.Paused {
 		return newStatus
+	}
+
+	var failedAnalysisRun *v1alpha1.AnalysisRun
+	for i := range currArs {
+		currAr := currArs[i]
+		hasStatus := currAr != nil && currAr.Status != nil
+		if hasStatus && (currAr.Status.Status == v1alpha1.AnalysisStatusError || currAr.Status.Status == v1alpha1.AnalysisStatusFailed) {
+			failedAnalysisRun = currArs[i]
+		}
 	}
 
 	// If there is only one replica set that is active then that means we are not running
@@ -417,6 +426,10 @@ func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newS
 				msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, newRS.Name)
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *condition)
+		case failedAnalysisRun != nil:
+			msg := fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, failedAnalysisRun.Name, r.Name)
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAnalysisRunFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		case newStatus.Canary.ExperimentFailed:
 			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, currentEx.Name, r.Name)
