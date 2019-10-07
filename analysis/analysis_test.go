@@ -312,9 +312,11 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	metric := v1alpha1.Metric{
 		Name:        "success-rate",
 		MaxFailures: 2,
+		Interval:    pointer.Int32Ptr(60),
 	}
 	result := v1alpha1.MetricResult{
 		Failed: 3,
+		Count:  3,
 		Measurements: []v1alpha1.Measurement{
 			{
 				Value:      "99",
@@ -326,7 +328,36 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	}
 	assert.Equal(t, v1alpha1.AnalysisStatusFailed, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisStatusFailed, assessMetricStatus(metric, result, true))
+	metric.MaxFailures = 3
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
 }
+
+func TestAssessMetricStatusMaxInconclusive(t *testing.T) { // max failures
+	metric := v1alpha1.Metric{
+		Name:            "success-rate",
+		MaxInconclusive: 2,
+		Interval:        pointer.Int32Ptr(60),
+	}
+	result := v1alpha1.MetricResult{
+		Inconclusive: 3,
+		Count:        3,
+		Measurements: []v1alpha1.Measurement{
+			{
+				Value:      "99",
+				Status:     v1alpha1.AnalysisStatusInconclusive,
+				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			},
+		},
+	}
+	assert.Equal(t, v1alpha1.AnalysisStatusInconclusive, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusInconclusive, assessMetricStatus(metric, result, true))
+	metric.MaxInconclusive = 3
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
+}
+
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Name: "success-rate",

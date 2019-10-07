@@ -29,11 +29,17 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Count < metric.MaxFailures {
 		return fmt.Errorf("count must be >= maxFailures")
 	}
+	if metric.Count < metric.MaxInconclusive {
+		return fmt.Errorf("count must be >= maxInconclusive")
+	}
 	if metric.Count > 1 && metric.Interval == nil {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	if metric.MaxFailures < 0 {
 		return fmt.Errorf("maxFailures must be >= 0")
+	}
+	if metric.MaxInconclusive < 0 {
+		return fmt.Errorf("maxInconclusive must be >= 0")
 	}
 	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
 		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
@@ -78,18 +84,19 @@ func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
 	return newIndex > currentIndex
 }
 
-// IsTerminating returns whether or not the analysis run is terminating
+// IsTerminating returns whether or not the analysis run is terminating, either because a terminate
+// was requested explicitly, or because a metric has already measured Failed, Error, or Inconclusive
+// which causes the run to end prematurely.
 func IsTerminating(run *v1alpha1.AnalysisRun) bool {
-	return run.Spec.Terminate || IsFailing(run)
-}
-
-// IsFailing returns whether or not any metric has measured Failed or Error, which will eventually
-// cause the entire run to fail.
-func IsFailing(run *v1alpha1.AnalysisRun) bool {
-	for _, res := range run.Status.MetricResults {
-		switch res.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError:
-			return true
+	if run.Spec.Terminate {
+		return true
+	}
+	if run.Status != nil {
+		for _, res := range run.Status.MetricResults {
+			switch res.Status {
+			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+				return true
+			}
 		}
 	}
 	return false

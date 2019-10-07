@@ -30,6 +30,22 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
+					Name:            "success-rate",
+					Count:           1,
+					MaxInconclusive: 2,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: count must be >= maxInconclusive")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
 					Name:        "success-rate",
 					Count:       2,
 					Interval:    pointer.Int32Ptr(60),
@@ -104,6 +120,21 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
+					Name:            "success-rate",
+					MaxInconclusive: -1,
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: maxInconclusive must be >= 0")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
 					Name:                 "success-rate",
 					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
 					Provider: v1alpha1.AnalysisProvider{
@@ -151,7 +182,7 @@ func TestIsWorst(t *testing.T) {
 	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusFailed))
 }
 
-func TestIsFailing(t *testing.T) {
+func TestIsFastFailTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
@@ -168,13 +199,20 @@ func TestIsFailing(t *testing.T) {
 		},
 	}
 	successRate := run.Status.MetricResults[1]
-	assert.False(t, IsFailing(run))
+	assert.False(t, IsTerminating(run))
 	successRate.Status = v1alpha1.AnalysisStatusError
 	run.Status.MetricResults[1] = successRate
-	assert.True(t, IsFailing(run))
+	assert.True(t, IsTerminating(run))
 	successRate.Status = v1alpha1.AnalysisStatusFailed
 	run.Status.MetricResults[1] = successRate
-	assert.True(t, IsFailing(run))
+	assert.True(t, IsTerminating(run))
+	successRate.Status = v1alpha1.AnalysisStatusInconclusive
+	run.Status.MetricResults[1] = successRate
+	assert.True(t, IsTerminating(run))
+	run.Status.MetricResults = nil
+	assert.False(t, IsTerminating(run))
+	run.Status = nil
+	assert.False(t, IsTerminating(run))
 }
 
 func TestGetResult(t *testing.T) {

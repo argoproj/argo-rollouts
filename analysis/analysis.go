@@ -286,6 +286,10 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		log.Infof("metric assessed %s: failed (%d) > maxFailures (%d)", v1alpha1.AnalysisStatusFailed, result.Failed, metric.MaxFailures)
 		return v1alpha1.AnalysisStatusFailed
 	}
+	if result.Inconclusive > metric.MaxInconclusive {
+		log.Infof("metric assessed %s: inconclusive (%d) > maxInconclusive (%d)", v1alpha1.AnalysisStatusInconclusive, result.Inconclusive, metric.MaxInconclusive)
+		return v1alpha1.AnalysisStatusInconclusive
+	}
 	consecutiveErrors := analysisutil.ConsecutiveErrors(result)
 	maxConsecutiveErrors := DefaultMaxConsecutiveErrors
 	if metric.MaxConsecutiveErrors != nil {
@@ -295,22 +299,13 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, consecutiveErrors, maxConsecutiveErrors)
 		return v1alpha1.AnalysisStatusError
 	}
-	// If a count was specified, and we reached that count, then we assess the status based on
-	// the greater of the Successful & Inconclusive status counters.
-	// Error and Failed counters are ignored because those checks have already been taken into
-	// consideration above, and we do not want to fail the metric if failures < maxFailures.
-	// TODO(jessesuen): may need to tweak this logic
+	// If a count was specified, and we reached that count, then metric is considered Successful.
+	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
+	// taken into consideration above, and we do not want to fail if failures < maxFailures.
 	effectiveCount := metric.EffectiveCount()
 	if effectiveCount != nil && result.Count >= *effectiveCount {
-		var status v1alpha1.AnalysisStatus
-		if result.Successful > result.Inconclusive {
-			status = v1alpha1.AnalysisStatusSuccessful
-		} else {
-			status = v1alpha1.AnalysisStatusInconclusive
-		}
-		log.Infof("metric assessed %s: count %d reached, successful: %d, inconclusive: %d, errors: %d, failures: %d",
-			status, result.Count, result.Successful, result.Inconclusive, result.Error, result.Failed)
-		return status
+		log.Infof("metric assessed %s: count (%d) reached", v1alpha1.AnalysisStatusSuccessful, *effectiveCount)
+		return v1alpha1.AnalysisStatusSuccessful
 	}
 	// if we get here, this metric runs indefinitely
 	if terminating {

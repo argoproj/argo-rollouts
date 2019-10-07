@@ -254,7 +254,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 					},
 					"metricResults": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Metrics contains the metrics collected during the run",
+							Description: "MetricResults contains the metrics collected during the run",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -976,7 +976,14 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"maxFailures": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered failed (default: 0)",
+							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxInconclusive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxInconclusive is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
