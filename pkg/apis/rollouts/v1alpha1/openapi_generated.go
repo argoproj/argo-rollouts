@@ -29,7 +29,6 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider":          schema_pkg_apis_rollouts_v1alpha1_AnalysisProvider(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":               schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":       schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":           schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
@@ -53,6 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                 schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":               schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                    schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":            schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":              schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":       schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":          schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
@@ -68,32 +68,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":           schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":              schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":            schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_AnalysisProvider(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "AnalysisProvider which external system to use to verify the analysis Only one of the fields in this struct should be non-nil",
-				Properties: map[string]spec.Schema{
-					"prometheus": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Prometheus specifies the prometheus metric to query",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"),
-						},
-					},
-					"job": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Job specifies the job metric run",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
 	}
 }
 
@@ -1007,6 +981,13 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message contains a message describing current condition (e.g. error messages)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"startedAt": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartedAt is the timestamp in which this measurement started to be measured",
@@ -1041,7 +1022,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 						},
 					},
 				},
-				Required: []string{"status"},
+				Required: []string{"status", "message"},
 			},
 		},
 		Dependencies: []string{
@@ -1121,7 +1102,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider configuration to the external system to use to verify the analysis",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider"),
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"),
 						},
 					},
 				},
@@ -1129,7 +1110,33 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisProvider"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricProvider which external system to use to verify the analysis Only one of the fields in this struct should be non-nil",
+				Properties: map[string]spec.Schema{
+					"prometheus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prometheus specifies the prometheus metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"),
+						},
+					},
+					"job": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Job specifies the job metric run",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
 	}
 }
 

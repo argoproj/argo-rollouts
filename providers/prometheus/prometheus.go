@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
+	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	"github.com/argoproj/argo-rollouts/utils/query"
 )
 
@@ -32,15 +33,8 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
-func failOnError(m v1alpha1.Measurement, err error) (v1alpha1.Measurement, error) {
-	finishedTime := metav1.Now()
-	m.Status = v1alpha1.AnalysisStatusError
-	m.FinishedAt = &finishedTime
-	return m, err
-}
-
 // Run queries prometheus for the metric
-func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
+func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) v1alpha1.Measurement {
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
@@ -52,17 +46,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args [
 
 	query, err := query.BuildQuery(metric.Provider.Prometheus.Query, args)
 	if err != nil {
-		return failOnError(newMeasurement, err)
+		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
 	response, err := p.api.Query(ctx, query, time.Now())
 	if err != nil {
-		return failOnError(newMeasurement, err)
+		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
 	newValue, newStatus, err := p.processResponse(metric, response)
 	if err != nil {
-		return failOnError(newMeasurement, err)
+		return metricutil.MarkMeasurementError(newMeasurement, err)
 
 	}
 	newMeasurement.Value = newValue
@@ -70,19 +64,19 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args [
 	newMeasurement.Status = newStatus
 	finishedTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishedTime
-	return newMeasurement, nil
+	return newMeasurement
 }
 
 // Resume should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("Prometheus provider should not execute the Resume method")
-	return measurement, nil
+	return measurement
 }
 
 // Terminate should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("Prometheus provider should not execute the Terminate method")
-	return measurement, nil
+	return measurement
 }
 
 func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1alpha1.AnalysisStatus {

@@ -34,13 +34,13 @@ func newTerminatingRun(status v1alpha1.AnalysisStatus) *v1alpha1.AnalysisRun {
 				Metrics: []v1alpha1.Metric{
 					{
 						Name: "run-forever",
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Job: &v1alpha1.JobMetric{},
 						},
 					},
 					{
 						Name: "failed-metric",
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Job: &v1alpha1.JobMetric{},
 						},
 					},
@@ -353,13 +353,13 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 				Metrics: []v1alpha1.Metric{
 					{
 						Name: "sleep-infinity",
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Job: &v1alpha1.JobMetric{},
 						},
 					},
 					{
 						Name: "fail-after-30",
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Job: &v1alpha1.JobMetric{},
 						},
 					},
@@ -738,7 +738,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 					{
 						Name:     "success-rate",
 						Interval: pointer.Int32Ptr(60),
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Prometheus: &v1alpha1.PrometheusMetric{},
 						},
 					},
@@ -814,6 +814,7 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 		// ensure the inProgress measurement is now terminated
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 		assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
-		assert.Equal(t, "metric terminated prematurely", newRun.Status.MetricResults[0].Message)
+		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Message)
+		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Measurements[0].Message)
 	}
 }

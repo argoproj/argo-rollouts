@@ -64,7 +64,7 @@ type Metric struct {
 	// FailFast will fail the entire analysis run prematurely
 	FailFast bool `json:"failFast,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
-	Provider AnalysisProvider `json:"provider"`
+	Provider MetricProvider `json:"provider"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified
@@ -82,9 +82,9 @@ func (m *Metric) EffectiveCount() *int32 {
 	return &m.Count
 }
 
-// AnalysisProvider which external system to use to verify the analysis
+// MetricProvider which external system to use to verify the analysis
 // Only one of the fields in this struct should be non-nil
-type AnalysisProvider struct {
+type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 	// Job specifies the job metric run
@@ -203,6 +203,8 @@ type MetricResult struct {
 type Measurement struct {
 	// Status is the status of this single measurement
 	Status AnalysisStatus `json:"status"`
+	// Message contains a message describing current condition (e.g. error messages)
+	Message string `json:"message"`
 	// StartedAt is the timestamp in which this measurement started to be measured
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// FinishedAt is the timestamp in which this measurement completed and value was collected
