@@ -26,6 +26,73 @@ func newMeasurement(status v1alpha1.AnalysisStatus) v1alpha1.Measurement {
 	}
 }
 
+// newTerminatingRun returns a run which is terminating because of the given status
+func newTerminatingRun(status v1alpha1.AnalysisStatus) *v1alpha1.AnalysisRun {
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "run-forever",
+						Provider: v1alpha1.AnalysisProvider{
+							Job: &v1alpha1.JobMetric{},
+						},
+					},
+					{
+						Name: "failed-metric",
+						Provider: v1alpha1.AnalysisProvider{
+							Job: &v1alpha1.JobMetric{},
+						},
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "run-forever",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Status:    v1alpha1.AnalysisStatusRunning,
+							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+				{
+					Name:  "failed-metric",
+					Count: 1,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Status:     status,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+	run.Status.MetricResults[1].Status = status
+	switch status {
+	case v1alpha1.AnalysisStatusFailed:
+		run.Status.MetricResults[1].Failed = 1
+	case v1alpha1.AnalysisStatusInconclusive:
+		run.Status.MetricResults[1].Inconclusive = 1
+	case v1alpha1.AnalysisStatusError:
+		run.Status.MetricResults[1].Error = 1
+		run.Status.MetricResults[1].Measurements = []v1alpha1.Measurement{
+			{
+				Status:     v1alpha1.AnalysisStatusError,
+				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+			},
+		}
+	}
+	return &run
+}
+
 func TestGenerateMetricTasksInterval(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
@@ -287,13 +354,13 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 					{
 						Name: "sleep-infinity",
 						Provider: v1alpha1.AnalysisProvider{
-							Prometheus: &v1alpha1.PrometheusMetric{},
+							Job: &v1alpha1.JobMetric{},
 						},
 					},
 					{
 						Name: "fail-after-30",
 						Provider: v1alpha1.AnalysisProvider{
-							Prometheus: &v1alpha1.PrometheusMetric{},
+							Job: &v1alpha1.JobMetric{},
 						},
 					},
 				},
@@ -725,4 +792,28 @@ func TestReconcileAnalysisRunInvalid(t *testing.T) {
 	}
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, newRun.Status.Status)
+}
+
+// TestReconcileAnalysisRunTerminateSiblingAfterFail verifies we terminate a metric when we assess
+// a sibling has already Failed
+func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	// mocks terminate to cancel the inProgress measurement
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
+
+	for _, status := range []v1alpha1.AnalysisStatus{v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusError} {
+		run := newTerminatingRun(status)
+		newRun := c.reconcileAnalysisRun(run)
+
+		assert.Equal(t, status, newRun.Status.Status)
+		assert.Equal(t, status, newRun.Status.MetricResults[1].Status)
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
+		// ensure the inProgress measurement is now terminated
+		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
+		assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
+		assert.Equal(t, "metric terminated prematurely", newRun.Status.MetricResults[0].Message)
+	}
 }

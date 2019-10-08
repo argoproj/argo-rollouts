@@ -169,6 +169,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			}
 
 			var newMeasurement v1alpha1.Measurement
+			var newMessage string
 			provider, err := c.newProvider(*log, t.metric)
 			if err != nil {
 				if t.incompleteMeasurement != nil {
@@ -184,9 +185,10 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				} else {
 					// metric is incomplete. either terminate or resume it
 					if terminating {
+						log.Infof("terminating measurement")
 						newMeasurement, err = provider.Terminate(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
 						if err == nil && newMeasurement.Status == v1alpha1.AnalysisStatusSuccessful {
-							metricResult.Message = "metric terminated prematurely"
+							newMessage = "metric terminated prematurely"
 						}
 					} else {
 						newMeasurement, err = provider.Resume(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
@@ -219,11 +221,10 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				metricResult.Measurements[len(metricResult.Measurements)-1] = newMeasurement
 			}
 			if err != nil {
-				metricResult.Message = err.Error()
+				newMessage = err.Error()
 				log.Warnf("metric errored: %s", metricResult.Message)
-			} else {
-				metricResult.Message = ""
 			}
+			metricResult.Message = newMessage
 
 			resultsLock.Lock()
 			analysisutil.SetResult(run, *metricResult)

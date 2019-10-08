@@ -160,7 +160,7 @@ func NewRolloutController(
 		UpdateFunc: func(old, new interface{}) {
 			newAR := new.(*v1alpha1.AnalysisRun)
 			oldAR := old.(*v1alpha1.AnalysisRun)
-			if newAR.Status.Status == oldAR.Status.Status {
+			if newAR.Status != nil && oldAR.Status != nil && newAR.Status.Status == oldAR.Status.Status {
 				// Only enqueue rollout if the status changed
 				return
 			}
