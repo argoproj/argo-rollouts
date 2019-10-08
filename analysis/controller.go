@@ -4,14 +4,17 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	batchv1 "k8s.io/api/batch/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+	batchinformers "k8s.io/client-go/informers/batch/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -31,6 +34,8 @@ type AnalysisController struct {
 	analysisRunLister listers.AnalysisRunLister
 
 	analysisRunSynced cache.InformerSynced
+
+	jobInformer batchinformers.JobInformer
 
 	metricsServer *metrics.MetricsServer
 
@@ -57,6 +62,7 @@ func NewAnalysisController(
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	analysisRunInformer informers.AnalysisRunInformer,
+	jobInformer batchinformers.JobInformer,
 	resyncPeriod time.Duration,
 	analysisRunWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
@@ -68,6 +74,7 @@ func NewAnalysisController(
 		analysisRunLister:    analysisRunInformer.Lister(),
 		metricsServer:        metricsServer,
 		analysisRunWorkQueue: analysisRunWorkQueue,
+		jobInformer:          jobInformer,
 		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
 		recorder:             recorder,
 		resyncPeriod:         resyncPeriod,
@@ -80,7 +87,23 @@ func NewAnalysisController(
 		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
 	}
 
-	controller.newProvider = providers.NewProvider
+	providerFactory := providers.ProviderFactory{
+		KubeClient: controller.kubeclientset,
+		JobLister:  jobInformer.Lister(),
+	}
+	controller.newProvider = providerFactory.NewProvider
+
+	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controller.enqueueIfCompleted(newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
+		},
+	})
 
 	log.Info("Setting up analysis event handlers")
 	// Set up an event handler for when analysis resources change
@@ -139,4 +162,18 @@ func (c *AnalysisController) syncHandler(key string) error {
 
 	newRun := c.reconcileAnalysisRun(run)
 	return c.persistAnalysisRunStatus(run, newRun.Status)
+}
+
+func (c *AnalysisController) enqueueIfCompleted(obj interface{}) {
+	job, ok := obj.(*batchv1.Job)
+	if !ok {
+		return
+	}
+	for _, condition := range job.Status.Conditions {
+		switch condition.Type {
+		case batchv1.JobFailed, batchv1.JobComplete:
+			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis)
+			return
+		}
+	}
 }

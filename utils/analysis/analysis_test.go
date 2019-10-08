@@ -158,6 +158,21 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: no provider specified")
 	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+					Provider: v1alpha1.AnalysisProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+						Job:        &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateAnalysisTemplateSpec(spec)
+		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
+	}
 }
 
 func TestIsWorst(t *testing.T) {

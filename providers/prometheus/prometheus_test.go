@@ -44,7 +44,7 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
-	measurement, err := p.Run(metric, []v1alpha1.Argument{})
+	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
 	assert.Nil(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10", measurement.Value)
@@ -69,7 +69,7 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
-	measurement, err := p.Run(metric, []v1alpha1.Argument{})
+	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
 	assert.Equal(t, expectedErr, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -92,7 +92,7 @@ func TestRunWithBuildQueryError(t *testing.T) {
 			},
 		},
 	}
-	measurement, err := p.Run(metric, []v1alpha1.Argument{})
+	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
 	assert.Equal(t, expectedErr, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -114,7 +114,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
-	measurement, err := p.Run(metric, []v1alpha1.Argument{})
+	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
 	assert.NotNil(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -137,13 +137,28 @@ func TestResume(t *testing.T) {
 		},
 	}
 	now := metav1.Now()
-	previousMeasuresment := v1alpha1.Measurement{
+	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
 		Status:    v1alpha1.AnalysisStatusInconclusive,
 	}
-	measurement, err := p.Resume(metric, []v1alpha1.Argument{}, previousMeasuresment)
+	measurement, err := p.Resume(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
 	assert.Nil(t, err)
-	assert.Equal(t, previousMeasuresment, measurement)
+	assert.Equal(t, previousMeasurement, measurement)
+}
+
+func TestTerminate(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{}
+	now := metav1.Now()
+	previousMeasurement := v1alpha1.Measurement{
+		StartedAt: &now,
+		Status:    v1alpha1.AnalysisStatusRunning,
+	}
+	measurement, err := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
+	assert.Nil(t, err)
+	assert.Equal(t, previousMeasurement, measurement)
 }
 
 func TestEvaluateResultWithSuccess(t *testing.T) {

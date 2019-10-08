@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -351,12 +352,15 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
 		&record.FakeRecorder{})
 
+	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
+		enqueuedObjectsLock.Lock()
+		defer enqueuedObjectsLock.Unlock()
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0

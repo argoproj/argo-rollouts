@@ -1,0 +1,31 @@
+kind: AnalysisRun
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  generateName: analysis-run-failfast-
+spec:
+  analysisSpec:
+    metrics:
+    - name: sleep-infinity
+      provider:
+        job:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: sleep
+                  image: alpine:3.8
+                  command: [sleep, 365d]
+                restartPolicy: Never
+            backoffLimit: 0
+    - name: fail-after-30
+      provider:
+        job:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: sleep
+                  image: alpine:3.8
+                  command: [sh, -c, "sleep 30; exit 1"]
+                restartPolicy: Never
+            backoffLimit: 0

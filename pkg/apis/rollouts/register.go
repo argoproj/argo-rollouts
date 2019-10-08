@@ -17,7 +17,8 @@ limitations under the License.
 package rollouts
 
 const (
-	Group            string = "argoproj.io"
+	Group string = "argoproj.io"
+
 	RolloutKind      string = "Rollout"
 	RolloutSingular  string = "rollout"
 	RolloutPlural    string = "rollouts"
@@ -29,4 +30,14 @@ const (
 	ExperimentPlural    string = "experiments"
 	ExperimentShortName string = "ex"
 	ExperimentFullName  string = ExperimentPlural + "." + Group
+
+	AnalysisTemplateKind     string = "AnalysisTemplate"
+	AnalysisTemplateSingular string = "analysistemplate"
+	AnalysisTemplatePlural   string = "analysistemplates"
+	AnalysisTemplateFullName string = AnalysisTemplatePlural + "." + Group
+
+	AnalysisRunKind     string = "AnalysisRun"
+	AnalysisRunSingular string = "analysisrun"
+	AnalysisRunPlural   string = "analysisruns"
+	AnalysisRunFullName string = AnalysisRunPlural + "." + Group
 )

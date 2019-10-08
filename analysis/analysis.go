@@ -142,28 +142,34 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	return tasks
 }
 
-// runMeasurements iterates a list of metric tasks, and runs or resumes measurements
+// runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
 func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
 	var resultsLock sync.Mutex
+	terminating := analysisutil.IsTerminating(run)
+
 	for _, task := range tasks {
 		wg.Add(1)
 
 		go func(t metricTask) {
 			defer wg.Done()
-
 			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
 
 			resultsLock.Lock()
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
 			resultsLock.Unlock()
+
 			if metricResult == nil {
-				metricResult = &v1alpha1.MetricResult{}
+				metricResult = &v1alpha1.MetricResult{
+					Name:   t.metric.Name,
+					Status: v1alpha1.AnalysisStatusRunning,
+				}
 			}
 
 			var newMeasurement v1alpha1.Measurement
+			var newMessage string
 			provider, err := c.newProvider(*log, t.metric)
 			if err != nil {
 				if t.incompleteMeasurement != nil {
@@ -175,9 +181,18 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				newMeasurement.Status = v1alpha1.AnalysisStatusError
 			} else {
 				if t.incompleteMeasurement == nil {
-					newMeasurement, err = provider.Run(t.metric, run.Spec.Arguments)
+					newMeasurement, err = provider.Run(run, t.metric, run.Spec.Arguments)
 				} else {
-					newMeasurement, err = provider.Resume(t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+					// metric is incomplete. either terminate or resume it
+					if terminating {
+						log.Infof("terminating measurement")
+						newMeasurement, err = provider.Terminate(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+						if err == nil && newMeasurement.Status == v1alpha1.AnalysisStatusSuccessful {
+							newMessage = "metric terminated prematurely"
+						}
+					} else {
+						newMeasurement, err = provider.Resume(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+					}
 				}
 			}
 
@@ -206,11 +221,11 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				metricResult.Measurements[len(metricResult.Measurements)-1] = newMeasurement
 			}
 			if err != nil {
-				metricResult.Message = err.Error()
-			} else {
-				metricResult.Message = ""
+				newMessage = err.Error()
+				log.Warnf("metric errored: %s", metricResult.Message)
 			}
-			metricResult.Name = t.metric.Name
+			metricResult.Message = newMessage
+
 			resultsLock.Lock()
 			analysisutil.SetResult(run, *metricResult)
 			resultsLock.Unlock()
@@ -226,7 +241,9 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
 	var worstStatus v1alpha1.AnalysisStatus
 	terminating := analysisutil.IsTerminating(run)
+	everythingCompleted := true
 
+	// Iterate all metrics and update MetricResult.Status fields based on lastest measurement(s)
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
@@ -245,17 +262,22 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 				analysisutil.SetResult(run, *result)
 			}
 			if !metricStatus.Completed() {
-				// if any metric is not completed, then entire analysis run is considered running
-				return v1alpha1.AnalysisStatusRunning
-			}
-			if worstStatus == "" {
-				worstStatus = metricStatus
+				// if any metric is in-progress, then entire analysis run will be considered running
+				everythingCompleted = false
 			} else {
-				if analysisutil.IsWorse(worstStatus, metricStatus) {
+				// otherwise, remember the worst status of all completed metric results
+				if worstStatus == "" {
 					worstStatus = metricStatus
+				} else {
+					if analysisutil.IsWorse(worstStatus, metricStatus) {
+						worstStatus = metricStatus
+					}
 				}
 			}
 		}
+	}
+	if !everythingCompleted || worstStatus == "" {
+		return v1alpha1.AnalysisStatusRunning
 	}
 	return worstStatus
 }

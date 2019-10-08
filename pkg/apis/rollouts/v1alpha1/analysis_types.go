@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -84,8 +85,10 @@ func (m *Metric) EffectiveCount() *int32 {
 // AnalysisProvider which external system to use to verify the analysis
 // Only one of the fields in this struct should be non-nil
 type AnalysisProvider struct {
-	// PrometheusMetric specifies the prometheus metric to query
+	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
+	// Job specifies the job metric run
+	Job *JobMetric `json:"job,omitempty"`
 }
 
 // AnalysisStatus is the overall status of an AnalysisRun, MetricResult, or Measurement
@@ -116,6 +119,12 @@ type PrometheusMetric struct {
 	Server string `json:"server,omitempty"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty"`
+}
+
+// JobMetric defines a job to run which acts as a metric
+type JobMetric struct {
+	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec     batchv1.JobSpec   `json:"spec"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate

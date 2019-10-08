@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/query"
-
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -15,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
+	"github.com/argoproj/argo-rollouts/utils/query"
 )
 
 const (
@@ -41,7 +40,7 @@ func failOnError(m v1alpha1.Measurement, err error) (v1alpha1.Measurement, error
 }
 
 // Run queries prometheus for the metric
-func (p *Provider) Run(metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
+func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alpha1.Measurement, error) {
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
@@ -75,8 +74,14 @@ func (p *Provider) Run(metric v1alpha1.Metric, args []v1alpha1.Argument) (v1alph
 }
 
 // Resume should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Resume(metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
 	p.logCtx.Warn("Prometheus provider should not execute the Resume method")
+	return measurement, nil
+}
+
+// Terminate should not be used the prometheus provider since all the work should occur in the Run method
+func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) (v1alpha1.Measurement, error) {
+	p.logCtx.Warn("Prometheus provider should not execute the Terminate method")
 	return measurement, nil
 }
 

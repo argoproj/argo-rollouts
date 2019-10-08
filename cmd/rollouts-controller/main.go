@@ -7,23 +7,21 @@ import (
 	"strconv"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
-	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// load the oidc plugin (required to authenticate with OpenID Connect).
-	"github.com/golang/glog"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	jobprovider "github.com/argoproj/argo-rollouts/providers/job"
 )
 
 const (
@@ -81,9 +79,16 @@ func newCommand() *cobra.Command {
 				rolloutClient,
 				resyncDuration,
 				informers.WithNamespace(namespace))
+			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.LabelSelector = jobprovider.AnalysisRunLabelKey
+				}))
 			cm := controller.NewManager(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
+				jobInformerFactory.Batch().V1().Jobs(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
@@ -95,9 +100,10 @@ func newCommand() *cobra.Command {
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
+			jobInformerFactory.Start(stopCh)
 
 			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, analysisThreads, stopCh); err != nil {
-				glog.Fatalf("Error running controller: %s", err.Error())
+				log.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
 		},
@@ -142,9 +148,9 @@ func setLogLevel(logLevel string) {
 
 // setGLogLevel set the glog level for the k8s go-client
 func setGLogLevel(glogLevel int) {
-	_ = flag.CommandLine.Parse([]string{})
-	_ = flag.Lookup("logtostderr").Value.Set("true")
-	_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+	klog.InitFlags(nil)
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
 
 func checkError(err error) {

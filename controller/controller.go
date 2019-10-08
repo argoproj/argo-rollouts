@@ -11,6 +11,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
+	batchinformers "k8s.io/client-go/informers/batch/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -64,6 +65,7 @@ type Manager struct {
 	analysisRunSynced      cache.InformerSynced
 	analysisTemplateSynced cache.InformerSynced
 	serviceSynced          cache.InformerSynced
+	jobSynced              cache.InformerSynced
 	replicasSetSynced      cache.InformerSynced
 
 	rolloutWorkqueue     workqueue.RateLimitingInterface
@@ -78,12 +80,14 @@ func NewManager(
 	argoprojclientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
+	jobInformer batchinformers.JobInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	resyncPeriod time.Duration,
-	metricsPort int) *Manager {
+	metricsPort int,
+) *Manager {
 
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -104,7 +108,8 @@ func NewManager(
 
 	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
 
-	rolloutController := rollout.NewRolloutController(kubeclientset,
+	rolloutController := rollout.NewRolloutController(
+		kubeclientset,
 		argoprojclientset,
 		experimentsInformer,
 		analysisRunInformer,
@@ -118,7 +123,8 @@ func NewManager(
 		metricsServer,
 		recorder)
 
-	experimentController := experiments.NewExperimentController(kubeclientset,
+	experimentController := experiments.NewExperimentController(
+		kubeclientset,
 		argoprojclientset,
 		replicaSetInformer,
 		rolloutsInformer,
@@ -129,9 +135,11 @@ func NewManager(
 		metricsServer,
 		recorder)
 
-	analysisController := analysis.NewAnalysisController(kubeclientset,
+	analysisController := analysis.NewAnalysisController(
+		kubeclientset,
 		argoprojclientset,
 		analysisRunInformer,
+		jobInformer,
 		resyncPeriod,
 		analysisRunWorkqueue,
 		metricsServer,
@@ -150,6 +158,7 @@ func NewManager(
 		metricsServer:          metricsServer,
 		rolloutSynced:          rolloutsInformer.Informer().HasSynced,
 		serviceSynced:          servicesInformer.Informer().HasSynced,
+		jobSynced:              jobInformer.Informer().HasSynced,
 		experimentSynced:       experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
 		analysisTemplateSynced: analysisTemplateInformer.Informer().HasSynced,
@@ -180,7 +189,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadin
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 

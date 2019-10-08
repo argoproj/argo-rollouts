@@ -96,7 +96,7 @@ func (c *ServiceController) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Service workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.serviceWorkqueue, logutil.RolloutKey, c.syncService, c.metricServer)
+			controllerutil.RunWorker(c.serviceWorkqueue, logutil.ServiceKey, c.syncService, c.metricServer)
 		}, time.Second, stopCh)
 	}
 

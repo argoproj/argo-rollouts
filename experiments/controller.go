@@ -121,7 +121,7 @@ func NewExperimentController(
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newExperiment := new.(*v1alpha1.Experiment)
@@ -134,19 +134,19 @@ func NewExperimentController(
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(new, register.RolloutKind, enqueueRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
 			enqueueRollout := func(obj interface{}) {
 				controllerutil.Enqueue(obj, rolloutWorkQueue)
 			}
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.rolloutsLister, enqueueRollout)
+			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
 	})
 
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
+			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newRS := new.(*appsv1.ReplicaSet)
@@ -156,10 +156,10 @@ func NewExperimentController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
+			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.enqueueExperiment)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.experimentsLister, controller.enqueueExperiment)
+			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
 	})
 	return controller

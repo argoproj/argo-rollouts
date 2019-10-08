@@ -75,7 +75,7 @@ lint:
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./...`
+	go test -failfast -v -covermode=count -coverprofile=coverage.out `go list ./...`
 
 .PHONY: mocks
 mocks:
