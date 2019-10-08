@@ -911,6 +911,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.run(getKey(r2, t))
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
+	assert.Equal(t, "", updatedRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)

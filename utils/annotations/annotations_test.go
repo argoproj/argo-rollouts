@@ -280,10 +280,12 @@ func TestAnnotationUtils(t *testing.T) {
 func TestReplicasAnnotationsNeedUpdate(t *testing.T) {
 
 	desiredReplicas := fmt.Sprintf("%d", int32(10))
+	zeroDesiredReplicas := fmt.Sprintf("%d", int32(0))
 	tests := []struct {
-		name       string
-		replicaSet *appsv1.ReplicaSet
-		expected   bool
+		name            string
+		replicaSet      *appsv1.ReplicaSet
+		desiredReplicas int32
+		expected        bool
 	}{
 		{
 			name: "test Annotations nil",
@@ -293,7 +295,8 @@ func TestReplicasAnnotationsNeedUpdate(t *testing.T) {
 					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
 				},
 			},
-			expected: true,
+			desiredReplicas: 10,
+			expected:        true,
 		},
 		{
 			name: "test desiredReplicas update",
@@ -310,6 +313,24 @@ func TestReplicasAnnotationsNeedUpdate(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "test remove scale-down-delay",
+			replicaSet: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "hello",
+					Namespace: "test",
+					Annotations: map[string]string{
+						DesiredReplicasAnnotation:                                zeroDesiredReplicas,
+						v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: "set-to-something",
+					},
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+				},
+			},
+			desiredReplicas: 0,
+			expected:        true,
+		},
+		{
 			name: "test needn't update",
 			replicaSet: &appsv1.ReplicaSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -321,13 +342,14 @@ func TestReplicasAnnotationsNeedUpdate(t *testing.T) {
 					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
 				},
 			},
-			expected: false,
+			desiredReplicas: 10,
+			expected:        false,
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := ReplicasAnnotationsNeedUpdate(test.replicaSet, 10)
+			result := ReplicasAnnotationsNeedUpdate(test.replicaSet, test.desiredReplicas)
 			if result != test.expected {
 				t.Errorf("case[%d]:%s Expected %v, Got: %v", i, test.name, test.expected, result)
 			}
