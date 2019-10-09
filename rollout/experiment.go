@@ -33,7 +33,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	}
 	experiment := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            experimentutil.ExperimentNameFromRollout(r),
+			GenerateName:    experimentutil.ExperimentGeneratedNameFromRollout(r),
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},
@@ -91,7 +91,6 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	if err != nil {
 		return nil, err
 	}
-	//TODO(dthomson) consider adoption
 	ownedByRollout := make([]*v1alpha1.Experiment, 0)
 	for i := range experiments {
 		e := experiments[i]
@@ -103,7 +102,7 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) error {
+func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
 	logCtx := logutil.WithRollout(rollout)
 	for i := range otherExs {
 		otherEx := otherExs[i]
@@ -111,33 +110,33 @@ func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stab
 			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace).Patch(otherEx.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
 	if step == nil || step.Experiment == nil {
-		return nil
+		return nil, nil
 	}
 	if currentEx == nil {
 		// An new experiment can not be created if the newRS or stableRS is not created yet
 		if newRS == nil || stableRS == nil {
 			logCtx.Infof("Cannot create experiment until newRS and stableRS both exist")
-			return nil
+			return nil, nil
 		}
 
 		newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		newEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
+		currentEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		msg := fmt.Sprintf("Created Experiment '%s'", newEx.Name)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 	}
-	return nil
+	return currentEx, nil
 }

@@ -111,9 +111,10 @@ func TestGetExperiments(t *testing.T) {
 			Name: "foo",
 		},
 	}
+	r.Status.Canary.CurrentExperiment = ExperimentGeneratedNameFromRollout(r)
 	ex1 := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ExperimentNameFromRollout(r),
+			Name: ExperimentGeneratedNameFromRollout(r),
 			UID:  uuid.NewUUID(),
 		},
 	}
@@ -171,7 +172,7 @@ func TestExperimentByCreationTimestamp(t *testing.T) {
 	})
 }
 
-func TestExperimentNameFromRollout(t *testing.T) {
+func TestExperimentGeneratedNameFromRollout(t *testing.T) {
 	r := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo",
@@ -186,10 +187,10 @@ func TestExperimentNameFromRollout(t *testing.T) {
 			},
 		},
 	}
-	name := ExperimentNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-0", name)
+	name := ExperimentGeneratedNameFromRollout(&r)
+	assert.Equal(t, "foo-6cb88c6bcf-0-", name)
 
 	r.Status.CurrentStepIndex = pointer.Int32Ptr(1)
-	name = ExperimentNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-1", name)
+	name = ExperimentGeneratedNameFromRollout(&r)
+	assert.Equal(t, "foo-6cb88c6bcf-1-", name)
 }

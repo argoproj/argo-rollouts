@@ -59,7 +59,8 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	logCtx.Info("Reconciling Experiment step")
-	if err := c.reconcileExperiments(rollout, stableRS, newRS, currentEx, otherExs); err != nil {
+	currentEx, err = c.reconcileExperiments(rollout, stableRS, newRS, currentEx, otherExs)
+	if err != nil {
 		return err
 	}
 
@@ -303,8 +304,11 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
 			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 		}
-		if currExp != nil && conditions.ExperimentTimeOut(currExp, currExp.Status) {
-			newStatus.Canary.ExperimentFailed = true
+		if currExp != nil {
+			newStatus.Canary.CurrentExperiment = currExp.Name
+			if conditions.ExperimentTimeOut(currExp, currExp.Status) {
+				newStatus.Canary.ExperimentFailed = true
+			}
 		}
 	}
 
