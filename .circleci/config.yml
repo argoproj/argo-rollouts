@@ -3,7 +3,8 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-rollouts
     docker:
-      - image: circleci/golang:1.12.6
+      # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+      - image: circleci/golang:1.13.1
     environment:
       TEST_RESULTS: /tmp/test-results
     steps:

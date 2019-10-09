@@ -47,7 +47,7 @@ func newRunWithJobMetric() *v1alpha1.AnalysisRun {
 				Metrics: []v1alpha1.Metric{
 					{
 						Name: "dummymetric",
-						Provider: v1alpha1.AnalysisProvider{
+						Provider: v1alpha1.MetricProvider{
 							Job: &v1alpha1.JobMetric{
 								Spec: batchv1.JobSpec{},
 							},
@@ -97,8 +97,7 @@ func TestRun(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 	metric := run.Spec.AnalysisSpec.Metrics[0]
-	measurement, err := p.Run(run, metric, nil)
-	assert.NoError(t, err)
+	measurement := p.Run(run, metric, nil)
 
 	assert.Equal(t, v1alpha1.AnalysisStatusRunning, measurement.Status)
 	assert.NotNil(t, measurement.StartedAt)
@@ -131,10 +130,9 @@ func TestRunCreateFail(t *testing.T) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 
-	measurement, err := p.Run(run, run.Spec.AnalysisSpec.Metrics[0], nil)
-	assert.Error(t, err)
+	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0], nil)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
-	assert.Contains(t, err.Error(), errMsg)
+	assert.Contains(t, errMsg, measurement.Message)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -143,8 +141,7 @@ func TestResumeCompletedJob(t *testing.T) {
 	p := newTestJobProvider(job)
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement(job.Name)
-	measurement, err := p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.NoError(t, err)
+	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -154,8 +151,7 @@ func TestResumeFailedJob(t *testing.T) {
 	p := newTestJobProvider(job)
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement(job.Name)
-	measurement, err := p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.NoError(t, err)
+	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, v1alpha1.AnalysisStatusFailed, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -164,8 +160,8 @@ func TestResumeErrorJob(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement("job-which-does-not-exist")
-	measurement, err := p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Error(t, err)
+	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
+	assert.Equal(t, "job.batch \"job-which-does-not-exist\" not found", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -175,8 +171,8 @@ func TestResumeMeasurementNoMetadata(t *testing.T) {
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement("")
 	measurement.Metadata = nil
-	measurement, err := p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Error(t, err)
+	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
+	assert.Equal(t, "job metadata reference missing", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -190,8 +186,7 @@ func TestTerminateMeasurement(t *testing.T) {
 	for _, p := range []*JobProvider{providerWithJob, providerWithoutJob} {
 		run := newRunWithJobMetric()
 		measurement := newRunningMeasurement(job.Name)
-		measurement, err := p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-		assert.NoError(t, err)
+		measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
 		assert.NotNil(t, measurement.FinishedAt)
 	}
@@ -210,10 +205,9 @@ func TestTerminateError(t *testing.T) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 
-	measurement, err := p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Error(t, err)
+	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
-	assert.Contains(t, err.Error(), errMsg)
+	assert.Contains(t, measurement.Message, errMsg)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -222,8 +216,8 @@ func TestTerminateMeasurementNoMetadata(t *testing.T) {
 	p := newTestJobProvider()
 	measurement := newRunningMeasurement("")
 	measurement.Metadata = nil
-	measurement, err := p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Error(t, err)
+	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
+	assert.Equal(t, "job metadata reference missing", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
 }

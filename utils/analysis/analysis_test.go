@@ -17,7 +17,7 @@ func TestValidateMetrics(t *testing.T) {
 					Name:        "success-rate",
 					Count:       1,
 					MaxFailures: 2,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -33,7 +33,7 @@ func TestValidateMetrics(t *testing.T) {
 					Name:            "success-rate",
 					Count:           1,
 					MaxInconclusive: 2,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -50,7 +50,7 @@ func TestValidateMetrics(t *testing.T) {
 					Count:       2,
 					Interval:    pointer.Int32Ptr(60),
 					MaxFailures: 2,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -72,7 +72,7 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:  "success-rate",
 					Count: 2,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -86,13 +86,13 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name: "success-rate",
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
 				{
 					Name: "success-rate",
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -107,7 +107,7 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:        "success-rate",
 					MaxFailures: -1,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -122,7 +122,7 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:            "success-rate",
 					MaxInconclusive: -1,
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -137,7 +137,7 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:                 "success-rate",
 					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
@@ -163,7 +163,7 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name: "success-rate",
-					Provider: v1alpha1.AnalysisProvider{
+					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 						Job:        &v1alpha1.JobMetric{},
 					},

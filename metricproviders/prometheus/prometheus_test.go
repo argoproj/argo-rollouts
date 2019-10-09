@@ -38,14 +38,13 @@ func TestRunSuccessfully(t *testing.T) {
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 			},
 		},
 	}
-	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
-	assert.Nil(t, err)
+	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -63,14 +62,14 @@ func TestRunWithQueryError(t *testing.T) {
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 			},
 		},
 	}
-	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
-	assert.Equal(t, expectedErr, err)
+	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -86,14 +85,14 @@ func TestRunWithBuildQueryError(t *testing.T) {
 	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name: "foo",
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test-{{inputs.var}}",
 			},
 		},
 	}
-	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
-	assert.Equal(t, expectedErr, err)
+	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -108,14 +107,14 @@ func TestRunWithEvaluationError(t *testing.T) {
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 			},
 		},
 	}
-	measurement, err := p.Run(nil, metric, []v1alpha1.Argument{})
-	assert.NotNil(t, err)
+	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	assert.Equal(t, "Prometheus metric type not supported", measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -130,7 +129,7 @@ func TestResume(t *testing.T) {
 		Name:             "foo",
 		SuccessCondition: "result == 10",
 		FailureCondition: "result != 10",
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 			},
@@ -141,8 +140,7 @@ func TestResume(t *testing.T) {
 		StartedAt: &now,
 		Status:    v1alpha1.AnalysisStatusInconclusive,
 	}
-	measurement, err := p.Resume(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
-	assert.Nil(t, err)
+	measurement := p.Resume(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
 }
 
@@ -156,8 +154,7 @@ func TestTerminate(t *testing.T) {
 		StartedAt: &now,
 		Status:    v1alpha1.AnalysisStatusRunning,
 	}
-	measurement, err := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
-	assert.Nil(t, err)
+	measurement := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
 }
 
@@ -288,7 +285,7 @@ func TestProcessInvalidResponse(t *testing.T) {
 
 func TestNewPrometheusAPI(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Provider: v1alpha1.AnalysisProvider{
+		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Server: ":invalid::url",
 			},
