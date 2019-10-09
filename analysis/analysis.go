@@ -15,9 +15,12 @@ import (
 )
 
 const (
+	// DefaultMeasurementHistoryLimit is the default maximum number of measurements to retain per metric,
+	// before trimming the list.
+	DefaultMeasurementHistoryLimit = 10
 	// DefaultMaxConsecutiveErrors is the default number times a metric can error in sequence before
 	// erroring the entire metric.
-	DefaultMaxConsecutiveErrors = 4
+	DefaultMaxConsecutiveErrors int32 = 4
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval int32 = 10
@@ -75,6 +78,8 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		log.Info(message)
 		run.Status.Status = newStatus
 	}
+
+	trimMeasurementHistory(run, DefaultMeasurementHistoryLimit)
 
 	nextReconcileTime := calculateNextReconcileTime(run)
 	if nextReconcileTime != nil {
@@ -206,14 +211,18 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				case v1alpha1.AnalysisStatusSuccessful:
 					metricResult.Successful++
 					metricResult.Count++
+					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisStatusFailed:
 					metricResult.Failed++
 					metricResult.Count++
+					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisStatusInconclusive:
 					metricResult.Inconclusive++
 					metricResult.Count++
+					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisStatusError:
 					metricResult.Error++
+					metricResult.ConsecutiveError++
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
@@ -312,13 +321,12 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		log.Infof("metric assessed %s: inconclusive (%d) > maxInconclusive (%d)", v1alpha1.AnalysisStatusInconclusive, result.Inconclusive, metric.MaxInconclusive)
 		return v1alpha1.AnalysisStatusInconclusive
 	}
-	consecutiveErrors := analysisutil.ConsecutiveErrors(result)
 	maxConsecutiveErrors := DefaultMaxConsecutiveErrors
 	if metric.MaxConsecutiveErrors != nil {
-		maxConsecutiveErrors = int(*metric.MaxConsecutiveErrors)
+		maxConsecutiveErrors = *metric.MaxConsecutiveErrors
 	}
-	if consecutiveErrors > maxConsecutiveErrors {
-		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, consecutiveErrors, maxConsecutiveErrors)
+	if result.ConsecutiveError > maxConsecutiveErrors {
+		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, result.ConsecutiveError, maxConsecutiveErrors)
 		return v1alpha1.AnalysisStatusError
 	}
 	// If a count was specified, and we reached that count, then metric is considered Successful.
@@ -384,4 +392,18 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		}
 	}
 	return reconcileTime
+}
+
+// trimMeasurementHistory trims the measurement history to the specified limit
+func trimMeasurementHistory(run *v1alpha1.AnalysisRun, limit int) {
+	if run.Status == nil {
+		return
+	}
+	for i, result := range run.Status.MetricResults {
+		length := len(result.Measurements)
+		if length > limit {
+			result.Measurements = result.Measurements[length-limit : length]
+		}
+		run.Status.MetricResults[i] = result
+	}
 }

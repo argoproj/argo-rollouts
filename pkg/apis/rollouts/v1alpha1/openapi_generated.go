@@ -1215,6 +1215,13 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							Format:      "int32",
 						},
 					},
+					"consecutiveError": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConsecutiveError is the number of times an error was encountered during measurement in succession Resets to zero when non-errors are encountered",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"name", "status"},
 			},

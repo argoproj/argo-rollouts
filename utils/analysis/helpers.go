@@ -89,18 +89,3 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 	}
 	return nil
 }
-
-// ConsecutiveErrors returns number of most recent consecutive errors
-func ConsecutiveErrors(result v1alpha1.MetricResult) int {
-	consecutiveErrors := 0
-	for i := len(result.Measurements) - 1; i >= 0; i-- {
-		measurement := result.Measurements[i]
-		switch measurement.Status {
-		case v1alpha1.AnalysisStatusError:
-			consecutiveErrors++
-		default:
-			return consecutiveErrors
-		}
-	}
-	return consecutiveErrors
-}
