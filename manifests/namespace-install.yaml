@@ -7572,7 +7572,7 @@ spec:
               type: object
             canary:
               properties:
-                currentParellelAnalysisRun:
+                currentBackgroundAnalysisRun:
                   type: string
                 currentStepAnalysisRun:
                   type: string

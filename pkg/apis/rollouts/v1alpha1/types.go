@@ -143,7 +143,7 @@ type CanaryStrategy struct {
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
-	Analysis *RolloutAnalysisRun `json:"analysis,omitempty"`
+	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
@@ -199,11 +199,11 @@ type CanaryStep struct {
 	// Experiment defines the experiment object that should be created
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 	// Analysis defines the AnalysisRun that will run for a step
-	Analysis *RolloutAnalysisRun `json:"analysis,omitempty"`
+	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
 }
 
-// RolloutAnalysisRun defines a template that is used to create a analysisRun
-type RolloutAnalysisRun struct {
+// RolloutAnalysisStep defines a template that is used to create a analysisRun
+type RolloutAnalysisStep struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
 	// Arguments the arguments that will be added to the AnalysisRuns
@@ -241,8 +241,8 @@ const (
 	RolloutTypeLabel = "rollout-type"
 	// RolloutTypeStepLabel indicates that the analysisRun was created as a canary step
 	RolloutTypeStepLabel = "Step"
-	// RolloutTypeParellelRunLabel indicates that the analysisRun was created in parellel to an execution
-	RolloutTypeParellelRunLabel = "Parellel"
+	// RolloutTypeBackgroundRunLabel indicates that the analysisRun was created in Background to an execution
+	RolloutTypeBackgroundRunLabel = "Background"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
 	RolloutCanaryStepIndexLabel = "step-index"
 )
@@ -339,8 +339,8 @@ type CanaryStatus struct {
 	ExperimentFailed bool `json:"experimentFailed,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
-	// CurrentParellelAnalysisRun indicates the analysisRun for the parellel step
-	CurrentParellelAnalysisRun string `json:"currentParellelAnalysisRun,omitempty"`
+	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
+	CurrentBackgroundAnalysisRun string `json:"currentBackgroundAnalysisRun,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

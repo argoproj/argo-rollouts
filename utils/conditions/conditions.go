@@ -61,10 +61,10 @@ const (
 	// ReplicaSetUpdatedReason is added in a rollout when one of its replica sets is updated as part
 	// of the rollout process.
 	ReplicaSetUpdatedReason = "ReplicaSetUpdated"
-	// RolloutProgessingMessage is added in a rollout when one of its replica sets is updated as part
+	// RolloutProgressingMessage is added in a rollout when one of its replica sets is updated as part
 	// of the rollout process.
 	RolloutProgressingMessage = "Rollout %q is progressing."
-	// ReplicaSetProgessingMessage is added in a rollout when one of its replica sets is updated as part
+	// ReplicaSetProgressingMessage is added in a rollout when one of its replica sets is updated as part
 	// of the rollout process.
 	ReplicaSetProgressingMessage = "ReplicaSet %q is progressing."
 	// FailedRSCreateReason is added in a rollout when it cannot create a new replica set.
@@ -74,7 +74,7 @@ const (
 
 	// NewReplicaSetReason is added in a rollout when it creates a new replica set.
 	NewReplicaSetReason = "NewReplicaSetCreated"
-	//NewReplicasSetMessage is added in a rollout when it creates a new replicas \set.
+	//NewReplicaSetMessage is added in a rollout when it creates a new replicas \set.
 	NewReplicaSetMessage = "Created new replica set %q"
 	// FoundNewRSReason is added in a rollout when it adopts an existing replica set.
 	FoundNewRSReason = "FoundNewReplicaSet"
@@ -85,7 +85,11 @@ const (
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available pods that need to run for the rollout.
 	NewRSAvailableReason = "NewReplicaSetAvailable"
-	// RolloutExperimentFailedReason is added in a rollout when the experiment owned by a rollout fails to show any progress
+	// RolloutAnalysisRunFailedReason is added in a rollout when the analysisRun owned by a rollout fails or errors out
+	RolloutAnalysisRunFailedReason = "AnalysisRunFailed"
+	// RolloutAnalysisRunFailedMessage is added in a rollout when the analysisRun owned by a rollout fails or errors out
+	RolloutAnalysisRunFailedMessage = "AnalysisRun '%s' owned by the Rollout '%q' failed."
+	// RolloutExperimentFailedReason is added in a rollout when the analysisRun owned by a rollout fails to show any progress
 	RolloutExperimentFailedReason = "ExperimentFailed"
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
@@ -323,7 +327,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 			if hasMultipleStepsType(step) {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}
-			if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil {
+			if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}
 			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
@@ -343,6 +347,7 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
 	oneOf = append(oneOf, s.SetWeight != nil)
 	oneOf = append(oneOf, s.Pause != nil)
 	oneOf = append(oneOf, s.Experiment != nil)
+	oneOf = append(oneOf, s.Analysis != nil)
 	hasMultipleStepTypes := false
 	for i := range oneOf {
 		if oneOf[i] {
