@@ -3,14 +3,12 @@ package experiment
 import (
 	"sort"
 	"testing"
-
-	"k8s.io/apimachinery/pkg/util/uuid"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
-
-	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -97,14 +95,14 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	assert.Equal(t, "foo-template-685bdb47d8", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-6cb88c6bcf", ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
 		CollisionCount: pointer.Int32Ptr(1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
-	assert.Equal(t, "foo-template-79bb7bdcbf", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-868df74786", ReplicasetNameFromExperiment(e, template))
 }
 
 func TestGetExperiments(t *testing.T) {
@@ -189,9 +187,9 @@ func TestExperimentNameFromRollout(t *testing.T) {
 		},
 	}
 	name := ExperimentNameFromRollout(&r)
-	assert.Equal(t, "foo-685bdb47d8-0", name)
+	assert.Equal(t, "foo-6cb88c6bcf-0", name)
 
 	r.Status.CurrentStepIndex = pointer.Int32Ptr(1)
 	name = ExperimentNameFromRollout(&r)
-	assert.Equal(t, "foo-685bdb47d8-1", name)
+	assert.Equal(t, "foo-6cb88c6bcf-1", name)
 }

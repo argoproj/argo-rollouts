@@ -630,8 +630,9 @@ func TestRolloutComplete(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "BlueGreen complete",
-			r:        blueGreenRollout(5, 5, 5, 5, true, "685bdb47d8", ""),
+			name: "BlueGreen complete",
+			// update hash to status.CurrentPodHash after k8s library update
+			r:        blueGreenRollout(5, 5, 5, 5, true, "6cb88c6bcf", ""),
 			expected: true,
 		},
 		{
