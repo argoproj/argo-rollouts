@@ -18,10 +18,10 @@ import (
 	"k8s.io/klog"
 
 	"github.com/argoproj/argo-rollouts/controller"
+	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
-	jobprovider "github.com/argoproj/argo-rollouts/providers/job"
 )
 
 const (

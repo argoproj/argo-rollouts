@@ -1,4 +1,4 @@
-package providers
+package metricproviders
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/job"
+	"github.com/argoproj/argo-rollouts/metricproviders/prometheus"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/providers/job"
-	"github.com/argoproj/argo-rollouts/providers/prometheus"
 )
 
 // Provider methods to query a external systems and generate a measurement

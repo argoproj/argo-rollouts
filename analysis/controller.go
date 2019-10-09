@@ -14,12 +14,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	"github.com/argoproj/argo-rollouts/metricproviders"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/providers"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -39,7 +39,7 @@ type AnalysisController struct {
 
 	metricsServer *metrics.MetricsServer
 
-	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (providers.Provider, error)
+	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error)
 
 	// used for unit testing
 	enqueueAnalysis      func(obj interface{})
@@ -87,7 +87,7 @@ func NewAnalysisController(
 		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
 	}
 
-	providerFactory := providers.ProviderFactory{
+	providerFactory := metricproviders.ProviderFactory{
 		KubeClient: controller.kubeclientset,
 		JobLister:  jobInformer.Lister(),
 	}

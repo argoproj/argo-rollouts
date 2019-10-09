@@ -801,7 +801,7 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	// mocks terminate to cancel the inProgress measurement
+	// mocks terminate to cancel the in-progress measurement
 	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
 
 	for _, status := range []v1alpha1.AnalysisStatus{v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusError} {
@@ -811,10 +811,56 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 		assert.Equal(t, status, newRun.Status.Status)
 		assert.Equal(t, status, newRun.Status.MetricResults[1].Status)
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
-		// ensure the inProgress measurement is now terminated
+		// ensure the in-progress measurement is now terminated
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 		assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
 		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Message)
 		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Measurements[0].Message)
 	}
+}
+
+func TestReconcileAnalysisRunResumeInProgress(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "test",
+						Provider: v1alpha1.MetricProvider{
+							Job: &v1alpha1.JobMetric{},
+						},
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "test",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Status:    v1alpha1.AnalysisStatusRunning,
+							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// mocks resume to complete the in-progress measurement
+	f.provider.On("Resume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisStatusSuccessful), nil)
+
+	newRun := c.reconcileAnalysisRun(&run)
+
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.Status)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
+	assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
 }

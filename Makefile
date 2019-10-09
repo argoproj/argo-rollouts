@@ -79,7 +79,7 @@ test:
 
 .PHONY: mocks
 mocks:
-	mockery -dir ./providers -name Provider -output ./providers/mocks
+	mockery -dir ./metricproviders -name Provider -output ./providers/mocks
 
 .PHONY: manifests
 manifests:

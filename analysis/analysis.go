@@ -197,6 +197,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 			}
 
 			if newMeasurement.Status.Completed() {
+				log.Infof("measurement completed %s", newMeasurement.Status)
 				if newMeasurement.FinishedAt == nil {
 					finishedAt := metav1.Now()
 					newMeasurement.FinishedAt = &finishedAt
@@ -213,7 +214,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 					metricResult.Count++
 				case v1alpha1.AnalysisStatusError:
 					metricResult.Error++
-					log.Warnf("metric errored: %s", newMeasurement.Message)
+					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
 			if t.incompleteMeasurement == nil {

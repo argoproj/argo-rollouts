@@ -22,11 +22,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	"github.com/argoproj/argo-rollouts/metricproviders"
+	"github.com/argoproj/argo-rollouts/metricproviders/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-rollouts/providers"
-	"github.com/argoproj/argo-rollouts/providers/mocks"
 )
 
 var (
@@ -116,7 +116,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		c.enqueueAnalysis(obj)
 	}
 	f.provider = &mocks.Provider{}
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (providers.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error) {
 		return f.provider, nil
 	}
 
