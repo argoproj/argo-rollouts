@@ -34,5 +34,24 @@ required = [
   branch = "release-1.16"
 
 [[constraint]]
+  name = "k8s.io/cli-runtime"
+  branch = "release-1.16"
+
+[[constraint]]
+  name = "k8s.io/kubectl"
+  branch = "release-1.16"
+
+[[constraint]]
   name = "github.com/bouk/monkey"
   version = "1.0.0"
+
+# vendor/k8s.io/kubectl/pkg/util/term/resize.go:30:23: undefined: term.GetFdInfo
+[[override]]
+  name = "github.com/docker/docker"
+  revision = "be7ac8be2ae072032a4005e8f232be3fc57e4127"
+
+# vendor/k8s.io/kubectl/pkg/util/templates/markdown.go:66:11: undefined: blackfriday.LIST_ITEM_BEGINNING_OF_LIST
+[[override]]
+  name = "github.com/russross/blackfriday"
+  version = "v1.5.2"
+

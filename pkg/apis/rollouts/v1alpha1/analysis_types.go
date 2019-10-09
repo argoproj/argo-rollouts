@@ -207,7 +207,7 @@ type Measurement struct {
 	// Status is the status of this single measurement
 	Status AnalysisStatus `json:"status"`
 	// Message contains a message describing current condition (e.g. error messages)
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 	// StartedAt is the timestamp in which this measurement started to be measured
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// FinishedAt is the timestamp in which this measurement completed and value was collected
