@@ -197,6 +197,9 @@ type MetricResult struct {
 	Inconclusive int32 `json:"inconclusive,omitempty"`
 	// Error is the number of times an error was encountered during measurement
 	Error int32 `json:"error,omitempty"`
+	// ConsecutiveError is the number of times an error was encountered during measurement in succession
+	// Resets to zero when non-errors are encountered
+	ConsecutiveError int32 `json:"consecutiveError,omitempty"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured

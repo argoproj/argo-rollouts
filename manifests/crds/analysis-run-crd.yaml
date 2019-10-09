@@ -1859,6 +1859,9 @@ spec:
             metricResults:
               items:
                 properties:
+                  consecutiveError:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer

@@ -26,6 +26,65 @@ func newMeasurement(status v1alpha1.AnalysisStatus) v1alpha1.Measurement {
 	}
 }
 
+func newRun() *v1alpha1.AnalysisRun {
+	return &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name:     "metric1",
+						Interval: pointer.Int32Ptr(60),
+						Provider: v1alpha1.MetricProvider{
+							Job: &v1alpha1.JobMetric{},
+						},
+					},
+					{
+						Name:     "metric2",
+						Interval: pointer.Int32Ptr(60),
+						Provider: v1alpha1.MetricProvider{
+							Job: &v1alpha1.JobMetric{},
+						},
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "metric1",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "1",
+							Status:     v1alpha1.AnalysisStatusSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+				{
+					Name: "metric2",
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "2",
+							Status:     v1alpha1.AnalysisStatusSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+						{
+							Value:      "3",
+							Status:     v1alpha1.AnalysisStatusSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // newTerminatingRun returns a run which is terminating because of the given status
 func newTerminatingRun(status v1alpha1.AnalysisStatus) *v1alpha1.AnalysisRun {
 	run := v1alpha1.AnalysisRun{
@@ -486,44 +545,23 @@ func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
 
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name: "success-rate",
+		Name:     "success-rate",
+		Interval: pointer.Int32Ptr(60),
 	}
 	result := v1alpha1.MetricResult{
+		ConsecutiveError: 5,
+		Count:            5,
 		Measurements: []v1alpha1.Measurement{
 			{
 				Status:     v1alpha1.AnalysisStatusError,
 				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 			},
-			{
-				Status:     v1alpha1.AnalysisStatusError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-			},
-			{
-				Status:     v1alpha1.AnalysisStatusError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-40 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-40 * time.Second))),
-			},
-			{
-				Status:     v1alpha1.AnalysisStatusError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
-			},
-			{
-				Status:     v1alpha1.AnalysisStatusError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-20 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-20 * time.Second))),
-			},
 		},
 	}
 	assert.Equal(t, v1alpha1.AnalysisStatusError, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisStatusError, assessMetricStatus(metric, result, true))
-	result.Measurements[2] = v1alpha1.Measurement{
-		Status:     v1alpha1.AnalysisStatusSuccessful,
-		StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-40 * time.Second))),
-		FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-40 * time.Second))),
-	}
+	result.ConsecutiveError = 4
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, assessMetricStatus(metric, result, true))
 	assert.Equal(t, v1alpha1.AnalysisStatusRunning, assessMetricStatus(metric, result, false))
 }
@@ -863,4 +901,76 @@ func TestReconcileAnalysisRunResumeInProgress(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Status)
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, newRun.Status.MetricResults[0].Measurements[0].Status)
 	assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
+}
+
+// TestRunMeasurementsResetConsecutiveErrorCounter verifies we reset the metric consecutiveError counter
+// when metric measures success, failed, or inconclusive.
+func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	//for _, status := range []v1alpha1.AnalysisStatus{v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError} {
+	for _, status := range []v1alpha1.AnalysisStatus{v1alpha1.AnalysisStatusError} {
+		run := v1alpha1.AnalysisRun{
+			Spec: v1alpha1.AnalysisRunSpec{
+				AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{
+						{
+							Name: "test",
+							Provider: v1alpha1.MetricProvider{
+								Job: &v1alpha1.JobMetric{},
+							},
+						},
+					},
+				},
+			},
+			Status: &v1alpha1.AnalysisRunStatus{
+				Status: v1alpha1.AnalysisStatusRunning,
+				MetricResults: []v1alpha1.MetricResult{
+					{
+						Name:             "test",
+						Status:           v1alpha1.AnalysisStatusRunning,
+						ConsecutiveError: 4,
+						Count:            4,
+						Error:            4,
+					},
+				},
+			},
+		}
+		f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(status), nil)
+
+		newRun := c.reconcileAnalysisRun(&run)
+		if status == v1alpha1.AnalysisStatusError {
+			assert.Equal(t, int32(5), newRun.Status.MetricResults[0].ConsecutiveError)
+			assert.Equal(t, int32(5), newRun.Status.MetricResults[0].Error)
+			assert.Equal(t, int32(4), newRun.Status.MetricResults[0].Count)
+		} else {
+			assert.Equal(t, int32(0), newRun.Status.MetricResults[0].ConsecutiveError)
+			assert.Equal(t, int32(4), newRun.Status.MetricResults[0].Error)
+			assert.Equal(t, int32(5), newRun.Status.MetricResults[0].Count)
+		}
+	}
+}
+
+// TestTrimMeasurementHistory verifies we trim the measurement list appropriately to the correct length
+// and retain the newest measurements
+func TestTrimMeasurementHistory(t *testing.T) {
+	{
+		run := newRun()
+		trimMeasurementHistory(run, 2)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
+	}
+	{
+		run := newRun()
+		trimMeasurementHistory(run, 1)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 1)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
+	}
 }
