@@ -15,10 +15,12 @@ import (
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -203,8 +205,8 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 	return createdRS, err
 }
 
-// syncScalingEvent is responsible for reconciling rollouts on scaling events.
-func (c *RolloutController) syncScalingEvent(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+// syncReplicasOnly is responsible for reconciling rollouts on scaling events.
+func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
 	logCtx := logutil.WithRollout(r)
 	logCtx.Info("Reconciling scaling event")
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
@@ -224,6 +226,34 @@ func (c *RolloutController) syncScalingEvent(r *v1alpha1.Rollout, rsList []*apps
 		}
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, r.Spec.Paused)
 	}
+	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
+	if r.Spec.Strategy.CanaryStrategy != nil && r.Spec.Paused {
+		exList, err := c.getExperimentsForRollout(r)
+		if err != nil {
+			return err
+		}
+		currentEx := experimentutil.GetCurrentExperiment(r, exList)
+
+		arList, err := c.getAnalysisRunsForRollout(r)
+		if err != nil {
+			return err
+		}
+		currentArs, _ := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
+
+		stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, rsList)
+
+		c.reconcileCanaryPause(r)
+
+		// If the rollout is paused and there are no scaling events, the rollout should only sync its status
+		if isScaling {
+			if _, err := c.reconcileCanaryReplicaSets(r, newRS, stableRS, oldRSs); err != nil {
+				// If we get an error while trying to scale, the rollout will be requeued
+				// so we can abort this resync
+				return err
+			}
+		}
+		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, r)
+	}
 	return fmt.Errorf("no rollout strategy provided")
 }
 
@@ -232,9 +262,6 @@ func (c *RolloutController) syncScalingEvent(r *v1alpha1.Rollout, rsList []*apps
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *RolloutController) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) (bool, error) {
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
-		return false, nil
-	}
 	newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, false)
 	if err != nil {
 		return false, err
@@ -306,7 +333,7 @@ func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, new
 
 	var currentPodHash string
 	if newRS == nil {
-		// newRS potentially might be nil when called by Controller::syncScalingEvent(). For this
+		// newRS potentially might be nil when called by Controller::syncReplicasOnly(). For this
 		// to happen, the user would have had to simultaneously change the number of replicas, and
 		// the pod template spec at the same time.
 		currentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)

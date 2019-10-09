@@ -595,6 +595,7 @@ func TestRollBackToStable(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -684,6 +685,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -1005,4 +1007,42 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	condition, ok := c[0].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
+}
+
+func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(20),
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 5, 0, 5, true)
+	r2.Spec.Replicas = pointer.Int32Ptr(10)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	updatedIndex := f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	updatedRS := f.getUpdatedReplicaSet(updatedIndex)
+	assert.Equal(t, int32(8), *updatedRS.Spec.Replicas)
+
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
+	assert.Equal(t, expectedPatch, patch)
 }
