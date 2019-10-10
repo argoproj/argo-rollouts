@@ -83,7 +83,7 @@ func (in *AnalysisRunArgument) DeepCopy() *AnalysisRunArgument {
 func (in *AnalysisRunList) DeepCopyInto(out *AnalysisRunList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]AnalysisRun, len(*in))
@@ -193,7 +193,7 @@ func (in *AnalysisTemplate) DeepCopyObject() runtime.Object {
 func (in *AnalysisTemplateList) DeepCopyInto(out *AnalysisTemplateList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]AnalysisTemplate, len(*in))
@@ -483,7 +483,7 @@ func (in *ExperimentCondition) DeepCopy() *ExperimentCondition {
 func (in *ExperimentList) DeepCopyInto(out *ExperimentList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Experiment, len(*in))
@@ -868,7 +868,7 @@ func (in *RolloutExperimentTemplate) DeepCopy() *RolloutExperimentTemplate {
 func (in *RolloutList) DeepCopyInto(out *RolloutList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Rollout, len(*in))

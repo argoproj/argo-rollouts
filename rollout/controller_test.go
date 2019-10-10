@@ -94,7 +94,8 @@ func (f *fixture) Close() {
 }
 
 const (
-	defaultTestPodHash = "78574f5b57"
+	// update this value after every k8s library update
+	defaultTestPodHash = "56d899fbc4"
 )
 
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
@@ -921,7 +922,9 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
-	expectedReplicaSetName := "guestbook-75fc5957d4"
+	// NOTE: This test will fail on every k8s library upgrade.
+	// To fix it, update expectedReplicaSetName to match the new hash.
+	expectedReplicaSetName := "guestbook-7b5c4d46d9"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1027,7 +1030,9 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"779b98dbc5"}}`
+	// NOTE: This test will fail on every k8s library upgrade.
+	// To fix it, update expectedPatch to match the new hash.
+	expectedPatch := `{"status":{"observedGeneration":"85db9bf496"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1069,7 +1074,9 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	// this should only update observedGeneration and nothing else
-	expectedPatch := `{"status":{"observedGeneration":"56c55d698f"}}`
+	// NOTE: This test will fail on every k8s library upgrade.
+	// To fix it, update expectedPatch to match the new hash.
+	expectedPatch := `{"status":{"observedGeneration":"546d577bb6"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

@@ -99,12 +99,12 @@
   version = "v2.8.0"
 
 [[projects]]
-  digest = "1:8466756c66127d5ea10cc6c305a16174755ebd187e64ec2b4efc3eef58281dcd"
+  digest = "1:dcefbadf4534c5ecac8573698fba6e6e601157bfa8f96aafe29df31ae582ef2a"
   name = "github.com/evanphx/json-patch"
   packages = ["."]
   pruneopts = ""
-  revision = "5858425f75500d40c52783dce87d085a483ce135"
-  version = "v4.2.0"
+  revision = "afac545df32f2287a079e2dfb7ba2745a643747e"
+  version = "v3.0.0"
 
 [[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
@@ -178,6 +178,20 @@
   pruneopts = ""
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
   version = "v1.2.0"
+
+[[projects]]
+  digest = "1:9fcb267c272bc5054564b392e3ff7e65e35400fd9914afb1d169f92b95e7dbc9"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/flags",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = ""
+  revision = "2d0692c2e9617365a95b295612ac0d4415ba4627"
+  version = "v0.3.1"
 
 [[projects]]
   branch = "master"
@@ -293,14 +307,6 @@
   pruneopts = ""
   revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
   version = "v1.0.0-rc1"
-
-[[projects]]
-  digest = "1:a5484d4fa43127138ae6e7b2299a6a52ae006c7f803d98d717f60abf3e97192e"
-  name = "github.com/pborman/uuid"
-  packages = ["."]
-  pruneopts = ""
-  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
-  version = "v1.2"
 
 [[projects]]
   digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
@@ -572,10 +578,11 @@
   version = "v2.2.1"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:d8a6f1ec98713e685346a2e4b46c6ec4a1792a5535f8b0dffe3b1c08c9d69b12"
+  branch = "release-1.16"
+  digest = "1:5e5cfbab57ea5444c1eb295a39fdc403f097f5ace592c829db7b3e0e3ea66903"
   name = "k8s.io/api"
   packages = [
+    "admissionregistration/v1",
     "admissionregistration/v1beta1",
     "apps/v1",
     "apps/v1beta1",
@@ -595,6 +602,7 @@
     "coordination/v1",
     "coordination/v1beta1",
     "core/v1",
+    "discovery/v1alpha1",
     "events/v1beta1",
     "extensions/v1beta1",
     "networking/v1",
@@ -614,11 +622,11 @@
     "storage/v1beta1",
   ]
   pruneopts = ""
-  revision = "40a48860b5abbba9aa891b02b32da429b08d96a0"
+  revision = "195af9ec35214c6d98662c5791364285bf2e2cf2"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:32c3bbb0278417aa36d7600a0ef701f5d5eb3148830895c2634872bc55400be7"
+  branch = "release-1.16"
+  digest = "1:ea9d3d1bec3c3ecdfef0e0f92dc1c99468e9a13fedfb7f1bc297ae6c88968619"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
@@ -626,11 +634,11 @@
     "pkg/features",
   ]
   pruneopts = ""
-  revision = "53c4693659ed354d76121458fb819202dd1635fa"
+  revision = "59c675dd9926a891c040ac814ecea8dba8598c63"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:a802c91b189a31200cfb66744441fe62dac961ec7c5c58c47716570de7da195c"
+  branch = "release-1.16"
+  digest = "1:8ac118b8194fbc5d845ca59c3e3ca2e179ffe49a3f4db9093cd636f423f32f2d"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/equality",
@@ -683,11 +691,11 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "6a84e37a896db9780c75367af8d2ed2bb944022e"
+  revision = "a2eda9f80ab8a454a81bdde16d62a1afe5f931c0"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:dc7380b6c7f3c47834f9cb51f4c66a2d2153eaddc90ebced5c49ba058581136a"
+  branch = "release-1.16"
+  digest = "1:e077a9d0f91972dd98d17b570a7d2f9dc45bf1104a9fd836ca727f193e4c617c"
   name = "k8s.io/apiserver"
   packages = [
     "pkg/authentication/authenticator",
@@ -698,17 +706,18 @@
     "pkg/util/feature",
   ]
   pruneopts = ""
-  revision = "24fd0f18bc214a0cb443ed20cf287ef5af1a6b73"
+  revision = "3fdfe2c6555525ae54a58d22cd7f014a25ce749d"
 
 [[projects]]
-  branch = "release-11.0"
-  digest = "1:794140b3ac07405646ea3d4a57e1f6155186e672aed8aa0c996779381cd92fe6"
+  branch = "release-13.0"
+  digest = "1:9e7a28fb6a57b9eb2e7730a2d152a5618a0e913415a13bca76607e799d39fd85"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
     "informers",
     "informers/admissionregistration",
+    "informers/admissionregistration/v1",
     "informers/admissionregistration/v1beta1",
     "informers/apps",
     "informers/apps/v1",
@@ -731,6 +740,8 @@
     "informers/coordination/v1beta1",
     "informers/core",
     "informers/core/v1",
+    "informers/discovery",
+    "informers/discovery/v1alpha1",
     "informers/events",
     "informers/events/v1beta1",
     "informers/extensions",
@@ -761,6 +772,8 @@
     "kubernetes",
     "kubernetes/fake",
     "kubernetes/scheme",
+    "kubernetes/typed/admissionregistration/v1",
+    "kubernetes/typed/admissionregistration/v1/fake",
     "kubernetes/typed/admissionregistration/v1beta1",
     "kubernetes/typed/admissionregistration/v1beta1/fake",
     "kubernetes/typed/apps/v1",
@@ -799,6 +812,8 @@
     "kubernetes/typed/coordination/v1beta1/fake",
     "kubernetes/typed/core/v1",
     "kubernetes/typed/core/v1/fake",
+    "kubernetes/typed/discovery/v1alpha1",
+    "kubernetes/typed/discovery/v1alpha1/fake",
     "kubernetes/typed/events/v1beta1",
     "kubernetes/typed/events/v1beta1/fake",
     "kubernetes/typed/extensions/v1beta1",
@@ -833,6 +848,7 @@
     "kubernetes/typed/storage/v1alpha1/fake",
     "kubernetes/typed/storage/v1beta1",
     "kubernetes/typed/storage/v1beta1/fake",
+    "listers/admissionregistration/v1",
     "listers/admissionregistration/v1beta1",
     "listers/apps/v1",
     "listers/apps/v1beta1",
@@ -848,6 +864,7 @@
     "listers/coordination/v1",
     "listers/coordination/v1beta1",
     "listers/core/v1",
+    "listers/discovery/v1alpha1",
     "listers/events/v1beta1",
     "listers/extensions/v1beta1",
     "listers/networking/v1",
@@ -865,6 +882,9 @@
     "listers/storage/v1",
     "listers/storage/v1alpha1",
     "listers/storage/v1beta1",
+    "metadata",
+    "metadata/metadatainformer",
+    "metadata/metadatalister",
     "pkg/apis/clientauthentication",
     "pkg/apis/clientauthentication/v1alpha1",
     "pkg/apis/clientauthentication/v1beta1",
@@ -899,30 +919,23 @@
     "util/workqueue",
   ]
   pruneopts = ""
-  revision = "11646d1007e006f6f24995cb905c68bc62901c81"
-
-[[projects]]
-  branch = "release-1.14"
-  digest = "1:99567730769aa02ba05c7eac2479a8b10c85f93047558e3889b2d7f569387547"
-  name = "k8s.io/cloud-provider"
-  packages = ["features"]
-  pruneopts = ""
-  revision = "c892ea32361a3655e7bd8c06f2d02dd8ce73dd78"
+  revision = "f06fe3961ca9f09ba2f23c3c83decd95186d71c2"
 
 [[projects]]
   branch = "master"
-  digest = "1:149d53e237a376151d1be4a23eb3eb743182c299cd9c8c59ce3ea2ba3cc42755"
+  digest = "1:2929909e6a506832aa3924522331d43aab91d17c85399802bd960e428cef5d6d"
   name = "k8s.io/cluster-bootstrap"
   packages = [
     "token/api",
     "token/util",
+    "util/secrets",
   ]
   pruneopts = ""
-  revision = "ffdb6fd27ea48736d044c7ad42d2a2d4015fd78b"
+  revision = "f632ced2d31d86dd39523c0625e3b52642d5289f"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:742ce70d2c6de0f02b5331a25d4d549f55de6b214af22044455fd6e6b451cad9"
+  branch = "release-1.16"
+  digest = "1:254da4cb69b3776686b730a206e081e6f8898bb64760619d1895c25c407e718f"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/client-gen",
@@ -937,13 +950,16 @@
     "pkg/util",
   ]
   pruneopts = ""
-  revision = "50b561225d70b3eb79a1faafd3dfe7b1a62cbe73"
+  revision = "8e001e5d18949be7e823ccb9cfe9b60026e7bda0"
 
 [[projects]]
   branch = "master"
   digest = "1:727faf154ba5437cba7957d087b3e9f330f6ee0e15f91e2eba4dbba491bb53ff"
   name = "k8s.io/component-base"
-  packages = ["config"]
+  packages = [
+    "config",
+    "featuregate",
+  ]
   pruneopts = ""
   revision = "4062e14deebed23a9af22e52b675e89cb753b99e"
 
@@ -987,13 +1003,14 @@
   revision = "0317810137be915b9cf888946c6e115c1bfac693"
 
 [[projects]]
-  branch = "release-1.14"
-  digest = "1:30a624b97c52cc9830e4f3f24ec3038ca5374d551846cd0e0b17a77bd3efb343"
+  branch = "release-1.16"
+  digest = "1:985440fa37318b73e722b1d50d75635e08e2ed76aac87e7362fadcad4a9d8fa3"
   name = "k8s.io/kubernetes"
   packages = [
     "cmd/kubeadm/app/apis/kubeadm",
     "cmd/kubeadm/app/constants",
     "cmd/kubeadm/app/util",
+    "cmd/kubeadm/app/version",
     "pkg/api/legacyscheme",
     "pkg/api/service",
     "pkg/api/v1/pod",
@@ -1023,14 +1040,13 @@
     "pkg/util/labels",
     "pkg/util/parsers",
     "pkg/util/taints",
-    "pkg/version",
   ]
   pruneopts = ""
-  revision = "d1c99590f4557a409f377236f044847a35b4a7af"
+  revision = "a2ff5d71deafff1d9688eb6f7533dd239980c420"
 
 [[projects]]
   branch = "master"
-  digest = "1:4c5d39f7ca1c940d7e74dbc62d2221e2c59b3d35c54f1fa9c77f3fd3113bbcb1"
+  digest = "1:874afa816ece04beefd8724c8d397fdccc80c5d6d72ed8567e9af47b928887c9"
   name = "k8s.io/utils"
   packages = [
     "buffer",
@@ -1042,7 +1058,7 @@
     "trace",
   ]
   pruneopts = ""
-  revision = "c55fbcfc754a5b2ec2fbae8fb9dcac36bdba6a12"
+  revision = "69764acb6e8e900b7c05296c5d3c9c19545475f9"
 
 [[projects]]
   digest = "1:321081b4a44256715f2b68411d8eda9a17f17ebfe6f0cc61d2cc52d11c08acfa"

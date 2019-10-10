@@ -14,12 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-const (
-	rolloutCrdPath          = "manifests/crds/rollout-crd.yaml"
-	experimentCrdPath       = "manifests/crds/experiment-crd.yaml"
-	analysisRunCrdPath      = "manifests/crds/analysis-run-crd.yaml"
-	analysisTemplateCrdPath = "manifests/crds/analysis-template-crd.yaml"
-)
+var crdPaths = map[string]string{
+	"Rollout":          "manifests/crds/rollout-crd.yaml",
+	"Experiment":       "manifests/crds/experiment-crd.yaml",
+	"AnalysisTemplate": "manifests/crds/analysis-template-crd.yaml",
+	"AnalysisRun":      "manifests/crds/analysis-run-crd.yaml",
+}
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
@@ -43,21 +43,24 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
-		//We need to completely remove validation of problematic fields such as creationTimestamp,
-		//which get marshalled to `null`, but are typed as as a `string` during Open API validation
-		removeValidataion(obj, "metadata.creationTimestamp")
-		removeValidataion(obj, "spec.template.metadata.creationTimestamp")
 		removeNestedItems(obj)
 		removeDescriptions(obj)
-		if obj.GetKind() == "Rollout" {
-			removeRolloutResourceValidation(obj)
-		}
+		removeResourceValidation(obj)
 		crd := toCRD(obj)
 		crd.Spec.Scope = "Namespaced"
 		crds = append(crds, crd)
 	}
 
 	return crds
+}
+
+func crdKind(crd *unstructured.Unstructured) string {
+	kind, found, err := unstructured.NestedFieldNoCopy(crd.Object, "spec", "names", "kind")
+	checkErr(err)
+	if !found {
+		panic("kind not found")
+	}
+	return kind.(string)
 }
 
 var diffSeparator = regexp.MustCompile(`\n---`)
@@ -90,10 +93,20 @@ func deleteFile(path string) {
 	checkErr(os.Remove(path))
 }
 
-func removeValidataion(un *unstructured.Unstructured, path string) {
+func removeValidation(un *unstructured.Unstructured, path string) {
 	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
-		schemaPath = append(schemaPath, "properties", part)
+		if strings.HasSuffix(part, "[]") {
+			part = strings.TrimSuffix(part, "[]")
+			schemaPath = append(schemaPath, "properties", part, "items")
+		} else {
+			schemaPath = append(schemaPath, "properties", part)
+		}
+	}
+	_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
+	checkErr(err)
+	if !ok {
+		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
 	}
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
@@ -141,26 +154,40 @@ func removeNestedItemsHelper(obj map[string]interface{}) {
 	}
 }
 
-var resourcesSchemaPath = []string{
-	"spec",
-	"validation",
-	"openAPIV3Schema", "properties",
-	"spec", "properties",
-	"template", "properties",
-	"spec", "properties",
-	"containers", "items", "properties",
-	"resources", "properties",
-}
-
-func removeRolloutResourceValidation(un *unstructured.Unstructured) {
-	containersFieldIf, ok, err := unstructured.NestedFieldNoCopy(un.Object, resourcesSchemaPath...)
-	checkErr(err)
-	if !ok {
-		panic(fmt.Sprintf("%s not found", resourcesSchemaPath))
+func removeResourceValidation(un *unstructured.Unstructured) {
+	kind := crdKind(un)
+	switch kind {
+	case "Rollout":
+		removeValidation(un, "spec.template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.requests")
+	case "Experiment":
+		removeValidation(un, "spec.templates[].template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+	case "AnalysisTemplate":
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+	case "AnalysisRun":
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+	default:
+		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
-	containers := containersFieldIf.(map[string]interface{})
-	unstructured.RemoveNestedField(containers, "limits")
-	unstructured.RemoveNestedField(containers, "requests")
 }
 
 func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinition {
@@ -196,26 +223,17 @@ func main() {
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
 		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
-		if crdKind == "Rollout" {
-			removeRolloutResourceValidation(&r)
-		}
 		jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
 		checkErr(err)
 
 		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 		checkErr(err)
 
-		path := rolloutCrdPath
-		switch crdKind {
-		case "Experiment":
-			path = experimentCrdPath
-		case "AnalysisTemplate":
-			path = analysisTemplateCrdPath
-		case "AnalysisRun":
-			path = analysisRunCrdPath
+		path := crdPaths[crdKind]
+		if path == "" {
+			panic(fmt.Sprintf("unknown kind: %s", crdKind))
 		}
 		err = ioutil.WriteFile(path, yamlBytes, 0644)
 		checkErr(err)
 	}
-
 }
