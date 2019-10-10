@@ -258,11 +258,6 @@ func (c *RolloutController) syncHandler(key string) error {
 		return nil
 	}
 
-	err = c.checkPausedConditions(r)
-	if err != nil {
-		return err
-	}
-
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
 	// through adoption/orphaning.
 	rsList, err := c.getReplicaSetsForRollouts(r)
@@ -270,13 +265,20 @@ func (c *RolloutController) syncHandler(key string) error {
 		return err
 	}
 
-	scalingEvent, err := c.isScalingEvent(r, rsList)
+	err = c.checkPausedConditions(r)
 	if err != nil {
 		return err
 	}
-	if scalingEvent {
-		return c.syncScalingEvent(r, rsList)
+
+	isScalingEvent, err := c.isScalingEvent(r, rsList)
+	if err != nil {
+		return err
 	}
+
+	if rollout.Spec.Paused || isScalingEvent {
+		return c.syncReplicasOnly(r, rsList, isScalingEvent)
+	}
+
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		return c.rolloutBlueGreen(r, rsList)
 	}
