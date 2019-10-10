@@ -702,15 +702,6 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
-                                              properties:
-                                                limits:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
-                                                requests:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
                                               type: object
                                             securityContext:
                                               properties:
@@ -1236,15 +1227,6 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
-                                              properties:
-                                                limits:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
-                                                requests:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
                                               type: object
                                             securityContext:
                                               properties:
@@ -1774,15 +1756,6 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
-                                              properties:
-                                                limits:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
-                                                requests:
-                                                  additionalProperties:
-                                                    type: string
-                                                  type: object
                                               type: object
                                             securityContext:
                                               properties:
