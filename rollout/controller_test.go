@@ -415,7 +415,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
 		objMap, _ := converter.ToUnstructured(createAction.GetObject())
 		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
-		ar.Name = ar.GenerateName + "-" + MockGeneratedNameSuffix
+		ar.Name = ar.GenerateName + MockGeneratedNameSuffix
 		return true, ar.DeepCopyObject(), nil
 	})
 

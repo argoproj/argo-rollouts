@@ -54,18 +54,23 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 }
 
 func TestStepLabels(t *testing.T) {
-	ro := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo",
-		},
-	}
 	podHash := "abcd123"
 	expected := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeStepLabel,
 		v1alpha1.RolloutCanaryStepIndexLabel:  "1",
 	}
-	generated := StepLabels(ro, 1, podHash)
+	generated := StepLabels(1, podHash)
+	assert.Equal(t, expected, generated)
+}
+
+func TestBackgroundLabels(t *testing.T) {
+	podHash := "abcd123"
+	expected := map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeBackgroundRunLabel,
+	}
+	generated := BackgroundLabels(podHash)
 	assert.Equal(t, expected, generated)
 }
 

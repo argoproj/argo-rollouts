@@ -33,8 +33,16 @@ func BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisRun *v1alpha1.RolloutAna
 	return arguments
 }
 
+// BackgroundLabels returns a map[string]string of common labels for the background analysis
+func BackgroundLabels(podHash string) map[string]string {
+	return map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeBackgroundRunLabel,
+	}
+}
+
 // StepLabels returns a map[string]string of common labels for analysisruns created from an analysis step
-func StepLabels(r *v1alpha1.Rollout, index int32, podHash string) map[string]string {
+func StepLabels(index int32, podHash string) map[string]string {
 	indexStr := strconv.Itoa(int(index))
 	return map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,

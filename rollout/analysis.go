@@ -56,7 +56,13 @@ func (c *RolloutController) reconcileAnalysisRuns(rollout *v1alpha1.Rollout, cur
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, stepAnalysisRun)
 	}
 
-	//TODO(dthomson) implement reconcileBackgroundBasedAnalysisRun
+	backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(rollout, currentArs, stableRS, newRS)
+	if err != nil {
+		return currentArs, err
+	}
+	if backgroundAnalysisRun != nil {
+		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
+	}
 
 	err = c.cancelAnalysisRuns(rollout, otherArs)
 	if err != nil {
@@ -64,6 +70,41 @@ func (c *RolloutController) reconcileAnalysisRuns(rollout *v1alpha1.Rollout, cur
 	}
 
 	return newCurrentAnalysisRuns, nil
+}
+
+func (c *RolloutController) reconcileBackgroundAnalysisRun(rollout *v1alpha1.Rollout, currentArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet) (*v1alpha1.AnalysisRun, error) {
+	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentBackgroundAnalysisRun)
+	if rollout.Spec.Strategy.CanaryStrategy.Analysis == nil {
+		err := c.cancelAnalysisRuns(rollout, []*v1alpha1.AnalysisRun{currentAr})
+		if err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	if currentAr == nil {
+		podHash := getPodHash(rollout, newRS)
+		backgroundLabels := analysisutil.BackgroundLabels(podHash)
+		currentAr, err := c.createAnalysisRun(rollout, rollout.Spec.Strategy.CanaryStrategy.Analysis, stableRS, newRS, backgroundLabels)
+		if err == nil {
+			logutil.WithRollout(rollout).WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
+		}
+		return currentAr, err
+	}
+	return currentAr, nil
+}
+
+func (c *RolloutController) createAnalysisRun(rollout *v1alpha1.Rollout, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
+	podHash := getPodHash(rollout, newRS)
+	ar, err := c.getAnalysisRunFromRollout(rollout, rolloutAnalysisStep, args, podHash, labels)
+	if err != nil {
+		return nil, err
+	}
+	ar, err = c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Create(ar)
+	if err != nil {
+		return nil, err
+	}
+	return ar, nil
 }
 
 func (c *RolloutController) reconcileStepBasedAnalysisRun(rollout *v1alpha1.Rollout, currentArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet) (*v1alpha1.AnalysisRun, error) {
@@ -77,32 +118,26 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(rollout *v1alpha1.Roll
 		return nil, err
 	}
 	if currentAr == nil {
-		return c.createStepBasedAnalysisRun(rollout, *index, step.Analysis, stableRS, newRS)
+		podHash := getPodHash(rollout, newRS)
+		stepLabels := analysisutil.StepLabels(*index, podHash)
+		currentAr, err := c.createAnalysisRun(rollout, step.Analysis, stableRS, newRS, stepLabels)
+		if err == nil {
+			logutil.WithRollout(rollout).WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", index)
+		}
+		return currentAr, err
 	}
 
 	return currentAr, nil
 }
 
-func (c *RolloutController) createStepBasedAnalysisRun(rollout *v1alpha1.Rollout, index int32, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet) (*v1alpha1.AnalysisRun, error) {
-	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+func getPodHash(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) string {
 	// Since the compute hash function is not guaranteed to be stable, we will use the podHash attached the newRS if possible.
 	if newRS != nil {
-		if newRsPodHash, ok := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			podHash = newRsPodHash
+		if podHash, ok := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			return podHash
 		}
 	}
-	analysisRunLabels := analysisutil.StepLabels(rollout, index, podHash)
-	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
-	ar, err := c.getAnalysisRunFromRollout(rollout, rolloutAnalysisStep, args, podHash, analysisRunLabels)
-	if err != nil {
-		return nil, err
-	}
-	ar, err = c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Create(ar)
-	if err != nil {
-		return nil, err
-	}
-	logutil.WithRollout(rollout).WithField(logutil.AnalysisRunKey, ar.Name).Infof("Created AnalysisRun for step '%d'", index)
-	return ar, nil
+	return controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 }
 
 func (c *RolloutController) cancelAnalysisRuns(r *v1alpha1.Rollout, analysisRuns []*v1alpha1.AnalysisRun) error {
@@ -138,7 +173,7 @@ func (c *RolloutController) getAnalysisRunFromRollout(r *v1alpha1.Rollout, rollo
 
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-%s-%s", r.Name, rolloutAnalysisStep.TemplateName, podHash),
+			GenerateName: fmt.Sprintf("%s-%s-%s-", r.Name, rolloutAnalysisStep.TemplateName, podHash),
 			Namespace:    r.Namespace,
 			Labels:       labels,
 			Annotations: map[string]string{
