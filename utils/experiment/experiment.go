@@ -2,7 +2,6 @@ package experiment
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,14 +59,14 @@ func GetCollisionCountForTemplate(experiment *v1alpha1.Experiment, template v1al
 	return collisionCount
 }
 
-// ExperimentNameFromRollout gets the name of the experiment based on the rollout
-func ExperimentNameFromRollout(rollout *v1alpha1.Rollout) string {
+// ExperimentGeneratedNameFromRollout gets the name of the experiment based on the rollout
+func ExperimentGeneratedNameFromRollout(rollout *v1alpha1.Rollout) string {
 	currentStep := int32(0)
 	if rollout.Status.CurrentStepIndex != nil {
 		currentStep = *rollout.Status.CurrentStepIndex
 	}
 	podTemplateSpecHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-	return fmt.Sprintf("%s-%s-%d", rollout.Name, podTemplateSpecHash, currentStep)
+	return fmt.Sprintf("%s-%s-%d-", rollout.Name, podTemplateSpecHash, currentStep)
 }
 
 // ReplicasetNameFromExperiment gets the replicaset name based off of the experiment and the template
@@ -86,27 +85,13 @@ func GetCurrentExperiment(rollout *v1alpha1.Rollout, exList []*v1alpha1.Experime
 			newExList = append(newExList, ex)
 		}
 	}
-	sort.Sort(ExperimentByCreationTimestamp(newExList))
-	experimentName := ExperimentNameFromRollout(rollout)
 	for i := range newExList {
 		ex := newExList[i]
-		if ex.Name == experimentName {
+		if ex.Name == rollout.Status.Canary.CurrentExperiment {
 			return ex
 		}
 
 	}
-	// // Iterate the Experiment list again, this time doing a deep equal against the template specs.
-	// // This covers the corner case in which the reason we did not find the replicaset, was because
-	// // of a change in the controller.ComputeHash function (e.g. due to an update of k8s libraries).
-	// // When this (rare) situation arises, we do not want to return nil, since nil is considered a
-	// // PodTemplate change, which in turn would triggers an unexpected redeploy of the replicaset.
-	// for _, ex := range exList {
-	// 	if PodTemplateEqualIgnoreHash(&rs.Spec.Template, &rollout.Spec.Template) {
-	// 		logCtx := logutil.WithRollout(rollout)
-	// 		logCtx.Infof("ComputeHash change detected (expected: %s, actual: %s)", replicaSetName, rs.Name)
-	// 		return rs
-	// 	}
-	// }
 	// new Experiment does not exist.
 	return nil
 }
@@ -117,7 +102,7 @@ func GetOldExperiments(rollout *v1alpha1.Rollout, exList []*v1alpha1.Experiment)
 	currentEx := GetCurrentExperiment(rollout, exList)
 	for i := range exList {
 		ex := exList[i]
-		// Filter out new replica set
+		// Filter out new experiment
 		if currentEx != nil && ex.UID == currentEx.UID {
 			continue
 		}
@@ -126,7 +111,7 @@ func GetOldExperiments(rollout *v1alpha1.Rollout, exList []*v1alpha1.Experiment)
 	return allExs
 }
 
-// ExperimentByCreationTimestamp sorts a list of experiment by creation timestamp, using their creation timestamp as a tie breaker.
+// ExperimentByCreationTimestamp sorts a list of experiment by creation timestamp (earliest to latest), using their name as a tie breaker.
 type ExperimentByCreationTimestamp []*v1alpha1.Experiment
 
 func (o ExperimentByCreationTimestamp) Len() int      { return len(o) }

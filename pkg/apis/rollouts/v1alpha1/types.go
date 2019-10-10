@@ -341,6 +341,8 @@ type CanaryStatus struct {
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
 	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
 	CurrentBackgroundAnalysisRun string `json:"currentBackgroundAnalysisRun,omitempty"`
+	// CurrentExperiment indicates the running experiment
+	CurrentExperiment string `json:"currentExperiment,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

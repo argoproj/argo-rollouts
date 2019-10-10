@@ -598,6 +598,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"currentExperiment": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentExperiment indicates the running experiment",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

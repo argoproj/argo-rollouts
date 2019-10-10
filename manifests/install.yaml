@@ -7577,6 +7577,8 @@ spec:
               properties:
                 currentBackgroundAnalysisRun:
                   type: string
+                currentExperiment:
+                  type: string
                 currentStepAnalysisRun:
                   type: string
                 experimentFailed:

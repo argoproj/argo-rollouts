@@ -161,7 +161,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
 		}
 		if reason == conditions.RolloutExperimentFailedReason {
-			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, experimentutil.ExperimentNameFromRollout(resource), resource.Name)
+			exName := fmt.Sprintf("%s%s", experimentutil.ExperimentGeneratedNameFromRollout(resource), MockGeneratedNameSuffix)
+			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, exName, resource.Name)
 			status = corev1.ConditionFalse
 		}
 		if reason == conditions.RolloutAnalysisRunFailedReason {
@@ -416,6 +417,19 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
 		ar.Name = ar.GenerateName + "-" + MockGeneratedNameSuffix
 		return true, ar.DeepCopyObject(), nil
+	})
+
+	f.client.PrependReactor("create", "experiments", func(action core.Action) (bool, runtime.Object, error) {
+		createAction, ok := action.(core.CreateAction)
+		if !ok {
+			assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
+		}
+		ex := &v1alpha1.Experiment{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(createAction.GetObject())
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ex)
+		ex.Name = ex.GenerateName + MockGeneratedNameSuffix
+		return true, ex.DeepCopyObject(), nil
 	})
 
 	return c, i, k8sI
@@ -729,6 +743,20 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
 	return ar
+}
+
+func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
+	action := filterInformerActions(f.client.Actions())[index]
+	createAction, ok := action.(core.CreateAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	obj := createAction.GetObject()
+	ex := &v1alpha1.Experiment{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ex)
+	return ex
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
