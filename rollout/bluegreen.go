@@ -48,7 +48,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 	logCtx.Info("Cleaning up old replicasets")
-	if err := c.cleanupRollouts(filteredOldRS, r); err != nil {
+	if err := c.cleanupRollouts(filteredOldRS, nil, r); err != nil {
 		return err
 	}
 

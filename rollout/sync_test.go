@@ -340,7 +340,7 @@ func TestCleanupRollouts(t *testing.T) {
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}
-			err := c.cleanupRollouts(test.replicaSets, r)
+			err := c.cleanupRollouts(test.replicaSets, nil, r)
 			assert.Nil(t, err)
 
 			for _, action := range k8sfake.Actions() {

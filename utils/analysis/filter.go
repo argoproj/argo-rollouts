@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 //GetCurrentStepAnalysisRun filters the currentArs and returns the step based analysis run
@@ -78,4 +79,63 @@ func filterAnalysisRuns(ars []*v1alpha1.AnalysisRun, cond func(ar *v1alpha1.Anal
 		}
 	}
 	return condTrue, condFalse
+}
+
+// SortAnalysisRunByPodHash returns map with podHash as a key and an array of analysis runs as the value
+// and an array of all the analysisRuns without the podHash label
+func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha1.AnalysisRun {
+	podHashToAr := map[string][]*v1alpha1.AnalysisRun{}
+	if ars == nil {
+		return podHashToAr
+	}
+	for i := range ars {
+		ar := ars[i]
+		podHash, ok := ar.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if !ok {
+			continue
+		}
+		podHashArray, ok := podHashToAr[podHash]
+		if !ok {
+			podHashArray = []*v1alpha1.AnalysisRun{}
+		}
+		podHashArray = append(podHashArray, ar)
+		podHashToAr[podHash] = podHashArray
+	}
+	return podHashToAr
+}
+
+// FilterAnalysisRunsToDelete returns a list of analysis runs that should be deleted in the cases of the analysis run
+// has no pod hash, the analysis run has no matching replicaSet, or the rs has a deletiontimestamp
+func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet) []*v1alpha1.AnalysisRun {
+	olderRsPodHashes := map[string]bool{}
+	for i := range olderRSs {
+		rs := olderRSs[i]
+		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			olderRsPodHashes[podHash] = rs.DeletionTimestamp != nil
+		}
+	}
+	arsToDelete := []*v1alpha1.AnalysisRun{}
+	for i := range ars {
+		ar := ars[i]
+		podHash, ok := ar.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		//AnalysisRun does not have podHash Label
+		if !ok {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+		hasDeletionTimeStamp, ok := olderRsPodHashes[podHash]
+
+		//AnalysisRun does not have matching rs
+		if !ok {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+
+		//AnalysisRun has matching rs but rs has deletiontimestamp
+		if ok && hasDeletionTimeStamp {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+	}
+	return arsToDelete
 }

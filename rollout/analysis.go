@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -41,7 +42,7 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileAnalysisRuns(rollout *v1alpha1.Rollout, currentArs, otherArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet) ([]*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) reconcileAnalysisRuns(rollout *v1alpha1.Rollout, currentArs, otherArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) ([]*v1alpha1.AnalysisRun, error) {
 	if rollout.Spec.Paused {
 		return currentArs, nil
 	}
@@ -64,6 +65,16 @@ func (c *RolloutController) reconcileAnalysisRuns(rollout *v1alpha1.Rollout, cur
 	}
 
 	err = c.cancelAnalysisRuns(rollout, otherArs)
+	if err != nil {
+		return currentArs, err
+	}
+
+	allRSs := append(olderRSs, newRS)
+	if stableRS != nil {
+		allRSs = append(allRSs, stableRS)
+	}
+	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, allRSs)
+	err = c.deleteAnalysisRuns(rollout, arsToDelete)
 	if err != nil {
 		return currentArs, err
 	}
@@ -124,7 +135,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(rollout *v1alpha1.Roll
 		stepLabels := analysisutil.StepLabels(*index, podHash)
 		currentAr, err := c.createAnalysisRun(rollout, step.Analysis, stableRS, newRS, stepLabels)
 		if err == nil {
-			logutil.WithRollout(rollout).WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", index)
+			logutil.WithRollout(rollout).WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
 		}
 		return currentAr, err
 	}
@@ -179,4 +190,20 @@ func (c *RolloutController) getAnalysisRunFromRollout(r *v1alpha1.Rollout, rollo
 		},
 	}
 	return &ar, nil
+}
+
+func (c *RolloutController) deleteAnalysisRuns(rollout *v1alpha1.Rollout, ars []*v1alpha1.AnalysisRun) error {
+	logCtx := logutil.WithRollout(rollout)
+	for i := range ars {
+		ar := ars[i]
+		if ar.DeletionTimestamp != nil {
+			continue
+		}
+		logCtx.Infof("Trying to cleanup analysis run '%s'", ar.Name)
+		err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ar.Name, nil)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }

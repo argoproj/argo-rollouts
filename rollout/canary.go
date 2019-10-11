@@ -49,8 +49,8 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
 
-	logCtx.Info("Cleaning up old replicasets")
-	if err := c.cleanupRollouts(oldRSs, rollout); err != nil {
+	logCtx.Info("Cleaning up old replicasets, analysis runs")
+	if err := c.cleanupRollouts(oldRSs, otherArs, rollout); err != nil {
 		return err
 	}
 
@@ -65,7 +65,7 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	logCtx.Info("Reconciling AnalysisRun step")
-	currentArs, err = c.reconcileAnalysisRuns(rollout, currentArs, otherArs, stableRS, newRS)
+	currentArs, err = c.reconcileAnalysisRuns(rollout, currentArs, otherArs, stableRS, newRS, oldRSs)
 	if err != nil {
 		return err
 	}
