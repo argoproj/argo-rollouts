@@ -10,7 +10,8 @@ import (
 )
 
 func TestCmdArgoRolloutsCmdUsage(t *testing.T) {
-	_, o := options.NewFakeArgoRolloutsOptions()
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 	cmd := NewCmdArgoRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	err := cmd.Execute()

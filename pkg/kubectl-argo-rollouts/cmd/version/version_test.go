@@ -10,10 +10,11 @@ import (
 )
 
 func TestVersionCmd(t *testing.T) {
-	_, o := options.NewFakeArgoRolloutsOptions()
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 	cmd := NewCmdVersion(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"version"})
+	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	assert.NoError(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
@@ -22,10 +23,11 @@ func TestVersionCmd(t *testing.T) {
 }
 
 func TestVersionCmdShort(t *testing.T) {
-	_, o := options.NewFakeArgoRolloutsOptions()
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 	cmd := NewCmdVersion(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"version", "--short"})
+	cmd.SetArgs([]string{"--short"})
 	err := cmd.Execute()
 	assert.NoError(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()

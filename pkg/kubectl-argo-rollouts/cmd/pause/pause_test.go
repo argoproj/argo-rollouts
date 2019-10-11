@@ -15,7 +15,8 @@ import (
 )
 
 func TestPauseCmdUsage(t *testing.T) {
-	_, o := options.NewFakeArgoRolloutsOptions()
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 	cmd := NewCmdPause(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{})
@@ -36,7 +37,8 @@ func TestPauseCmd(t *testing.T) {
 		},
 	}
 
-	_, o := options.NewFakeArgoRolloutsOptions(&ro)
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
 	fakeClient.ReactionChain = nil
 	fakeClient.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -62,7 +64,8 @@ func TestPauseCmd(t *testing.T) {
 }
 
 func TestPauseCmdError(t *testing.T) {
-	_, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
+	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
+	defer tf.Cleanup()
 	cmd := NewCmdPause(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})

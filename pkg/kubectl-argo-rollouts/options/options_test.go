@@ -14,7 +14,8 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	_, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	tf, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 	example := `
   # do something
   %[1]s foo
@@ -23,7 +24,8 @@ func TestExample(t *testing.T) {
 }
 
 func TestUsageErr(t *testing.T) {
-	_, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	tf, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 
 	var cmd = &cobra.Command{
 		Use:               "foo SOMETHING",
@@ -42,7 +44,8 @@ func TestUsageErr(t *testing.T) {
 }
 
 func TestAddKubectlFlags(t *testing.T) {
-	_, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	tf, o := fakeoptions.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
 
 	var cmd = &cobra.Command{
 		Use:               "foo SOMETHING",
@@ -68,6 +71,7 @@ func TestAddKubectlFlags(t *testing.T) {
 func TestRolloutsClientset(t *testing.T) {
 	iostreams, _, _, _ := genericclioptions.NewTestIOStreams()
 	tf := cmdtesting.NewTestFactory().WithNamespace("foo")
+	defer tf.Cleanup()
 	o := options.NewArgoRolloutsOptions(iostreams)
 	o.RESTClientGetter = tf
 	o.RESTClientGetter.ToRawKubeConfigLoader().Namespace()
