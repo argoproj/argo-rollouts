@@ -444,8 +444,8 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
-	f.analysisRunLister = append(f.analysisRunLister, ar, arToDelete)
-	f.objects = append(f.objects, r3, at, ar, arToDelete)
+	f.analysisRunLister = append(f.analysisRunLister, ar, arToDelete, arAlreadyDeleted)
+	f.objects = append(f.objects, r3, at, ar, arToDelete, arAlreadyDeleted)
 
 	f.expectDeleteReplicaSetAction(rs1)
 	deletedIndex := f.expectDeleteAnalysisRunAction(arToDelete)
