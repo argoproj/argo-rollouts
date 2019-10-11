@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -82,7 +81,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(rollout *v1alpha1.Rol
 		return nil, err
 	}
 	if currentAr == nil {
-		podHash := getPodHash(rollout, newRS)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
 		currentAr, err := c.createAnalysisRun(rollout, rollout.Spec.Strategy.CanaryStrategy.Analysis, stableRS, newRS, backgroundLabels)
 		if err == nil {
@@ -95,7 +94,10 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(rollout *v1alpha1.Rol
 
 func (c *RolloutController) createAnalysisRun(rollout *v1alpha1.Rollout, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
-	podHash := getPodHash(rollout, newRS)
+	podHash := replicasetutil.GetPodTemplateHash(newRS)
+	if podHash == "" {
+		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
+	}
 	ar, err := c.getAnalysisRunFromRollout(rollout, rolloutAnalysisStep, args, podHash, labels)
 	if err != nil {
 		return nil, err
@@ -118,7 +120,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(rollout *v1alpha1.Roll
 		return nil, err
 	}
 	if currentAr == nil {
-		podHash := getPodHash(rollout, newRS)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		stepLabels := analysisutil.StepLabels(*index, podHash)
 		currentAr, err := c.createAnalysisRun(rollout, step.Analysis, stableRS, newRS, stepLabels)
 		if err == nil {
@@ -128,16 +130,6 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(rollout *v1alpha1.Roll
 	}
 
 	return currentAr, nil
-}
-
-func getPodHash(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) string {
-	// Since the compute hash function is not guaranteed to be stable, we will use the podHash attached the newRS if possible.
-	if newRS != nil {
-		if podHash, ok := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			return podHash
-		}
-	}
-	return controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 }
 
 func (c *RolloutController) cancelAnalysisRuns(r *v1alpha1.Rollout, analysisRuns []*v1alpha1.AnalysisRun) error {
