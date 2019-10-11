@@ -5,6 +5,7 @@ jobs:
     docker:
       # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
       - image: circleci/golang:1.13.1
+    resource_class: large
     environment:
       TEST_RESULTS: /tmp/test-results
     steps:
