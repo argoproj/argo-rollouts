@@ -1,8 +1,9 @@
 package analysis
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 //GetCurrentStepAnalysisRun filters the currentArs and returns the step based analysis run
@@ -81,8 +82,7 @@ func filterAnalysisRuns(ars []*v1alpha1.AnalysisRun, cond func(ar *v1alpha1.Anal
 	return condTrue, condFalse
 }
 
-// SortAnalysisRunByPodHash returns map with podHash as a key and an array of analysis runs as the value
-// and an array of all the analysisRuns without the podHash label
+// SortAnalysisRunByPodHash returns map with a podHash as a key and an array of analysisRuns with that pod hash
 func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha1.AnalysisRun {
 	podHashToAr := map[string][]*v1alpha1.AnalysisRun{}
 	if ars == nil {
@@ -104,8 +104,13 @@ func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha
 	return podHashToAr
 }
 
-// FilterAnalysisRunsToDelete returns a list of analysis runs that should be deleted in the cases of the analysis run
-// has no pod hash, the analysis run has no matching replicaSet, or the rs has a deletiontimestamp
+// FilterAnalysisRunsToDelete returns a list of analysis runs that should be deleted in the cases where:
+// 1. The analysis run has no pod hash label,
+// 2. There is no ReplicaSet with the same pod hash as the analysis run
+// 3. The ReplicaSet that has the same pod hash as the analysis run has a deletiontimestamp.
+// Note: It is okay to use pod hash for filtering since the analysis run's pod hash is originally derived from the new RS.
+// Even if there is a library change during the lifetime of the analysis run, the ReplicaSet's pod hash that the analysis
+// run references does not change.
 func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet) []*v1alpha1.AnalysisRun {
 	olderRsPodHashes := map[string]bool{}
 	for i := range olderRSs {

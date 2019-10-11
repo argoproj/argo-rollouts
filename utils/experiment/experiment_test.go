@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -103,33 +102,6 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
 	assert.Equal(t, "foo-template-868df74786", ReplicasetNameFromExperiment(e, template))
-}
-
-func TestGetExperiments(t *testing.T) {
-	r := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo",
-		},
-	}
-	r.Status.Canary.CurrentExperiment = ExperimentGeneratedNameFromRollout(r)
-	ex1 := &v1alpha1.Experiment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ExperimentGeneratedNameFromRollout(r),
-			UID:  uuid.NewUUID(),
-		},
-	}
-	ex2 := &v1alpha1.Experiment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-2",
-			UID:  uuid.NewUUID(),
-		},
-	}
-	allExperiments := []*v1alpha1.Experiment{ex1, ex2}
-
-	assert.Equal(t, GetCurrentExperiment(r, allExperiments), ex1)
-	assert.Nil(t, GetCurrentExperiment(r, []*v1alpha1.Experiment{ex2}), ex1)
-	assert.Equal(t, GetOldExperiments(r, allExperiments), []*v1alpha1.Experiment{ex2})
-
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {

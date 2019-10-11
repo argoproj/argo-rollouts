@@ -173,6 +173,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 			Namespace:       r2.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r2, controllerKind)},
 			UID:             uuid.NewUUID(),
+			Labels:          map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash},
 		},
 		Status: v1alpha1.ExperimentStatus{
 			Running: pointer.BoolPtr(true),
@@ -362,5 +363,93 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 	noStep, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, noStep)
 	assert.Nil(t, err)
+}
 
+func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
+	r2.Status.Canary.CurrentExperiment = ex.Name
+	exWithNoMatchingPodHash := ex.DeepCopy()
+	exWithNoMatchingPodHash.UID = uuid.NewUUID()
+	exWithNoMatchingPodHash.Name = "no-matching-rs"
+	exWithNoMatchingPodHash.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "abc123"
+
+	exWithDeletionTimeStamp := exWithNoMatchingPodHash.DeepCopy()
+	exWithDeletionTimeStamp.Name = "has-deletion-timestamp"
+	now := metav1.Now()
+	exWithDeletionTimeStamp.DeletionTimestamp = &now
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.experimentLister = append(f.experimentLister, ex, exWithNoMatchingPodHash, exWithDeletionTimeStamp)
+	f.objects = append(f.objects, r2, ex, exWithNoMatchingPodHash, exWithDeletionTimeStamp)
+
+	deletedIndex := f.expectDeleteExperimentAction(exWithNoMatchingPodHash)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	deletedAr := f.getDeletedExperiment(deletedIndex)
+	assert.Equal(t, deletedAr, exWithNoMatchingPodHash.Name)
+}
+
+func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+	r3.Spec.RevisionHistoryLimit = pointer.Int32Ptr(0)
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs3 := newReplicaSetWithStatus(r3, 0, 0)
+
+	ex, _ := GetExperimentFromTemplate(r3, rs2, rs1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	exToDelete := ex.DeepCopy()
+	exToDelete.Name = "older-analysis-run"
+	exToDelete.UID = uuid.NewUUID()
+	exToDelete.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs1PodHash
+
+	r3 = updateCanaryRolloutStatus(r3, rs2PodHash, 1, 0, 1, false)
+	r3.Status.Canary.CurrentExperiment = ex.Name
+
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.experimentLister = append(f.experimentLister, ex, exToDelete)
+	f.objects = append(f.objects, r3, ex, exToDelete)
+
+	f.expectDeleteReplicaSetAction(rs1)
+	deletedIndex := f.expectDeleteExperimentAction(exToDelete)
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
+
+	deletedEx := f.getDeletedExperiment(deletedIndex)
+	assert.Equal(t, deletedEx, exToDelete.Name)
 }

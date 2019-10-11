@@ -76,41 +76,6 @@ func ReplicasetNameFromExperiment(experiment *v1alpha1.Experiment, template v1al
 	return fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash)
 }
 
-// GetCurrentExperiment grabs the experiment that matches the current rollout
-func GetCurrentExperiment(rollout *v1alpha1.Rollout, exList []*v1alpha1.Experiment) *v1alpha1.Experiment {
-	var newExList []*v1alpha1.Experiment
-	for i := range exList {
-		ex := exList[i].DeepCopy()
-		if ex != nil {
-			newExList = append(newExList, ex)
-		}
-	}
-	for i := range newExList {
-		ex := newExList[i]
-		if ex.Name == rollout.Status.Canary.CurrentExperiment {
-			return ex
-		}
-
-	}
-	// new Experiment does not exist.
-	return nil
-}
-
-// GetOldExperiments returns the old experiments from list of experiments.
-func GetOldExperiments(rollout *v1alpha1.Rollout, exList []*v1alpha1.Experiment) []*v1alpha1.Experiment {
-	var allExs []*v1alpha1.Experiment
-	currentEx := GetCurrentExperiment(rollout, exList)
-	for i := range exList {
-		ex := exList[i]
-		// Filter out new experiment
-		if currentEx != nil && ex.UID == currentEx.UID {
-			continue
-		}
-		allExs = append(allExs, ex)
-	}
-	return allExs
-}
-
 // ExperimentByCreationTimestamp sorts a list of experiment by creation timestamp (earliest to latest), using their name as a tie breaker.
 type ExperimentByCreationTimestamp []*v1alpha1.Experiment
 

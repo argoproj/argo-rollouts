@@ -789,6 +789,13 @@ func (f *fixture) expectDeleteAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
 	return len
 }
 
+func (f *fixture) expectDeleteExperimentAction(ex *v1alpha1.Experiment) int {
+	action := core.NewDeleteAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex.Name)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
 func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	action := core.NewDeleteAction(schema.GroupVersionResource{Resource: "replicasets"}, rs.Namespace, rs.Name)
 	len := len(f.kubeactions)
@@ -806,6 +813,15 @@ func (f *fixture) getDeletedReplicaSet(index int) string {
 }
 
 func (f *fixture) getDeletedAnalysisRun(index int) string {
+	action := filterInformerActions(f.client.Actions())[index]
+	deleteAction, ok := action.(core.DeleteAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
+	}
+	return deleteAction.GetName()
+}
+
+func (f *fixture) getDeletedExperiment(index int) string {
 	action := filterInformerActions(f.client.Actions())[index]
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
