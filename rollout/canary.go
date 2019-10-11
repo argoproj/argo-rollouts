@@ -269,6 +269,13 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 		}
 
 	}
+	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
+	if currBackgroundAr != nil {
+		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
+			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+		}
+
+	}
 
 	if !r.Spec.Paused {
 		if stepCount == 0 {
@@ -292,7 +299,6 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 		}
 
-		//TODO(dthomson): Add steps to store CurrentBackgroundAnalysisRun
 		if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
 			*currentStepIndex++
 			newStatus.CurrentStepIndex = currentStepIndex

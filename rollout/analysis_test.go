@@ -35,7 +35,9 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 	labels := map[string]string{}
 	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 	if analysisRunType == v1alpha1.RolloutTypeStepLabel {
-		labels = analysisutil.StepLabels(r, *r.Status.CurrentStepIndex, podHash)
+		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash)
+	} else if analysisRunType == v1alpha1.RolloutTypeBackgroundRunLabel {
+		labels = analysisutil.BackgroundLabels(podHash)
 	}
 	return &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,6 +50,59 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 			AnalysisSpec: at.Spec,
 		},
 	}
+}
+
+func TestCreateBackgroundAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArGeneratedName := fmt.Sprintf("%s-%s-%s-", r2.Name, at.Name, rs2PodHash)
+	expectedArName := fmt.Sprintf("%s%s", expectedArGeneratedName, MockGeneratedNameSuffix)
+	assert.Equal(t, expectedArGeneratedName, createdAr.GenerateName)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": "%s"
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
@@ -87,8 +142,8 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArGeneratedName := fmt.Sprintf("%s-%s-%s", r2.Name, at.Name, rs2PodHash)
-	expectedArName := fmt.Sprintf("%s-%s", expectedArGeneratedName, MockGeneratedNameSuffix)
+	expectedArGeneratedName := fmt.Sprintf("%s-%s-%s-", r2.Name, at.Name, rs2PodHash)
+	expectedArName := fmt.Sprintf("%s%s", expectedArGeneratedName, MockGeneratedNameSuffix)
 	assert.Equal(t, expectedArGeneratedName, createdAr.GenerateName)
 
 	patch := f.getPatchedRollout(index)
@@ -102,7 +157,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
-func TestFailCreateAnalysisRunIfInvalidTemplateRef(t *testing.T) {
+func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -133,7 +188,81 @@ func TestFailCreateAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.runExpectError(getKey(r2, t), true)
 }
 
-func TestDoNothingWhileAnalysisRunRunning(t *testing.T) {
+func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: "invalid-template-ref",
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.runExpectError(getKey(r2, t), true)
+}
+
+func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+	}
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, r2, at, ar)
+
+	f.expectUpdateReplicaSetAction(rs2)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+}
+
+func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -188,6 +317,8 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	olderAr := ar.DeepCopy()
 	olderAr.Name = "older-analysis-run"
+	oldBackgroundAr := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	oldBackgroundAr.Name = "old-background-run"
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
@@ -201,19 +332,29 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentBackgroundAnalysisRun = oldBackgroundAr.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
-	f.analysisRunLister = append(f.analysisRunLister, ar, olderAr)
-	f.objects = append(f.objects, r2, at, ar, olderAr)
+	f.analysisRunLister = append(f.analysisRunLister, ar, olderAr, oldBackgroundAr)
+	f.objects = append(f.objects, r2, at, ar, olderAr, oldBackgroundAr)
 
+	cancelBackgroundAr := f.expectPatchAnalysisRunAction(oldBackgroundAr)
 	cancelOldAr := f.expectPatchAnalysisRunAction(olderAr)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
+	assert.True(t, f.verifyPatchedAnalysisRun(cancelBackgroundAr, oldBackgroundAr))
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": null
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
