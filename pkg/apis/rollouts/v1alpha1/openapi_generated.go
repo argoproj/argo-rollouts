@@ -1029,7 +1029,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 						},
 					},
 				},
-				Required: []string{"status", "message"},
+				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{

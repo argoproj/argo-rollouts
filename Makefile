@@ -1,6 +1,7 @@
 PACKAGE=github.com/argoproj/argo-rollouts
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
+PLUGIN_CLI_NAME?=kubectl-argo-rollouts
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -12,10 +13,10 @@ GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ;
 DEV_IMAGE=false
 
 override LDFLAGS += \
-  -X ${PACKAGE}.version=${VERSION} \
-  -X ${PACKAGE}.buildDate=${BUILD_DATE} \
-  -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
-  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}
+  -X ${PACKAGE}/utils/version.version=${VERSION} \
+  -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \
+  -X ${PACKAGE}/utils/version.gitCommit=${GIT_COMMIT} \
+  -X ${PACKAGE}/utils/version.gitTreeState=${GIT_TREE_STATE}
 
 # docker image publishing options
 DOCKER_PUSH=false
@@ -53,6 +54,10 @@ codegen: mocks
 .PHONY: controller
 controller: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
+
+.PHONY: plugin
+plugin:
+	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
 .PHONY: builder-image
 builder-image:
