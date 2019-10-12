@@ -11,10 +11,9 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func completedPauseStep(rollout *v1alpha1.Rollout, pause *v1alpha1.RolloutPause) bool {
+func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) bool {
 	logCtx := logutil.WithRollout(rollout)
-
-	if pause != nil && pause.Duration != nil {
+	if pause.Duration != nil {
 		now := metav1.Now()
 		if rollout.Status.PauseStartTime != nil {
 			expiredTime := rollout.Status.PauseStartTime.Add(time.Duration(*pause.Duration) * time.Second)
@@ -23,8 +22,7 @@ func completedPauseStep(rollout *v1alpha1.Rollout, pause *v1alpha1.RolloutPause)
 				return true
 			}
 		}
-	}
-	if pause != nil && pause.Duration == nil && rollout.Status.PauseStartTime != nil && !rollout.Spec.Paused {
+	} else if rollout.Status.PauseStartTime != nil && !rollout.Spec.Paused {
 		logCtx.Info("Rollout has been unpaused")
 		return true
 	}
@@ -77,10 +75,7 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 		if reconcileBlueGreenTemplateChange(rollout, newRS) {
 			return nil, false
 		}
-	}
-
-	if paused && rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {
+		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {
 			now := metav1.Now()
 			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
 			switchDeadline := pauseStartTime.Add(time.Duration(autoPromoteActiveServiceDelaySeconds) * time.Second)

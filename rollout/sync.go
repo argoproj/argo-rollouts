@@ -227,7 +227,8 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, r.Spec.Paused)
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
-	if r.Spec.Strategy.CanaryStrategy != nil && r.Spec.Paused {
+	// If there are no scaling events, the rollout should only sync its status
+	if r.Spec.Strategy.CanaryStrategy != nil {
 		exList, err := c.getExperimentsForRollout(r)
 		if err != nil {
 			return err
@@ -242,9 +243,6 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 
 		stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, rsList)
 
-		c.reconcileCanaryPause(r)
-
-		// If the rollout is paused and there are no scaling events, the rollout should only sync its status
 		if isScaling {
 			if _, err := c.reconcileCanaryReplicaSets(r, newRS, stableRS, oldRSs); err != nil {
 				// If we get an error while trying to scale, the rollout will be requeued

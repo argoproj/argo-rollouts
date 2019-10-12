@@ -200,7 +200,7 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 		return false
 	}
 	if currentStep.Pause != nil {
-		return completedPauseStep(r, currentStep.Pause)
+		return completedPauseStep(r, *currentStep.Pause)
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
@@ -274,31 +274,45 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
-
 	}
 
-	if !r.Spec.Paused {
-		if stepCount == 0 {
-			logCtx.Info("Rollout has no steps")
-			if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-				logCtx.Info("New RS has successfully progressed")
-				newStatus.Canary.StableRS = newStatus.CurrentPodHash
+	if stepCount == 0 {
+		logCtx.Info("Rollout has no steps")
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	}
+
+	if *currentStepIndex == stepCount {
+		logCtx.Info("Rollout has executed every step")
+		newStatus.CurrentStepIndex = &stepCount
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	}
+
+	addPause := false
+	if r.Spec.Paused {
+		c.reconcileCanaryPause(r)
+		if currentStep != nil && currentStep.Pause != nil && completedPauseStep(r, *currentStep.Pause) {
+			*currentStepIndex++
+			newStatus.CurrentStepIndex = currentStepIndex
+			if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 			}
+			logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
+			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
 			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
 			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 		}
 
-		if *currentStepIndex == stepCount {
-			logCtx.Info("Rollout has executed every step")
-			newStatus.CurrentStepIndex = &stepCount
-			if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-				logCtx.Info("New RS has successfully progressed")
-				newStatus.Canary.StableRS = newStatus.CurrentPodHash
-			}
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
-		}
-
+	} else {
 		if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
 			*currentStepIndex++
 			newStatus.CurrentStepIndex = currentStepIndex
@@ -316,12 +330,11 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 				newStatus.Canary.ExperimentFailed = true
 			}
 		}
+		addPause = currentStep != nil && currentStep.Pause != nil
 	}
 
-	addPause := currentStep.Pause != nil
-	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause, currArs)
-	newStatus.PauseStartTime = pauseStartTime
-
+	var paused bool
+	newStatus.PauseStartTime, paused = calculatePauseStatus(r, newRS, addPause, currArs)
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
