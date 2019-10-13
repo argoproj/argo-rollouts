@@ -297,42 +297,30 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
-	addPause := false
-	if r.Spec.Paused {
-		c.reconcileCanaryPause(r)
-		if currentStep != nil && currentStep.Pause != nil && completedPauseStep(r, *currentStep.Pause) {
-			*currentStepIndex++
-			newStatus.CurrentStepIndex = currentStepIndex
-			if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
-				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
-			}
-			logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
-			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
-		}
+	// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
+	// if we are at a pause step with a duration.
+	c.reconcileCanaryPause(r)
 
-	} else {
-		if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
-			*currentStepIndex++
-			newStatus.CurrentStepIndex = currentStepIndex
-			if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
-				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
-			}
-			logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
-			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
+		*currentStepIndex++
+		newStatus.CurrentStepIndex = currentStepIndex
+		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 		}
-		if currExp != nil {
-			newStatus.Canary.CurrentExperiment = currExp.Name
-			if conditions.ExperimentTimeOut(currExp, currExp.Status) {
-				newStatus.Canary.ExperimentFailed = true
-			}
-		}
-		addPause = currentStep != nil && currentStep.Pause != nil
+		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
+		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
+	if currExp != nil {
+		newStatus.Canary.CurrentExperiment = currExp.Name
+		if conditions.ExperimentTimeOut(currExp, currExp.Status) {
+			newStatus.Canary.ExperimentFailed = true
+		}
+	}
+
+	addPause := !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil
 	var paused bool
 	newStatus.PauseStartTime, paused = calculatePauseStatus(r, newRS, addPause, currArs)
 	newStatus.CurrentStepIndex = currentStepIndex

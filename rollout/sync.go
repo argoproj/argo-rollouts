@@ -208,7 +208,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
 	logCtx := logutil.WithRollout(r)
-	logCtx.Info("Reconciling scaling event")
+	logCtx.Infof("Syncing replicas only (paused: %v, isScaling: %v)", r.Spec.Paused, isScaling)
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
 	if err != nil {
 		return err

@@ -157,7 +157,8 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
-			f.t.Errorf("%d unexpected actions: %+v", len(actions)-len(f.actions), actions[i:])
+			actionsBytes, _ := json.Marshal(actions[i:])
+			f.t.Errorf("%d unexpected actions: %+v", len(actions)-len(f.actions), string(actionsBytes))
 			break
 		}
 

@@ -465,7 +465,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
-			f.t.Errorf("%d unexpected actions: %+v", len(actions)-len(f.actions), actions[i:])
+			actionsBytes, _ := json.Marshal(actions[i:])
+			f.t.Errorf("%d unexpected actions: %+v", len(actions)-len(f.actions), string(actionsBytes))
 			break
 		}
 
@@ -480,7 +481,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	k8sActions := filterInformerActions(f.kubeclient.Actions())
 	for i, action := range k8sActions {
 		if len(f.kubeactions) < i+1 {
-			f.t.Errorf("%d unexpected actions: %+v", len(k8sActions)-len(f.kubeactions), k8sActions[i:])
+			actionsBytes, _ := json.Marshal(k8sActions[i:])
+			f.t.Errorf("%d unexpected actions: %+v", len(k8sActions)-len(f.kubeactions), string(actionsBytes))
 			break
 		}
 
