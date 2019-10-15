@@ -200,7 +200,7 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 		return false
 	}
 	if currentStep.Pause != nil {
-		return completedPauseStep(r, currentStep.Pause)
+		return completedPauseStep(r, *currentStep.Pause)
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
@@ -274,54 +274,55 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
-
 	}
 
-	if !r.Spec.Paused {
-		if stepCount == 0 {
-			logCtx.Info("Rollout has no steps")
-			if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-				logCtx.Info("New RS has successfully progressed")
-				newStatus.Canary.StableRS = newStatus.CurrentPodHash
-			}
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	if stepCount == 0 {
+		logCtx.Info("Rollout has no steps")
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	}
 
-		if *currentStepIndex == stepCount {
-			logCtx.Info("Rollout has executed every step")
-			newStatus.CurrentStepIndex = &stepCount
-			if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-				logCtx.Info("New RS has successfully progressed")
-				newStatus.Canary.StableRS = newStatus.CurrentPodHash
-			}
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	if *currentStepIndex == stepCount {
+		logCtx.Info("Rollout has executed every step")
+		newStatus.CurrentStepIndex = &stepCount
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	}
 
-		if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
-			*currentStepIndex++
-			newStatus.CurrentStepIndex = currentStepIndex
-			if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
-				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
-			}
-			logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
-			c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-			newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
-			return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
+	// if we are at a pause step with a duration.
+	c.reconcileCanaryPause(r)
+
+	if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, r) {
+		*currentStepIndex++
+		newStatus.CurrentStepIndex = currentStepIndex
+		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 		}
-		if currExp != nil {
-			newStatus.Canary.CurrentExperiment = currExp.Name
-			if conditions.ExperimentTimeOut(currExp, currExp.Status) {
-				newStatus.Canary.ExperimentFailed = true
-			}
+		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
+		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
+		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+	}
+
+	if currExp != nil {
+		newStatus.Canary.CurrentExperiment = currExp.Name
+		if conditions.ExperimentTimeOut(currExp, currExp.Status) {
+			newStatus.Canary.ExperimentFailed = true
 		}
 	}
 
-	addPause := currentStep.Pause != nil
-	pauseStartTime, paused := calculatePauseStatus(r, newRS, addPause, currArs)
-	newStatus.PauseStartTime = pauseStartTime
-
+	addPause := !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil
+	var paused bool
+	newStatus.PauseStartTime, paused = calculatePauseStatus(r, newRS, addPause, currArs)
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
 	return c.persistRolloutStatus(r, &newStatus, &paused)

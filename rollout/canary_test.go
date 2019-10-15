@@ -1046,3 +1046,55 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 	assert.Equal(t, expectedPatch, patch)
 }
+
+func TestResumeRolloutAfterPauseDuration(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(10),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: pointer.Int32Ptr(60),
+			},
+		},
+		{
+			SetWeight: pointer.Int32Ptr(20),
+		},
+	}
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
+	r1.Spec.Paused = true
+	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
+	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
+	r1.Status.PauseStartTime = &overAMinuteAgo
+
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	_ = f.expectPatchRolloutAction(r1)           // this just sets a conditions. ignore for now
+	patchIndex := f.expectPatchRolloutAction(r1) // this patch should resume the rollout
+	f.run(getKey(r1, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	var patchObj map[string]interface{}
+	err := json.Unmarshal([]byte(patch), &patchObj)
+	assert.NoError(t, err)
+
+	spec := patchObj["spec"].(map[string]interface{})
+	paused, ok := spec["paused"]
+	assert.True(t, ok)
+	assert.Nil(t, paused)
+
+	status := patchObj["status"].(map[string]interface{})
+	assert.Equal(t, float64(2), status["currentStepIndex"])
+	pauseStartTime, ok := status["pauseStartTime"]
+	assert.True(t, ok)
+	assert.Equal(t, nil, pauseStartTime)
+}

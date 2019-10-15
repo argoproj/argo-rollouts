@@ -19,7 +19,7 @@ const (
 	// JobNameKey is the measurement's metadata key holding the job name associated with the measurement
 	JobNameKey = "job-name"
 	// AnalysisRunLabelKey is the job's label key where we label the name of the AnalysisRun associated to it
-	AnalysisRunLabelKey = "analysisruns.argoproj.io/name"
+	AnalysisRunLabelKey = "analysisrun.argoproj.io/name"
 )
 
 var (
