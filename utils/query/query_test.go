@@ -15,6 +15,16 @@ func TestBuildQueryWithNoSubstitution(t *testing.T) {
 	assert.Equal(t, "test", query)
 }
 
+func TestBuildQueryRemoveWhiteSpace(t *testing.T) {
+	args := []v1alpha1.Argument{{
+		Name:  "var",
+		Value: "foo",
+	}}
+	query, err := BuildQuery("test-{{ input.var }}", args)
+	assert.Nil(t, err)
+	assert.Equal(t, "test-foo", query)
+}
+
 func TestBuildQueryWithSubstitution(t *testing.T) {
 	args := []v1alpha1.Argument{{
 		Name:  "var",
