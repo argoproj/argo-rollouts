@@ -42,7 +42,7 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 
 // calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
 // the rollout will use the previous values
-func calculatePauseStatus(roCtx rolloutContext, addPause bool, currArs []*v1alpha1.AnalysisRun) (*metav1.Time, bool) {
+func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	pauseStartTime := rollout.Status.PauseStartTime
@@ -55,6 +55,7 @@ func calculatePauseStatus(roCtx rolloutContext, addPause bool, currArs []*v1alph
 	}
 
 	pauseForInconclusiveAnalysisRun := false
+	currArs := roCtx.CurrentAnalysisRuns()
 	for i := range currArs {
 		ar := currArs[i]
 		if ar != nil && ar.Status != nil && ar.Status.Status == v1alpha1.AnalysisStatusInconclusive {

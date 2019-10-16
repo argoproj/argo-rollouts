@@ -107,56 +107,57 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(roCtx *canaryContext, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
+	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
+	otherExs := roCtx.OtherExperiments()
+
 	for i := range otherExs {
 		otherEx := otherExs[i]
 		if otherEx.Status.Running != nil && *otherEx.Status.Running {
 			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace).Patch(otherEx.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
 	if step == nil || step.Experiment == nil {
-		return nil, nil
+		return nil
 	}
+	currentEx := roCtx.CurrentExperiment()
 	if currentEx == nil {
 		// An new experiment can not be created if the newRS or stableRS is not created yet
 		if newRS == nil || stableRS == nil {
 			logCtx.Infof("Cannot create experiment until newRS and stableRS both exist")
-			return nil, nil
+			return nil
 		}
 
 		newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		currentEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		msg := fmt.Sprintf("Created Experiment '%s'", newEx.Name)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
+		roCtx.SetCurrentExperiment(currentEx)
 	}
 
-	allRSs := append(olderRSs, newRS)
-	if stableRS != nil {
-		allRSs = append(allRSs, stableRS)
-	}
-
-	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, allRSs)
+	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, roCtx.AllRSs())
 	err := c.deleteExperiments(roCtx, exsToDelete)
 	if err != nil {
-		return currentEx, err
+		return err
 	}
 
-	return currentEx, nil
+	return nil
 }
 
 func (c *RolloutController) deleteExperiments(roCtx rolloutContext, exs []*v1alpha1.Experiment) error {

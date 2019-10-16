@@ -45,12 +45,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	// Scale down old non-active replicasets, if we can.
 	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 	logCtx.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), newRS, roCtx)
+	scaledDown, err := c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), roCtx)
 	if err != nil {
 		return err
 	}
 	logCtx.Info("Cleaning up old replicasets")
-	if err := c.cleanupRollouts(filteredOldRS, nil, nil, roCtx); err != nil {
+	if err := c.cleanupRollouts(filteredOldRS, roCtx); err != nil {
 		return err
 	}
 
@@ -236,10 +236,10 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 	}
 
-	pauseStartTime, paused := calculatePauseStatus(roCtx, addPause, nil)
+	pauseStartTime, paused := calculatePauseStatus(roCtx, addPause)
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(roCtx, activeRS)
-	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, nil, nil)
+	newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 

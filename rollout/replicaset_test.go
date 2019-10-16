@@ -253,7 +253,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			stopCh := make(chan struct{})
 			defer close(stopCh)
 			informers.Start(stopCh)
-			scaled, err := c.reconcileOldReplicaSets(oldRSs, newRS, roCtx)
+			scaled, err := c.reconcileOldReplicaSets(oldRSs, roCtx)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

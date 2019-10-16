@@ -93,7 +93,7 @@ func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, 
 	return scaled, err
 }
 
-func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
+func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
 	logCtx := logutil.WithRollout(rollout)
 

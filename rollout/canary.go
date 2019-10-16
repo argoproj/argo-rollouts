@@ -13,7 +13,6 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -23,14 +22,11 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	if err != nil {
 		return err
 	}
-	currentEx := experimentutil.GetCurrentExperiment(rollout, exList)
-	otherExs := experimentutil.GetOldExperiments(rollout, exList)
 
 	arList, err := c.getAnalysisRunsForRollout(rollout)
 	if err != nil {
 		return err
 	}
-	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, rollout)
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 	if replicasetutil.PodTemplateOrStepsChanged(rollout, newRS) {
@@ -39,8 +35,8 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 			return err
 		}
 		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
-		roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs)
-		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
+		roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs, exList, arList)
+		return c.syncRolloutStatusCanary(roCtx)
 	}
 
 	newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, true)
@@ -49,11 +45,11 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
 
-	roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs)
+	roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs, exList, arList)
 	logCtx := roCtx.Log()
 
 	logCtx.Info("Cleaning up old replicasets, experiments, and analysis runs")
-	if err := c.cleanupRollouts(oldRSs, otherExs, otherArs, roCtx); err != nil {
+	if err := c.cleanupRollouts(oldRSs, roCtx); err != nil {
 		return err
 	}
 
@@ -62,14 +58,13 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	logCtx.Info("Reconciling Experiment step")
-	currentEx, err = c.reconcileExperiments(roCtx, stableRS, newRS, oldRSs, currentEx, otherExs)
+	err = c.reconcileExperiments(roCtx)
 	if err != nil {
 		return err
 	}
 
 	logCtx.Info("Reconciling AnalysisRun step")
-	currentArs, err = c.reconcileAnalysisRuns(roCtx, currentArs, otherArs)
-	if err != nil {
+	if err = c.reconcileAnalysisRuns(roCtx); err != nil {
 		return err
 	}
 
@@ -79,17 +74,17 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 	if noScalingOccured {
 		logCtx.Info("Not finished reconciling ReplicaSets")
-		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
+		return c.syncRolloutStatusCanary(roCtx)
 	}
 
 	logCtx.Info("Reconciling Canary Pause")
 	stillReconciling := c.reconcileCanaryPause(roCtx)
 	if stillReconciling {
 		logCtx.Infof("Not finished reconciling Canary Pause")
-		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
+		return c.syncRolloutStatusCanary(roCtx)
 	}
 
-	return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
+	return c.syncRolloutStatusCanary(roCtx)
 }
 
 func (c *RolloutController) reconcileStableRS(roCtx *canaryContext) (bool, error) {
@@ -203,7 +198,7 @@ func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Re
 	return totalScaledDown, nil
 }
 
-func completedCurrentCanaryStep(experiment *v1alpha1.Experiment, currentStepAr *v1alpha1.AnalysisRun, roCtx *canaryContext) bool {
+func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
@@ -217,9 +212,12 @@ func completedCurrentCanaryStep(experiment *v1alpha1.Experiment, currentStepAr *
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
 		return true
 	}
+	experiment := roCtx.CurrentExperiment()
 	if currentStep.Experiment != nil && experiment != nil && conditions.ExperimentCompleted(experiment.Status) && !conditions.ExperimentTimeOut(experiment, experiment.Status) {
 		return true
 	}
+	currentArs := roCtx.CurrentAnalysisRuns()
+	currentStepAr := analysisutil.GetCurrentStepAnalysisRun(currentArs)
 	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status != nil && currentStepAr.Status.Status.Completed()
 	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Status == v1alpha1.AnalysisStatusSuccessful {
 		return true
@@ -228,16 +226,14 @@ func completedCurrentCanaryStep(experiment *v1alpha1.Experiment, currentStepAr *
 	return false
 }
 
-func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment, currArs []*v1alpha1.AnalysisRun, roCtx *canaryContext) error {
+func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
-	stableRS := roCtx.StableRS()
-	olderRSs := roCtx.OlderRSs()
-	allRSs := append(olderRSs, newRS)
-	if replicasetutil.CheckStableRSExists(newRS, stableRS) {
-		allRSs = append(allRSs, stableRS)
-	}
+	allRSs := roCtx.AllRSs()
+	currArs := roCtx.CurrentAnalysisRuns()
+	currExp := roCtx.CurrentExperiment()
+
 	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
@@ -258,7 +254,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
 			}
 		}
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -273,7 +269,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 			newStatus.CurrentStepIndex = &stepCount
 
 		}
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -297,7 +293,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -308,7 +304,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -316,7 +312,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 	// if we are at a pause step with a duration.
 	c.reconcileCanaryPause(roCtx)
 
-	if completedCurrentCanaryStep(currExp, currStepAr, roCtx) {
+	if completedCurrentCanaryStep(roCtx) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
 		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
@@ -324,7 +320,7 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-		newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
 	}
 
@@ -337,9 +333,9 @@ func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment
 
 	addPause := !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil
 	var paused bool
-	newStatus.PauseStartTime, paused = calculatePauseStatus(roCtx, addPause, currArs)
+	newStatus.PauseStartTime, paused = calculatePauseStatus(roCtx, addPause)
 	newStatus.CurrentStepIndex = currentStepIndex
-	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
+	newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 
