@@ -1657,6 +1657,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStatus is the status for a Rollout resource",
 				Properties: map[string]spec.Schema{
+					"controllerPause": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerPause indicates the controller paused the rollout (i.e. pause step or inconclusive run)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"currentPodHash": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentPodHash the hash of the current pod template",

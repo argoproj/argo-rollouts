@@ -2680,6 +2680,8 @@ spec:
                 - type
                 type: object
               type: array
+            controllerPause:
+              type: boolean
             currentPodHash:
               type: string
             currentStepHash:
