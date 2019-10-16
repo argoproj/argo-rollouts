@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/valyala/fasttemplate"
 
@@ -27,7 +28,8 @@ func BuildQuery(template string, args []v1alpha1.Argument) (string, error) {
 	}
 	var unresolvedErr error
 	s := t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
-		if value, ok := argsMap[tag]; ok {
+		cleanedTag := strings.TrimSpace(tag)
+		if value, ok := argsMap[cleanedTag]; ok {
 			return w.Write([]byte(value))
 		}
 		unresolvedErr = fmt.Errorf("failed to resolve {{%s}}", tag)
