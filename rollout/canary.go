@@ -105,13 +105,13 @@ func (c *RolloutController) reconcileStableRS(roCtx *canaryContext) (bool, error
 func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
+	if len(rollout.Spec.Strategy.Canary.Steps) == 0 {
 		logCtx.Info("Rollout does not have any steps")
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) <= int(*currentStepIndex) {
+	if len(rollout.Spec.Strategy.Canary.Steps) <= int(*currentStepIndex) {
 		logCtx.Info("No Steps remain in the canary steps")
 		return false
 	}
@@ -242,7 +242,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.Canary.StableRS = r.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
-	stepCount := int32(len(r.Spec.Strategy.CanaryStrategy.Steps))
+	stepCount := int32(len(r.Spec.Strategy.Canary.Steps))
 
 	if replicasetutil.PodTemplateOrStepsChanged(r, newRS) {
 		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(r)
@@ -315,7 +315,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	if completedCurrentCanaryStep(roCtx) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
-		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
+		if int(*currentStepIndex) == len(r.Spec.Strategy.Canary.Steps) {
 			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)

@@ -63,7 +63,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
 	}
 
@@ -198,7 +198,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: "invalid-template-ref",
 	}
 
@@ -232,7 +232,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.CanaryStrategy.Analysis = &v1alpha1.RolloutAnalysisStep{
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)

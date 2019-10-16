@@ -189,13 +189,13 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 	oldStatus := rollout.Status
 
 	strategySpecificProgress := false
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
 		activeSelectorChange := rollout.Status.BlueGreen.ActiveSelector != newStatus.BlueGreen.ActiveSelector
 		previewSelectorChange := rollout.Status.BlueGreen.PreviewSelector != newStatus.BlueGreen.PreviewSelector
 		strategySpecificProgress = activeSelectorChange || previewSelectorChange
 	}
 
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
+	if rollout.Spec.Strategy.Canary != nil {
 		stableRSChange := newStatus.Canary.StableRS != oldStatus.Canary.StableRS
 		incrementStepIndex := false
 		if newStatus.CurrentStepIndex != nil && oldStatus.CurrentStepIndex != nil {
@@ -220,16 +220,16 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
 func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
 		activeSelectorComplete := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
 		previewSelectorComplete := true
-		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
+		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
 			previewSelectorComplete = newStatus.BlueGreen.PreviewSelector == ""
 		}
 		completedStrategy = activeSelectorComplete && previewSelectorComplete
 	}
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
-		stepCount := len(rollout.Spec.Strategy.CanaryStrategy.Steps)
+	if rollout.Spec.Strategy.Canary != nil {
+		stepCount := len(rollout.Spec.Strategy.Canary.Steps)
 		executedAllSteps := true
 		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
 			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
@@ -249,11 +249,11 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
 // be safe encoded to avoid bad words.
 func ComputeStepHash(rollout *v1alpha1.Rollout) string {
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil || rollout.Spec.Strategy.CanaryStrategy == nil {
+	if rollout.Spec.Strategy.BlueGreen != nil || rollout.Spec.Strategy.Canary == nil {
 		return ""
 	}
 	rolloutStepHasher := fnv.New32a()
-	stepsBytes, err := json.Marshal(rollout.Spec.Strategy.CanaryStrategy.Steps)
+	stepsBytes, err := json.Marshal(rollout.Spec.Strategy.Canary.Steps)
 	if err != nil {
 		panic(err)
 	}
@@ -292,12 +292,12 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutSelectAllMessage)
 	}
 
-	if rollout.Spec.Strategy.CanaryStrategy == nil && rollout.Spec.Strategy.BlueGreenStrategy == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.CanaryStrategy or .Spec.Strategy.BlueGreen")
+	if rollout.Spec.Strategy.Canary == nil && rollout.Spec.Strategy.BlueGreen == nil {
+		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
 	}
 
-	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.BlueGreen != nil {
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStrategyMessage)
 	}
 
@@ -305,25 +305,25 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
 	}
 
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
-			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService")
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.ActiveService == "" {
+			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.ActiveService")
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
 		}
-		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService == rollout.Spec.Strategy.BlueGreenStrategy.PreviewService {
+		if rollout.Spec.Strategy.BlueGreen.ActiveService == rollout.Spec.Strategy.BlueGreen.PreviewService {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
 		}
 		revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
-		if rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit {
+		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
 		}
 	}
 
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
+	if rollout.Spec.Strategy.Canary != nil {
 		if invalidMaxSurgeMaxUnavailable(rollout) {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
 		}
-		for _, step := range rollout.Spec.Strategy.CanaryStrategy.Steps {
+		for _, step := range rollout.Spec.Strategy.Canary.Steps {
 			if hasMultipleStepsType(step) {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}

@@ -51,7 +51,7 @@ func TestGetMaxSurgeOrDefault(t *testing.T) {
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					MaxSurge: &maxSurge,
 				},
 			},
@@ -68,7 +68,7 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					MaxUnavailable: &maxUnavailable,
 				},
 			},
@@ -84,7 +84,7 @@ func TestGetStrategyType(t *testing.T) {
 	bgRollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 	}
@@ -93,7 +93,7 @@ func TestGetStrategyType(t *testing.T) {
 	canaryRollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{},
+				Canary: &v1alpha1.CanaryStrategy{},
 			},
 		},
 	}
@@ -125,7 +125,7 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					ScaleDownDelaySeconds: &scaleDownDelaySeconds,
 				},
 			},
@@ -138,7 +138,7 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 	rolloutNoScaleDownDelaySeconds := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 	}
@@ -150,7 +150,7 @@ func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					AutoPromotionEnabled: &autoPromote,
 				},
 			},
@@ -163,7 +163,7 @@ func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {
 	rolloutNoAutoPromotionEnabled := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 	}

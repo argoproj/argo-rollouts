@@ -146,7 +146,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	}
 
 	pauseStartTime := rollout.Status.PauseStartTime
-	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
+	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && pauseStartTime != nil {
 		c.checkEnqueueRolloutDuringWait(rollout, *pauseStartTime, *autoPromoteActiveServiceDelaySeconds)
 	}
@@ -167,7 +167,7 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 			if err != nil {
 				logCtx.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-			} else if rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit != nil && annotationedRSs == *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit {
+			} else if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs == *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
 				logCtx.Info("At ScaleDownDelayRevisionLimit and scaling down the rest")
 			} else {
 				now := metav1.Now()
@@ -247,7 +247,7 @@ func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
-	if r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount {
+	if r.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount {
 		return true
 	} else if reconcileBlueGreenTemplateChange(roCtx) {
 		return false
@@ -290,8 +290,8 @@ func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *app
 	previewRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRS, rollout.Status.BlueGreen.PreviewSelector)
 	if previewRS != nil {
 		previewReplicas := rolloutReplicas
-		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount != nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-			previewReplicas = *rollout.Spec.Strategy.BlueGreenStrategy.PreviewReplicaCount
+		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+			previewReplicas = *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount
 		}
 		if *(previewRS.Spec.Replicas) != previewReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(previewRS, previewReplicas, rollout)

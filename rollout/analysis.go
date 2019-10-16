@@ -86,7 +86,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentBackgroundAnalysisRun)
-	if rollout.Spec.Strategy.CanaryStrategy.Analysis == nil {
+	if rollout.Spec.Strategy.Canary.Analysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		if err != nil {
 			return nil, err
@@ -96,7 +96,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.CanaryStrategy.Analysis, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.Canary.Analysis, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}

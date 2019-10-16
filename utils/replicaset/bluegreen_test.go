@@ -39,7 +39,7 @@ func TestReadyForPause(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 	}

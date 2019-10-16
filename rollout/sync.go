@@ -214,7 +214,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
-	if r.Spec.Strategy.BlueGreenStrategy != nil {
+	if r.Spec.Strategy.BlueGreen != nil {
 		roCtx := newBlueGreenCtx(r, newRS, oldRSs)
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
@@ -229,7 +229,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
-	if r.Spec.Strategy.CanaryStrategy != nil {
+	if r.Spec.Strategy.Canary != nil {
 		exList, err := c.getExperimentsForRollout(r)
 		if err != nil {
 			return err
@@ -518,10 +518,10 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)
-	if r.Spec.Strategy.BlueGreenStrategy != nil && activeRS != nil && annotations.IsSaturated(r, activeRS) {
+	if r.Spec.Strategy.BlueGreen != nil && activeRS != nil && annotations.IsSaturated(r, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
-	} else if r.Spec.Strategy.CanaryStrategy != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) >= defaults.GetRolloutReplicasOrDefault(r) {
+	} else if r.Spec.Strategy.Canary != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) >= defaults.GetRolloutReplicasOrDefault(r) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
 	} else {

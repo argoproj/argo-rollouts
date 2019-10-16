@@ -167,8 +167,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 		}
 		if reason == conditions.RolloutAnalysisRunFailedReason {
 			atName := ""
-			if resource.Spec.Strategy.CanaryStrategy.Steps != nil && resource.Status.CurrentStepIndex != nil {
-				atName = resource.Spec.Strategy.CanaryStrategy.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
+			if resource.Spec.Strategy.Canary.Steps != nil && resource.Status.CurrentStepIndex != nil {
+				atName = resource.Spec.Strategy.Canary.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
 			}
 			//TODO(dthomson) Add support for parellel analysisRuns too
 			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, atName, resource.Status.CurrentPodHash, MockGeneratedNameSuffix)
@@ -1110,7 +1110,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"85db9bf496"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7bfd577d8"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1154,7 +1154,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"546d577bb6"}}`
+	expectedPatch := `{"status":{"observedGeneration":"866857855d"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

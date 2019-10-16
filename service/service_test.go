@@ -111,7 +111,7 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					ActiveService:  "test-service",
 					PreviewService: "test-service-preview",
 				},

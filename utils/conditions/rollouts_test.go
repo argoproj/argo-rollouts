@@ -234,7 +234,7 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 				MatchLabels: map[string]string{"key": "value"},
 			},
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					PreviewService: "preview",
 					ActiveService:  "active",
 				},
@@ -244,21 +244,21 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	assert.Nil(t, VerifyRolloutSpec(validRollout, nil))
 
 	noActiveSvc := validRollout.DeepCopy()
-	noActiveSvc.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
+	noActiveSvc.Spec.Strategy.BlueGreen.ActiveService = ""
 	noActiveSvcCond := VerifyRolloutSpec(noActiveSvc, nil)
 	assert.NotNil(t, noActiveSvcCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreenStrategy.ActiveService"), noActiveSvcCond.Message)
+	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.ActiveService"), noActiveSvcCond.Message)
 	assert.Equal(t, InvalidSpecReason, noActiveSvcCond.Reason)
 
 	sameSvcs := validRollout.DeepCopy()
-	sameSvcs.Spec.Strategy.BlueGreenStrategy.ActiveService = "preview"
+	sameSvcs.Spec.Strategy.BlueGreen.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
 	assert.NotNil(t, sameSvcsCond)
 	assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
 	assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
 
 	scaleLimitLargerThanRevision := validRollout.DeepCopy()
-	scaleLimitLargerThanRevision.Spec.Strategy.BlueGreenStrategy.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(100)
+	scaleLimitLargerThanRevision.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(100)
 	scaleLimitLargerThanRevisionCond := VerifyRolloutSpec(scaleLimitLargerThanRevision, nil)
 	assert.NotNil(t, scaleLimitLargerThanRevisionCond)
 	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, scaleLimitLargerThanRevisionCond.Message)
@@ -272,8 +272,8 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 				MatchLabels: map[string]string{"key": "value"},
 			},
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{},
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					ActiveService: "active",
 				},
 			},
@@ -285,7 +285,7 @@ func TestVerifyRolloutSpecBaseCases(t *testing.T) {
 	assert.Equal(t, InvalidStrategyMessage, cond.Message)
 
 	validRollout := ro.DeepCopy()
-	validRollout.Spec.Strategy.CanaryStrategy = nil
+	validRollout.Spec.Strategy.Canary = nil
 	validRolloutCond := VerifyRolloutSpec(validRollout, nil)
 	assert.Nil(t, validRolloutCond)
 
@@ -393,7 +393,7 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 						MatchLabels: map[string]string{"key": "value"},
 					},
 					Strategy: v1alpha1.RolloutStrategy{
-						CanaryStrategy: &v1alpha1.CanaryStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
 							MaxUnavailable: test.maxUnavailable,
 							MaxSurge:       test.maxSurge,
 							Steps:          test.steps,
@@ -418,7 +418,7 @@ func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
 		return &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Strategy: v1alpha1.RolloutStrategy{
-					CanaryStrategy: &v1alpha1.CanaryStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
 						MaxSurge:       &maxSurge,
 						MaxUnavailable: &maxUnavailable,
 					},
@@ -473,7 +473,7 @@ func TestRolloutProgressing(t *testing.T) {
 		return &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Strategy: v1alpha1.RolloutStrategy{
-					BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+					BlueGreen: &v1alpha1.BlueGreenStrategy{},
 				},
 			},
 			Status: blueGreenStatus(current, updated, ready, available, activeSelector, previewSelector),
@@ -483,7 +483,7 @@ func TestRolloutProgressing(t *testing.T) {
 		return &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Strategy: v1alpha1.RolloutStrategy{
-					CanaryStrategy: &v1alpha1.CanaryStrategy{},
+					Canary: &v1alpha1.CanaryStrategy{},
 				},
 			},
 			Status: canaryStatus(current, updated, ready, available, stableRS, index, stepHash),
@@ -592,7 +592,7 @@ func TestRolloutComplete(t *testing.T) {
 	blueGreenRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, activeSelector, previewSelector string) *v1alpha1.Rollout {
 		r := rollout(desired, current, updated, available, correctObservedGeneration)
 		r.Spec.Strategy = v1alpha1.RolloutStrategy{
-			BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+			BlueGreen: &v1alpha1.BlueGreenStrategy{
 				PreviewService: "preview",
 				ActiveService:  "active",
 			},
@@ -612,7 +612,7 @@ func TestRolloutComplete(t *testing.T) {
 			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(30)})
 		}
 		r.Spec.Strategy = v1alpha1.RolloutStrategy{
-			CanaryStrategy: &v1alpha1.CanaryStrategy{
+			Canary: &v1alpha1.CanaryStrategy{
 				Steps: steps,
 			},
 		}
@@ -787,7 +787,7 @@ func TestComputeStepHash(t *testing.T) {
 	ro := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
 							Pause: &v1alpha1.RolloutPause{},
@@ -799,7 +799,7 @@ func TestComputeStepHash(t *testing.T) {
 	}
 	baseline := ComputeStepHash(ro)
 	roWithDiffSteps := ro.DeepCopy()
-	roWithDiffSteps.Spec.Strategy.CanaryStrategy.Steps = []v1alpha1.CanaryStep{
+	roWithDiffSteps.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
@@ -817,13 +817,13 @@ func TestComputeStepHash(t *testing.T) {
 	assert.Equal(t, "6b9b86fbd5", roWithSameStepsHash)
 
 	roNoSteps := ro.DeepCopy()
-	roNoSteps.Spec.Strategy.CanaryStrategy.Steps = nil
+	roNoSteps.Spec.Strategy.Canary.Steps = nil
 	roNoStepsHash := ComputeStepHash(roNoSteps)
 	assert.Equal(t, "5ffbfbbd64", roNoStepsHash)
 
 	roBlueGreen := ro.DeepCopy()
-	roBlueGreen.Spec.Strategy.CanaryStrategy = nil
-	roBlueGreen.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
+	roBlueGreen.Spec.Strategy.Canary = nil
+	roBlueGreen.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 	roBlueGreenHash := ComputeStepHash(roBlueGreen)
 	assert.Equal(t, "", roBlueGreenHash)
 

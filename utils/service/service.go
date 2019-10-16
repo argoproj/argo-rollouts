@@ -22,16 +22,16 @@ func GetRolloutSelectorLabel(svc *corev1.Service) (string, bool) {
 // GetRolloutServiceKeys returns services keys (namespace/serviceName) which are referenced by specified rollout
 func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 	servicesSet := make(map[string]bool)
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if rollout.Spec.Strategy.BlueGreenStrategy.ActiveService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.ActiveService)] = true
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.ActiveService)] = true
 		}
-		if rollout.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreenStrategy.PreviewService)] = true
+		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.PreviewService)] = true
 		}
-	} else if rollout.Spec.Strategy.CanaryStrategy != nil {
-		if rollout.Spec.Strategy.CanaryStrategy.CanaryService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.CanaryStrategy.CanaryService)] = true
+	} else if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.CanaryService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.CanaryService)] = true
 		}
 	}
 	var services []string

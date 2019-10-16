@@ -279,10 +279,10 @@ func (c *RolloutController) syncHandler(key string) error {
 		return c.syncReplicasOnly(r, rsList, isScalingEvent)
 	}
 
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
 		return c.rolloutBlueGreen(r, rsList)
 	}
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
+	if rollout.Spec.Strategy.Canary != nil {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")

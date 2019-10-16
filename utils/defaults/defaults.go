@@ -48,26 +48,26 @@ func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 }
 
 func GetMaxSurgeOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
-	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.CanaryStrategy.MaxSurge != nil {
-		return rollout.Spec.Strategy.CanaryStrategy.MaxSurge
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.MaxSurge != nil {
+		return rollout.Spec.Strategy.Canary.MaxSurge
 	}
 	defaultValue := intstr.FromString(DefaultMaxSurge)
 	return &defaultValue
 }
 
 func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
-	if rollout.Spec.Strategy.CanaryStrategy != nil && rollout.Spec.Strategy.CanaryStrategy.MaxUnavailable != nil {
-		return rollout.Spec.Strategy.CanaryStrategy.MaxUnavailable
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.MaxUnavailable != nil {
+		return rollout.Spec.Strategy.Canary.MaxUnavailable
 	}
 	defaultValue := intstr.FromInt(DefaultMaxUnavailable)
 	return &defaultValue
 }
 
 func GetStrategyType(rollout *v1alpha1.Rollout) string {
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
 		return "blueGreen"
 	}
-	if rollout.Spec.Strategy.CanaryStrategy != nil {
+	if rollout.Spec.Strategy.Canary != nil {
 		return "canary"
 	}
 	return "No Strategy listed"
@@ -88,23 +88,23 @@ func GetExperimentProgressDeadlineSecondsOrDefault(e *v1alpha1.Experiment) int32
 }
 
 func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
-	if rollout.Spec.Strategy.BlueGreenStrategy == nil {
+	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultScaleDownDelaySeconds
 	}
 
-	if rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds == nil {
+	if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil {
 		return DefaultScaleDownDelaySeconds
 	}
 
-	return *rollout.Spec.Strategy.BlueGreenStrategy.ScaleDownDelaySeconds
+	return *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.Strategy.BlueGreenStrategy == nil {
+	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultAutoPromotionEnabled
 	}
-	if rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled == nil {
+	if rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled == nil {
 		return DefaultAutoPromotionEnabled
 	}
-	return *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionEnabled
+	return *rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled
 }

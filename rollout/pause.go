@@ -50,7 +50,7 @@ func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bo
 	if !paused {
 		pauseStartTime = nil
 	}
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil && defaults.GetAutoPromotionEnabledOrDefault(rollout) {
+	if rollout.Spec.Strategy.BlueGreen != nil && defaults.GetAutoPromotionEnabledOrDefault(rollout) {
 		return nil, false
 	}
 
@@ -72,14 +72,14 @@ func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bo
 		}
 	}
 
-	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
 		bgCtx := roCtx.(*blueGreenContext)
 		if reconcileBlueGreenTemplateChange(bgCtx) {
 			return nil, false
 		}
-		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {
+		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds != nil {
 			now := metav1.Now()
-			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds
+			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
 			switchDeadline := pauseStartTime.Add(time.Duration(autoPromoteActiveServiceDelaySeconds) * time.Second)
 			if now.After(switchDeadline) {
 				return nil, false

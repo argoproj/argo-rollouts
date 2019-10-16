@@ -28,7 +28,7 @@ func newCanaryRollout() *v1alpha1.Rollout {
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(5),
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
 							SetWeight: pointer.Int32Ptr(10),
@@ -64,7 +64,7 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(5),
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{

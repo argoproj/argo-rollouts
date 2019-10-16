@@ -139,16 +139,16 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
-	if r.Spec.Strategy.BlueGreenStrategy.PreviewService != "" {
-		previewSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreenStrategy.PreviewService)
+	if r.Spec.Strategy.BlueGreen.PreviewService != "" {
+		previewSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.PreviewService)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	if r.Spec.Strategy.BlueGreenStrategy.ActiveService == "" {
+	if r.Spec.Strategy.BlueGreen.ActiveService == "" {
 		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
 	}
-	activeSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreenStrategy.ActiveService)
+	activeSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.ActiveService)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -158,11 +158,11 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 func (c *RolloutController) reconcileCanaryService(roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	if r.Spec.Strategy.CanaryStrategy == nil || r.Spec.Strategy.CanaryStrategy.CanaryService == "" {
+	if r.Spec.Strategy.Canary == nil || r.Spec.Strategy.Canary.CanaryService == "" {
 		return nil
 	}
 
-	svc, err := c.getReferencedService(r, r.Spec.Strategy.CanaryStrategy.CanaryService)
+	svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
 	if err != nil {
 		return err
 	}

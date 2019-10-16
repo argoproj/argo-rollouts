@@ -164,7 +164,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					PreviewService: "preview",
 					ActiveService:  "active",
 				},
@@ -180,14 +180,14 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	})
 	t.Run("Preview not found", func(t *testing.T) {
 		noPreviewSvcRollout := rollout.DeepCopy()
-		noPreviewSvcRollout.Spec.Strategy.BlueGreenStrategy.PreviewService = "not-preview"
+		noPreviewSvcRollout.Spec.Strategy.BlueGreen.PreviewService = "not-preview"
 		_, _, err := c.getPreviewAndActiveServices(noPreviewSvcRollout)
 		assert.NotNil(t, err)
 		assert.True(t, errors.IsNotFound(err))
 	})
 	t.Run("Active not found", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
-		noActiveSvcRollout.Spec.Strategy.BlueGreenStrategy.ActiveService = "not-active"
+		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "not-active"
 		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
 		assert.NotNil(t, err)
 		assert.True(t, errors.IsNotFound(err))
@@ -195,7 +195,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 
 	t.Run("Invalid Spec: No Active Svc", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
-		noActiveSvcRollout.Spec.Strategy.BlueGreenStrategy.ActiveService = ""
+		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")

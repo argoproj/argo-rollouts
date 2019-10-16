@@ -45,10 +45,10 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 	ri.step = "-"
 	ri.setWeight = "-"
 
-	if ro.Spec.Strategy.CanaryStrategy != nil {
+	if ro.Spec.Strategy.Canary != nil {
 		ri.strategy = "Canary"
-		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.CanaryStrategy.Steps) > 0 {
-			ri.step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.CanaryStrategy.Steps))
+		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.Canary.Steps) > 0 {
+			ri.step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
 		}
 		// NOTE that this is desired weight, not the actual current weight
 		ri.setWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(&ro)))
@@ -59,7 +59,7 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 		// } else {
 		// 	ri.weight = fmt.Sprintf("%d", (ro.Status.UpdatedReplicas*100)/ro.Status.AvailableReplicas)
 		// }
-	} else if ro.Spec.Strategy.BlueGreenStrategy != nil {
+	} else if ro.Spec.Strategy.BlueGreen != nil {
 		ri.strategy = "BlueGreen"
 	}
 	ri.status = rolloutStatus(&ro)
@@ -121,13 +121,13 @@ func rolloutStatus(ro *v1alpha1.Rollout) string {
 		// updated replicas are still becoming available
 		return "Progressing"
 	}
-	if ro.Spec.Strategy.BlueGreenStrategy != nil {
+	if ro.Spec.Strategy.BlueGreen != nil {
 		if ro.Status.BlueGreen.ActiveSelector != "" && ro.Status.BlueGreen.ActiveSelector == ro.Status.CurrentPodHash {
 			return "Healthy"
 		}
 		// service cutover pending
 		return "Progressing"
-	} else if ro.Spec.Strategy.CanaryStrategy != nil {
+	} else if ro.Spec.Strategy.Canary != nil {
 		if ro.Status.Canary.StableRS != "" && ro.Status.Canary.StableRS == ro.Status.CurrentPodHash {
 			return "Healthy"
 		}
