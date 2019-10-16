@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -108,8 +107,9 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
-	logCtx := logutil.WithRollout(rollout)
+func (c *RolloutController) reconcileExperiments(roCtx *canaryContext, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
 	for i := range otherExs {
 		otherEx := otherExs[i]
 		if otherEx.Status.Running != nil && *otherEx.Status.Running {
@@ -151,7 +151,7 @@ func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stab
 	}
 
 	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, allRSs)
-	err := c.deleteExperiments(rollout, exsToDelete)
+	err := c.deleteExperiments(roCtx, exsToDelete)
 	if err != nil {
 		return currentEx, err
 	}
@@ -159,14 +159,13 @@ func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stab
 	return currentEx, nil
 }
 
-func (c *RolloutController) deleteExperiments(rollout *v1alpha1.Rollout, exs []*v1alpha1.Experiment) error {
-	logCtx := logutil.WithRollout(rollout)
+func (c *RolloutController) deleteExperiments(roCtx rolloutContext, exs []*v1alpha1.Experiment) error {
 	for i := range exs {
 		ex := exs[i]
 		if ex.DeletionTimestamp != nil {
 			continue
 		}
-		logCtx.Infof("Trying to cleanup experiment '%s'", ex.Name)
+		roCtx.Log().Infof("Trying to cleanup experiment '%s'", ex.Name)
 		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ex.Name, nil)
 		if err != nil && !errors.IsNotFound(err) {
 			return err

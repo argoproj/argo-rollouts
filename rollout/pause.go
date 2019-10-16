@@ -43,8 +43,9 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 
 // calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
 // the rollout will use the previous values
-func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, addPause bool, currArs []*v1alpha1.AnalysisRun) (*metav1.Time, bool) {
-	logCtx := logutil.WithRollout(rollout)
+func calculatePauseStatus(roCtx rolloutContext, newRS *appsv1.ReplicaSet, addPause bool, currArs []*v1alpha1.AnalysisRun) (*metav1.Time, bool) {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
 	pauseStartTime := rollout.Status.PauseStartTime
 	paused := rollout.Spec.Paused
 	if !paused {
@@ -72,7 +73,8 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 	}
 
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if reconcileBlueGreenTemplateChange(rollout, newRS) {
+		bgCtx := roCtx.(*blueGreenContext)
+		if reconcileBlueGreenTemplateChange(bgCtx, newRS) {
 			return nil, false
 		}
 		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {

@@ -333,6 +333,7 @@ func TestCleanupRollouts(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			r := newBlueGreenRollout("baz", 1, test.revisionHistoryLimit, "", "")
+			roCtx := newBlueGreenCtx(r)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			c := &RolloutController{
@@ -340,7 +341,7 @@ func TestCleanupRollouts(t *testing.T) {
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}
-			err := c.cleanupRollouts(test.replicaSets, nil, nil, r)
+			err := c.cleanupRollouts(test.replicaSets, nil, nil, roCtx)
 			assert.Nil(t, err)
 
 			for _, action := range k8sfake.Actions() {
