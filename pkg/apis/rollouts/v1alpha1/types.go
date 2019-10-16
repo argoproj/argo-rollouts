@@ -256,6 +256,8 @@ type RolloutPause struct {
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
+	//ControllerPause indicates the controller paused the rollout (i.e. pause step or inconclusive run)
+	ControllerPause bool `json:"controllerPause,omitempty"`
 	// CurrentPodHash the hash of the current pod template
 	// +optional
 	CurrentPodHash string `json:"currentPodHash,omitempty"`
