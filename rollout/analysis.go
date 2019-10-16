@@ -3,7 +3,6 @@ package rollout
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,14 +41,14 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext, currentArs, otherArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) ([]*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext, currentArs, otherArs []*v1alpha1.AnalysisRun) ([]*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	if rollout.Spec.Paused {
 		return currentArs, nil
 	}
 	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
 
-	stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx, currentArs, stableRS, newRS)
+	stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx, currentArs)
 	if err != nil {
 		return currentArs, err
 	}
@@ -57,7 +56,7 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext, currentA
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, stepAnalysisRun)
 	}
 
-	backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(roCtx, currentArs, stableRS, newRS)
+	backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(roCtx, currentArs)
 	if err != nil {
 		return currentArs, err
 	}
@@ -70,10 +69,7 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext, currentA
 		return currentArs, err
 	}
 
-	allRSs := append(olderRSs, newRS)
-	if stableRS != nil {
-		allRSs = append(allRSs, stableRS)
-	}
+	allRSs := roCtx.AllRSs()
 	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, allRSs)
 	err = c.deleteAnalysisRuns(roCtx, arsToDelete)
 	if err != nil {
@@ -83,8 +79,9 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext, currentA
 	return newCurrentAnalysisRuns, nil
 }
 
-func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext, currentArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext, currentArs []*v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentBackgroundAnalysisRun)
 	if rollout.Spec.Strategy.CanaryStrategy.Analysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
@@ -96,7 +93,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext,
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.CanaryStrategy.Analysis, stableRS, newRS, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.CanaryStrategy.Analysis, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}
@@ -105,7 +102,9 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext,
 	return currentAr, nil
 }
 
-func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
 	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
 	podHash := replicasetutil.GetPodTemplateHash(newRS)
 	if podHash == "" {
@@ -122,8 +121,9 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 	return ar, nil
 }
 
-func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext, currentArs []*v1alpha1.AnalysisRun, stableRS, newRS *appsv1.ReplicaSet) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext, currentArs []*v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
 	if step == nil || step.Analysis == nil || index == nil {
@@ -136,7 +136,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext, 
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		stepLabels := analysisutil.StepLabels(*index, podHash)
-		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, stableRS, newRS, stepLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, stepLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
 		}

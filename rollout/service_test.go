@@ -83,6 +83,7 @@ func TestReconcilePreviewService(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, test.newRSDesiredReplicas, test.newRSAvailableReplicas)
+			roCtx := newBlueGreenCtx(ro, rs, nil)
 			f := newFixture(t)
 			defer f.Close()
 
@@ -93,7 +94,7 @@ func TestReconcilePreviewService(t *testing.T) {
 				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			result, err := c.reconcilePreviewService(ro, rs, test.previewSvc, test.activeSvc)
+			result, err := c.reconcilePreviewService(roCtx, test.previewSvc, test.activeSvc)
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedResult, result)
 		})
@@ -130,6 +131,7 @@ func TestReconcileActiveService(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ro := newRollout("foo", 5, nil, nil)
 			rs := newReplicaSetWithStatus(ro, 5, 5)
+			roCtx := newBlueGreenCtx(ro, rs, nil)
 			f := newFixture(t)
 			defer f.Close()
 
@@ -140,7 +142,7 @@ func TestReconcileActiveService(t *testing.T) {
 				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			result, err := c.reconcileActiveService(ro, rs, test.previewSvc, test.activeSvc)
+			result, err := c.reconcileActiveService(roCtx, test.previewSvc, test.activeSvc)
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedResult, result)
 		})

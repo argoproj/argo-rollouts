@@ -14,12 +14,11 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
-	roCtx := newCanaryCtx(rollout)
-	logCtx := roCtx.Log()
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
 		return err
@@ -40,7 +39,8 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 			return err
 		}
 		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, roCtx)
+		roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs)
+		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
 	}
 
 	newRS, previousRSs, err := c.getAllReplicaSetsAndSyncRevision(rollout, rsList, true)
@@ -49,12 +49,15 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
 
+	roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs)
+	logCtx := roCtx.Log()
+
 	logCtx.Info("Cleaning up old replicasets, experiments, and analysis runs")
 	if err := c.cleanupRollouts(oldRSs, otherExs, otherArs, roCtx); err != nil {
 		return err
 	}
 
-	if err := c.reconcileCanaryService(rollout, newRS); err != nil {
+	if err := c.reconcileCanaryService(roCtx); err != nil {
 		return err
 	}
 
@@ -65,33 +68,36 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	logCtx.Info("Reconciling AnalysisRun step")
-	currentArs, err = c.reconcileAnalysisRuns(roCtx, currentArs, otherArs, stableRS, newRS, oldRSs)
+	currentArs, err = c.reconcileAnalysisRuns(roCtx, currentArs, otherArs)
 	if err != nil {
 		return err
 	}
 
-	noScalingOccured, err := c.reconcileCanaryReplicaSets(roCtx, newRS, stableRS, oldRSs)
+	noScalingOccured, err := c.reconcileCanaryReplicaSets(roCtx)
 	if err != nil {
 		return err
 	}
 	if noScalingOccured {
 		logCtx.Info("Not finished reconciling ReplicaSets")
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, roCtx)
+		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
 	}
 
 	logCtx.Info("Reconciling Canary Pause")
 	stillReconciling := c.reconcileCanaryPause(roCtx)
 	if stillReconciling {
 		logCtx.Infof("Not finished reconciling Canary Pause")
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, roCtx)
+		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
 	}
 
-	return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, roCtx)
+	return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
 }
 
-func (c *RolloutController) reconcileStableRS(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, roCtx *canaryContext) (bool, error) {
+func (c *RolloutController) reconcileStableRS(roCtx *canaryContext) (bool, error) {
 	logCtx := roCtx.Log()
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
+	olderRSs := roCtx.OlderRSs()
 	if !replicasetutil.CheckStableRSExists(newRS, stableRS) {
 		logCtx.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
@@ -129,7 +135,8 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	return true
 }
 
-func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, roCtx *canaryContext) (bool, error) {
+func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, roCtx *canaryContext) (bool, error) {
+	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
@@ -146,7 +153,7 @@ func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.Repli
 	logCtx.Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
 
 	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
-	scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(allRSs, oldRSs, roCtx)
+	scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(allRSs, oldRSs, rollout)
 	if err != nil {
 		return false, nil
 	}
@@ -157,16 +164,16 @@ func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.Repli
 }
 
 // scaleDownOldReplicaSetsForCanary scales down old replica sets when rollout strategy is "canary".
-func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, roCtx *canaryContext) (int32, error) {
+func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
+	logCtx := logutil.WithRollout(rollout)
 	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
-	rollout := roCtx.Rollout()
 	minAvailable := defaults.GetRolloutReplicasOrDefault(rollout) - replicasetutil.MaxUnavailable(rollout)
 	maxScaleDown := availablePodCount - minAvailable
 	if maxScaleDown <= 0 {
 		// Cannot scale down.
 		return 0, nil
 	}
-	roCtx.Log().Infof("Found %d available pods, scaling down old RSes", availablePodCount)
+	logCtx.Infof("Found %d available pods, scaling down old RSes", availablePodCount)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
@@ -196,7 +203,7 @@ func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Re
 	return totalScaledDown, nil
 }
 
-func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, experiment *v1alpha1.Experiment, currentStepAr *v1alpha1.AnalysisRun, roCtx *canaryContext) bool {
+func completedCurrentCanaryStep(experiment *v1alpha1.Experiment, currentStepAr *v1alpha1.AnalysisRun, roCtx *canaryContext) bool {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
@@ -206,7 +213,7 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 	if currentStep.Pause != nil {
 		return completedPauseStep(r, *currentStep.Pause)
 	}
-	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, newRS, stableRS, olderRSs) {
+	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, roCtx.NewRS(), roCtx.StableRS(), roCtx.OlderRSs()) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
 		return true
 	}
@@ -221,9 +228,12 @@ func completedCurrentCanaryStep(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.Rep
 	return false
 }
 
-func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, currExp *v1alpha1.Experiment, currArs []*v1alpha1.AnalysisRun, roCtx *canaryContext) error {
+func (c *RolloutController) syncRolloutStatusCanary(currExp *v1alpha1.Experiment, currArs []*v1alpha1.AnalysisRun, roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
+	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
+	olderRSs := roCtx.OlderRSs()
 	allRSs := append(olderRSs, newRS)
 	if replicasetutil.CheckStableRSExists(newRS, stableRS) {
 		allRSs = append(allRSs, stableRS)
@@ -306,7 +316,7 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 	// if we are at a pause step with a duration.
 	c.reconcileCanaryPause(roCtx)
 
-	if completedCurrentCanaryStep(olderRSs, newRS, stableRS, currExp, currStepAr, roCtx) {
+	if completedCurrentCanaryStep(currExp, currStepAr, roCtx) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
 		if int(*currentStepIndex) == len(r.Spec.Strategy.CanaryStrategy.Steps) {
@@ -327,21 +337,16 @@ func (c *RolloutController) syncRolloutStatusCanary(olderRSs []*appsv1.ReplicaSe
 
 	addPause := !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil
 	var paused bool
-	newStatus.PauseStartTime, paused = calculatePauseStatus(roCtx, newRS, addPause, currArs)
+	newStatus.PauseStartTime, paused = calculatePauseStatus(roCtx, addPause, currArs)
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(r, newStatus, allRSs, newRS, currExp, currArs)
 	return c.persistRolloutStatus(r, &newStatus, &paused)
 }
 
-func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) (bool, error) {
-	allRSs := append(olderRSs, newRS)
-	if stableRS != nil {
-		allRSs = append(allRSs, stableRS)
-	}
-
+func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext) (bool, error) {
 	logCtx := roCtx.Log()
 	logCtx.Info("Reconciling StableRS")
-	scaledStableRS, err := c.reconcileStableRS(olderRSs, newRS, stableRS, roCtx)
+	scaledStableRS, err := c.reconcileStableRS(roCtx)
 	if err != nil {
 		return false, err
 	}
@@ -350,8 +355,11 @@ func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext, new
 		return true, nil
 	}
 
+	newRS := roCtx.NewRS()
+	olderRSs := roCtx.OlderRSs()
+	allRSs := roCtx.AllRSs()
 	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
-	scaledNewRS, err := c.reconcileNewReplicaSet(allRSs, newRS, roCtx)
+	scaledNewRS, err := c.reconcileNewReplicaSet(roCtx)
 	if err != nil {
 		return false, err
 	}
@@ -361,7 +369,7 @@ func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext, new
 	}
 
 	logCtx.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSetsCanary(allRSs, controller.FilterActiveReplicaSets(olderRSs), newRS, roCtx)
+	scaledDown, err := c.reconcileOldReplicaSetsCanary(allRSs, controller.FilterActiveReplicaSets(olderRSs), roCtx)
 	if err != nil {
 		return false, err
 	}

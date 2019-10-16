@@ -215,7 +215,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 	}
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if r.Spec.Strategy.BlueGreenStrategy != nil {
-		roCtx := newBlueGreenCtx(r)
+		roCtx := newBlueGreenCtx(r, newRS, oldRSs)
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
 			return nil
@@ -225,12 +225,11 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			// so we can abort this resync
 			return err
 		}
-		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, roCtx, r.Spec.Paused)
+		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx, r.Spec.Paused)
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if r.Spec.Strategy.CanaryStrategy != nil {
-		roCtx := newCanaryCtx(r)
 		exList, err := c.getExperimentsForRollout(r)
 		if err != nil {
 			return err
@@ -244,15 +243,16 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		currentArs, _ := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 
 		stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, rsList)
+		roCtx := newCanaryCtx(r, newRS, stableRS, oldRSs)
 
 		if isScaling {
-			if _, err := c.reconcileCanaryReplicaSets(roCtx, newRS, stableRS, oldRSs); err != nil {
+			if _, err := c.reconcileCanaryReplicaSets(roCtx); err != nil {
 				// If we get an error while trying to scale, the rollout will be requeued
 				// so we can abort this resync
 				return err
 			}
 		}
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, roCtx)
+		return c.syncRolloutStatusCanary(currentEx, currentArs, roCtx)
 	}
 	return fmt.Errorf("no rollout strategy provided")
 }

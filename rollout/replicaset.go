@@ -69,8 +69,10 @@ func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*a
 	return cm.ClaimReplicaSets(rsList)
 }
 
-func (c *RolloutController) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
+func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	allRSs := roCtx.AllRSs()
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 		if *(newRS.Spec.Replicas) == rolloutReplicas {
@@ -112,8 +114,7 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 	// Scale down old replica sets
 	scaledDownCount := int32(0)
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		bgCtx := roCtx.(*blueGreenContext)
-		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, bgCtx)
+		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, rollout)
 		if err != nil {
 			return false, nil
 		}

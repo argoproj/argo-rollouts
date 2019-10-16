@@ -333,7 +333,7 @@ func TestCleanupRollouts(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			r := newBlueGreenRollout("baz", 1, test.revisionHistoryLimit, "", "")
-			roCtx := newBlueGreenCtx(r)
+			roCtx := newBlueGreenCtx(r, nil, test.replicaSets)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			c := &RolloutController{

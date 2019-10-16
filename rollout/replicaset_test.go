@@ -152,9 +152,8 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test := tests[i]
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
-			allRSs := []*appsv1.ReplicaSet{newRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
-			bgCtx := newBlueGreenCtx(rollout)
+			bgCtx := newBlueGreenCtx(rollout, newRS, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			controller := &RolloutController{
@@ -162,7 +161,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},
 			}
-			scaled, err := controller.reconcileNewReplicaSet(allRSs, newRS, bgCtx)
+			scaled, err := controller.reconcileNewReplicaSet(bgCtx)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -244,7 +243,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
-			roCtx := newBlueGreenCtx(rollout)
+			roCtx := newBlueGreenCtx(rollout, newRS, oldRSs)
 
 			f := newFixture(t)
 			defer f.Close()
