@@ -119,7 +119,8 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
-func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
+func (c *RolloutController) getReferencedService(roCtx rolloutContext, serviceName string) (*corev1.Service, error) {
+	r := roCtx.Rollout()
 	svc, err := c.servicesLister.Services(r.Namespace).Get(serviceName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -128,7 +129,7 @@ func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceNam
 			newStatus := r.Status.DeepCopy()
 			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
 			conditions.SetRolloutCondition(newStatus, *cond)
-			c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
+			c.persistRolloutStatus(roCtx, newStatus)
 		}
 		return nil, err
 	}
@@ -139,8 +140,10 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
+
+	roCtx := newBlueGreenCtx(r, nil, nil)
 	if r.Spec.Strategy.BlueGreen.PreviewService != "" {
-		previewSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.PreviewService)
+		previewSvc, err = c.getReferencedService(roCtx, r.Spec.Strategy.BlueGreen.PreviewService)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -148,7 +151,7 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	if r.Spec.Strategy.BlueGreen.ActiveService == "" {
 		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
 	}
-	activeSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.ActiveService)
+	activeSvc, err = c.getReferencedService(roCtx, r.Spec.Strategy.BlueGreen.ActiveService)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -162,7 +165,7 @@ func (c *RolloutController) reconcileCanaryService(roCtx *canaryContext) error {
 		return nil
 	}
 
-	svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
+	svc, err := c.getReferencedService(roCtx, r.Spec.Strategy.Canary.CanaryService)
 	if err != nil {
 		return err
 	}

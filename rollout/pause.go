@@ -6,9 +6,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
+
+type pauseContext struct {
+	addPause    bool
+	removePause bool
+}
+
+func (pCtx *pauseContext) AddPause() {
+	pCtx.addPause = true
+}
+
+func (pCtx *pauseContext) RemovePause() {
+	pCtx.removePause = true
+}
+
+func (pCtx *pauseContext) HasPauseChanged() bool {
+	return pCtx.addPause || pCtx.removePause
+}
 
 func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) bool {
 	logCtx := logutil.WithRollout(rollout)
@@ -40,30 +56,18 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 	}
 }
 
-// calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
-// the rollout will use the previous values
-func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
+// calculatePauseStatus determines if the rollout should be paused by the controller.
+// func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
+func calculatePauseStatus(roCtx rolloutContext) (*metav1.Time, bool) {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
+	pauseCtx := roCtx.PauseContext()
 	pauseStartTime := rollout.Status.PauseStartTime
 	paused := rollout.Spec.Paused
 	if !paused {
 		pauseStartTime = nil
 	}
-	if rollout.Spec.Strategy.BlueGreen != nil && defaults.GetAutoPromotionEnabledOrDefault(rollout) {
-		return nil, false
-	}
-
-	pauseForInconclusiveAnalysisRun := false
-	currArs := roCtx.CurrentAnalysisRuns()
-	for i := range currArs {
-		ar := currArs[i]
-		if ar != nil && ar.Status != nil && ar.Status.Status == v1alpha1.AnalysisStatusInconclusive {
-			pauseForInconclusiveAnalysisRun = true
-		}
-	}
-
-	if addPause || pauseForInconclusiveAnalysisRun {
+	if pauseCtx.addPause {
 		if pauseStartTime == nil {
 			now := metav1.Now()
 			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
@@ -71,21 +75,9 @@ func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bo
 			paused = true
 		}
 	}
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		bgCtx := roCtx.(*blueGreenContext)
-		if reconcileBlueGreenTemplateChange(bgCtx) {
-			return nil, false
-		}
-		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds != nil {
-			now := metav1.Now()
-			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-			switchDeadline := pauseStartTime.Add(time.Duration(autoPromoteActiveServiceDelaySeconds) * time.Second)
-			if now.After(switchDeadline) {
-				return nil, false
-			}
-			return pauseStartTime, true
-		}
+	if pauseCtx.removePause {
+		return nil, false
 	}
+
 	return pauseStartTime, paused
 }
