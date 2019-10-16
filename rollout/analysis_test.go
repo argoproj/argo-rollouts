@@ -357,6 +357,105 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
+func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	arWithDiffPodHash := ar.DeepCopy()
+	arWithDiffPodHash.Name = "older-analysis-run"
+	arWithDiffPodHash.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "abc123"
+	arWithDiffPodHash.Status = &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisStatusSuccessful,
+	}
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar, arWithDiffPodHash)
+	f.objects = append(f.objects, r2, at, ar, arWithDiffPodHash)
+
+	deletedIndex := f.expectDeleteAnalysisRunAction(arWithDiffPodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	deletedAr := f.getDeletedAnalysisRun(deletedIndex)
+	assert.Equal(t, deletedAr, arWithDiffPodHash.Name)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+}
+
+func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+	r3.Spec.RevisionHistoryLimit = pointer.Int32Ptr(0)
+	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r3)
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs3 := newReplicaSetWithStatus(r3, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	arToDelete := ar.DeepCopy()
+	arToDelete.Name = "older-analysis-run"
+	arToDelete.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs1PodHash
+	arToDelete.Spec.Terminate = true
+	arAlreadyDeleted := arToDelete.DeepCopy()
+	arAlreadyDeleted.Name = "already-deleted-analysis-run"
+	now := metav1.Now()
+	arAlreadyDeleted.DeletionTimestamp = &now
+
+	r3 = updateCanaryRolloutStatus(r3, rs2PodHash, 1, 0, 1, false)
+	r3.Status.Canary.CurrentStepAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar, arToDelete, arAlreadyDeleted)
+	f.objects = append(f.objects, r3, at, ar, arToDelete, arAlreadyDeleted)
+
+	f.expectDeleteReplicaSetAction(rs1)
+	deletedIndex := f.expectDeleteAnalysisRunAction(arToDelete)
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
+
+	deletedAr := f.getDeletedAnalysisRun(deletedIndex)
+	assert.Equal(t, deletedAr, arToDelete.Name)
+}
+
 func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

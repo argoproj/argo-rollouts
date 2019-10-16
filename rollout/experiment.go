@@ -5,9 +5,11 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -31,11 +33,15 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if step == nil {
 		return nil, nil
 	}
+	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 	experiment := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName:    experimentutil.ExperimentGeneratedNameFromRollout(r),
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
+			Labels: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+			},
 		},
 		Spec: v1alpha1.ExperimentSpec{
 			Duration:                &step.Duration,
@@ -102,7 +108,7 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stableRS, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, otherExs []*v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
 	logCtx := logutil.WithRollout(rollout)
 	for i := range otherExs {
 		otherEx := otherExs[i]
@@ -138,5 +144,33 @@ func (c *RolloutController) reconcileExperiments(rollout *v1alpha1.Rollout, stab
 		msg := fmt.Sprintf("Created Experiment '%s'", newEx.Name)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 	}
+
+	allRSs := append(olderRSs, newRS)
+	if stableRS != nil {
+		allRSs = append(allRSs, stableRS)
+	}
+
+	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, allRSs)
+	err := c.deleteExperiments(rollout, exsToDelete)
+	if err != nil {
+		return currentEx, err
+	}
+
 	return currentEx, nil
+}
+
+func (c *RolloutController) deleteExperiments(rollout *v1alpha1.Rollout, exs []*v1alpha1.Experiment) error {
+	logCtx := logutil.WithRollout(rollout)
+	for i := range exs {
+		ex := exs[i]
+		if ex.DeletionTimestamp != nil {
+			continue
+		}
+		logCtx.Infof("Trying to cleanup experiment '%s'", ex.Name)
+		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ex.Name, nil)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }

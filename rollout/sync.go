@@ -353,7 +353,7 @@ func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, new
 // cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
-func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) error {
+func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, otherExs []*v1alpha1.Experiment, otherArs []*v1alpha1.AnalysisRun, rollout *v1alpha1.Rollout) error {
 	logCtx := logutil.WithRollout(rollout)
 	if !conditions.HasRevisionHistoryLimit(rollout) {
 		return nil
@@ -371,8 +371,9 @@ func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout
 	}
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
+	podHashToArList := analysisutil.SortAnalysisRunByPodHash(otherArs)
+	podHashToExList := experimentutil.SortExperimentsByPodHash(otherExs)
 	logCtx.Info("Looking to cleanup old replica sets")
-
 	for i := int32(0); i < diff; i++ {
 		rs := cleanableRSes[i]
 		// Avoid delete replica set with non-zero replica counts
@@ -384,6 +385,22 @@ func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, rollout
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
 			return err
+		}
+		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			if ars, ok := podHashToArList[podHash]; ok {
+				logCtx.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)
+				err := c.deleteAnalysisRuns(rollout, ars)
+				if err != nil {
+					return err
+				}
+			}
+			if exs, ok := podHashToExList[podHash]; ok {
+				logCtx.Infof("Cleaning up associated experiments with ReplicaSet '%s'", rs.Name)
+				err := c.deleteExperiments(rollout, exs)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

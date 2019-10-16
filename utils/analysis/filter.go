@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -78,4 +80,67 @@ func filterAnalysisRuns(ars []*v1alpha1.AnalysisRun, cond func(ar *v1alpha1.Anal
 		}
 	}
 	return condTrue, condFalse
+}
+
+// SortAnalysisRunByPodHash returns map with a podHash as a key and an array of analysisRuns with that pod hash
+func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha1.AnalysisRun {
+	podHashToAr := map[string][]*v1alpha1.AnalysisRun{}
+	if ars == nil {
+		return podHashToAr
+	}
+	for i := range ars {
+		ar := ars[i]
+		podHash, ok := ar.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if !ok {
+			continue
+		}
+		podHashArray, ok := podHashToAr[podHash]
+		if !ok {
+			podHashArray = []*v1alpha1.AnalysisRun{}
+		}
+		podHashArray = append(podHashArray, ar)
+		podHashToAr[podHash] = podHashArray
+	}
+	return podHashToAr
+}
+
+// FilterAnalysisRunsToDelete returns a list of analysis runs that should be deleted in the cases where:
+// 1. The analysis run has no pod hash label,
+// 2. There is no ReplicaSet with the same pod hash as the analysis run
+// 3. The ReplicaSet that has the same pod hash as the analysis run has a deletiontimestamp.
+// Note: It is okay to use pod hash for filtering since the analysis run's pod hash is originally derived from the new RS.
+// Even if there is a library change during the lifetime of the analysis run, the ReplicaSet's pod hash that the analysis
+// run references does not change.
+func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet) []*v1alpha1.AnalysisRun {
+	olderRsPodHashes := map[string]bool{}
+	for i := range olderRSs {
+		rs := olderRSs[i]
+		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			olderRsPodHashes[podHash] = rs.DeletionTimestamp != nil
+		}
+	}
+	arsToDelete := []*v1alpha1.AnalysisRun{}
+	for i := range ars {
+		ar := ars[i]
+		podHash, ok := ar.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		//AnalysisRun does not have podHash Label
+		if !ok {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+		hasDeletionTimeStamp, ok := olderRsPodHashes[podHash]
+
+		//AnalysisRun does not have matching rs
+		if !ok {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+
+		//AnalysisRun has matching rs but rs has deletiontimestamp
+		if ok && hasDeletionTimeStamp {
+			arsToDelete = append(arsToDelete, ar)
+			continue
+		}
+	}
+	return arsToDelete
 }
