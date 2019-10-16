@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
@@ -647,6 +646,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
 	rs := newReplicaSetWithStatus(ro, 1, 1)
+	roCtx := newBlueGreenCtx(ro, rs, nil)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
 
@@ -661,7 +661,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	err := c.syncRolloutStatusBlueGreen([]*appsv1.ReplicaSet{}, rs, nil, activeSvc, ro, false)
+	err := c.syncRolloutStatusBlueGreen(nil, activeSvc, roCtx, false)
 	assert.Nil(t, err)
 	assert.Len(t, f.client.Actions(), 1)
 	result := f.client.Actions()[0].(core.PatchAction).GetPatch()

@@ -3,7 +3,6 @@ package rollout
 import (
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -43,8 +42,9 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 
 // calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
 // the rollout will use the previous values
-func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, addPause bool, currArs []*v1alpha1.AnalysisRun) (*metav1.Time, bool) {
-	logCtx := logutil.WithRollout(rollout)
+func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
 	pauseStartTime := rollout.Status.PauseStartTime
 	paused := rollout.Spec.Paused
 	if !paused {
@@ -55,6 +55,7 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 	}
 
 	pauseForInconclusiveAnalysisRun := false
+	currArs := roCtx.CurrentAnalysisRuns()
 	for i := range currArs {
 		ar := currArs[i]
 		if ar != nil && ar.Status != nil && ar.Status.Status == v1alpha1.AnalysisStatusInconclusive {
@@ -72,7 +73,8 @@ func calculatePauseStatus(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, a
 	}
 
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
-		if reconcileBlueGreenTemplateChange(rollout, newRS) {
+		bgCtx := roCtx.(*blueGreenContext)
+		if reconcileBlueGreenTemplateChange(bgCtx) {
 			return nil, false
 		}
 		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreenStrategy.AutoPromotionSeconds != nil {

@@ -24,18 +24,18 @@ const (
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
 )
 
-func (c *RolloutController) removeScaleDownDelay(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet) error {
-	logCtx := logutil.WithRollout(r)
+func (c *RolloutController) removeScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
+	logCtx := roCtx.Log()
 	logCtx.Infof("Removing '%s' annotation on RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(rs.Name, patchtypes.JSONPatchType, []byte(patch))
 	return err
 }
 
-func (c *RolloutController) addScaleDownDelay(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet) error {
-	logCtx := logutil.WithRollout(r)
+func (c *RolloutController) addScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
+	logCtx := roCtx.Log()
 	logCtx.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(r))
+	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(roCtx.Rollout()))
 	now := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(rs.Name, patchtypes.JSONPatchType, []byte(patch))
@@ -69,7 +69,10 @@ func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*a
 	return cm.ClaimReplicaSets(rsList)
 }
 
-func (c *RolloutController) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, error) {
+	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	allRSs := roCtx.AllRSs()
 	if rollout.Spec.Strategy.BlueGreenStrategy != nil {
 		rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
 		if *(newRS.Spec.Replicas) == rolloutReplicas {
@@ -90,7 +93,8 @@ func (c *RolloutController) reconcileNewReplicaSet(allRSs []*appsv1.ReplicaSet, 
 	return scaled, err
 }
 
-func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
+func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
+	rollout := roCtx.Rollout()
 	logCtx := logutil.WithRollout(rollout)
 
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
@@ -101,7 +105,7 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldRSs, cleanupCount, err := c.cleanupUnhealthyReplicas(oldRSs, rollout)
+	oldRSs, cleanupCount, err := c.cleanupUnhealthyReplicas(oldRSs, roCtx)
 	if err != nil {
 		return false, nil
 	}
@@ -122,8 +126,8 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 }
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, int32, error) {
-	logCtx := logutil.WithRollout(rollout)
+func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) ([]*appsv1.ReplicaSet, int32, error) {
+	logCtx := roCtx.Log()
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
@@ -145,7 +149,7 @@ func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet
 		if newReplicasCount > *(targetRS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s/%s %d -> %d", targetRS.Namespace, targetRS.Name, *(targetRS.Spec.Replicas), newReplicasCount)
 		}
-		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount, rollout)
+		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount, roCtx.Rollout())
 		if err != nil {
 			return nil, totalScaledDown, err
 		}

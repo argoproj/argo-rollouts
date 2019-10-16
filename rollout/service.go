@@ -3,7 +3,6 @@ package rollout
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -37,8 +36,10 @@ func (c RolloutController) switchServiceSelector(service *corev1.Service, newRol
 	return err
 }
 
-func (c *RolloutController) reconcilePreviewService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
-	logCtx := logutil.WithRollout(r)
+func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+	r := roCtx.Rollout()
+	logCtx := roCtx.Log()
+	newRS := roCtx.NewRS()
 	if previewSvc == nil {
 		return false, nil
 	}
@@ -79,7 +80,10 @@ func (c *RolloutController) reconcilePreviewService(r *v1alpha1.Rollout, newRS *
 	return true, nil
 }
 
-func (c *RolloutController) reconcileActiveService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+	r := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+
 	switchActiveSvc := true
 	if activeSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -151,7 +155,9 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	return previewSvc, activeSvc, nil
 }
 
-func (c *RolloutController) reconcileCanaryService(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) error {
+func (c *RolloutController) reconcileCanaryService(roCtx *canaryContext) error {
+	r := roCtx.Rollout()
+	newRS := roCtx.NewRS()
 	if r.Spec.Strategy.CanaryStrategy == nil || r.Spec.Strategy.CanaryStrategy.CanaryService == "" {
 		return nil
 	}

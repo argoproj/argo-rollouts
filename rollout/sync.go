@@ -215,6 +215,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 	}
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if r.Spec.Strategy.BlueGreenStrategy != nil {
+		roCtx := newBlueGreenCtx(r, newRS, oldRSs)
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
 			return nil
@@ -224,7 +225,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			// so we can abort this resync
 			return err
 		}
-		return c.syncRolloutStatusBlueGreen(oldRSs, newRS, previewSvc, activeSvc, r, r.Spec.Paused)
+		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx, r.Spec.Paused)
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
@@ -233,24 +234,23 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		if err != nil {
 			return err
 		}
-		currentEx := experimentutil.GetCurrentExperiment(r, exList)
 
 		arList, err := c.getAnalysisRunsForRollout(r)
 		if err != nil {
 			return err
 		}
-		currentArs, _ := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 
 		stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, rsList)
+		roCtx := newCanaryCtx(r, newRS, stableRS, oldRSs, exList, arList)
 
 		if isScaling {
-			if _, err := c.reconcileCanaryReplicaSets(r, newRS, stableRS, oldRSs); err != nil {
+			if _, err := c.reconcileCanaryReplicaSets(roCtx); err != nil {
 				// If we get an error while trying to scale, the rollout will be requeued
 				// so we can abort this resync
 				return err
 			}
 		}
-		return c.syncRolloutStatusCanary(oldRSs, newRS, stableRS, currentEx, currentArs, r)
+		return c.syncRolloutStatusCanary(roCtx)
 	}
 	return fmt.Errorf("no rollout strategy provided")
 }
@@ -353,8 +353,9 @@ func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, new
 // cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
-func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, otherExs []*v1alpha1.Experiment, otherArs []*v1alpha1.AnalysisRun, rollout *v1alpha1.Rollout) error {
-	logCtx := logutil.WithRollout(rollout)
+func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) error {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
 	if !conditions.HasRevisionHistoryLimit(rollout) {
 		return nil
 	}
@@ -371,8 +372,8 @@ func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, otherEx
 	}
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	podHashToArList := analysisutil.SortAnalysisRunByPodHash(otherArs)
-	podHashToExList := experimentutil.SortExperimentsByPodHash(otherExs)
+	podHashToArList := analysisutil.SortAnalysisRunByPodHash(roCtx.OtherAnalysisRuns())
+	podHashToExList := experimentutil.SortExperimentsByPodHash(roCtx.OtherExperiments())
 	logCtx.Info("Looking to cleanup old replica sets")
 	for i := int32(0); i < diff; i++ {
 		rs := cleanableRSes[i]
@@ -389,14 +390,14 @@ func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, otherEx
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if ars, ok := podHashToArList[podHash]; ok {
 				logCtx.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)
-				err := c.deleteAnalysisRuns(rollout, ars)
+				err := c.deleteAnalysisRuns(roCtx, ars)
 				if err != nil {
 					return err
 				}
 			}
 			if exs, ok := podHashToExList[podHash]; ok {
 				logCtx.Infof("Cleaning up associated experiments with ReplicaSet '%s'", rs.Name)
-				err := c.deleteExperiments(rollout, exs)
+				err := c.deleteExperiments(roCtx, exs)
 				if err != nil {
 					return err
 				}
@@ -438,12 +439,16 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	return err
 }
 
-func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, currentEx *v1alpha1.Experiment, currArs []*v1alpha1.AnalysisRun) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
+	r := roCtx.Rollout()
+	allRSs := roCtx.AllRSs()
+	newRS := roCtx.NewRS()
 	if r.Spec.Paused {
 		return newStatus
 	}
 
 	var failedAnalysisRun *v1alpha1.AnalysisRun
+	currArs := roCtx.CurrentAnalysisRuns()
 	for i := range currArs {
 		currAr := currArs[i]
 		hasStatus := currAr != nil && currAr.Status != nil
@@ -474,6 +479,7 @@ func (c *RolloutController) calculateRolloutConditions(r *v1alpha1.Rollout, newS
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAnalysisRunFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		case newStatus.Canary.ExperimentFailed:
+			currentEx := roCtx.CurrentExperiment()
 			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, currentEx.Name, r.Name)
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutExperimentFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
