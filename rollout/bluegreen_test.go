@@ -661,7 +661,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	err := c.syncRolloutStatusBlueGreen(nil, activeSvc, roCtx, false)
+	err := c.syncRolloutStatusBlueGreen(nil, activeSvc, roCtx)
 	assert.Nil(t, err)
 	assert.Len(t, f.client.Actions(), 1)
 	result := f.client.Actions()[0].(core.PatchAction).GetPatch()

@@ -182,8 +182,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		c.recorder.Event(rollout, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
 		newStatus := rollout.Status.DeepCopy()
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
-		conditions.SetRolloutCondition(newStatus, *cond)
-		c.persistRolloutStatus(rollout, newStatus, &rollout.Spec.Paused)
+		err := c.patchCondition(rollout, newStatus, cond)
 		return nil, err
 	}
 
@@ -225,7 +224,8 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			// so we can abort this resync
 			return err
 		}
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx, r.Spec.Paused)
+		c.reconcileBlueGreenPause(previewSvc, activeSvc, roCtx)
+		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
@@ -419,24 +419,50 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	}
 	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
 
-	newStatus := r.Status.DeepCopy()
-	needsUpdate := false
+	var updatedConditon *v1alpha1.RolloutCondition
 	if r.Spec.Paused && !pausedCondExists {
-		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
-		conditions.SetRolloutCondition(newStatus, *condition)
-		needsUpdate = true
+		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
 	} else if !r.Spec.Paused && pausedCondExists {
-		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
-		conditions.SetRolloutCondition(newStatus, *condition)
-		needsUpdate = true
+		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
 	}
 
-	if !needsUpdate {
+	if updatedConditon == nil {
 		return nil
 	}
 
-	err := c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
+	newStatus := r.Status.DeepCopy()
+	err := c.patchCondition(r, newStatus, updatedConditon)
 	return err
+}
+
+func (c *RolloutController) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
+	conditions.SetRolloutCondition(newStatus, *condition)
+	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
+
+	logCtx := logutil.WithRollout(r)
+	patch, modified, err := diff.CreateTwoWayMergePatch(
+		&v1alpha1.Rollout{
+			Status: r.Status,
+		},
+		&v1alpha1.Rollout{
+			Status: *newStatus,
+		}, v1alpha1.Rollout{})
+	if err != nil {
+		logCtx.Errorf("Error constructing app status patch: %v", err)
+		return err
+	}
+	if !modified {
+		logCtx.Info("No status changes. Skipping patch")
+		return nil
+	}
+	logCtx.Debugf("Rollout Condition Patch: %s", patch)
+	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, patch)
+	if err != nil {
+		logCtx.Warningf("Error patching rollout: %v", err)
+		return err
+	}
+	logCtx.Info("Condition Patch status successfully")
+	return nil
 }
 
 func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
@@ -541,12 +567,16 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
-func (c *RolloutController) persistRolloutStatus(orig *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, newPause *bool) error {
+func (c *RolloutController) persistRolloutStatus(roCtx rolloutContext, newStatus *v1alpha1.RolloutStatus) error {
+	orig := roCtx.Rollout()
 	specCopy := orig.Spec.DeepCopy()
-	paused := specCopy.Paused
-	if newPause != nil {
-		paused = *newPause
-		specCopy.Paused = *newPause
+
+	pauseStartTime, newPause := calculatePauseStatus(roCtx)
+	newStatus.PauseStartTime = pauseStartTime
+
+	pauseCtx := roCtx.PauseContext()
+	if pauseCtx.addPause || pauseCtx.removePause {
+		specCopy.Paused = newPause
 	}
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
 
@@ -560,7 +590,7 @@ func (c *RolloutController) persistRolloutStatus(orig *v1alpha1.Rollout, newStat
 		},
 		&v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
-				Paused: paused,
+				Paused: newPause,
 			},
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})

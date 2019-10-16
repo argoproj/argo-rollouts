@@ -243,14 +243,12 @@ func (c *RolloutController) syncHandler(key string) error {
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 			newStatus := r.Status.DeepCopy()
-			newStatus.ObservedGeneration = generation
 			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
 			// the controller should update the invalidSpec if there is a change in why the spec is invalid
 			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
 				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
 			}
-			conditions.SetRolloutCondition(newStatus, *invalidSpecCond)
-			err := c.persistRolloutStatus(r, newStatus, nil)
+			err := c.patchCondition(r, newStatus, invalidSpecCond)
 			if err != nil {
 				return err
 			}
