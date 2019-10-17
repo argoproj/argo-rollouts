@@ -277,13 +277,19 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
-	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
-	if currStepAr != nil {
-		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() || analysisutil.IsTerminating(currStepAr) {
-			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+	if currentStepIndex != nil && *currentStepIndex == stepCount {
+		logCtx.Info("Rollout has executed every step")
+		newStatus.CurrentStepIndex = &stepCount
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			//TODO(dthomson) cancel background analysis here not when we reach currentStepIndex == stepCount
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
-
+		roCtx.PauseContext().RemoveControllerPause()
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
+		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
+
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
 	if currBackgroundAr != nil {
 		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
@@ -293,18 +299,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 	if stepCount == 0 {
 		logCtx.Info("Rollout has no steps")
-		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-			logCtx.Info("New RS has successfully progressed")
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
-		}
-		roCtx.PauseContext().RemoveControllerPause()
-		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(roCtx, &newStatus)
-	}
-
-	if *currentStepIndex == stepCount {
-		logCtx.Info("Rollout has executed every step")
-		newStatus.CurrentStepIndex = &stepCount
 		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
@@ -329,6 +323,14 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
+	}
+
+	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
+	if currStepAr != nil {
+		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() || analysisutil.IsTerminating(currStepAr) {
+			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+		}
+
 	}
 
 	if currExp != nil {

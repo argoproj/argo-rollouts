@@ -3,6 +3,7 @@ package rollout
 import (
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -10,6 +11,10 @@ import (
 )
 
 type pauseContext struct {
+	log             *log.Entry
+	controllerPause bool
+	pauseStartTime  *metav1.Time
+
 	addControllerPause    bool
 	removeControllerPause bool
 }
@@ -20,6 +25,55 @@ func (pCtx *pauseContext) AddControllerPause() {
 
 func (pCtx *pauseContext) RemoveControllerPause() {
 	pCtx.removeControllerPause = true
+}
+
+func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
+	if pCtx.removeControllerPause {
+		return
+	}
+
+	pauseStartTime := pCtx.pauseStartTime
+	paused := pCtx.controllerPause
+	if !paused {
+		pauseStartTime = nil
+	}
+	if pCtx.addControllerPause {
+		if pauseStartTime == nil {
+			now := metav1.Now()
+			pCtx.log.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
+			pauseStartTime = &now
+			paused = true
+		}
+	}
+
+	newStatus.ControllerPause = paused
+	newStatus.PauseStartTime = pauseStartTime
+	// newStatus.PauseReason
+}
+
+// calculatePauseStatus determines if the rollout should be paused by the controller.
+func calculatePauseStatus(roCtx rolloutContext) (*metav1.Time, bool) {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
+	pauseCtx := roCtx.PauseContext()
+	pauseStartTime := rollout.Status.PauseStartTime
+	paused := rollout.Status.ControllerPause
+	if !paused {
+		pauseStartTime = nil
+	}
+	if pauseCtx.addControllerPause {
+		if pauseStartTime == nil {
+			now := metav1.Now()
+			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
+			pauseStartTime = &now
+			paused = true
+		}
+	}
+	if pauseCtx.removeControllerPause {
+		return nil, false
+	}
+
+	return pauseStartTime, paused
 }
 
 func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) bool {
@@ -50,29 +104,4 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 		logCtx.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
 		c.enqueueRolloutAfter(rollout, timeRemaining)
 	}
-}
-
-// calculatePauseStatus determines if the rollout should be paused by the controller.
-func calculatePauseStatus(roCtx rolloutContext) (*metav1.Time, bool) {
-	rollout := roCtx.Rollout()
-	logCtx := roCtx.Log()
-	pauseCtx := roCtx.PauseContext()
-	pauseStartTime := rollout.Status.PauseStartTime
-	paused := rollout.Status.ControllerPause
-	if !paused {
-		pauseStartTime = nil
-	}
-	if pauseCtx.addControllerPause {
-		if pauseStartTime == nil {
-			now := metav1.Now()
-			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
-			pauseStartTime = &now
-			paused = true
-		}
-	}
-	if pauseCtx.removeControllerPause {
-		return nil, false
-	}
-
-	return pauseStartTime, paused
 }
