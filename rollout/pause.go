@@ -10,20 +10,16 @@ import (
 )
 
 type pauseContext struct {
-	addPause    bool
-	removePause bool
+	addControllerPause    bool
+	removeControllerPause bool
 }
 
-func (pCtx *pauseContext) AddPause() {
-	pCtx.addPause = true
+func (pCtx *pauseContext) AddControllerPause() {
+	pCtx.addControllerPause = true
 }
 
-func (pCtx *pauseContext) RemovePause() {
-	pCtx.removePause = true
-}
-
-func (pCtx *pauseContext) HasPauseChanged() bool {
-	return pCtx.addPause || pCtx.removePause
+func (pCtx *pauseContext) RemoveControllerPause() {
+	pCtx.removeControllerPause = true
 }
 
 func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) bool {
@@ -37,7 +33,7 @@ func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) 
 				return true
 			}
 		}
-	} else if rollout.Status.PauseStartTime != nil && !rollout.Spec.Paused {
+	} else if rollout.Status.PauseStartTime != nil && !rollout.Status.ControllerPause {
 		logCtx.Info("Rollout has been unpaused")
 		return true
 	}
@@ -57,17 +53,16 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 }
 
 // calculatePauseStatus determines if the rollout should be paused by the controller.
-// func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
 func calculatePauseStatus(roCtx rolloutContext) (*metav1.Time, bool) {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	pauseCtx := roCtx.PauseContext()
 	pauseStartTime := rollout.Status.PauseStartTime
-	paused := rollout.Spec.Paused
+	paused := rollout.Status.ControllerPause
 	if !paused {
 		pauseStartTime = nil
 	}
-	if pauseCtx.addPause {
+	if pauseCtx.addControllerPause {
 		if pauseStartTime == nil {
 			now := metav1.Now()
 			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
@@ -75,7 +70,7 @@ func calculatePauseStatus(roCtx rolloutContext) (*metav1.Time, bool) {
 			paused = true
 		}
 	}
-	if pauseCtx.removePause {
+	if pauseCtx.removeControllerPause {
 		return nil, false
 	}
 

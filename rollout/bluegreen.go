@@ -32,7 +32,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	logCtx := roCtx.Log()
 	allRSs := roCtx.AllRSs()
 	if reconcileBlueGreenTemplateChange(roCtx) {
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		logCtx.Infof("New pod template or template change detected")
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
@@ -137,7 +137,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	rollout := roCtx.Rollout()
 
 	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		return false
 	}
 
@@ -148,8 +148,8 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		return false
 	}
 	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
-	if !rollout.Spec.Paused && rollout.Status.PauseStartTime == nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
-		roCtx.PauseContext().AddPause()
+	if !rollout.Status.ControllerPause && rollout.Status.PauseStartTime == nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
+		roCtx.PauseContext().AddControllerPause()
 		return true
 	}
 
@@ -160,12 +160,12 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		switchDeadline := pauseStartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
 		now := metav1.Now()
 		if now.After(switchDeadline) {
-			roCtx.PauseContext().RemovePause()
+			roCtx.PauseContext().RemoveControllerPause()
 		}
 
 	}
 
-	return rollout.Spec.Paused && pauseStartTime != nil
+	return rollout.Status.ControllerPause && pauseStartTime != nil
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".

@@ -263,7 +263,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 	newRollout.Status.UpdatedReplicas = updatedReplicas
 	newRollout.Status.HPAReplicas = hpaReplicas
 	if pause {
-		newRollout.Spec.Paused = pause
+		newRollout.Status.ControllerPause = pause
 		now := metav1.Now()
 		newRollout.Status.PauseStartTime = &now
 	}
@@ -876,8 +876,10 @@ func TestRequeueStuckRollout(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas:                pointer.Int32Ptr(0),
-				Paused:                  rolloutPaused,
 				ProgressDeadlineSeconds: progessDeadlineSeconds,
+			},
+			Status: v1alpha1.RolloutStatus{
+				ControllerPause: rolloutPaused,
 			},
 		}
 		if rolloutCompleted {
