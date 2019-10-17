@@ -8,4 +8,4 @@ spec:
     - name: success-rate
       provider:
         prometheus:
-          server: http://prometheus-operator-prometheus.prometheus-operator:9090
+          address: http://prometheus-operator-prometheus.prometheus-operator:9090

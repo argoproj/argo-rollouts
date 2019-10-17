@@ -287,14 +287,14 @@ func TestNewPrometheusAPI(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Server: ":invalid::url",
+				Address: ":invalid::url",
 			},
 		},
 	}
 	_, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
 
-	metric.Provider.Prometheus.Server = "https://www.example.com"
+	metric.Provider.Prometheus.Address = "https://www.example.com"
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }

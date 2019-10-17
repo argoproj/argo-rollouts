@@ -1285,9 +1285,9 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 			SchemaProps: spec.SchemaProps{
 				Description: "PrometheusMetric defines the prometheus query to perform canary analysis",
 				Properties: map[string]spec.Schema{
-					"server": {
+					"address": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server is the address and port of the prometheus server",
+							Description: "Address is the HTTP address and port of the prometheus server",
 							Type:        []string{"string"},
 							Format:      "",
 						},
