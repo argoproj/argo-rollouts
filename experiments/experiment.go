@@ -1,62 +1,75 @@
 package experiments
 
 import (
+	"time"
+
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/diff"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-func (ec *ExperimentController) reconcileExperiment(experiment *v1alpha1.Experiment, templateRSs map[string]*appsv1.ReplicaSet) error {
-	logCtx := logutil.WithExperiment(experiment)
-
-	if !experimentutil.HasStarted(experiment) {
-		logCtx.Info("Experiment has not started yet")
-		return ec.syncExperimentStatus(experiment, templateRSs)
-	}
-
-	passedDuration, _ := experimentutil.PassedDurations(experiment)
-	if experiment.Status.AvailableAt != nil && !passedDuration {
-		ec.checkEnqueueExperimentDuringRun(experiment)
-	}
-
-	statuses := experimentutil.GetTemplateStatusMapping(experiment.Status)
-	for i := range experiment.Spec.Templates {
-		template := experiment.Spec.Templates[i]
-		logCtx.Infof("Reconciling template %s", template.Name)
-		templateReady, err := ec.reconcileTemplate(experiment, template, statuses[template.Name], templateRSs)
-		if err != nil {
-			return err
-		}
-		if templateReady {
-			logCtx.Infof("Not finished reconciling template %s", template.Name)
-		}
-	}
-
-	return ec.syncExperimentStatus(experiment, templateRSs)
+type experimentContext struct {
+	log                    *log.Entry
+	ex                     *v1alpha1.Experiment
+	templateRSs            map[string]*appsv1.ReplicaSet
+	kubeclientset          kubernetes.Interface
+	argoProjClientset      clientset.Interface
+	replicaSetLister       appslisters.ReplicaSetLister
+	recorder               record.EventRecorder
+	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
 }
 
-func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus, templateRSs map[string]*appsv1.ReplicaSet) (bool, error) {
+func (ec *experimentContext) reconcile() (*v1alpha1.ExperimentStatus, error) {
+	if !experimentutil.HasStarted(ec.ex) {
+		ec.log.Info("Experiment has not started yet")
+		return ec.calculateStatus(), nil
+	}
+
+	passedDuration, _ := experimentutil.PassedDurations(ec.ex)
+	if ec.ex.Status.AvailableAt != nil && !passedDuration {
+		ec.checkEnqueueExperimentDuringRun()
+	}
+
+	statuses := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
+	for i := range ec.ex.Spec.Templates {
+		template := ec.ex.Spec.Templates[i]
+		ec.log.Infof("Reconciling template %s", template.Name)
+		templateReady, err := ec.reconcileTemplate(template, statuses[template.Name])
+		if err != nil {
+			return nil, err
+		}
+		if templateReady {
+			ec.log.Infof("Not finished reconciling template %s", template.Name)
+		}
+	}
+
+	return ec.calculateStatus(), nil
+}
+
+func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (bool, error) {
 	name := template.Name
-	existingTemplateRS, ok := templateRSs[name]
+	existingTemplateRS, ok := ec.templateRSs[name]
 	if !ok {
-		newRS, err := ec.reconcileReplicaSet(experiment, template, templateStatus)
+		newRS, err := ec.reconcileReplicaSet(template, templateStatus)
 		if err != nil {
 			return false, err
 		}
-		templateRSs[name] = newRS
+		ec.templateRSs[name] = newRS
 		return false, nil
 	}
-	templateReplicaCount := experimentutil.CalculateTemplateReplicasCount(experiment, template)
+	templateReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	if *existingTemplateRS.Spec.Replicas != templateReplicaCount {
-		scaled, _, err := ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount, experiment)
+		scaled, _, err := ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount)
 		if err != nil {
 			return false, err
 		}
@@ -70,33 +83,32 @@ func (ec *ExperimentController) reconcileTemplate(experiment *v1alpha1.Experimen
 	return true, nil
 }
 
-func (ec *ExperimentController) checkEnqueueExperimentDuringRun(experiment *v1alpha1.Experiment) {
-	if passed, timeRemaining := experimentutil.PassedDurations(experiment); !passed {
-		logCtx := logutil.WithExperiment(experiment)
-		logCtx.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
-		ec.enqueueExperimentAfter(experiment, timeRemaining)
+func (ec *experimentContext) checkEnqueueExperimentDuringRun() {
+	if passed, timeRemaining := experimentutil.PassedDurations(ec.ex); !passed {
+		ec.log.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
+		ec.enqueueExperimentAfter(ec.ex, timeRemaining)
 	}
 }
 
-func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experiment, templateRSs map[string]*appsv1.ReplicaSet) error {
+func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	newStatus := v1alpha1.ExperimentStatus{
-		Conditions: experiment.Status.Conditions,
+		Conditions: ec.ex.Status.Conditions,
 	}
 
-	newStatus.Running = experiment.Status.Running
-	if !experimentutil.HasStarted(experiment) {
+	newStatus.Running = ec.ex.Status.Running
+	if !experimentutil.HasStarted(ec.ex) {
 		newStatus.Running = pointer.BoolPtr(true)
 	}
 
-	if passed, _ := experimentutil.PassedDurations(experiment); passed {
+	if passed, _ := experimentutil.PassedDurations(ec.ex); passed {
 		newStatus.Running = pointer.BoolPtr(false)
 	}
 
-	previousTemplateStatus := experimentutil.GetTemplateStatusMapping(experiment.Status)
+	previousTemplateStatus := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
 
 	allAvailable := true
-	for i := range experiment.Spec.Templates {
-		template := experiment.Spec.Templates[i]
+	for i := range ec.ex.Spec.Templates {
+		template := ec.ex.Spec.Templates[i]
 		templateStatus := v1alpha1.TemplateStatus{
 			Name: template.Name,
 		}
@@ -104,7 +116,7 @@ func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experi
 			templateStatus.CollisionCount = previousStatus.CollisionCount
 		}
 
-		rs, ok := templateRSs[template.Name]
+		rs, ok := ec.templateRSs[template.Name]
 		if ok {
 			replicaCount := defaults.GetExperimentTemplateReplicasOrDefault(template)
 			templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
@@ -120,39 +132,10 @@ func (ec *ExperimentController) syncExperimentStatus(experiment *v1alpha1.Experi
 		newStatus.TemplateStatuses = append(newStatus.TemplateStatuses, templateStatus)
 	}
 
-	newStatus.AvailableAt = experiment.Status.AvailableAt
-	if allAvailable && experiment.Status.AvailableAt == nil {
+	newStatus.AvailableAt = ec.ex.Status.AvailableAt
+	if allAvailable && ec.ex.Status.AvailableAt == nil {
 		now := metav1.Now()
 		newStatus.AvailableAt = &now
 	}
-
-	newStatus = ec.calculateExperimentConditions(experiment, newStatus, templateRSs)
-	return ec.persistExperimentStatus(experiment, &newStatus)
-}
-
-func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
-	logCtx := logutil.WithExperiment(orig)
-	patch, modified, err := diff.CreateTwoWayMergePatch(
-		&v1alpha1.Experiment{
-			Status: orig.Status,
-		},
-		&v1alpha1.Experiment{
-			Status: *newStatus,
-		}, v1alpha1.Experiment{})
-	if err != nil {
-		logCtx.Errorf("Error constructing app status patch: %v", err)
-		return err
-	}
-	if !modified {
-		logCtx.Info("No status changes. Skipping patch")
-		return nil
-	}
-	logCtx.Debugf("Experiment Patch: %s", patch)
-	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
-	if err != nil {
-		logCtx.Warningf("Error updating experiment: %v", err)
-		return err
-	}
-	logCtx.Info("Patch status successfully")
-	return nil
+	return calculateExperimentConditions(ec.ex, newStatus)
 }

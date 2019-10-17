@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	"github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -79,16 +78,15 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 	return templateToRS, nil
 }
 
-func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (*appsv1.ReplicaSet, error) {
-	logCtx := log.WithExperiment(experiment)
+func (ec *experimentContext) reconcileReplicaSet(template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (*appsv1.ReplicaSet, error) {
 	newRSTemplate := *template.Template.DeepCopy()
 
 	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, templateStatus.CollisionCount)
 	newRS := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
-			Namespace:       experiment.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
+			Name:            fmt.Sprintf("%s-%s-%s", ec.ex.Name, template.Name, podTemplateSpecHash),
+			Namespace:       ec.ex.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
 			Labels:          newRSTemplate.Labels,
 		},
 		Spec: appsv1.ReplicaSetSpec{
@@ -99,16 +97,16 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		},
 	}
 
-	newReplicasCount := experimentutil.CalculateTemplateReplicasCount(experiment, template)
+	newReplicasCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	*(newRS.Spec.Replicas) = newReplicasCount
 
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Experiment.
 	alreadyExists := false
-	createdRS, err := ec.kubeclientset.AppsV1().ReplicaSets(experiment.Namespace).Create(&newRS)
+	createdRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Create(&newRS)
 	switch {
-	// We may end up hitting this due to a slow cache or a fast resync of the Exlerj e t.
+	// We may end up hitting this due to a slow cache or a fast resync of the Experiment.
 	case errors.IsAlreadyExists(err):
 		alreadyExists = true
 
@@ -123,7 +121,7 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
 		// the status of the Experiment and requeue to try the creation in the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
-		if controllerRef != nil && controllerRef.UID == experiment.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &template.Template) {
+		if controllerRef != nil && controllerRef.UID == ec.ex.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &template.Template) {
 			createdRS = rs
 			err = nil
 			break
@@ -141,7 +139,7 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		preCollisionCount := *newTemplate.CollisionCount
 		*newTemplate.CollisionCount++
 
-		statusCpy := experiment.Status.DeepCopy()
+		statusCpy := ec.ex.Status.DeepCopy()
 		statusCpy.TemplateStatuses = append(statusCpy.TemplateStatuses, newTemplate)
 		templateStatusBytes, marshelErr := json.Marshal(statusCpy.TemplateStatuses)
 		if marshelErr != nil {
@@ -149,29 +147,30 @@ func (ec *ExperimentController) reconcileReplicaSet(experiment *v1alpha1.Experim
 		}
 
 		patch := fmt.Sprintf(CollisionCountPatch, string(templateStatusBytes))
-		_, patchErr := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Patch(experiment.Name, patchtypes.MergePatchType, []byte(patch))
-		logCtx.WithField("patch", patch).Debug("Applied Patch")
+		_, patchErr := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(ec.ex.Namespace).Patch(ec.ex.Name, patchtypes.MergePatchType, []byte(patch))
+		ec.log.WithField("patch", patch).Debug("Applied Patch")
 		if patchErr != nil {
-			logCtx.Errorf("Error patching service %s", err.Error())
+			ec.log.Errorf("Error patching service %s", err.Error())
 		}
-		logCtx.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *newTemplate.CollisionCount)
+		ec.log.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *newTemplate.CollisionCount)
 		return nil, err
 	case err != nil:
 		msg := fmt.Sprintf(conditions.FailedRSCreateMessage, newRS.Name, err)
-		ec.recorder.Event(experiment, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
-		newStatus := experiment.Status.DeepCopy()
-		ec.persistExperimentStatus(experiment, newStatus)
+		ec.recorder.Event(ec.ex, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
+		// TODO(jessesuen): this didn't seem like it did anything so commented it out
+		// newStatus := ec.ex.Status.DeepCopy()
+		// ec.persistExperimentStatus(ec.ex, newStatus)
 		return nil, err
 	}
 
 	if !alreadyExists && newReplicasCount > int32(0) {
-		ec.recorder.Eventf(experiment, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
+		ec.recorder.Eventf(ec.ex, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
 	return nil, err
 }
 
-func (ec *ExperimentController) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32, experiment *v1alpha1.Experiment) (bool, *appsv1.ReplicaSet, error) {
+func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
 	// No need to scale
 	if *(rs.Spec.Replicas) == newScale {
 		return false, rs, nil
@@ -182,11 +181,11 @@ func (ec *ExperimentController) scaleReplicaSetAndRecordEvent(rs *appsv1.Replica
 	} else {
 		scalingOperation = "down"
 	}
-	scaled, newRS, err := ec.scaleReplicaSet(rs, newScale, experiment, scalingOperation)
+	scaled, newRS, err := ec.scaleReplicaSet(rs, newScale, scalingOperation)
 	return scaled, newRS, err
 }
 
-func (ec *ExperimentController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, experiment *v1alpha1.Experiment, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
+func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
 	scaled := false
 	var err error
@@ -196,7 +195,7 @@ func (ec *ExperimentController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale 
 		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(rsCopy)
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
-			ec.recorder.Eventf(experiment, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)
+			ec.recorder.Eventf(ec.ex, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)
 		}
 	}
 	return scaled, rs, err
