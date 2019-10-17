@@ -119,7 +119,9 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-
+	if !rollout.Status.ControllerPause {
+		roCtx.PauseContext().AddControllerPause()
+	}
 	if currentStep.Pause.Duration == nil {
 		return true
 	}
@@ -239,7 +241,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
+	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.Canary.StableRS = r.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
 	stepCount := int32(len(r.Spec.Strategy.Canary.Steps))
@@ -254,7 +256,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
 			}
 		}
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -270,7 +272,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			newStatus.CurrentStepIndex = &stepCount
 
 		}
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -295,7 +297,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -307,7 +309,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -324,7 +326,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-		roCtx.PauseContext().RemovePause()
+		roCtx.PauseContext().RemoveControllerPause()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -336,9 +338,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 	}
 
-	if !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil {
-		roCtx.PauseContext().AddPause()
-	}
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 	return c.persistRolloutStatus(roCtx, &newStatus)

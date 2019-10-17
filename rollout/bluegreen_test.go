@@ -157,10 +157,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.run(getKey(r2, t))
 
 		expectedPatch := `{
-			"spec": {
-				"paused": true
-			},
 			"status": {
+				"controllerPause": true,
 				"pauseStartTime": "%s"
 			}
 		}`
@@ -311,10 +309,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 		expectedPatchWithoutSubs := `{
-			"spec": {
-				"paused": null
-			},
 			"status": {
+				"controllerPause": null,
 				"pauseStartTime": null
 			}
 		}`
@@ -403,10 +399,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		now := metav1.Now().UTC().Format(time.RFC3339)
 		expectedPatchWithoutSubs := `{
-			"spec": {
-				"paused": true
-			},
 			"status": {
+				"controllerPause": true,
 				"pauseStartTime": "%s"
 			}
 		}`

@@ -207,7 +207,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
 	logCtx := logutil.WithRollout(r)
-	logCtx.Infof("Syncing replicas only (paused: %v, isScaling: %v)", r.Spec.Paused, isScaling)
+	logCtx.Infof("Syncing replicas only (paused: %v, isScaling: %v)", r.Status.ControllerPause, isScaling)
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
 	if err != nil {
 		return err
@@ -420,9 +420,9 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
 
 	var updatedConditon *v1alpha1.RolloutCondition
-	if r.Spec.Paused && !pausedCondExists {
+	if r.Status.ControllerPause && !pausedCondExists {
 		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
-	} else if !r.Spec.Paused && pausedCondExists {
+	} else if !r.Status.ControllerPause && pausedCondExists {
 		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
 	}
 
@@ -469,7 +469,7 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	r := roCtx.Rollout()
 	allRSs := roCtx.AllRSs()
 	newRS := roCtx.NewRS()
-	if r.Spec.Paused {
+	if r.Status.ControllerPause {
 		return newStatus
 	}
 
@@ -570,28 +570,16 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 func (c *RolloutController) persistRolloutStatus(roCtx rolloutContext, newStatus *v1alpha1.RolloutStatus) error {
 	orig := roCtx.Rollout()
 	specCopy := orig.Spec.DeepCopy()
-
 	pauseStartTime, newPause := calculatePauseStatus(roCtx)
 	newStatus.PauseStartTime = pauseStartTime
-
-	pauseCtx := roCtx.PauseContext()
-	if pauseCtx.addPause || pauseCtx.removePause {
-		specCopy.Paused = newPause
-	}
+	newStatus.ControllerPause = newPause
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
-
 	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
-			Spec: v1alpha1.RolloutSpec{
-				Paused: orig.Spec.Paused,
-			},
 			Status: orig.Status,
 		},
 		&v1alpha1.Rollout{
-			Spec: v1alpha1.RolloutSpec{
-				Paused: newPause,
-			},
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})
 	if err != nil {
@@ -627,7 +615,7 @@ func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v
 		return time.Duration(-1)
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
-	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || r.Spec.Paused {
+	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || r.Status.ControllerPause {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the

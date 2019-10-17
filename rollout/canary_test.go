@@ -104,10 +104,8 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
-		"spec":{
-			"paused": true
-		},
 		"status":{
+			"controllerPause": true,
 			"pauseStartTime":"%s",
 			"conditions": %s
 		}
@@ -775,10 +773,8 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	expectedPatchWithoutTime := `{
-		"spec" :{
-			"paused": true
-		},
 		"status":{
+			"controllerPause": true,
 			"pauseStartTime": "%s",
 			"conditions": %s
 		}
@@ -1070,7 +1066,6 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
-	r1.Spec.Paused = true
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
 	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
 	r1.Status.PauseStartTime = &overAMinuteAgo
@@ -1089,14 +1084,12 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	err := json.Unmarshal([]byte(patch), &patchObj)
 	assert.NoError(t, err)
 
-	spec := patchObj["spec"].(map[string]interface{})
-	paused, ok := spec["paused"]
-	assert.True(t, ok)
-	assert.Nil(t, paused)
-
 	status := patchObj["status"].(map[string]interface{})
 	assert.Equal(t, float64(2), status["currentStepIndex"])
 	pauseStartTime, ok := status["pauseStartTime"]
 	assert.True(t, ok)
 	assert.Equal(t, nil, pauseStartTime)
+	controllerPause, ok := status["controllerPause"]
+	assert.True(t, ok)
+	assert.Nil(t, controllerPause)
 }

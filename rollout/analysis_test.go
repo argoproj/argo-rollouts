@@ -542,10 +542,8 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	expectedPatch := `{
-		"spec":{
-			"paused": true
-		},
 		"status": {
+			"controllerPause": true,
 			"conditions": %s,
 			"canary": {
 				"currentStepAnalysisRun": null
