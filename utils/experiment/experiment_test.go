@@ -151,7 +151,7 @@ func TestExperimentGeneratedNameFromRollout(t *testing.T) {
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{{
 						Experiment: &v1alpha1.RolloutExperimentStep{},
 					}},

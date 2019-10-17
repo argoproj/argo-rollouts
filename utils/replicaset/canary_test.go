@@ -17,7 +17,7 @@ func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.I
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: &specReplicas,
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					MaxUnavailable: &maxUnavailable,
 					MaxSurge:       &maxSurge,
 					Steps: []v1alpha1.CanaryStep{{
@@ -390,11 +390,11 @@ func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 
 func TestGetCurrentCanaryStep(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
-	rollout.Spec.Strategy.CanaryStrategy.Steps = nil
+	rollout.Spec.Strategy.Canary.Steps = nil
 	noCurrentSteps, _ := GetCurrentCanaryStep(rollout)
 	assert.Nil(t, noCurrentSteps)
 
-	rollout.Spec.Strategy.CanaryStrategy.Steps = []v1alpha1.CanaryStep{{
+	rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 		Pause: &v1alpha1.RolloutPause{},
 	}}
 	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(0)
@@ -426,7 +426,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
 							Experiment: &v1alpha1.RolloutExperimentStep{
@@ -454,7 +454,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
-	rollout.Spec.Strategy.CanaryStrategy.Steps[0] = v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(10)}
+	rollout.Spec.Strategy.Canary.Steps[0] = v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(10)}
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))

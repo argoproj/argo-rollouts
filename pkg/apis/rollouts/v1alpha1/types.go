@@ -69,12 +69,11 @@ const (
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
-// TODO(jessesuen): rename field names to match json tags to remove api violations
 type RolloutStrategy struct {
 	// +optional
-	BlueGreenStrategy *BlueGreenStrategy `json:"blueGreen,omitempty"`
+	BlueGreen *BlueGreenStrategy `json:"blueGreen,omitempty"`
 	// +optional
-	CanaryStrategy *CanaryStrategy `json:"canary,omitempty"`
+	Canary *CanaryStrategy `json:"canary,omitempty"`
 }
 
 // BlueGreenStrategy defines parameters for Blue Green deployment

@@ -38,7 +38,7 @@ func TestGetRolloutServiceKeysForCanary(t *testing.T) {
 	keys := GetRolloutServiceKeys(&v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{},
+				Canary: &v1alpha1.CanaryStrategy{},
 			},
 		},
 	})
@@ -52,7 +52,7 @@ func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				CanaryStrategy: &v1alpha1.CanaryStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
 					CanaryService: "canary-service",
 				},
 			},
@@ -68,7 +68,7 @@ func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					PreviewService: "preview-service",
 					ActiveService:  "active-service",
 				},

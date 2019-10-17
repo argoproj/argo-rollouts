@@ -26,7 +26,7 @@ import (
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 	selector := map[string]string{"foo": "bar"}
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
-	rollout.Spec.Strategy.CanaryStrategy = &v1alpha1.CanaryStrategy{
+	rollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		MaxUnavailable: &maxUnavailable,
 		MaxSurge:       &maxSurge,
 		Steps:          steps,
@@ -285,7 +285,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	expectedCurrentPodHash := r2.Status.CurrentPodHash
-	r2.Spec.Strategy.CanaryStrategy.Steps = append(steps, v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}})
+	r2.Spec.Strategy.Canary.Steps = append(steps, v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}})
 	expectedCurrentStepHash := conditions.ComputeStepHash(r2)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -639,7 +639,7 @@ func TestGradualShiftToNewStable(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 13, 4, 13, false)
 	maxSurge := intstr.FromInt(3)
-	r2.Spec.Strategy.CanaryStrategy.MaxSurge = &maxSurge
+	r2.Spec.Strategy.Canary.MaxSurge = &maxSurge
 	r2.Status.CurrentPodHash = rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -682,7 +682,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 9, 10, false)
-	r2.Spec.Strategy.CanaryStrategy.Steps[0].SetWeight = pointer.Int32Ptr(20)
+	r2.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32Ptr(20)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -968,7 +968,7 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	canarySvc := newService("canary", 80, nil)
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
-	rollout.Spec.Strategy.CanaryStrategy.CanaryService = canarySvc.Name
+	rollout.Spec.Strategy.Canary.CanaryService = canarySvc.Name
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
@@ -987,7 +987,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	canarySvc := newService("invalid-canary", 80, make(map[string]string))
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
-	rollout.Spec.Strategy.CanaryStrategy.CanaryService = canarySvc.Name
+	rollout.Spec.Strategy.Canary.CanaryService = canarySvc.Name
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)

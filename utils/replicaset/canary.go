@@ -223,17 +223,17 @@ func extraReplicaAdded(replicas int32, setWeight int32) bool {
 // GetCurrentCanaryStep returns the current canary step. If there are no steps or the rollout
 // has already executed the last step, the func returns nil
 func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int32) {
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) == 0 {
+	if len(rollout.Spec.Strategy.Canary.Steps) == 0 {
 		return nil, nil
 	}
 	currentStepIndex := int32(0)
 	if rollout.Status.CurrentStepIndex != nil {
 		currentStepIndex = *rollout.Status.CurrentStepIndex
 	}
-	if len(rollout.Spec.Strategy.CanaryStrategy.Steps) <= int(currentStepIndex) {
+	if len(rollout.Spec.Strategy.Canary.Steps) <= int(currentStepIndex) {
 		return nil, &currentStepIndex
 	}
-	return &rollout.Spec.Strategy.CanaryStrategy.Steps[currentStepIndex], &currentStepIndex
+	return &rollout.Spec.Strategy.Canary.Steps[currentStepIndex], &currentStepIndex
 }
 
 // GetCurrentSetWeight grabs the current setWeight used by the rollout by iterating backwards from the current step
@@ -246,7 +246,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	}
 
 	for i := *currentStepIndex; i >= 0; i-- {
-		step := rollout.Spec.Strategy.CanaryStrategy.Steps[i]
+		step := rollout.Spec.Strategy.Canary.Steps[i]
 		if step.SetWeight != nil {
 			return *step.SetWeight
 		}
@@ -284,7 +284,7 @@ func GetCurrentExperimentStep(r *v1alpha1.Rollout) *v1alpha1.RolloutExperimentSt
 	}
 
 	for i := *currentStepIndex; i >= 0; i-- {
-		step := r.Spec.Strategy.CanaryStrategy.Steps[i]
+		step := r.Spec.Strategy.Canary.Steps[i]
 		if step.Experiment != nil {
 			return step.Experiment
 		}

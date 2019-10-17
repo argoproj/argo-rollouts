@@ -187,12 +187,12 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 
 func TestNewRSNewReplicas(t *testing.T) {
 	ro := generateRollout("test")
-	ro.Spec.Strategy.BlueGreenStrategy = &v1alpha1.BlueGreenStrategy{}
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
 
-	ro.Spec.Strategy.BlueGreenStrategy = nil
+	ro.Spec.Strategy.BlueGreen = nil
 	_, err = NewRSNewReplicas(&ro, nil, nil)
 	assert.Error(t, err, "no rollout strategy provided")
 }
@@ -256,7 +256,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 				Spec: v1alpha1.RolloutSpec{
 					Replicas: &replicaCount,
 					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{
 							PreviewReplicaCount: &previewReplicaCount,
 						},
 					},
@@ -502,7 +502,7 @@ func TestMaxSurge(t *testing.T) {
 			Spec: v1alpha1.RolloutSpec{
 				Replicas: func(i int32) *int32 { return &i }(replicas),
 				Strategy: v1alpha1.RolloutStrategy{
-					CanaryStrategy: &v1alpha1.CanaryStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
 						MaxUnavailable: func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
 						MaxSurge:       &maxSurge,
 					},
@@ -525,7 +525,7 @@ func TestMaxSurge(t *testing.T) {
 			rollout: &v1alpha1.Rollout{
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
 					},
 				},
 			},
@@ -551,7 +551,7 @@ func TestMaxUnavailable(t *testing.T) {
 			Spec: v1alpha1.RolloutSpec{
 				Replicas: func(i int32) *int32 { return &i }(replicas),
 				Strategy: v1alpha1.RolloutStrategy{
-					CanaryStrategy: &v1alpha1.CanaryStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
 						MaxSurge:       func(i int) *intstr.IntOrString { x := intstr.FromInt(i); return &x }(int(1)),
 						MaxUnavailable: &maxUnavailable,
 					},
@@ -589,7 +589,7 @@ func TestMaxUnavailable(t *testing.T) {
 			rollout: &v1alpha1.Rollout{
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreenStrategy: &v1alpha1.BlueGreenStrategy{},
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
 					},
 				},
 			},
@@ -642,7 +642,7 @@ func TestCheckStepHashChange(t *testing.T) {
 
 func TestResetCurrentStepIndex(t *testing.T) {
 	ro := generateRollout("ngnix")
-	ro.Spec.Strategy.CanaryStrategy = &v1alpha1.CanaryStrategy{
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{
 			{
 				SetWeight: pointer.Int32Ptr(1),
@@ -652,7 +652,7 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	newStepIndex := ResetCurrentStepIndex(&ro)
 	assert.Equal(t, pointer.Int32Ptr(0), newStepIndex)
 
-	ro.Spec.Strategy.CanaryStrategy.Steps = nil
+	ro.Spec.Strategy.Canary.Steps = nil
 	newStepIndex = ResetCurrentStepIndex(&ro)
 	assert.Nil(t, newStepIndex)
 
