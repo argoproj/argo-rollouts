@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,6 +24,7 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -185,10 +187,11 @@ func (ec *ExperimentController) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	log.WithField(logutil.ExperimentKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing Experiment at (%v)", startTime)
+	logCtx := log.WithField(logutil.ExperimentKey, name).WithField(logutil.NamespaceKey, namespace)
+	logCtx.Infof("Started syncing Experiment at (%v)", startTime)
 	experiment, err := ec.experimentsLister.Experiments(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
-		log.WithField(logutil.ExperimentKey, name).WithField(logutil.NamespaceKey, namespace).Info("Experiment has been deleted")
+		logCtx.Info("Experiment has been deleted")
 		return nil
 	}
 	if err != nil {
@@ -199,19 +202,18 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		duration := time.Since(startTime)
 		//TODO(dthomson) Add metrics for experiments
 		//ec.metricsServer.IncReconcile(r, duration)
-		logCtx := logutil.WithExperiment(experiment).WithField("time_ms", duration.Seconds()*1e3)
-		logCtx.Info("Reconciliation completed")
+		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
 	if experiment.DeletionTimestamp != nil {
-		logutil.WithExperiment(experiment).Info("No reconciliation as experiment marked for deletion")
+		logCtx.Info("No reconciliation as experiment marked for deletion")
 		return nil
 	}
 
 	prevCond := conditions.GetExperimentCondition(experiment.Status, v1alpha1.InvalidExperimentSpec)
 	invalidSpecCond := conditions.VerifyExperimentSpec(experiment, prevCond)
 	if invalidSpecCond != nil {
-		logutil.WithExperiment(experiment).Error("Spec submitted is invalid")
+		logCtx.Error("Spec submitted is invalid")
 		newStatus := experiment.Status.DeepCopy()
 		// SetExperimentCondition only updates the condition when the status and/or reason changes, but
 		// the controller should update the invalidSpec if there is a change in why the spec is invalid
@@ -229,5 +231,47 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		return err
 	}
 
-	return ec.reconcileExperiment(experiment, templateRSs)
+	exCtx := experimentContext{
+		log:                    logCtx,
+		ex:                     experiment,
+		templateRSs:            templateRSs,
+		kubeclientset:          ec.kubeclientset,
+		argoProjClientset:      ec.argoProjClientset,
+		replicaSetLister:       ec.replicaSetLister,
+		recorder:               ec.recorder,
+		enqueueExperimentAfter: ec.enqueueExperimentAfter,
+	}
+
+	newStatus, err := exCtx.reconcile()
+	if err != nil {
+		return err
+	}
+	return ec.persistExperimentStatus(experiment, newStatus)
+}
+
+func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
+	logCtx := logutil.WithExperiment(orig)
+	patch, modified, err := diff.CreateTwoWayMergePatch(
+		&v1alpha1.Experiment{
+			Status: orig.Status,
+		},
+		&v1alpha1.Experiment{
+			Status: *newStatus,
+		}, v1alpha1.Experiment{})
+	if err != nil {
+		logCtx.Errorf("Error constructing app status patch: %v", err)
+		return err
+	}
+	if !modified {
+		logCtx.Info("No status changes. Skipping patch")
+		return nil
+	}
+	logCtx.Debugf("Experiment Patch: %s", patch)
+	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	if err != nil {
+		logCtx.Warningf("Error updating experiment: %v", err)
+		return err
+	}
+	logCtx.Info("Patch status successfully")
+	return nil
 }

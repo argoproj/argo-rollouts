@@ -3,14 +3,13 @@ package experiments
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
-func (ec *ExperimentController) calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1alpha1.ExperimentStatus, templateRSs map[string]*appsv1.ReplicaSet) v1alpha1.ExperimentStatus {
+func calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1alpha1.ExperimentStatus) *v1alpha1.ExperimentStatus {
 
 	prevCond := conditions.GetExperimentCondition(experiment.Status, v1alpha1.InvalidExperimentSpec)
 	invalidSpecCond := conditions.VerifyExperimentSpec(experiment, prevCond)
@@ -57,5 +56,5 @@ func (ec *ExperimentController) calculateExperimentConditions(experiment *v1alph
 		condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
 		conditions.SetExperimentCondition(&newStatus, *condition)
 	}
-	return newStatus
+	return &newStatus
 }
