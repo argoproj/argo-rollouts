@@ -56,15 +56,20 @@ type canaryContext struct {
 
 func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) *blueGreenContext {
 	allRSs := append(olderRSs, newRS)
+	logCtx := logutil.WithRollout(r)
 	return &blueGreenContext{
 		rollout: r,
-		log:     logutil.WithRollout(r),
+		log:     logCtx,
 
 		newRS:    newRS,
 		olderRSs: olderRSs,
 		allRSs:   allRSs,
 
-		pauseContext: &pauseContext{},
+		pauseContext: &pauseContext{
+			log:             logCtx,
+			controllerPause: r.Status.ControllerPause,
+			pauseStartTime:  r.Status.PauseStartTime,
+		},
 	}
 }
 
@@ -116,9 +121,10 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 	currentEx := experimentutil.GetCurrentExperiment(r, exList)
 	otherExs := experimentutil.GetOldExperiments(r, exList)
+	logCtx := logutil.WithRollout(r)
 	return &canaryContext{
 		rollout:  r,
-		log:      logutil.WithRollout(r),
+		log:      logCtx,
 		newRS:    newRS,
 		stableRS: stableRS,
 		olderRSs: olderRSs,
@@ -130,7 +136,11 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 		currentEx: currentEx,
 		otherExs:  otherExs,
 
-		pauseContext: &pauseContext{},
+		pauseContext: &pauseContext{
+			log:             logCtx,
+			controllerPause: r.Status.ControllerPause,
+			pauseStartTime:  r.Status.PauseStartTime,
+		},
 	}
 }
 

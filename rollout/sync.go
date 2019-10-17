@@ -250,6 +250,10 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 				return err
 			}
 		}
+		// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
+		// if we are at a pause step with a duration.
+		c.reconcileCanaryPause(roCtx)
+
 		return c.syncRolloutStatusCanary(roCtx)
 	}
 	return fmt.Errorf("no rollout strategy provided")
@@ -570,9 +574,8 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 func (c *RolloutController) persistRolloutStatus(roCtx rolloutContext, newStatus *v1alpha1.RolloutStatus) error {
 	orig := roCtx.Rollout()
 	specCopy := orig.Spec.DeepCopy()
-	pauseStartTime, newPause := calculatePauseStatus(roCtx)
-	newStatus.PauseStartTime = pauseStartTime
-	newStatus.ControllerPause = newPause
+
+	roCtx.PauseContext().CalculatePauseStatus(newStatus)
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
 	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
