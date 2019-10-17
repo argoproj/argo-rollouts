@@ -142,7 +142,7 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	client, err := api.NewClient(api.Config{
-		Address: metric.Provider.Prometheus.Server,
+		Address: metric.Provider.Prometheus.Address,
 	})
 	if err != nil {
 		return nil, err

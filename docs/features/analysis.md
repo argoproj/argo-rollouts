@@ -76,7 +76,7 @@ spec:
     successCondition: result >= 0.95
     maxFailures: 3
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: |
         sum(irate(
           istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
@@ -131,7 +131,7 @@ spec:
   - name: success-rate
     successCondition: result >= 0.95
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: |
         sum(irate(
           istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
@@ -151,7 +151,7 @@ Multiple measurements can be performed over a longer duration period, by specify
     interval: 60
     count: 5
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: ...
 ```
 
@@ -168,7 +168,7 @@ every 5 minutes, causing the analysis run to fail if 10 or more errors were enco
     failureCondition: result >= 10
     maxFailures: 3
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: |
         sum(irate(
           istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code~"5.*"}[5m]
@@ -186,7 +186,7 @@ could become `Inconclusive`, is when a metric defines no success or failure cond
   metrics:
   - name: my-query
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: ...
 ```
 
@@ -199,7 +199,7 @@ specified, but the measurement value did not meet either condition.
     successCondition: result >= 0.90
     failureCondition: result < 0.50
     prometheus:
-      server: http://prometheus.example.com:9090
+      address: http://prometheus.example.com:9090
       query: ...
 ```
 

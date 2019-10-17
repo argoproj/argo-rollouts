@@ -2499,9 +2499,9 @@ spec:
                             type: object
                           prometheus:
                             properties:
-                              query:
+                              address:
                                 type: string
-                              server:
+                              query:
                                 type: string
                             type: object
                         type: object
@@ -5107,9 +5107,9 @@ spec:
                         type: object
                       prometheus:
                         properties:
-                          query:
+                          address:
                             type: string
-                          server:
+                          query:
                             type: string
                         type: object
                     type: object

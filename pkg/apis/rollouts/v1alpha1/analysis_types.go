@@ -115,8 +115,8 @@ func (as AnalysisStatus) Completed() bool {
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
 type PrometheusMetric struct {
-	// Server is the address and port of the prometheus server
-	Server string `json:"server,omitempty"`
+	// Address is the HTTP address and port of the prometheus server
+	Address string `json:"address,omitempty"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty"`
 }
