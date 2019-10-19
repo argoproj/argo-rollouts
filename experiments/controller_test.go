@@ -65,11 +65,23 @@ type fixture struct {
 	unfreezeTime    func()
 }
 
-func newFixture(t *testing.T) *fixture {
+func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f := &fixture{}
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
+	for _, obj := range objects {
+		switch obj.(type) {
+		case *v1alpha1.Experiment:
+			f.objects = append(f.objects, obj)
+			f.experimentLister = append(f.experimentLister, obj.(*v1alpha1.Experiment))
+		case *appsv1.ReplicaSet:
+			f.kubeobjects = append(f.kubeobjects, obj)
+			f.replicaSetLister = append(f.replicaSetLister, obj.(*appsv1.ReplicaSet))
+		}
+	}
+	f.client = fake.NewSimpleClientset(f.objects...)
+	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
 	patch := monkey.Patch(time.Now, func() time.Time { return now })
@@ -284,9 +296,6 @@ func getKey(experiment *v1alpha1.Experiment, t *testing.T) string {
 type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*ExperimentController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
-	f.client = fake.NewSimpleClientset(f.objects...)
-	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
-
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -593,15 +602,12 @@ func validatePatch(t *testing.T, patch string, running *bool, availableleAt avai
 }
 
 func TestAddInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -617,9 +623,6 @@ func TestAddInvalidSpec(t *testing.T) {
 }
 
 func TestKeepInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
@@ -630,17 +633,14 @@ func TestKeepInvalidSpec(t *testing.T) {
 	}}
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	f.run(getKey(e, t))
 
 }
 
 func TestUpdateInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 
@@ -653,8 +653,8 @@ func TestUpdateInvalidSpec(t *testing.T) {
 
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -671,9 +671,6 @@ func TestUpdateInvalidSpec(t *testing.T) {
 }
 
 func TestRemoveInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 
@@ -683,8 +680,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		Reason: conditions.InvalidSpecReason,
 	}}
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  generateName: experiment-basic-
+spec:
+  duration: 30
+  templates:
+  - name: baseline
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+  - name: canary
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:yellow
+
+---

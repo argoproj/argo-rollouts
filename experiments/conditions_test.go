@@ -12,8 +12,6 @@ import (
 )
 
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
 
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(2)
@@ -29,11 +27,10 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 		*prevCond,
 	}
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
 	rs := templateToRS(e, templates[0], 1)
-	f.replicaSetLister = append(f.replicaSetLister, rs)
-	f.kubeobjects = append(f.kubeobjects, rs)
+
+	f := newFixture(t, e, rs)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 
@@ -49,9 +46,6 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 }
 
 func TestEnterTimeoutDegradedState(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
@@ -66,11 +60,9 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 		*prevCond,
 	}
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
 	rs := templateToRS(e, templates[0], 0)
-	f.replicaSetLister = append(f.replicaSetLister, rs)
-	f.kubeobjects = append(f.kubeobjects, rs)
+	f := newFixture(t, e, rs)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 

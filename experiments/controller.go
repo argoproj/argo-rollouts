@@ -231,21 +231,17 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		return err
 	}
 
-	exCtx := experimentContext{
-		log:                    logCtx,
-		ex:                     experiment,
-		templateRSs:            templateRSs,
-		kubeclientset:          ec.kubeclientset,
-		argoProjClientset:      ec.argoProjClientset,
-		replicaSetLister:       ec.replicaSetLister,
-		recorder:               ec.recorder,
-		enqueueExperimentAfter: ec.enqueueExperimentAfter,
-	}
+	exCtx := newExperimentContext(
+		experiment,
+		templateRSs,
+		ec.kubeclientset,
+		ec.argoProjClientset,
+		ec.replicaSetLister,
+		ec.recorder,
+		ec.enqueueExperimentAfter,
+	)
 
-	newStatus, err := exCtx.reconcile()
-	if err != nil {
-		return err
-	}
+	newStatus := exCtx.reconcile()
 	return ec.persistExperimentStatus(experiment, newStatus)
 }
 

@@ -143,7 +143,7 @@ func EnqueueParentObject(obj interface{}, ownerType string, enqueue func(obj int
 		}
 		namespace := object.GetNamespace()
 		parent := cache.ExplicitKey(namespace + "/" + ownerRef.Name)
-		log.Infof("Enqueuing parent of %s %s/%s: %s %s", ownerType, namespace, object.GetName(), ownerRef.Kind, parent)
+		log.Infof("Enqueuing parent of %s/%s: %s %s", namespace, object.GetName(), ownerRef.Kind, parent)
 		enqueue(parent)
 	}
 }

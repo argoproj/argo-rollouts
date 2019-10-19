@@ -26,6 +26,10 @@ const (
 }`
 )
 
+const (
+	ExperimentTemplateNameLabelKey = "experiment.argoproj.io/template-name"
+)
+
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.Experiment) (map[string]*appsv1.ReplicaSet, error) {
@@ -78,16 +82,21 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 	return templateToRS, nil
 }
 
-func (ec *experimentContext) reconcileReplicaSet(template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (*appsv1.ReplicaSet, error) {
+// createReplicaSet creates a new replicaset based on the template
+func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, collisionCount *int32) (*appsv1.ReplicaSet, error) {
 	newRSTemplate := *template.Template.DeepCopy()
-
-	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, templateStatus.CollisionCount)
+	// The labels must be different for each template because labels are used to match replicasets
+	// to templates. We inject the template name in the replicaset labels to ensure uniqueness.
+	replicaSetlabels := map[string]string{
+		ExperimentTemplateNameLabelKey: template.Name,
+	}
+	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
 	newRS := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s-%s", ec.ex.Name, template.Name, podTemplateSpecHash),
 			Namespace:       ec.ex.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
-			Labels:          newRSTemplate.Labels,
+			Labels:          replicaSetlabels,
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas:        new(int32),
@@ -141,9 +150,9 @@ func (ec *experimentContext) reconcileReplicaSet(template v1alpha1.TemplateSpec,
 
 		statusCpy := ec.ex.Status.DeepCopy()
 		statusCpy.TemplateStatuses = append(statusCpy.TemplateStatuses, newTemplate)
-		templateStatusBytes, marshelErr := json.Marshal(statusCpy.TemplateStatuses)
-		if marshelErr != nil {
-			return nil, marshelErr
+		templateStatusBytes, marshalErr := json.Marshal(statusCpy.TemplateStatuses)
+		if marshalErr != nil {
+			return nil, marshalErr
 		}
 
 		patch := fmt.Sprintf(CollisionCountPatch, string(templateStatusBytes))
@@ -151,23 +160,23 @@ func (ec *experimentContext) reconcileReplicaSet(template v1alpha1.TemplateSpec,
 		ec.log.WithField("patch", patch).Debug("Applied Patch")
 		if patchErr != nil {
 			ec.log.Errorf("Error patching service %s", err.Error())
+			return nil, patchErr
 		}
 		ec.log.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *newTemplate.CollisionCount)
 		return nil, err
 	case err != nil:
 		msg := fmt.Sprintf(conditions.FailedRSCreateMessage, newRS.Name, err)
 		ec.recorder.Event(ec.ex, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
-		// TODO(jessesuen): this didn't seem like it did anything so commented it out
-		// newStatus := ec.ex.Status.DeepCopy()
-		// ec.persistExperimentStatus(ec.ex, newStatus)
 		return nil, err
+	default:
+		ec.log.Infof("Created ReplicaSet %s", createdRS.Name)
 	}
 
 	if !alreadyExists && newReplicasCount > int32(0) {
 		ec.recorder.Eventf(ec.ex, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
-	return nil, err
+	return createdRS, nil
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
@@ -182,6 +191,11 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 		scalingOperation = "down"
 	}
 	scaled, newRS, err := ec.scaleReplicaSet(rs, newScale, scalingOperation)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to scale %s %s: %v", rs.Name, scalingOperation, err)
+		ec.recorder.Event(ec.ex, corev1.EventTypeWarning, "ReplicaSetUpdateError", msg)
+
+	}
 	return scaled, newRS, err
 }
 

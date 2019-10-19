@@ -5155,6 +5155,32 @@ spec:
           type: object
         spec:
           properties:
+            analyses:
+              items:
+                properties:
+                  arguments:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - name
+                      - value
+                      type: object
+                    type: array
+                  executionPhase:
+                    type: string
+                  name:
+                    type: string
+                  templateName:
+                    type: string
+                required:
+                - name
+                - templateName
+                type: object
+              type: array
             duration:
               format: int32
               type: integer
@@ -7596,11 +7622,30 @@ spec:
                 - template
                 type: object
               type: array
+            terminate:
+              type: boolean
           required:
           - templates
           type: object
         status:
           properties:
+            analysisRuns:
+              items:
+                properties:
+                  analysisRun:
+                    type: string
+                  message:
+                    type: string
+                  name:
+                    type: string
+                  status:
+                    type: string
+                required:
+                - analysisRun
+                - name
+                - status
+                type: object
+              type: array
             availableAt:
               format: date-time
               type: string
@@ -7630,10 +7675,10 @@ spec:
                 - type
                 type: object
               type: array
-            observedGeneration:
-              type: string
             running:
               type: boolean
+            status:
+              type: string
             templateStatuses:
               items:
                 properties:

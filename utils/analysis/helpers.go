@@ -2,6 +2,9 @@ package analysis
 
 import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+
+	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 )
 
 // analysisStatusOrder is a list of completed analysis sorted in best to worst condition
@@ -88,4 +91,10 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 		return &result.Measurements[totalMeasurements-1]
 	}
 	return nil
+}
+
+// TerminateRun terminates an anlysis run
+func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string) error {
+	_, err := analysisRunIf.Patch(name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`))
+	return err
 }

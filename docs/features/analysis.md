@@ -292,7 +292,7 @@ kind: Experiment
 name:
   name: guestbook-6c54544bf9-0
 spec:
-  durationSeconds: 3600
+  duration: 3600
   templates:
   - name: baseline
     replicas: 1

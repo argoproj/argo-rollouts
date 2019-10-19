@@ -32,6 +32,10 @@ type ExperimentSpec struct {
 	// Defaults to 600s.
 	// +optional
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
+	// Terminate is used to prematurely stop the experiment
+	Terminate bool `json:"terminate,omitempty"`
+	// Analyses references AnalysisTemplates to run during the experiment
+	Analyses []ExperimentAnalysisTemplateRef `json:"analyses,omitempty"`
 }
 
 type TemplateSpec struct {
@@ -54,6 +58,16 @@ type TemplateSpec struct {
 	Template corev1.PodTemplateSpec `json:"template"`
 }
 
+// type TemplatePhase string
+
+// const (
+// 	TemplatePhaseProgressing TemplatePhase = "Progressing"
+// 	TemplatePhaseRunning                   = "Running"
+// 	TemplatePhaseSuccessful                = "Successful"
+// 	TemplatePhaseFailed                    = "Failed"
+// 	TemplatePhaseError                     = "Error"
+// )
+
 // TemplateStatus is the status of a specific template of an Experiment
 type TemplateStatus struct {
 	// Name of the template used to identity which hash to compare to the hash
@@ -71,6 +85,8 @@ type TemplateStatus struct {
 	// newest ReplicaSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty"`
+	// Phase is the phase of the ReplicaSet associated with the template
+	//Phase TemplatePhase `json:"phase,omitempty"`
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -78,9 +94,6 @@ type ExperimentStatus struct {
 	// TemplateStatuses the hash of the list of environment spec that is used to prevent changes in spec.
 	// +optional
 	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty"`
-	// The generation observed by the experiment controller by taking a hash of the spec.
-	// +optional
-	ObservedGeneration string `json:"observedGeneration,omitempty"`
 	// Running indicates if the experiment has started. If the experiment is not running, the controller will
 	// scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet.
 	// +optional
@@ -92,6 +105,12 @@ type ExperimentStatus struct {
 	// Conditions a list of conditions a experiment can have.
 	// +optional
 	Conditions []ExperimentCondition `json:"conditions,omitempty"`
+	// AnalysisRuns tracks the status of analysis runs associated with this Experiment
+	// +optional
+	AnalysisRuns []ExperimentAnalysisRunStatus `json:"analysisRuns,omitempty"`
+	// Status is the status of the experiment, taking into consideration analysis run status
+	// +optional
+	Status AnalysisStatus `json:"status,omitempty"`
 }
 
 // ExperimentConditionType defines the conditions of Experiment
@@ -142,4 +161,36 @@ type ExperimentList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []Experiment `json:"items"`
+}
+
+type ExperimentPhase string
+
+// Various phases of an experiment
+const (
+	ExperimentPhaseBackground ExperimentPhase = "Start"
+	ExperimentPhasePost                       = "Post"
+)
+
+type ExperimentAnalysisTemplateRef struct {
+	// Name is the name of the analysis
+	Name string `json:"name"`
+	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
+	TemplateName string `json:"templateName"`
+	// Arguments the arguments that will be added to the AnalysisRuns
+	// +optional
+	Arguments []Argument `json:"arguments,omitempty"`
+	// ExecutionPhase controls when to (default: Start)
+	// +optional
+	ExecutionPhase ExperimentPhase `json:"executionPhase,omitempty"`
+}
+
+type ExperimentAnalysisRunStatus struct {
+	// Name is the name of the analysis
+	Name string `json:"name"`
+	// AnalysisRun is the name of the AnalysisRun
+	AnalysisRun string `json:"analysisRun"`
+	// Status is the status of the AnalysisRun
+	Status AnalysisStatus `json:"status"`
+	// Message is a message explaining the current status
+	Message string `json:"message,omitempty"`
 }

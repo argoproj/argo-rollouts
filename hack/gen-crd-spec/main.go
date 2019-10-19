@@ -28,6 +28,11 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		"crd:trivialVersions=true",
 		"output:crd:stdout",
 	).Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			fmt.Println(string(exitErr.Stderr))
+		}
+	}
 	checkErr(err)
 	if len(crdYamlBytes) == 0 {
 		panic("controller-gen produced no output")
