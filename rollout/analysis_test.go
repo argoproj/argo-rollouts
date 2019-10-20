@@ -547,7 +547,6 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			"canary": {
 				"currentStepAnalysisRun": null
 			},
-			"pauseStartTime": "%s",
 			"pauseConditions": [{
 					"reason": "InconclusiveAnalysisRun",
 					"startTime": "%s"
@@ -557,7 +556,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {

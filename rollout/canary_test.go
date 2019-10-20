@@ -105,7 +105,6 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 		"status":{
-			"pauseStartTime":"%s",
 			"pauseConditions":[{
 				"reason": "%s",
 				"startTime": "%s"
@@ -117,7 +116,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, now, v1alpha1.CanaryPauseStep, now, conditions)
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.CanaryPauseStep, now, conditions)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -212,8 +211,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	r2.Status.AvailableReplicas = 10
-	now := metav1.Now()
-	r2.Status.PauseStartTime = &now
 	r2.Status.ControllerSetPause = true
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -226,7 +223,6 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 	"status":{
-		"pauseStartTime": null,
 		"controllerSetPause": null,
 		"conditions" : %s,
 		"currentStepIndex": 1
@@ -752,55 +748,6 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	assert.Equal(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
-func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	steps := []v1alpha1.CanaryStep{
-		{
-			SetWeight: int32Ptr(10),
-		}, {
-			Pause: &v1alpha1.RolloutPause{
-				Duration: int32Ptr(10),
-			},
-		},
-	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r2 := bumpVersion(r1)
-
-	rs1 := newReplicaSetWithStatus(r1, 9, 9)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
-
-	expectedPatchWithoutTime := `{
-		"status":{
-			"pauseStartTime": "%s",
-			"conditions": %s,
-			"pauseConditions":[{
-				"reason": "%s",
-				"startTime": "%s"
-			}],
-			"controllerSetPause": true
-		}
-	}`
-	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-	now := metav1.Now().UTC().Format(time.RFC3339)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutTime, now, conditions, v1alpha1.CanaryPauseStep, now)
-
-	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
-	f.run(getKey(r2, t))
-
-	patch := f.getPatchedRollout(index)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
-}
-
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -911,7 +858,6 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
-	r2.Status.PauseStartTime = &earlier
 	r2.Status.ControllerSetPause = true
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.CanaryPauseStep,
@@ -926,7 +872,6 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status":{
-			"pauseStartTime": null,
 			"controllerSetPause": null,
 			"pauseConditions": null,
 			"currentStepIndex":2
@@ -1087,7 +1032,6 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
 	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
-	r1.Status.PauseStartTime = &overAMinuteAgo
 	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.CanaryPauseStep,
 		StartTime: overAMinuteAgo,
@@ -1108,9 +1052,6 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 
 	status := patchObj["status"].(map[string]interface{})
 	assert.Equal(t, float64(2), status["currentStepIndex"])
-	pauseStartTime, ok := status["pauseStartTime"]
-	assert.True(t, ok)
-	assert.Equal(t, nil, pauseStartTime)
 	// controllerPause, ok := status["controllerPause"]
 	// assert.True(t, ok)
 	// assert.Nil(t, controllerPause)
