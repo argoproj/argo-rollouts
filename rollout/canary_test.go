@@ -107,12 +107,17 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 		"status":{
 			"controllerPause": true,
 			"pauseStartTime":"%s",
+			"pauseConditions":[{
+				"reason": "%s",
+				"startTime": "%s"
+			}],
 			"conditions": %s
 		}
 	}`
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, metav1.Now().UTC().Format(time.RFC3339), conditions)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, now, v1alpha1.CanaryPauseStep, now, conditions)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -776,11 +781,16 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 		"status":{
 			"controllerPause": true,
 			"pauseStartTime": "%s",
-			"conditions": %s
+			"conditions": %s,
+			"pauseConditions":[{
+				"reason": "%s",
+				"startTime": "%s"
+			}]
 		}
 	}`
-	condtions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutTime, metav1.Now().UTC().Format(time.RFC3339), condtions)
+	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutTime, now, conditions, v1alpha1.CanaryPauseStep, now)
 
 	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))

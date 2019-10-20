@@ -54,6 +54,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                    schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":            schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":              schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":            schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":       schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":          schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                   schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
@@ -1238,6 +1239,32 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PauseCondition the reason for a pause and when it started",
+				Properties: map[string]spec.Schema{
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"startTime": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+				Required: []string{"reason", "startTime"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1657,6 +1684,19 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStatus is the status for a Rollout resource",
 				Properties: map[string]spec.Schema{
+					"pauseConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PauseConditions indicates why the rollout is currently paused",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition"),
+									},
+								},
+							},
+						},
+					},
 					"controllerPause": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerPause indicates the controller paused the rollout (i.e. pause step or inconclusive run)",
@@ -1776,7 +1816,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

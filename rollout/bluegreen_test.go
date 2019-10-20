@@ -159,10 +159,15 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatch := `{
 			"status": {
 				"controllerPause": true,
-				"pauseStartTime": "%s"
+				"pauseStartTime": "%s",
+				"pauseConditions": [{
+					"reason": "BlueGreenPause",
+					"startTime": "%s"
+				}]
 			}
 		}`
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, metav1.Now().UTC().Format(time.RFC3339))), patch)
+		now := metav1.Now().UTC().Format(time.RFC3339)
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, now)), patch)
 
 	})
 
@@ -311,7 +316,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"controllerPause": null,
-				"pauseStartTime": null
+				"pauseStartTime": null,
+				"pauseConditions": null
 			}
 		}`
 		expectedPatch := calculatePatch(r2, expectedPatchWithoutSubs)
@@ -401,10 +407,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"controllerPause": true,
-				"pauseStartTime": "%s"
+				"pauseStartTime": "%s",
+				"pauseConditions": [{
+					"reason":"BlueGreenPause",
+					"startTime": "%s"
+				}]			
 			}
 		}`
-		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, now))
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, now, now))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 

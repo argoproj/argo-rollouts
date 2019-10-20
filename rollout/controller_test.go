@@ -248,11 +248,27 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.BlueGreen.PreviewSelector = preview
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	if pause {
+		now := metav1.Now()
+		cond := v1alpha1.PauseCondition{
+			Reason:    v1alpha1.BlueGreenPause,
+			StartTime: now,
+		}
+		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+	}
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas, pause)
 	newRollout.Status.Canary.StableRS = stableRS
+	if pause {
+		now := metav1.Now()
+		cond := v1alpha1.PauseCondition{
+			Reason:    v1alpha1.CanaryPauseStep,
+			StartTime: now,
+		}
+		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+	}
 	return newRollout
 }
 
