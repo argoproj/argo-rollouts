@@ -163,7 +163,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"pauseConditions": [{
 					"reason": "BlueGreenPause",
 					"startTime": "%s"
-				}]
+				}],
+				"controllerSetPause": true
 			}
 		}`
 		now := metav1.Now().UTC().Format(time.RFC3339)
@@ -299,6 +300,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		now := metav1.Now()
 		before := metav1.NewTime(now.Add(-1 * time.Minute))
 		r2.Status.PauseStartTime = &before
+		r2.Status.ControllerSetPause = true
 		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
@@ -317,7 +319,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			"status": {
 				"controllerPause": null,
 				"pauseStartTime": null,
-				"pauseConditions": null
+				"pauseConditions": null,
+				"controllerSetPause": null
 			}
 		}`
 		expectedPatch := calculatePatch(r2, expectedPatchWithoutSubs)
@@ -411,7 +414,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"pauseConditions": [{
 					"reason":"BlueGreenPause",
 					"startTime": "%s"
-				}]			
+				}],
+				"controllerSetPause": true
 			}
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, now, now))
@@ -481,6 +485,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
+		r2.Status.ControllerSetPause = true
 		now := metav1.Now()
 		r2.Status.PauseStartTime = &now
 		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
@@ -521,6 +526,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 					"activeSelector": "%s"
 				},
 				"pauseStartTime": null,
+				"controllerSetPause":null,
 				"conditions": %s,
 				"selector": "%s"
 			}

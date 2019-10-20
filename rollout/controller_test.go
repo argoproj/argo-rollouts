@@ -254,6 +254,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 			Reason:    v1alpha1.BlueGreenPause,
 			StartTime: now,
 		}
+		newRollout.Status.ControllerSetPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
 	return newRollout
@@ -267,6 +268,7 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 			Reason:    v1alpha1.CanaryPauseStep,
 			StartTime: now,
 		}
+		newRollout.Status.ControllerSetPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
 	return newRollout
@@ -894,9 +896,11 @@ func TestRequeueStuckRollout(t *testing.T) {
 				Replicas:                pointer.Int32Ptr(0),
 				ProgressDeadlineSeconds: progessDeadlineSeconds,
 			},
-			Status: v1alpha1.RolloutStatus{
-				ControllerPause: rolloutPaused,
-			},
+		}
+		if rolloutPaused {
+			r.Status.PauseConditions = []v1alpha1.PauseCondition{{
+				Reason: v1alpha1.BlueGreenPause,
+			}}
 		}
 		if rolloutCompleted {
 			r.Status.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)

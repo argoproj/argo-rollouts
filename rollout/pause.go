@@ -11,10 +11,11 @@ import (
 )
 
 type pauseContext struct {
-	log             *log.Entry
-	controllerPause bool
-	pauseStartTime  *metav1.Time
-	pauseConditions []v1alpha1.PauseCondition
+	log                *log.Entry
+	controllerPause    bool
+	controllerSetPause bool
+	pauseStartTime     *metav1.Time
+	pauseConditions    []v1alpha1.PauseCondition
 
 	addPauseReasons    []v1alpha1.PauseReason
 	removePauseReasons []v1alpha1.PauseReason
@@ -36,6 +37,8 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 	if pCtx.clearPauseReasons {
 		return
 	}
+
+	controllerPause := pCtx.controllerSetPause
 	statusToRemove := map[v1alpha1.PauseReason]bool{}
 	for i := range pCtx.removePauseReasons {
 		statusToRemove[pCtx.removePauseReasons[i]] = true
@@ -60,6 +63,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 				StartTime: now,
 			}
 			newPauseConditions = append(newPauseConditions, cond)
+			controllerPause = true
 		}
 	}
 
@@ -78,6 +82,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		}
 	}
 
+	newStatus.ControllerSetPause = controllerPause
 	newStatus.ControllerPause = paused
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.PauseConditions = newPauseConditions

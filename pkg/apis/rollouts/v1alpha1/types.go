@@ -274,6 +274,8 @@ type PauseCondition struct {
 
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
+	//ControllerSetPause indicates the controller paused the rollout (i.e. pause step or inconclusive run)
+	ControllerSetPause bool `json:"controllerSetPause,omitempty"`
 	// PauseConditions indicates why the rollout is currently paused
 	PauseConditions []PauseCondition `json:"pauseConditions,omitempty"`
 	//ControllerPause indicates the controller paused the rollout (i.e. pause step or inconclusive run)

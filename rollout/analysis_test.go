@@ -552,7 +552,8 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			"pauseConditions": [{
 					"reason": "InconclusiveAnalysisRun",
 					"startTime": "%s"
-			}]
+			}],
+			"controllerSetPause": true
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
