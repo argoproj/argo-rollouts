@@ -300,6 +300,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		now := metav1.Now()
 		before := metav1.NewTime(now.Add(-1 * time.Minute))
 		r2.Status.PauseStartTime = &before
+		r2.Status.PauseConditions[0].StartTime = before
 		r2.Status.ControllerSetPause = true
 		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)

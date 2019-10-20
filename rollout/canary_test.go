@@ -908,11 +908,17 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.PauseStartTime = &earlier
 	r2.Status.ControllerSetPause = true
-
+	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.CanaryPauseStep,
+		StartTime: earlier,
+	}}
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -924,12 +930,11 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 		"status":{
 			"pauseStartTime": null,
 			"controllerSetPause": null,
-			"currentStepIndex":2,
-			"conditions": %s
+			"pauseConditions": null,
+			"currentStepIndex":2
 		}
 	}`
-	newCondtions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newCondtions)), patch)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
@@ -1085,7 +1090,10 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
 	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
 	r1.Status.PauseStartTime = &overAMinuteAgo
-
+	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.CanaryPauseStep,
+		StartTime: overAMinuteAgo,
+	}}
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.rolloutLister = append(f.rolloutLister, r1)

@@ -66,11 +66,8 @@ func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*
 		allRSs:   allRSs,
 
 		pauseContext: &pauseContext{
-			log:                logCtx,
-			controllerPause:    r.Status.ControllerPause,
-			pauseStartTime:     r.Status.PauseStartTime,
-			pauseConditions:    r.Status.PauseConditions,
-			controllerSetPause: r.Status.ControllerSetPause,
+			rollout: r,
+			log:     logCtx,
 		},
 	}
 }
@@ -139,11 +136,8 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 		otherExs:  otherExs,
 
 		pauseContext: &pauseContext{
-			log:                logCtx,
-			controllerPause:    r.Status.ControllerPause,
-			pauseStartTime:     r.Status.PauseStartTime,
-			pauseConditions:    r.Status.PauseConditions,
-			controllerSetPause: r.Status.ControllerSetPause,
+			rollout: r,
+			log:     logCtx,
 		},
 	}
 }

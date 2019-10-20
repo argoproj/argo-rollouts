@@ -147,17 +147,18 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return false
 	}
+
+	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.BlueGreenPause)
 	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
-	if len(rollout.Status.PauseConditions) == 0 && !rollout.Status.ControllerSetPause && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
+	if cond == nil && !rollout.Status.ControllerSetPause && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
 		roCtx.PauseContext().AddControllerPause(v1alpha1.BlueGreenPause)
 		return true
 	}
 
-	pauseStartTime := rollout.Status.PauseStartTime
 	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-	if autoPromoteActiveServiceDelaySeconds != nil && pauseStartTime != nil {
-		c.checkEnqueueRolloutDuringWait(rollout, *pauseStartTime, *autoPromoteActiveServiceDelaySeconds)
-		switchDeadline := pauseStartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
+	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
+		c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *autoPromoteActiveServiceDelaySeconds)
+		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
 		now := metav1.Now()
 		if now.After(switchDeadline) {
 			roCtx.PauseContext().RemoveControllerPause(v1alpha1.BlueGreenPause)
@@ -165,7 +166,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 
 	}
 
-	return len(rollout.Status.PauseConditions) > 0 && rollout.Status.ControllerSetPause
+	return cond != nil && rollout.Status.ControllerSetPause
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".

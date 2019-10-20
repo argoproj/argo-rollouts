@@ -11,11 +11,8 @@ import (
 )
 
 type pauseContext struct {
-	log                *log.Entry
-	controllerPause    bool
-	controllerSetPause bool
-	pauseStartTime     *metav1.Time
-	pauseConditions    []v1alpha1.PauseCondition
+	rollout *v1alpha1.Rollout
+	log     *log.Entry
 
 	addPauseReasons    []v1alpha1.PauseReason
 	removePauseReasons []v1alpha1.PauseReason
@@ -38,7 +35,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		return
 	}
 
-	controllerPause := pCtx.controllerSetPause
+	controllerPause := pCtx.rollout.Status.ControllerSetPause
 	statusToRemove := map[v1alpha1.PauseReason]bool{}
 	for i := range pCtx.removePauseReasons {
 		statusToRemove[pCtx.removePauseReasons[i]] = true
@@ -46,7 +43,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 
 	newPauseConditions := []v1alpha1.PauseCondition{}
 	pauseAlreadyExists := map[v1alpha1.PauseReason]bool{}
-	for _, cond := range pCtx.pauseConditions {
+	for _, cond := range pCtx.rollout.Status.PauseConditions {
 		if remove := statusToRemove[cond.Reason]; !remove {
 			newPauseConditions = append(newPauseConditions, cond)
 		}
@@ -67,8 +64,8 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		}
 	}
 
-	pauseStartTime := pCtx.pauseStartTime
-	paused := pCtx.controllerPause
+	pauseStartTime := pCtx.rollout.Status.PauseStartTime
+	paused := pCtx.rollout.Status.ControllerPause
 
 	if len(newPauseConditions) == 0 {
 		return
@@ -88,20 +85,31 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 	newStatus.PauseConditions = newPauseConditions
 }
 
-func completedPauseStep(roCtx *canaryContext, pause v1alpha1.RolloutPause) bool {
-	rollout := roCtx.Rollout()
-	logCtx := roCtx.Log()
+func (pCtx *pauseContext) GetPauseCondition(reason v1alpha1.PauseReason) *v1alpha1.PauseCondition {
+	for i := range pCtx.rollout.Status.PauseConditions {
+		cond := pCtx.rollout.Status.PauseConditions[i]
+		if cond.Reason == reason {
+			return &cond
+		}
+	}
+	return nil
+}
+
+func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
+	rollout := pCtx.rollout
+	pauseCondition := pCtx.GetPauseCondition(v1alpha1.CanaryPauseStep)
+
 	if pause.Duration != nil {
 		now := metav1.Now()
-		if rollout.Status.PauseStartTime != nil {
-			expiredTime := rollout.Status.PauseStartTime.Add(time.Duration(*pause.Duration) * time.Second)
+		if pauseCondition != nil {
+			expiredTime := pauseCondition.StartTime.Add(time.Duration(*pause.Duration) * time.Second)
 			if now.After(expiredTime) {
-				logCtx.Info("Rollout has waited the duration of the pause step")
+				pCtx.log.Info("Rollout has waited the duration of the pause step")
 				return true
 			}
 		}
-	} else if rollout.Status.PauseStartTime != nil && !rollout.Status.ControllerPause {
-		logCtx.Info("Rollout has been unpaused")
+	} else if rollout.Status.ControllerSetPause && pauseCondition == nil {
+		pCtx.log.Info("Rollout has been unpaused")
 		return true
 	}
 	return false

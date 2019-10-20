@@ -119,16 +119,17 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-	if len(rollout.Status.PauseConditions) == 0 && !rollout.Status.ControllerSetPause {
-		roCtx.PauseContext().AddControllerPause(v1alpha1.CanaryPauseStep)
+	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.CanaryPauseStep)
+	if cond == nil {
+		if !rollout.Status.ControllerSetPause {
+			roCtx.PauseContext().AddControllerPause(v1alpha1.CanaryPauseStep)
+		}
+		return true
 	}
 	if currentStep.Pause.Duration == nil {
 		return true
 	}
-	if !rollout.Status.ControllerSetPause {
-		return true
-	}
-	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.PauseStartTime, *currentStep.Pause.Duration)
+	c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *currentStep.Pause.Duration)
 	return true
 }
 
@@ -208,7 +209,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 		return false
 	}
 	if currentStep.Pause != nil {
-		return completedPauseStep(roCtx, *currentStep.Pause)
+		return roCtx.PauseContext().CompletedPauseStep(*currentStep.Pause)
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, roCtx.NewRS(), roCtx.StableRS(), roCtx.OlderRSs()) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
