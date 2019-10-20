@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 
-	//informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
@@ -40,8 +40,9 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, noResyncPeriodFunc())
 	rsLister := k8sI.Apps().V1().ReplicaSets().Lister()
-	//rolloutsI := informers.NewSharedInformerFactory(f.client, resync())
-	//analysisRunLister := rolloutsI.Argoproj().V1alpha1().AnalysisRuns().Lister()
+	rolloutsI := informers.NewSharedInformerFactory(rolloutclient, noResyncPeriodFunc())
+	analysisRunLister := rolloutsI.Argoproj().V1alpha1().AnalysisRuns().Lister()
+	analysisTemplateLister := rolloutsI.Argoproj().V1alpha1().AnalysisTemplates().Lister()
 
 	return newExperimentContext(
 		ex,
@@ -49,6 +50,8 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		kubeclient,
 		rolloutclient,
 		rsLister,
+		analysisTemplateLister,
+		analysisRunLister,
 		&record.FakeRecorder{},
 		func(obj interface{}, duration time.Duration) {},
 	)
@@ -226,4 +229,5 @@ func TestFailReplicaSetCreation(t *testing.T) {
 		return true, nil, errors.New("intentional error")
 	})
 	exCtx.reconcile()
+	// TODO: check that we set condition
 }

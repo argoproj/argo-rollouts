@@ -49,6 +49,8 @@ func newExperimentContext(
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	replicaSetLister appslisters.ReplicaSetLister,
+	analysisTemplateLister rolloutslisters.AnalysisTemplateLister,
+	analysisRunLister rolloutslisters.AnalysisRunLister,
 	recorder record.EventRecorder,
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
 ) *experimentContext {
@@ -59,6 +61,8 @@ func newExperimentContext(
 		kubeclientset:          kubeclientset,
 		argoProjClientset:      argoProjClientset,
 		replicaSetLister:       replicaSetLister,
+		analysisTemplateLister: analysisTemplateLister,
+		analysisRunLister:      analysisRunLister,
 		recorder:               recorder,
 		enqueueExperimentAfter: enqueueExperimentAfter,
 
@@ -88,94 +92,39 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	return ec.calculateStatus()
 }
 
-func (ec *experimentContext) reconcileTemplates() error {
-	var origErr error
-	statuses := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
-	for _, template := range ec.ex.Spec.Templates {
-		templateReady, err := ec.reconcileTemplateOld(template, statuses[template.Name])
-		if err != nil && origErr == nil {
-			origErr = err
-		}
-		if !templateReady {
-			ec.log.Infof("Not finished reconciling template %s", template.Name)
-		}
-	}
-	return origErr
-}
-
 // reconcileTemplate reconciles a template to a ReplicaSet. Creates or scales them down as necessary
 func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	ec.log.Infof("Reconciling template %s", template.Name)
 	templateStatus := experimentutil.GetTemplateStatus(ec.ex.Status, template.Name)
-	var collisionCount *int32
-	if templateStatus != nil {
-		collisionCount = templateStatus.CollisionCount
+	if templateStatus == nil {
+		templateStatus = &v1alpha1.TemplateStatus{
+			Name: template.Name,
+		}
 	}
 	existingTemplateRS, replicaSetExists := ec.templateRSs[template.Name]
 	if !replicaSetExists {
 		if ec.isTerminating {
 			ec.log.Warnf("Skipping ReplicaSet creation for template %s: experiment is terminating", template.Name)
-			return
-		}
-		newRS, err := ec.createReplicaSet(template, collisionCount)
-		if err != nil {
-			ec.log.Warnf("Failed to create ReplicaSet: %v", err)
-			return
-		}
-		if newRS != nil {
-			ec.templateRSs[template.Name] = newRS
-		}
-		return
-	}
-
-	// If we get here, replicaset exists. We need to ensure it's scaled properly based on
-	// termination, or changed replica count
-	var templateReplicaCount int32 = 0
-	if !ec.isTerminating {
-		templateReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	}
-	if *existingTemplateRS.Spec.Replicas != templateReplicaCount {
-		ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount)
-	}
-}
-
-// reconcileTemplate reconciles a template to a ReplicaSet. Creates or deletes them as necessary
-func (ec *experimentContext) reconcileTemplateOld(template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (bool, error) {
-	ec.log.Infof("Reconciling template %s", template.Name)
-	existingTemplateRS, ok := ec.templateRSs[template.Name]
-	if !ok {
-		if ec.isTerminating {
-			ec.log.Warnf("Skipping ReplicaSet creation for template %s since experiment is terminating", template.Name)
-			return false, nil
 		} else {
 			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 			if err != nil {
-				return false, err
+				ec.log.Warnf("Failed to create ReplicaSet: %v", err)
 			}
-			ec.templateRSs[template.Name] = newRS
-			return false, nil
+			if newRS != nil {
+				ec.templateRSs[template.Name] = newRS
+			}
+		}
+	} else {
+		// If we get here, replicaset exists. We need to ensure it's scaled properly based on
+		// termination, or changed replica count
+		var templateReplicaCount int32 = 0
+		if !ec.isTerminating {
+			templateReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
+		}
+		if *existingTemplateRS.Spec.Replicas != templateReplicaCount {
+			ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount)
 		}
 	}
-
-	// If we get here, replicaset exists. We need to ensure it's scaled properly based on
-	// termination, or new replica count
-	var templateReplicaCount int32 = 0
-	if !ec.isTerminating {
-		templateReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	}
-	if *existingTemplateRS.Spec.Replicas != templateReplicaCount {
-		scaled, _, err := ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount)
-		if err != nil {
-			return false, err
-		}
-		if scaled {
-			return false, nil
-		}
-	}
-	if templateReplicaCount != replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{existingTemplateRS}) {
-		return false, nil
-	}
-	return true, nil
 }
 
 // enqueueAfterDuration enqueues the experiment at the appropriate duration time after status.availableAt
@@ -293,33 +242,25 @@ func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnaly
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
-	newStatus := v1alpha1.ExperimentStatus{
-		Conditions: ec.ex.Status.Conditions,
-	}
-
-	newStatus.Running = ec.ex.Status.Running
 	if !experimentutil.HasStarted(ec.ex) {
-		newStatus.Running = pointer.BoolPtr(true)
+		ec.newStatus.Running = pointer.BoolPtr(true)
 	}
 
 	if passed, _ := experimentutil.PassedDurations(ec.ex); passed {
-		newStatus.Running = pointer.BoolPtr(false)
+		ec.newStatus.Running = pointer.BoolPtr(false)
 	}
 
-	previousTemplateStatus := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
-
 	allAvailable := true
-	for i := range ec.ex.Spec.Templates {
-		template := ec.ex.Spec.Templates[i]
-		templateStatus := v1alpha1.TemplateStatus{
-			Name: template.Name,
-		}
-		if previousStatus, ok := previousTemplateStatus[template.Name]; ok {
-			templateStatus.CollisionCount = previousStatus.CollisionCount
+	for _, template := range ec.ex.Spec.Templates {
+		templateStatus := experimentutil.GetTemplateStatus(*ec.newStatus, template.Name)
+		if templateStatus == nil {
+			allAvailable = false
+			templateStatus = &v1alpha1.TemplateStatus{
+				Name: template.Name,
+			}
 		}
 
-		rs, ok := ec.templateRSs[template.Name]
-		if ok {
+		if rs, ok := ec.templateRSs[template.Name]; ok {
 			replicaCount := defaults.GetExperimentTemplateReplicasOrDefault(template)
 			templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 			templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
@@ -331,15 +272,14 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		} else {
 			allAvailable = false
 		}
-		newStatus.TemplateStatuses = append(newStatus.TemplateStatuses, templateStatus)
+		experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
 	}
 
-	newStatus.AvailableAt = ec.ex.Status.AvailableAt
-	if allAvailable && ec.ex.Status.AvailableAt == nil {
+	if allAvailable && ec.newStatus.AvailableAt == nil {
 		now := metav1.Now()
-		newStatus.AvailableAt = &now
+		ec.newStatus.AvailableAt = &now
 	}
-	return calculateExperimentConditions(ec.ex, newStatus)
+	return calculateExperimentConditions(ec.ex, *ec.newStatus)
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template

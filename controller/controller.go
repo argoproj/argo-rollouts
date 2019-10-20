@@ -129,6 +129,8 @@ func NewManager(
 		replicaSetInformer,
 		rolloutsInformer,
 		experimentsInformer,
+		analysisRunInformer,
+		analysisTemplateInformer,
 		resyncPeriod,
 		rolloutWorkqueue,
 		experimentWorkqueue,

@@ -38,13 +38,17 @@ type ExperimentController struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	replicaSetLister  appslisters.ReplicaSetLister
-	rolloutsLister    listers.RolloutLister
-	experimentsLister listers.ExperimentLister
+	replicaSetLister       appslisters.ReplicaSetLister
+	rolloutsLister         listers.RolloutLister
+	experimentsLister      listers.ExperimentLister
+	analysisTemplateLister listers.AnalysisTemplateLister
+	analysisRunLister      listers.AnalysisRunLister
 
-	replicaSetSynced cache.InformerSynced
-	experimentSynced cache.InformerSynced
-	rolloutSynced    cache.InformerSynced
+	replicaSetSynced       cache.InformerSynced
+	experimentSynced       cache.InformerSynced
+	rolloutSynced          cache.InformerSynced
+	analysisRunSynced      cache.InformerSynced
+	analysisTemplateSynced cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
 
@@ -72,6 +76,8 @@ func NewExperimentController(
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
+	analysisRunInformer informers.AnalysisRunInformer,
+	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	resyncPeriod time.Duration,
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	experimentWorkQueue workqueue.RateLimitingInterface,
@@ -84,21 +90,25 @@ func NewExperimentController(
 	}
 
 	controller := &ExperimentController{
-		kubeclientset:       kubeclientset,
-		argoProjClientset:   argoProjClientset,
-		replicaSetControl:   replicaSetControl,
-		replicaSetLister:    replicaSetInformer.Lister(),
-		rolloutsLister:      rolloutsInformer.Lister(),
-		experimentsLister:   experimentsInformer.Lister(),
-		metricsServer:       metricsServer,
-		rolloutWorkqueue:    rolloutWorkQueue,
-		experimentWorkqueue: experimentWorkQueue,
+		kubeclientset:          kubeclientset,
+		argoProjClientset:      argoProjClientset,
+		replicaSetControl:      replicaSetControl,
+		replicaSetLister:       replicaSetInformer.Lister(),
+		rolloutsLister:         rolloutsInformer.Lister(),
+		experimentsLister:      experimentsInformer.Lister(),
+		analysisTemplateLister: analysisTemplateInformer.Lister(),
+		analysisRunLister:      analysisRunInformer.Lister(),
+		metricsServer:          metricsServer,
+		rolloutWorkqueue:       rolloutWorkQueue,
+		experimentWorkqueue:    experimentWorkQueue,
 
-		replicaSetSynced: replicaSetInformer.Informer().HasSynced,
-		experimentSynced: experimentsInformer.Informer().HasSynced,
-		rolloutSynced:    rolloutsInformer.Informer().HasSynced,
-		recorder:         recorder,
-		resyncPeriod:     resyncPeriod,
+		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
+		experimentSynced:       experimentsInformer.Informer().HasSynced,
+		rolloutSynced:          rolloutsInformer.Informer().HasSynced,
+		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced: analysisTemplateInformer.Informer().HasSynced,
+		recorder:               recorder,
+		resyncPeriod:           resyncPeriod,
 	}
 
 	controller.enqueueExperiment = func(obj interface{}) {
@@ -237,6 +247,8 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		ec.kubeclientset,
 		ec.argoProjClientset,
 		ec.replicaSetLister,
+		ec.analysisTemplateLister,
+		ec.analysisRunLister,
 		ec.recorder,
 		ec.enqueueExperimentAfter,
 	)

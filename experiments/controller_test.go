@@ -306,6 +306,8 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		k8sI.Apps().V1().ReplicaSets(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		i.Argoproj().V1alpha1().Experiments(),
+		i.Argoproj().V1alpha1().AnalysisRuns(),
+		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		resync(),
 		rolloutWorkqueue,
 		experimentWorkqueue,
@@ -358,7 +360,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutSynced, c.experimentSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced))
 	}
 
 	err := c.syncHandler(experimentName)
@@ -425,7 +427,7 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 
 // filterInformerActions filters list, and watch actions for testing resources.
 // Since list, and watch don't change resource state we can filter it to lower
-// nose level in our tests.
+// noise level in our tests.
 func filterInformerActions(actions []core.Action) []core.Action {
 	ret := []core.Action{}
 	for _, action := range actions {
@@ -434,7 +436,11 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "replicaSets") ||
 			action.Matches("watch", "replicaSets") ||
 			action.Matches("list", "experiments") ||
-			action.Matches("watch", "experiments") {
+			action.Matches("watch", "experiments") ||
+			action.Matches("list", "analysistemplates") ||
+			action.Matches("watch", "analysistemplates") ||
+			action.Matches("list", "analysisruns") ||
+			action.Matches("watch", "analysisruns") {
 			continue
 		}
 		ret = append(ret, action)
@@ -563,18 +569,18 @@ const (
 	NoChange availableAtResults = "NoChange"
 )
 
-func validatePatch(t *testing.T, patch string, running *bool, availableleAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
+func validatePatch(t *testing.T, patch string, running *bool, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
 	e := v1alpha1.Experiment{}
 	err := json.Unmarshal([]byte(patch), &e)
 	if err != nil {
 		panic(err)
 	}
 	actualStatus := e.Status
-	if availableleAt == Set {
+	if availableAt == Set {
 		assert.NotNil(t, actualStatus.AvailableAt)
-	} else if availableleAt == Nulled {
+	} else if availableAt == Nulled {
 		assert.Contains(t, patch, `"availableAt": null`)
-	} else if availableleAt == NoChange {
+	} else if availableAt == NoChange {
 		assert.Nil(t, actualStatus.AvailableAt)
 	}
 	assert.Equal(t, e.Status.Running, running)
