@@ -281,7 +281,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 	newRollout.Status.UpdatedReplicas = updatedReplicas
 	newRollout.Status.HPAReplicas = hpaReplicas
 	if pause {
-		newRollout.Status.ControllerPause = pause
+		// newRollout.Status.ControllerPause = pause
 		now := metav1.Now()
 		newRollout.Status.PauseStartTime = &now
 	}

@@ -105,7 +105,6 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 		"status":{
-			"controllerPause": true,
 			"pauseStartTime":"%s",
 			"pauseConditions":[{
 				"reason": "%s",
@@ -782,7 +781,6 @@ func TestSyncRolloutsSetPauseStartTime(t *testing.T) {
 
 	expectedPatchWithoutTime := `{
 		"status":{
-			"controllerPause": true,
 			"pauseStartTime": "%s",
 			"conditions": %s,
 			"pauseConditions":[{
@@ -1113,7 +1111,7 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	pauseStartTime, ok := status["pauseStartTime"]
 	assert.True(t, ok)
 	assert.Equal(t, nil, pauseStartTime)
-	controllerPause, ok := status["controllerPause"]
-	assert.True(t, ok)
-	assert.Nil(t, controllerPause)
+	// controllerPause, ok := status["controllerPause"]
+	// assert.True(t, ok)
+	// assert.Nil(t, controllerPause)
 }

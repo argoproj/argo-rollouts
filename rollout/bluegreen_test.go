@@ -158,7 +158,6 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		expectedPatch := `{
 			"status": {
-				"controllerPause": true,
 				"pauseStartTime": "%s",
 				"pauseConditions": [{
 					"reason": "BlueGreenPause",
@@ -318,7 +317,6 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		expectedPatchWithoutSubs := `{
 			"status": {
-				"controllerPause": null,
 				"pauseStartTime": null,
 				"pauseConditions": null,
 				"controllerSetPause": null
@@ -410,7 +408,6 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		now := metav1.Now().UTC().Format(time.RFC3339)
 		expectedPatchWithoutSubs := `{
 			"status": {
-				"controllerPause": true,
 				"pauseStartTime": "%s",
 				"pauseConditions": [{
 					"reason":"BlueGreenPause",

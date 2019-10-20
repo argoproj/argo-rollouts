@@ -65,7 +65,6 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 	}
 
 	pauseStartTime := pCtx.rollout.Status.PauseStartTime
-	paused := pCtx.rollout.Status.ControllerPause
 
 	if len(newPauseConditions) == 0 {
 		return
@@ -75,12 +74,10 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		if pauseStartTime == nil {
 			pCtx.log.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
 			pauseStartTime = &now
-			paused = true
 		}
 	}
 
 	newStatus.ControllerSetPause = controllerPause
-	newStatus.ControllerPause = paused
 	newStatus.PauseStartTime = pauseStartTime
 	newStatus.PauseConditions = newPauseConditions
 }
