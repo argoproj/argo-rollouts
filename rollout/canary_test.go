@@ -110,7 +110,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 				"startTime": "%s"
 			}],
 			"conditions": %s,
-			"controllerSetPause": true
+			"controllerPause": true
 		}
 	}`
 
@@ -211,7 +211,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	r2.Status.AvailableReplicas = 10
-	r2.Status.ControllerSetPause = true
+	r2.Status.ControllerPause = true
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -223,7 +223,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchTemplate := `{
 	"status":{
-		"controllerSetPause": null,
+		"controllerPause": null,
 		"conditions" : %s,
 		"currentStepIndex": 1
 	}
@@ -858,7 +858,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 
 	earlier := metav1.Now()
 	earlier.Time = earlier.Add(-10 * time.Second)
-	r2.Status.ControllerSetPause = true
+	r2.Status.ControllerPause = true
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.CanaryPauseStep,
 		StartTime: earlier,
@@ -872,7 +872,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status":{
-			"controllerSetPause": null,
+			"controllerPause": null,
 			"pauseConditions": null,
 			"currentStepIndex":2
 		}

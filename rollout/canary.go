@@ -121,7 +121,7 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	}
 	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.CanaryPauseStep)
 	if cond == nil {
-		if !rollout.Status.ControllerSetPause {
+		if !rollout.Status.ControllerPause {
 			roCtx.PauseContext().AddControllerPause(v1alpha1.CanaryPauseStep)
 		}
 		return true

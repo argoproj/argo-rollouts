@@ -35,7 +35,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		return
 	}
 
-	controllerPause := pCtx.rollout.Status.ControllerSetPause
+	controllerPause := pCtx.rollout.Status.ControllerPause
 	statusToRemove := map[v1alpha1.PauseReason]bool{}
 	for i := range pCtx.removePauseReasons {
 		statusToRemove[pCtx.removePauseReasons[i]] = true
@@ -67,7 +67,7 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 	if len(newPauseConditions) == 0 {
 		return
 	}
-	newStatus.ControllerSetPause = controllerPause
+	newStatus.ControllerPause = controllerPause
 	newStatus.PauseConditions = newPauseConditions
 }
 
@@ -94,7 +94,7 @@ func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 				return true
 			}
 		}
-	} else if rollout.Status.ControllerSetPause && pauseCondition == nil {
+	} else if rollout.Status.ControllerPause && pauseCondition == nil {
 		pCtx.log.Info("Rollout has been unpaused")
 		return true
 	}

@@ -10356,8 +10356,6 @@ spec:
               type: array
             controllerPause:
               type: boolean
-            controllerSetPause:
-              type: boolean
             currentPodHash:
               type: string
             currentStepHash:
