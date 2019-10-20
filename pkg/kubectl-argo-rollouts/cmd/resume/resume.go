@@ -29,7 +29,7 @@ func NewCmdResume(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
 			for _, name := range args {
-				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(`{"spec":{"paused":false}}`))
+				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(`{"status":{"pauseConditions":null}}`))
 				if err != nil {
 					return err
 				}

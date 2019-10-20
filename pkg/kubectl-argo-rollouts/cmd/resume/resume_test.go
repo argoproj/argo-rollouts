@@ -46,8 +46,8 @@ func TestResumeCmdSuccess(t *testing.T) {
 	fakeClient.ReactionChain = nil
 	fakeClient.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == `{"spec":{"paused":false}}` {
-				ro.Spec.Paused = false
+			if string(patchAction.GetPatch()) == `{"spec":{"pauseConditions":null}}` {
+				ro.Status.PauseConditions = nil
 			}
 		}
 		return true, &ro, nil
@@ -59,7 +59,7 @@ func TestResumeCmdSuccess(t *testing.T) {
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
-	assert.False(t, ro.Spec.Paused)
+	assert.Nil(t, ro.Status.PauseConditions)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, stdout, "rollout 'guestbook' resumed\n")
