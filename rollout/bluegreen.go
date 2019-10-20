@@ -32,7 +32,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	logCtx := roCtx.Log()
 	allRSs := roCtx.AllRSs()
 	if reconcileBlueGreenTemplateChange(roCtx) {
-		roCtx.PauseContext().ClearPauseReasons()
+		roCtx.PauseContext().ClearPauseConditions()
 		logCtx.Infof("New pod template or template change detected")
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
@@ -137,7 +137,6 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	rollout := roCtx.Rollout()
 
 	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
-		roCtx.PauseContext().RemoveControllerPause(v1alpha1.BlueGreenPause)
 		return false
 	}
 
@@ -151,7 +150,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.BlueGreenPause)
 	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
 	if cond == nil && !rollout.Status.ControllerPause && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
-		roCtx.PauseContext().AddControllerPause(v1alpha1.BlueGreenPause)
+		roCtx.PauseContext().AddPauseCondition(v1alpha1.BlueGreenPause)
 		return true
 	}
 
@@ -161,7 +160,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
 		now := metav1.Now()
 		if now.After(switchDeadline) {
-			roCtx.PauseContext().RemoveControllerPause(v1alpha1.BlueGreenPause)
+			roCtx.PauseContext().RemovePauseCondition(v1alpha1.BlueGreenPause)
 		}
 
 	}

@@ -14,24 +14,24 @@ type pauseContext struct {
 	rollout *v1alpha1.Rollout
 	log     *log.Entry
 
-	addPauseReasons    []v1alpha1.PauseReason
-	removePauseReasons []v1alpha1.PauseReason
-	clearPauseReasons  bool
+	addPauseReasons      []v1alpha1.PauseReason
+	removePauseReasons   []v1alpha1.PauseReason
+	clearPauseConditions bool
 }
 
-func (pCtx *pauseContext) AddControllerPause(reason v1alpha1.PauseReason) {
+func (pCtx *pauseContext) AddPauseCondition(reason v1alpha1.PauseReason) {
 	pCtx.addPauseReasons = append(pCtx.addPauseReasons, reason)
 }
 
-func (pCtx *pauseContext) RemoveControllerPause(reason v1alpha1.PauseReason) {
+func (pCtx *pauseContext) RemovePauseCondition(reason v1alpha1.PauseReason) {
 	pCtx.removePauseReasons = append(pCtx.removePauseReasons, reason)
 }
-func (pCtx *pauseContext) ClearPauseReasons() {
-	pCtx.clearPauseReasons = true
+func (pCtx *pauseContext) ClearPauseConditions() {
+	pCtx.clearPauseConditions = true
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
-	if pCtx.clearPauseReasons {
+	if pCtx.clearPauseConditions {
 		return
 	}
 

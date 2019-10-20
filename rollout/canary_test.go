@@ -1052,7 +1052,7 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 
 	status := patchObj["status"].(map[string]interface{})
 	assert.Equal(t, float64(2), status["currentStepIndex"])
-	// controllerPause, ok := status["controllerPause"]
-	// assert.True(t, ok)
-	// assert.Nil(t, controllerPause)
+	controllerPause, ok := status["controllerPause"]
+	assert.True(t, ok)
+	assert.Nil(t, controllerPause)
 }

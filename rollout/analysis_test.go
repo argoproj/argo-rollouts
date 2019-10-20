@@ -548,7 +548,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 				"currentStepAnalysisRun": null
 			},
 			"pauseConditions": [{
-					"reason": "InconclusiveAnalysisRun",
+					"reason": "%s",
 					"startTime": "%s"
 			}],
 			"controllerPause": true
@@ -556,7 +556,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.InconclusiveAnalysisRun, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {

@@ -159,14 +159,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatch := `{
 			"status": {
 				"pauseConditions": [{
-					"reason": "BlueGreenPause",
+					"reason": "%s",
 					"startTime": "%s"
 				}],
 				"controllerPause": true
 			}
 		}`
 		now := metav1.Now().UTC().Format(time.RFC3339)
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, v1alpha1.BlueGreenPause, now)), patch)
 
 	})
 
@@ -406,13 +406,13 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatchWithoutSubs := `{
 			"status": {
 				"pauseConditions": [{
-					"reason":"BlueGreenPause",
+					"reason":"%s",
 					"startTime": "%s"
 				}],
 				"controllerPause": true
 			}
 		}`
-		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, now))
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, v1alpha1.BlueGreenPause, now))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
