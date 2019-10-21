@@ -12,11 +12,11 @@ import (
 )
 
 func HasStarted(experiment *v1alpha1.Experiment) bool {
-	return experiment.Status.Running != nil
+	return experiment.Status.Status != ""
 }
 
 func HasFinished(experiment *v1alpha1.Experiment) bool {
-	return experiment.Status.Running != nil && !*experiment.Status.Running
+	return experiment.Status.Status.Completed()
 }
 
 // IsTerminating returns whether or not an experiment is terminating, such, analysis failed, or
@@ -110,7 +110,7 @@ func (o ExperimentByCreationTimestamp) Less(i, j int) bool {
 func GetTemplateStatus(status v1alpha1.ExperimentStatus, name string) *v1alpha1.TemplateStatus {
 	for _, ts := range status.TemplateStatuses {
 		if ts.Name == name {
-			return &ts
+			return ts.DeepCopy()
 		}
 	}
 	return nil
@@ -146,4 +146,29 @@ func SetAnalysisRunStatus(exStatus *v1alpha1.ExperimentStatus, newRunStatus v1al
 		}
 	}
 	exStatus.AnalysisRuns = append(exStatus.AnalysisRuns, newRunStatus)
+}
+
+// templateStatusOrder is a list of template statuses sorted in best to worst condition
+var templateStatusOrder = []v1alpha1.TemplateStatusCode{
+	v1alpha1.TemplateStatusSuccessful,
+	v1alpha1.TemplateStatusRunning,
+	v1alpha1.TemplateStatusProgressing,
+	v1alpha1.TemplateStatusError,
+	v1alpha1.TemplateStatusFailed,
+}
+
+// TemplateIsWorse returns whether or not the new health status code is a worser condition than the current.
+// Both statuses must be already completed
+func TemplateIsWorse(current, new v1alpha1.TemplateStatusCode) bool {
+	currentIndex := 0
+	newIndex := 0
+	for i, code := range templateStatusOrder {
+		if current == code {
+			currentIndex = i
+		}
+		if new == code {
+			newIndex = i
+		}
+	}
+	return newIndex > currentIndex
 }

@@ -116,7 +116,7 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 
 	for i := range otherExs {
 		otherEx := otherExs[i]
-		if otherEx.Status.Running != nil && *otherEx.Status.Running {
+		if !otherEx.Status.Status.Completed() {
 			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace).Patch(otherEx.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
 			if err != nil {

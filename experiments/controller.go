@@ -174,6 +174,18 @@ func NewExperimentController(
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
 	})
+
+	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controller.enqueueIfCompleted(newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
+		},
+	})
 	return controller
 }
 
@@ -282,4 +294,14 @@ func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experimen
 	}
 	logCtx.Info("Patch status successfully")
 	return nil
+}
+
+func (c *ExperimentController) enqueueIfCompleted(obj interface{}) {
+	run, ok := obj.(*v1alpha1.AnalysisRun)
+	if !ok {
+		return
+	}
+	if run.Status != nil && run.Status.Status.Completed() {
+		controllerutil.EnqueueParentObject(run, register.AnalysisRunKind, c.enqueueExperiment)
+	}
 }

@@ -7675,8 +7675,8 @@ spec:
                 - type
                 type: object
               type: array
-            running:
-              type: boolean
+            message:
+              type: string
             status:
               type: string
             templateStatuses:
@@ -7688,6 +7688,9 @@ spec:
                   collisionCount:
                     format: int32
                     type: integer
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
                   name:
                     type: string
                   readyReplicas:
@@ -7696,6 +7699,8 @@ spec:
                   replicas:
                     format: int32
                     type: integer
+                  status:
+                    type: string
                   updatedReplicas:
                     format: int32
                     type: integer

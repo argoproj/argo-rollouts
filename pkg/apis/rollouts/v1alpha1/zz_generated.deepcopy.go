@@ -599,11 +599,6 @@ func (in *ExperimentStatus) DeepCopyInto(out *ExperimentStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Running != nil {
-		in, out := &in.Running, &out.Running
-		*out = new(bool)
-		**out = **in
-	}
 	if in.AvailableAt != nil {
 		in, out := &in.AvailableAt, &out.AvailableAt
 		*out = (*in).DeepCopy()
@@ -1104,6 +1099,10 @@ func (in *TemplateStatus) DeepCopyInto(out *TemplateStatus) {
 		in, out := &in.CollisionCount, &out.CollisionCount
 		*out = new(int32)
 		**out = **in
+	}
+	if in.LastTransitionTime != nil {
+		in, out := &in.LastTransitionTime, &out.LastTransitionTime
+		*out = (*in).DeepCopy()
 	}
 	return
 }

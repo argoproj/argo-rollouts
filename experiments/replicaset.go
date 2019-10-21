@@ -27,6 +27,7 @@ const (
 )
 
 const (
+	ExperimentNameLabelKey         = "experiment.argoproj.io/name"
 	ExperimentTemplateNameLabelKey = "experiment.argoproj.io/template-name"
 )
 
@@ -55,19 +56,19 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 
 	templateToRS := make(map[string]*appsv1.ReplicaSet)
 	for _, template := range experiment.Spec.Templates {
-		replicaSetSelector, err := metav1.LabelSelectorAsSelector(template.Selector)
+		rsLabelSelector := metav1.SetAsLabelSelector(newReplicaSetLabels(experiment.Name, template.Name))
+		rsSelector, err := metav1.LabelSelectorAsSelector(rsLabelSelector)
 		if err != nil {
 			return nil, fmt.Errorf("experiment %s/%s has invalid label selector: %v", experiment.Namespace, experiment.Name, err)
 		}
 		templateRSs := make([]*appsv1.ReplicaSet, 0)
-		for i := range rsList {
-			rs := rsList[i]
-			if replicaSetSelector.Matches(labels.Set(rs.ObjectMeta.Labels)) {
+		for _, rs := range rsList {
+			if rsSelector.Matches(labels.Set(rs.ObjectMeta.Labels)) {
 				templateRSs = append(templateRSs, rs)
 			}
 		}
 
-		cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, experiment, replicaSetSelector, controllerKind, canAdoptFunc)
+		cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, experiment, rsSelector, controllerKind, canAdoptFunc)
 		templateRSs, err = cm.ClaimReplicaSets(templateRSs)
 		if err != nil {
 			return nil, err
@@ -86,10 +87,9 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, collisionCount *int32) (*appsv1.ReplicaSet, error) {
 	newRSTemplate := *template.Template.DeepCopy()
 	// The labels must be different for each template because labels are used to match replicasets
-	// to templates. We inject the template name in the replicaset labels to ensure uniqueness.
-	replicaSetlabels := map[string]string{
-		ExperimentTemplateNameLabelKey: template.Name,
-	}
+	// to templates. We inject the experiment and template name in the replicaset labels to ensure
+	// uniqueness.
+	replicaSetlabels := newReplicaSetLabels(ec.ex.Name, template.Name)
 	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
 	newRS := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -213,4 +213,11 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 		}
 	}
 	return scaled, rs, err
+}
+
+func newReplicaSetLabels(experimentName, templateName string) map[string]string {
+	return map[string]string{
+		ExperimentNameLabelKey:         experimentName,
+		ExperimentTemplateNameLabelKey: templateName,
+	}
 }

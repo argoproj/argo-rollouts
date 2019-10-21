@@ -947,7 +947,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"templates": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Templates A list of PodSpecs that define the ReplicaSets that should be run during an experiment.",
+							Description: "Templates are a list of PodSpecs that define the ReplicaSets that should be run during an experiment.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -960,14 +960,14 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 					},
 					"duration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Duration the amount of time for the experiment to run. If not listed, the experiment will run for an indefinite amount of time",
+							Description: "Duration the amount of time for the experiment to run. If not listed, the experiment will run for an indefinite amount of time, stopped either via termination, or a failed analysis run.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"progressDeadlineSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProgressDeadlineSeconds The maximum time in seconds for a experiment to make progress before it is considered to be failed. Argo Rollouts will continue to process failed experiments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the experiment status. Note that progress will not be estimated during the time a experiment is paused. Defaults to 600s.",
+							Description: "ProgressDeadlineSeconds The maximum time in seconds for a experiment to make progress before it is considered to be failed. Argo Rollouts will continue to process failed experiments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the experiment status. Defaults to 600s.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1007,9 +1007,23 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentStatus is the status for a Experiment resource",
 				Properties: map[string]spec.Schema{
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status is the status of the experiment. Takes into consideration ReplicaSet degredations and AnalysisRun statuses",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is an explanation for the current status",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"templateStatuses": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateStatuses the hash of the list of environment spec that is used to prevent changes in spec.",
+							Description: "TemplateStatuses holds the ReplicaSet related statuses for individual templates",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1020,16 +1034,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 							},
 						},
 					},
-					"running": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Running indicates if the experiment has started. If the experiment is not running, the controller will scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"availableAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
+							Description: "Running indicates if the experiment has started. If the experiment is not running, the controller will scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet. Running *bool `json:\"running,omitempty\"` AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1048,7 +1055,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 					},
 					"analysisRuns": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AnalysisRuns tracks the status of analysis runs associated with this Experiment",
+							Description: "AnalysisRuns tracks the status of AnalysisRuns associated with this Experiment",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1057,13 +1064,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 									},
 								},
 							},
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of the experiment, taking into consideration analysis run status",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 				},
@@ -2016,10 +2016,24 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status is the status of the ReplicaSet associated with the template",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastTransitionTime is the last time the replicaset transitioned, which resets the countdown on the ProgressDeadlineSeconds check.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 				Required: []string{"name", "replicas", "updatedReplicas", "readyReplicas", "availableReplicas"},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
