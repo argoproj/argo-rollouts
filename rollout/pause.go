@@ -3,26 +3,99 @@ package rollout
 import (
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func completedPauseStep(rollout *v1alpha1.Rollout, pause v1alpha1.RolloutPause) bool {
-	logCtx := logutil.WithRollout(rollout)
+type pauseContext struct {
+	rollout *v1alpha1.Rollout
+	log     *log.Entry
+
+	addPauseReasons      []v1alpha1.PauseReason
+	removePauseReasons   []v1alpha1.PauseReason
+	clearPauseConditions bool
+}
+
+func (pCtx *pauseContext) AddPauseCondition(reason v1alpha1.PauseReason) {
+	pCtx.addPauseReasons = append(pCtx.addPauseReasons, reason)
+}
+
+func (pCtx *pauseContext) RemovePauseCondition(reason v1alpha1.PauseReason) {
+	pCtx.removePauseReasons = append(pCtx.removePauseReasons, reason)
+}
+func (pCtx *pauseContext) ClearPauseConditions() {
+	pCtx.clearPauseConditions = true
+}
+
+func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
+	if pCtx.clearPauseConditions {
+		return
+	}
+
+	controllerPause := pCtx.rollout.Status.ControllerPause
+	statusToRemove := map[v1alpha1.PauseReason]bool{}
+	for i := range pCtx.removePauseReasons {
+		statusToRemove[pCtx.removePauseReasons[i]] = true
+	}
+
+	newPauseConditions := []v1alpha1.PauseCondition{}
+	pauseAlreadyExists := map[v1alpha1.PauseReason]bool{}
+	for _, cond := range pCtx.rollout.Status.PauseConditions {
+		if remove := statusToRemove[cond.Reason]; !remove {
+			newPauseConditions = append(newPauseConditions, cond)
+		}
+		pauseAlreadyExists[cond.Reason] = true
+	}
+
+	now := metav1.Now()
+	for i := range pCtx.addPauseReasons {
+		reason := pCtx.addPauseReasons[i]
+		if exists := pauseAlreadyExists[reason]; !exists {
+			pCtx.log.Infof("Adding pause reason %s with start time %s", reason, now.UTC().Format(time.RFC3339))
+			cond := v1alpha1.PauseCondition{
+				Reason:    reason,
+				StartTime: now,
+			}
+			newPauseConditions = append(newPauseConditions, cond)
+			controllerPause = true
+		}
+	}
+
+	if len(newPauseConditions) == 0 {
+		return
+	}
+	newStatus.ControllerPause = controllerPause
+	newStatus.PauseConditions = newPauseConditions
+}
+
+func (pCtx *pauseContext) GetPauseCondition(reason v1alpha1.PauseReason) *v1alpha1.PauseCondition {
+	for i := range pCtx.rollout.Status.PauseConditions {
+		cond := pCtx.rollout.Status.PauseConditions[i]
+		if cond.Reason == reason {
+			return &cond
+		}
+	}
+	return nil
+}
+
+func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
+	rollout := pCtx.rollout
+	pauseCondition := pCtx.GetPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
+
 	if pause.Duration != nil {
 		now := metav1.Now()
-		if rollout.Status.PauseStartTime != nil {
-			expiredTime := rollout.Status.PauseStartTime.Add(time.Duration(*pause.Duration) * time.Second)
+		if pauseCondition != nil {
+			expiredTime := pauseCondition.StartTime.Add(time.Duration(*pause.Duration) * time.Second)
 			if now.After(expiredTime) {
-				logCtx.Info("Rollout has waited the duration of the pause step")
+				pCtx.log.Info("Rollout has waited the duration of the pause step")
 				return true
 			}
 		}
-	} else if rollout.Status.PauseStartTime != nil && !rollout.Spec.Paused {
-		logCtx.Info("Rollout has been unpaused")
+	} else if rollout.Status.ControllerPause && pauseCondition == nil {
+		pCtx.log.Info("Rollout has been unpaused")
 		return true
 	}
 	return false
@@ -38,54 +111,4 @@ func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Roll
 		logCtx.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
 		c.enqueueRolloutAfter(rollout, timeRemaining)
 	}
-}
-
-// calculatePauseStatus finds the fields related to a pause step for a rollout. If the pause is nil,
-// the rollout will use the previous values
-func calculatePauseStatus(roCtx rolloutContext, addPause bool) (*metav1.Time, bool) {
-	rollout := roCtx.Rollout()
-	logCtx := roCtx.Log()
-	pauseStartTime := rollout.Status.PauseStartTime
-	paused := rollout.Spec.Paused
-	if !paused {
-		pauseStartTime = nil
-	}
-	if rollout.Spec.Strategy.BlueGreen != nil && defaults.GetAutoPromotionEnabledOrDefault(rollout) {
-		return nil, false
-	}
-
-	pauseForInconclusiveAnalysisRun := false
-	currArs := roCtx.CurrentAnalysisRuns()
-	for i := range currArs {
-		ar := currArs[i]
-		if ar != nil && ar.Status != nil && ar.Status.Status == v1alpha1.AnalysisStatusInconclusive {
-			pauseForInconclusiveAnalysisRun = true
-		}
-	}
-
-	if addPause || pauseForInconclusiveAnalysisRun {
-		if pauseStartTime == nil {
-			now := metav1.Now()
-			logCtx.Infof("Setting PauseStartTime to %s", now.UTC().Format(time.RFC3339))
-			pauseStartTime = &now
-			paused = true
-		}
-	}
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		bgCtx := roCtx.(*blueGreenContext)
-		if reconcileBlueGreenTemplateChange(bgCtx) {
-			return nil, false
-		}
-		if paused && pauseStartTime != nil && rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds != nil {
-			now := metav1.Now()
-			autoPromoteActiveServiceDelaySeconds := *rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-			switchDeadline := pauseStartTime.Add(time.Duration(autoPromoteActiveServiceDelaySeconds) * time.Second)
-			if now.After(switchDeadline) {
-				return nil, false
-			}
-			return pauseStartTime, true
-		}
-	}
-	return pauseStartTime, paused
 }

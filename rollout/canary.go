@@ -119,14 +119,22 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-
+	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
+	if cond == nil {
+		// When the pause condition is null, that means the rollout is in an not paused state.
+		// As a result,, the controller needs to detect whether a rollout was unpaused or the
+		// rollout needs to be paused for the first time. If the ControllerPause is false,
+		// the controller has not paused the rollout yet and needs to do so before it
+		// can proceed.
+		if !rollout.Status.ControllerPause {
+			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
+		}
+		return true
+	}
 	if currentStep.Pause.Duration == nil {
 		return true
 	}
-	if rollout.Status.PauseStartTime == nil {
-		return true
-	}
-	c.checkEnqueueRolloutDuringWait(rollout, *rollout.Status.PauseStartTime, *currentStep.Pause.Duration)
+	c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *currentStep.Pause.Duration)
 	return true
 }
 
@@ -206,7 +214,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 		return false
 	}
 	if currentStep.Pause != nil {
-		return completedPauseStep(r, *currentStep.Pause)
+		return roCtx.PauseContext().CompletedPauseStep(*currentStep.Pause)
 	}
 	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, roCtx.NewRS(), roCtx.StableRS(), roCtx.OlderRSs()) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
@@ -239,7 +247,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
 
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
+	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(r)
 	newStatus.Canary.StableRS = r.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(r)
 	stepCount := int32(len(r.Spec.Strategy.Canary.Steps))
@@ -254,8 +262,9 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 				c.recorder.Event(r, corev1.EventTypeNormal, "SkipSteps", msg)
 			}
 		}
+		roCtx.PauseContext().ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
 	if r.Status.Canary.StableRS == "" {
@@ -269,22 +278,29 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			newStatus.CurrentStepIndex = &stepCount
 
 		}
+		roCtx.PauseContext().ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
-	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
-	if currStepAr != nil {
-		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() || analysisutil.IsTerminating(currStepAr) {
-			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
-		}
-
-	}
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
 	if currBackgroundAr != nil {
 		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
+	}
+
+	if currentStepIndex != nil && *currentStepIndex == stepCount {
+		logCtx.Info("Rollout has executed every step")
+		newStatus.CurrentStepIndex = &stepCount
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+			//TODO(dthomson) cancel background analysis here not when we reach currentStepIndex == stepCount
+			logCtx.Info("New RS has successfully progressed")
+			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+		}
+		roCtx.PauseContext().ClearPauseConditions()
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
+		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
 	if stepCount == 0 {
@@ -294,23 +310,8 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
-
-	if *currentStepIndex == stepCount {
-		logCtx.Info("Rollout has executed every step")
-		newStatus.CurrentStepIndex = &stepCount
-		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
-			logCtx.Info("New RS has successfully progressed")
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
-		}
-		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
-	}
-
-	// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
-	// if we are at a pause step with a duration.
-	c.reconcileCanaryPause(roCtx)
 
 	if completedCurrentCanaryStep(roCtx) {
 		*currentStepIndex++
@@ -320,8 +321,17 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
+		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(r, &newStatus, pointer.BoolPtr(false))
+		return c.persistRolloutStatus(roCtx, &newStatus)
+	}
+
+	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
+	if currStepAr != nil {
+		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() || analysisutil.IsTerminating(currStepAr) {
+			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+		}
+
 	}
 
 	if currExp != nil {
@@ -331,12 +341,9 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 	}
 
-	addPause := !r.Spec.Paused && currentStep != nil && currentStep.Pause != nil
-	var paused bool
-	newStatus.PauseStartTime, paused = calculatePauseStatus(roCtx, addPause)
 	newStatus.CurrentStepIndex = currentStepIndex
 	newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-	return c.persistRolloutStatus(r, &newStatus, &paused)
+	return c.persistRolloutStatus(roCtx, &newStatus)
 }
 
 func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext) (bool, error) {

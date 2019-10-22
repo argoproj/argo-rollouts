@@ -238,7 +238,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
 func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
-	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas, pause)
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
 		selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = active
@@ -248,25 +248,38 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.BlueGreen.PreviewSelector = preview
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	if pause {
+		now := metav1.Now()
+		cond := v1alpha1.PauseCondition{
+			Reason:    v1alpha1.PauseReasonBlueGreenPause,
+			StartTime: now,
+		}
+		newRollout.Status.ControllerPause = true
+		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+	}
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
-	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas, pause)
+	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.Canary.StableRS = stableRS
+	if pause {
+		now := metav1.Now()
+		cond := v1alpha1.PauseCondition{
+			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
+			StartTime: now,
+		}
+		newRollout.Status.ControllerPause = true
+		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+	}
 	return newRollout
 }
 
-func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
+func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32) *v1alpha1.Rollout {
 	newRollout := r.DeepCopy()
 	newRollout.Status.Replicas = totalReplicas
 	newRollout.Status.AvailableReplicas = availableReplicas
 	newRollout.Status.UpdatedReplicas = updatedReplicas
 	newRollout.Status.HPAReplicas = hpaReplicas
-	if pause {
-		newRollout.Spec.Paused = pause
-		now := metav1.Now()
-		newRollout.Status.PauseStartTime = &now
-	}
 	return newRollout
 }
 
@@ -876,9 +889,13 @@ func TestRequeueStuckRollout(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas:                pointer.Int32Ptr(0),
-				Paused:                  rolloutPaused,
 				ProgressDeadlineSeconds: progessDeadlineSeconds,
 			},
+		}
+		if rolloutPaused {
+			r.Status.PauseConditions = []v1alpha1.PauseCondition{{
+				Reason: v1alpha1.PauseReasonBlueGreenPause,
+			}}
 		}
 		if rolloutCompleted {
 			r.Status.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)

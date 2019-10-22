@@ -127,8 +127,7 @@ func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceNam
 			c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
 			newStatus := r.Status.DeepCopy()
 			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
-			conditions.SetRolloutCondition(newStatus, *cond)
-			c.persistRolloutStatus(r, newStatus, &r.Spec.Paused)
+			c.patchCondition(r, newStatus, cond)
 		}
 		return nil, err
 	}
@@ -139,6 +138,7 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
+
 	if r.Spec.Strategy.BlueGreen.PreviewService != "" {
 		previewSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.PreviewService)
 		if err != nil {
