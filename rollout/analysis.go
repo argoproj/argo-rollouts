@@ -148,7 +148,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	}
 
 	if currentAr.Status != nil && currentAr.Status.Status == v1alpha1.AnalysisStatusInconclusive {
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysisRun)
+		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	}
 
 	return currentAr, nil
