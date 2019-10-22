@@ -207,8 +207,8 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
 	logCtx := logutil.WithRollout(r)
-	isPaused := len(r.Status.PauseConditions) > 0
-	logCtx.Infof("Syncing replicas only (paused: %v, isScaling: %v)", isPaused, isScaling)
+	isControllerPaused := len(r.Status.PauseConditions) > 0
+	logCtx.Infof("Syncing replicas only (controllerPaused: %v, userPaused %v, isScaling: %v)", isControllerPaused, r.Spec.Paused, isScaling)
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
 	if err != nil {
 		return err
@@ -424,10 +424,11 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 	}
 	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
 
+	isPaused := len(r.Status.PauseConditions) > 0 || r.Spec.Paused
 	var updatedConditon *v1alpha1.RolloutCondition
-	if len(r.Status.PauseConditions) > 0 && !pausedCondExists {
+	if isPaused && !pausedCondExists {
 		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
-	} else if len(r.Status.PauseConditions) == 0 && pausedCondExists {
+	} else if !isPaused && pausedCondExists {
 		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
 	}
 
@@ -474,7 +475,7 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	r := roCtx.Rollout()
 	allRSs := roCtx.AllRSs()
 	newRS := roCtx.NewRS()
-	if len(r.Status.PauseConditions) > 0 {
+	if len(r.Status.PauseConditions) > 0 || r.Spec.Paused {
 		return newStatus
 	}
 
@@ -617,7 +618,8 @@ func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v
 		return time.Duration(-1)
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
-	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || len(r.Status.PauseConditions) > 0 {
+	isPaused := len(r.Status.PauseConditions) > 0 || r.Spec.Paused
+	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the

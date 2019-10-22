@@ -327,6 +327,48 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
+	t.Run("NoAutoPromoteAfterDelayTimePassesIfUserPaused", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r2 := bumpVersion(r1)
+		r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = pointer.Int32Ptr(10)
+
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+		now := metav1.Now()
+		before := metav1.NewTime(now.Add(-1 * time.Minute))
+		r2.Status.PauseConditions[0].StartTime = before
+		r2.Status.ControllerPause = true
+		r2.Spec.Paused = true
+		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+		previewSvc := newService("preview", 80, previewSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
+		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		f.run(getKey(r2, t))
+
+		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+		assert.Equal(t, expectedPatch, rolloutPatch)
+	})
+
 	t.Run("NoPauseWhenAutoPromotionEnabledIsNotSet", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
