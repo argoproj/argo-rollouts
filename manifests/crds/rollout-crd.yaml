@@ -2621,6 +2621,8 @@ spec:
             HPAReplicas:
               format: int32
               type: integer
+            abort:
+              type: boolean
             availableReplicas:
               format: int32
               type: integer
