@@ -14,6 +14,14 @@ const (
   # Resume a rollout
   %[1]s resume guestbook
 `
+	unpausePatch = `{
+	"spec": {
+		"paused": false
+	},
+	"status: {
+		"pauseConditions": null
+	}
+}`
 )
 
 // NewCmdResume returns a new instance of an `rollouts resume` command
@@ -29,7 +37,7 @@ func NewCmdResume(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
 			for _, name := range args {
-				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(`{"status":{"pauseConditions":null}}`))
+				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(unpausePatch))
 				if err != nil {
 					return err
 				}

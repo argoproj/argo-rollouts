@@ -258,8 +258,8 @@ type RolloutPause struct {
 type PauseReason string
 
 const (
-	// PauseReasonInconclusiveAnalysisRun pauses rollout when rollout has an inconclusive analysis run
-	PauseReasonInconclusiveAnalysisRun PauseReason = "InconclusiveAnalysisRun"
+	// PauseReasonInconclusiveAnalysis pauses rollout when rollout has an inconclusive analysis run
+	PauseReasonInconclusiveAnalysis PauseReason = "InconclusiveAnalysisRun"
 	// PauseReasonCanaryPauseStep pause rollout for canary pause step
 	PauseReasonCanaryPauseStep PauseReason = "CanaryPauseStep"
 	// PauseReasonBlueGreenPause pause rollout before promoting rollout

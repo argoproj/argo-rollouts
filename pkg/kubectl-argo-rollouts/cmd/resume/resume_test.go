@@ -38,6 +38,12 @@ func TestResumeCmdSuccess(t *testing.T) {
 		Spec: v1alpha1.RolloutSpec{
 			Paused: true,
 		},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{{
+				Reason: v1alpha1.PauseReasonCanaryPauseStep,
+			}},
+			ControllerPause: true,
+		},
 	}
 
 	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
@@ -46,8 +52,9 @@ func TestResumeCmdSuccess(t *testing.T) {
 	fakeClient.ReactionChain = nil
 	fakeClient.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == `{"spec":{"pauseConditions":null}}` {
+			if string(patchAction.GetPatch()) == unpausePatch {
 				ro.Status.PauseConditions = nil
+				ro.Spec.Paused = false
 			}
 		}
 		return true, &ro, nil
@@ -60,6 +67,8 @@ func TestResumeCmdSuccess(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Nil(t, ro.Status.PauseConditions)
+	assert.False(t, ro.Spec.Paused)
+	assert.True(t, ro.Status.ControllerPause)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, stdout, "rollout 'guestbook' resumed\n")
