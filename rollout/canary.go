@@ -121,6 +121,11 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	}
 	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.CanaryPauseStep)
 	if cond == nil {
+		// When the pause condition is null, that means the rollout is in an not paused state.
+		// As a result,, the controller needs to detect whether a rollout was unpaused or the
+		// rollout needs to be paused for the first time. If the ControllerPause is false,
+		// the controller has not paused the rollout yet and needs to do so before it
+		// can proceed.
 		if !rollout.Status.ControllerPause {
 			roCtx.PauseContext().AddPauseCondition(v1alpha1.CanaryPauseStep)
 		}

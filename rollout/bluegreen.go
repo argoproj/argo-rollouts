@@ -84,8 +84,8 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 		if hasScaleDownDeadlineAnnotationKey {
 			logCtx.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
+			noFastRollback = false
 		}
-		noFastRollback = !hasScaleDownDeadlineAnnotationKey
 	}
 	if noFastRollback {
 		logCtx.Info("Reconciling pause")

@@ -574,10 +574,8 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *RolloutController) persistRolloutStatus(roCtx rolloutContext, newStatus *v1alpha1.RolloutStatus) error {
 	orig := roCtx.Rollout()
-	specCopy := orig.Spec.DeepCopy()
-
 	roCtx.PauseContext().CalculatePauseStatus(newStatus)
-	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(*specCopy)
+	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(orig.Spec)
 	logCtx := logutil.WithRollout(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
