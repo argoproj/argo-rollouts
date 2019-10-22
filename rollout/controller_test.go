@@ -251,7 +251,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
-			Reason:    v1alpha1.BlueGreenPause,
+			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
@@ -265,7 +265,7 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
-			Reason:    v1alpha1.CanaryPauseStep,
+			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
@@ -894,7 +894,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 		}
 		if rolloutPaused {
 			r.Status.PauseConditions = []v1alpha1.PauseCondition{{
-				Reason: v1alpha1.BlueGreenPause,
+				Reason: v1alpha1.PauseReasonBlueGreenPause,
 			}}
 		}
 		if rolloutCompleted {

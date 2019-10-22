@@ -83,7 +83,7 @@ func (pCtx *pauseContext) GetPauseCondition(reason v1alpha1.PauseReason) *v1alph
 
 func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	rollout := pCtx.rollout
-	pauseCondition := pCtx.GetPauseCondition(v1alpha1.CanaryPauseStep)
+	pauseCondition := pCtx.GetPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 
 	if pause.Duration != nil {
 		now := metav1.Now()

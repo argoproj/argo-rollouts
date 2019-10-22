@@ -119,7 +119,7 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.CanaryPauseStep)
+	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
 		// As a result,, the controller needs to detect whether a rollout was unpaused or the
@@ -127,7 +127,7 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 		// the controller has not paused the rollout yet and needs to do so before it
 		// can proceed.
 		if !rollout.Status.ControllerPause {
-			roCtx.PauseContext().AddPauseCondition(v1alpha1.CanaryPauseStep)
+			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 		}
 		return true
 	}
@@ -321,7 +321,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 		logCtx.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(r, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
-		roCtx.PauseContext().RemovePauseCondition(v1alpha1.CanaryPauseStep)
+		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
