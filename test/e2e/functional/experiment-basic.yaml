@@ -25,9 +25,7 @@ spec:
       metadata:
         labels:
           app: rollouts-demo
-    spec:
-      containers:
-      - name: rollouts-demo
-        image: argoproj/rollouts-demo:yellow
-
----
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:yellow

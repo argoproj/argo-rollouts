@@ -11,6 +11,7 @@ import (
 
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -768,6 +769,7 @@ func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	e := v1alpha1.Experiment{}
+	log.Infof("patch: %s", patchAction.GetPatch())
 	err := json.Unmarshal(patchAction.GetPatch(), &e)
 	if err != nil {
 		panic(err)

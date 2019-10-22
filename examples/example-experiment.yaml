@@ -5,36 +5,31 @@ metadata:
 spec:
   duration: 60
   templates:
-  - replicas: 1
-    name: baseline
+  - name: baseline
     selector:
       matchLabels:
-        app: guestbook
-        version: v1
+        app: rollouts-demo
+        color: blue
     template:
       metadata:
         labels:
-          app: guestbook
+        app: rollouts-demo
+        color: blue
       spec:
         containers:
         - name: guestbook
-          image: gcr.io/heptio-images/ks-guestbook-demo:0.1
-          ports:
-          - containerPort: 80
-  - replicas: 1
-    name: canary
+          image: argoproj/rollouts-demo:blue
+  - name: canary
     selector:
       matchLabels:
-        app: guestbook
-        version: v2
+        app: rollouts-demo
+        color: yellow
     template:
       metadata:
         labels:
-          app: guestbook
-          version: v2
+          app: rollouts-demo
+          color: yellow
       spec:
         containers:
         - name: guestbook
-          image: gcr.io/heptio-images/ks-guestbook-demo:0.2
-          ports:
-          - containerPort: 80
+          image: argoproj/rollouts-demo:yellow

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -305,9 +304,7 @@ func TestExperimentProgressing(t *testing.T) {
 
 func TestExperimentComplete(t *testing.T) {
 	now := metav1.Now()
-	isTrue := pointer.BoolPtr(true)
-	isFalse := pointer.BoolPtr(false)
-	experiment := func(current, updated, available, ready int32, running *bool, availableAt *metav1.Time) *v1alpha1.Experiment {
+	experiment := func(current, updated, available, ready int32, status v1alpha1.AnalysisStatus, availableAt *metav1.Time) *v1alpha1.Experiment {
 		e := &v1alpha1.Experiment{
 			Spec: v1alpha1.ExperimentSpec{},
 			Status: v1alpha1.ExperimentStatus{
@@ -318,7 +315,7 @@ func TestExperimentComplete(t *testing.T) {
 					AvailableReplicas: available,
 					ReadyReplicas:     ready,
 				}},
-				Running:     running,
+				Status:      status,
 				AvailableAt: availableAt,
 			},
 		}
@@ -333,42 +330,42 @@ func TestExperimentComplete(t *testing.T) {
 
 		{
 			name:     "Experiment not running",
-			e:        experiment(0, 0, 0, 0, nil, &now),
+			e:        experiment(0, 0, 0, 0, "", &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: running set to true",
-			e:        experiment(0, 0, 0, 0, isTrue, &now),
+			e:        experiment(0, 0, 0, 0, v1alpha1.AnalysisStatusRunning, &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: not available yet",
-			e:        experiment(0, 0, 0, 0, isFalse, nil),
+			e:        experiment(0, 0, 0, 0, v1alpha1.AnalysisStatusPending, nil),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: waiting for no ready replicas",
-			e:        experiment(0, 0, 0, 5, isFalse, &now),
+			e:        experiment(0, 0, 0, 5, v1alpha1.AnalysisStatusRunning, &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: waiting for no available replicas",
-			e:        experiment(0, 0, 5, 0, isFalse, &now),
+			e:        experiment(0, 0, 5, 0, v1alpha1.AnalysisStatusRunning, &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: waiting for no updated replicas",
-			e:        experiment(0, 5, 0, 0, isFalse, &now),
+			e:        experiment(0, 5, 0, 0, v1alpha1.AnalysisStatusRunning, &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment not finished: waiting for no replicas",
-			e:        experiment(5, 0, 0, 0, isFalse, &now),
+			e:        experiment(5, 0, 0, 0, v1alpha1.AnalysisStatusSuccessful, &now),
 			expected: false,
 		},
 		{
 			name:     "Experiment Completed",
-			e:        experiment(0, 0, 0, 0, isFalse, &now),
+			e:        experiment(0, 0, 0, 0, v1alpha1.AnalysisStatusSuccessful, &now),
 			expected: true,
 		},
 	}

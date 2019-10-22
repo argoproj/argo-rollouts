@@ -5170,8 +5170,6 @@ spec:
                       - value
                       type: object
                     type: array
-                  executionPhase:
-                    type: string
                   name:
                     type: string
                   templateName:
@@ -7690,6 +7688,8 @@ spec:
                     type: integer
                   lastTransitionTime:
                     format: date-time
+                    type: string
+                  message:
                     type: string
                   name:
                     type: string

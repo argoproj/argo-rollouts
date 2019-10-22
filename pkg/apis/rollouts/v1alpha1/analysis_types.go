@@ -92,6 +92,7 @@ type MetricProvider struct {
 }
 
 // AnalysisStatus is the overall status of an AnalysisRun, MetricResult, or Measurement
+// TODO(jessesuen): rename this to StatusCode since it is used by Experiments too
 type AnalysisStatus string
 
 // Possible AnalysisStatus values

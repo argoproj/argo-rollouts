@@ -15,7 +15,9 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -78,6 +80,8 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 			return nil, fmt.Errorf("multiple ReplicaSets match single experiment template")
 		} else if matches == 1 {
 			templateToRS[template.Name] = templateRSs[0]
+			logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
+			logCtx.Infof("Claimed ReplicaSet '%s' for template '%s'", templateRSs[0].Name, template.Name)
 		}
 	}
 	return templateToRS, nil
@@ -192,10 +196,11 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 	}
 	scaled, newRS, err := ec.scaleReplicaSet(rs, newScale, scalingOperation)
 	if err != nil {
+		// TODO(jessesuen): gracefully handle conflict issues
 		msg := fmt.Sprintf("Failed to scale %s %s: %v", rs.Name, scalingOperation, err)
 		ec.recorder.Event(ec.ex, corev1.EventTypeWarning, "ReplicaSetUpdateError", msg)
-
 	}
+	ec.log.Infof("Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, *(rs.Spec.Replicas), newScale)
 	return scaled, newRS, err
 }
 

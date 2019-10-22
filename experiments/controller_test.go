@@ -46,6 +46,11 @@ const (
 	}`
 )
 
+func now() *metav1.Time {
+	now := metav1.Time{Time: time.Now().Truncate(time.Second)}
+	return &now
+}
+
 type fixture struct {
 	t *testing.T
 
@@ -123,13 +128,15 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 	return templates
 }
 
-func generateTemplatesStatus(name string, replica, availableReplicas int32) v1alpha1.TemplateStatus {
+func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time) v1alpha1.TemplateStatus {
 	return v1alpha1.TemplateStatus{
-		Name:              name,
-		Replicas:          replica,
-		UpdatedReplicas:   availableReplicas,
-		ReadyReplicas:     availableReplicas,
-		AvailableReplicas: availableReplicas,
+		Name:               name,
+		Replicas:           replica,
+		UpdatedReplicas:    availableReplicas,
+		ReadyReplicas:      availableReplicas,
+		AvailableReplicas:  availableReplicas,
+		Status:             status,
+		LastTransitionTime: transitionTime,
 	}
 }
 
@@ -145,7 +152,7 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int
 			Duration:  duration,
 		},
 		Status: v1alpha1.ExperimentStatus{
-			Running: running,
+			Status: v1alpha1.AnalysisStatusPending,
 		},
 	}
 	if duration != nil {
@@ -224,7 +231,7 @@ func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, avail
 			Name:            fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, podHash),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
-			Labels:          rsLabels,
+			Labels:          newReplicaSetLabels(ex.Name, template.Name),
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
 		Spec: appsv1.ReplicaSetSpec{
@@ -569,7 +576,7 @@ const (
 	NoChange availableAtResults = "NoChange"
 )
 
-func validatePatch(t *testing.T, patch string, running *bool, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
+func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisStatus, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
 	e := v1alpha1.Experiment{}
 	err := json.Unmarshal([]byte(patch), &e)
 	if err != nil {
@@ -583,7 +590,7 @@ func validatePatch(t *testing.T, patch string, running *bool, availableAt availa
 	} else if availableAt == NoChange {
 		assert.Nil(t, actualStatus.AvailableAt)
 	}
-	assert.Equal(t, e.Status.Running, running)
+	assert.Equal(t, statusCode, e.Status.Status)
 	assert.Len(t, actualStatus.TemplateStatuses, len(templateStatuses))
 	for i := range templateStatuses {
 		assert.Contains(t, actualStatus.TemplateStatuses, templateStatuses[i])
@@ -703,8 +710,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
-		generateTemplatesStatus("baz", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 

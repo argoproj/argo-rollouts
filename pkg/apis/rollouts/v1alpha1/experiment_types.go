@@ -94,6 +94,8 @@ type TemplateStatus struct {
 	CollisionCount *int32 `json:"collisionCount,omitempty"`
 	// Status is the status of the ReplicaSet associated with the template
 	Status TemplateStatusCode `json:"status,omitempty"`
+	// Message is a message explaining the current status
+	Message string `json:"message,omitempty"`
 	// LastTransitionTime is the last time the replicaset transitioned, which resets the countdown
 	// on the ProgressDeadlineSeconds check.
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
@@ -176,14 +178,6 @@ type ExperimentList struct {
 	Items []Experiment `json:"items"`
 }
 
-type ExperimentPhase string
-
-// Various phases of an experiment
-const (
-	ExperimentPhaseBackground ExperimentPhase = "Start"
-	ExperimentPhasePost                       = "Post"
-)
-
 type ExperimentAnalysisTemplateRef struct {
 	// Name is the name of the analysis
 	Name string `json:"name"`
@@ -192,9 +186,6 @@ type ExperimentAnalysisTemplateRef struct {
 	// Arguments the arguments that will be added to the AnalysisRuns
 	// +optional
 	Arguments []Argument `json:"arguments,omitempty"`
-	// ExecutionPhase controls when to (default: Start)
-	// +optional
-	ExecutionPhase ExperimentPhase `json:"executionPhase,omitempty"`
 }
 
 type ExperimentAnalysisRunStatus struct {

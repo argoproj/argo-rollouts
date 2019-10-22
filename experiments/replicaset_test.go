@@ -33,8 +33,8 @@ func TestCreateMultipleRS(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
-		generateTemplatesStatus("baz", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
@@ -49,7 +49,8 @@ func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
-		Name: "bar",
+		Name:               "bar",
+		LastTransitionTime: now(),
 	}}
 
 	rs := templateToRS(e, templates[0], 0)
@@ -68,22 +69,10 @@ func TestCreateMissingRS(t *testing.T) {
 	expectedPatch := `{"status":{}}`
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
-		generateTemplatesStatus("baz", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
-}
-
-func TestFailCreateRSWithInvalidSelector(t *testing.T) {
-	templates := generateTemplates("bar")
-	templates[0].Selector.MatchLabels = map[string]string{}
-	templates[0].Selector.MatchExpressions = []metav1.LabelSelectorRequirement{{}}
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
-
-	f := newFixture(t, e)
-	defer f.Close()
-
-	f.runExpectError(getKey(e, t), true)
 }
 
 func TestTemplateHasMultipleRS(t *testing.T) {
@@ -103,7 +92,7 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 func TestAdoptRS(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.Status = v1alpha1.AnalysisStatusPending
 
 	rs := templateToRS(e, templates[0], 0)
 	rs.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
@@ -118,9 +107,8 @@ func TestAdoptRS(t *testing.T) {
 
 	patch := f.getPatchedExperiment(patchIndex)
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
 	}
-
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
 	expectedPatch := calculatePatch(e, `{
@@ -133,7 +121,7 @@ func TestAdoptRS(t *testing.T) {
 func TestNameCollision(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.Status = v1alpha1.AnalysisStatusPending
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -154,17 +142,17 @@ func TestNameCollision(t *testing.T) {
 	{
 		patch := f.getPatchedExperiment(collisionCountPatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0),
+			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
 		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
-		validatePatch(t, patch, nil, NoChange, templateStatuses, nil)
+		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
 	}
 	{
 		patch := f.getPatchedExperiment(statusUpdatePatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0),
+			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
 		}
 		cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
-		validatePatch(t, patch, nil, NoChange, templateStatuses, cond)
+		validatePatch(t, patch, "", NoChange, templateStatuses, cond)
 	}
 }

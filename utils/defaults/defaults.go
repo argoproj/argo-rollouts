@@ -23,6 +23,14 @@ const (
 	DefaultAutoPromotionEnabled = true
 )
 
+// GetReplicasOrDefault returns the deferenced number of replicas or the default number
+func GetReplicasOrDefault(replicas *int32) int32 {
+	if replicas == nil {
+		return DefaultReplicas
+	}
+	return *replicas
+}
+
 // GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
 func GetRolloutReplicasOrDefault(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.Replicas == nil {

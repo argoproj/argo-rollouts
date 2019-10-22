@@ -74,14 +74,12 @@ func newExperimentContext(
 }
 
 func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
-	if experimentutil.HasStarted(ec.ex) {
-		for _, template := range ec.ex.Spec.Templates {
-			ec.reconcileTemplate(template)
-		}
+	for _, template := range ec.ex.Spec.Templates {
+		ec.reconcileTemplate(template)
+	}
 
-		for _, analysis := range ec.ex.Spec.Analyses {
-			ec.reconcileAnalysisRun(analysis)
-		}
+	for _, analysis := range ec.ex.Spec.Analyses {
+		ec.reconcileAnalysisRun(analysis)
 	}
 	ec.enqueueAfterDuration()
 	return ec.calculateStatus()
@@ -99,32 +97,36 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 	prevStatus := templateStatus.DeepCopy()
 	var desiredReplicaCount int32 = 0
-	if !ec.isTerminating {
+	if !ec.isTerminating && !templateStatus.Status.Completed() {
 		desiredReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	}
 	now := metav1.Now()
 
 	rs := ec.templateRSs[template.Name]
 	if rs == nil {
-		if ec.isTerminating {
-			ec.log.Warnf("Skipping ReplicaSet creation for template %s: experiment is terminating", template.Name)
+		// Create the ReplicaSet if necessary
+		if templateStatus.Status.Completed() {
+			// do nothing (not even pollute the logs)
+		} else if ec.isTerminating {
+			ec.log.Infof("Skipping ReplicaSet creation for template %s: experiment is terminating", template.Name)
 		} else {
 			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 			if err != nil {
 				ec.log.Warnf("Failed to create ReplicaSet: %v", err)
 				if !k8serrors.IsAlreadyExists(err) {
 					templateStatus.Status = v1alpha1.TemplateStatusError
+					templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
 				}
 			}
 			if newRS != nil {
 				ec.templateRSs[template.Name] = newRS
+				templateStatus.LastTransitionTime = &now
 			}
 		}
 		templateStatus.Replicas = 0
 		templateStatus.UpdatedReplicas = 0
 		templateStatus.ReadyReplicas = 0
 		templateStatus.AvailableReplicas = 0
-		templateStatus.LastTransitionTime = &now
 	} else {
 		// If we get here, replicaset exists. We need to ensure it's scaled properly based on
 		// termination, or changed replica count
@@ -138,9 +140,14 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
-		prevStatus.UpdatedReplicas != templateStatus.Replicas ||
+		prevStatus.UpdatedReplicas != templateStatus.UpdatedReplicas ||
 		prevStatus.ReadyReplicas != templateStatus.ReadyReplicas ||
 		prevStatus.AvailableReplicas != templateStatus.AvailableReplicas {
+
+		ec.log.Infof("Template '%s' progressed from (C:%d, U:%d, R:%d, A:%d) to (C:%d, U:%d, R:%d, A:%d)", template.Name,
+			prevStatus.Replicas, prevStatus.UpdatedReplicas, prevStatus.ReadyReplicas, prevStatus.AvailableReplicas,
+			templateStatus.Replicas, templateStatus.UpdatedReplicas, templateStatus.ReadyReplicas, templateStatus.AvailableReplicas,
+		)
 		templateStatus.LastTransitionTime = &now
 	}
 
@@ -149,6 +156,8 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		if desiredReplicaCount == templateStatus.AvailableReplicas {
 			passedDuration, _ := experimentutil.PassedDurations(ec.ex)
 			if passedDuration {
+				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
+			} else if ec.isTerminating {
 				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
 			} else {
 				templateStatus.Status = v1alpha1.TemplateStatusRunning
@@ -159,10 +168,12 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 				from = *templateStatus.LastTransitionTime
 			}
 			progressDeadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ec.ex)
-			delta := time.Duration(progressDeadlineSeconds) * time.Second
-			degraded := from.Add(delta).Before(now.Time)
-			if degraded {
+			deadline := from.Add(time.Duration(progressDeadlineSeconds) * time.Second)
+			if now.Time.After(deadline) {
 				templateStatus.Status = v1alpha1.TemplateStatusFailed
+				templateStatus.Message = fmt.Sprintf("Template '%s' exceeded its progressDeadlineSeconds (%d)", template.Name, progressDeadlineSeconds)
+			} else if ec.isTerminating {
+				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
 			} else {
 				templateStatus.Status = v1alpha1.TemplateStatusProgressing
 			}
@@ -171,6 +182,10 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 	if prevStatus.Status != templateStatus.Status {
 		msg := fmt.Sprintf("Template '%s' transitioned from %s -> %s", template.Name, prevStatus.Status, templateStatus.Status)
+		if templateStatus.Message != "" {
+			msg = msg + ": " + templateStatus.Message
+		}
+		ec.log.Info(msg)
 		switch templateStatus.Status {
 		case v1alpha1.TemplateStatusFailed, v1alpha1.TemplateStatusError:
 			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(templateStatus.Status), msg)
@@ -227,8 +242,9 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 		if prevStatus.Status != newStatus.Status {
 			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Status, newStatus.Status)
 			if newStatus.Message != "" {
-				msg = ": " + newStatus.Message
+				msg = msg + ": " + newStatus.Message
 			}
+			ec.log.Info(msg)
 			switch newStatus.Status {
 			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
 				ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(newStatus.Status), msg)
@@ -322,6 +338,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
 	if prevStatus.Status != ec.newStatus.Status {
 		msg := fmt.Sprintf("Experiment transitioned from %s -> %s", prevStatus.Status, ec.newStatus.Status)
+		ec.log.Info(msg)
 		switch ec.newStatus.Status {
 		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive:
 			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(ec.newStatus.Status), msg)
@@ -336,11 +353,9 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 // experiment status.
 func (ec *experimentContext) assessTemplates() v1alpha1.AnalysisStatus {
 	worstStatus := v1alpha1.TemplateStatusSuccessful
-	//allRunning := true
 	for _, template := range ec.ex.Spec.Templates {
 		templateStatus := experimentutil.GetTemplateStatus(*ec.newStatus, template.Name)
 		if templateStatus == nil {
-			//allRunning = false
 			if experimentutil.TemplateIsWorse(worstStatus, v1alpha1.TemplateStatusProgressing) {
 				worstStatus = v1alpha1.TemplateStatusProgressing
 			}

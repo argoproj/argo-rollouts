@@ -822,13 +822,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							},
 						},
 					},
-					"executionPhase": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ExecutionPhase controls when to (default: Start)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"name", "templateName"},
 			},
@@ -2019,6 +2012,13 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status is the status of the ReplicaSet associated with the template",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is a message explaining the current status",
 							Type:        []string{"string"},
 							Format:      "",
 						},

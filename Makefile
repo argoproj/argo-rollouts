@@ -80,7 +80,7 @@ lint:
 
 .PHONY: test
 test:
-	go test -failfast -covermode=count -coverprofile=coverage.out `go list ./... | grep -v github.com/argoproj/argo-rollouts/pkg/client`
+	go test -failfast -covermode=count -coverprofile=coverage.out ./...
 
 .PHONY: mocks
 mocks:

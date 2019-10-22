@@ -56,23 +56,26 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		func(obj interface{}, duration time.Duration) {},
 	)
 }
-func TestSetExperimentToRunning(t *testing.T) {
+func TestSetExperimentToPending(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil, nil)
+	e.Status = v1alpha1.ExperimentStatus{}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
 	f := newFixture(t, e)
 	defer f.Close()
 
+	rs := templateToRS(e, templates[0], 0)
+	f.expectCreateReplicaSetAction(rs)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(0)
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	expectedPatch := calculatePatch(e, `{
 		"status":{
-			"running": true
+			"status": "Pending"
 		}
 	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
@@ -81,20 +84,22 @@ func TestSetExperimentToRunning(t *testing.T) {
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
-	now := metav1.Now()
-	e.Status.AvailableAt = &now
-	e.Status.Running = pointer.BoolPtr(false)
-	cond := newCondition(conditions.ExperimentCompleteReason, e)
-
-	rs1 := templateToRS(e, templates[0], 0)
-	rs2 := templateToRS(e, templates[1], 0)
+	e.Status.AvailableAt = now()
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+	}
+	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
+	e.Status.Conditions = append(e.Status.Conditions, *cond)
+	rs1 := templateToRS(e, templates[0], 1)
+	rs2 := templateToRS(e, templates[1], 1)
 
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
-	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
 	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
@@ -104,24 +109,16 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
 	assert.NotNil(t, updatedRs2)
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
-
-	patch := f.getPatchedExperiment(patchIndex)
-	expectedPatch := `{"status":{}}`
-	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
-		generateTemplatesStatus("baz", 0, 0),
-	}
-	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
 }
 
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.Status = v1alpha1.AnalysisStatusPending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 0),
-		generateTemplatesStatus("baz", 1, 0),
+		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 1, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -135,10 +132,10 @@ func TestSetAvailableAt(t *testing.T) {
 
 	patch := f.getPatchedExperiment(patchIndex)
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1),
-		generateTemplatesStatus("baz", 1, 1),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
-	validatePatch(t, patch, nil, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
+	validatePatch(t, patch, v1alpha1.AnalysisStatusRunning, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
 }
 
 func TestNoPatch(t *testing.T) {
@@ -153,12 +150,11 @@ func TestNoPatch(t *testing.T) {
 		LastUpdateTime:     metav1.Now(),
 	}}
 
-	now := metav1.Now()
-	e.Status.AvailableAt = &now
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.AvailableAt = now()
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1),
-		generateTemplatesStatus("baz", 1, 1),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -169,16 +165,16 @@ func TestNoPatch(t *testing.T) {
 	f.run(getKey(e, t))
 }
 
-func TestDisableRunningAfterDurationPasses(t *testing.T) {
+func TestSuccessAfterDurationPasses(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, pointer.Int32Ptr(5), pointer.BoolPtr(true))
 
-	now := metav1.Now().Add(-10 * time.Second)
-	e.Status.AvailableAt = &metav1.Time{Time: now}
-	e.Status.Running = pointer.BoolPtr(true)
+	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
+	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1),
-		generateTemplatesStatus("baz", 1, 1),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -189,11 +185,17 @@ func TestDisableRunningAfterDurationPasses(t *testing.T) {
 	i := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(i)
+
+	templateStatuses := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+	}
+
 	expectedPatch := calculatePatch(e, `{
 		"status":{
-			"running": false
+			"status": "Successful"
 		}
-	}`, nil, nil)
+	}`, templateStatuses, nil)
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -228,6 +230,7 @@ func TestFailReplicaSetCreation(t *testing.T) {
 		}
 		return true, nil, errors.New("intentional error")
 	})
-	exCtx.reconcile()
-	// TODO: check that we set condition
+	newStatus := exCtx.reconcile()
+	assert.Equal(t, newStatus.TemplateStatuses[1].Status, v1alpha1.TemplateStatusError)
+	assert.Equal(t, newStatus.Status, v1alpha1.AnalysisStatusError)
 }

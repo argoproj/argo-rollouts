@@ -5,11 +5,15 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rolloutsclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
+
+var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
 
 func HasStarted(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Status != ""
@@ -19,14 +23,25 @@ func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Status.Completed()
 }
 
-// IsTerminating returns whether or not an experiment is terminating, such, analysis failed, or
-// explicit termination.
+func Terminate(experimentIf rolloutsclient.ExperimentInterface, name string) error {
+	_, err := experimentIf.Patch(name, patchtypes.MergePatchType, terminateExperimentPatch)
+	return err
+}
+
+// IsTerminating returns whether or not an experiment is terminating, such as its analysis failed,
+// or explicit termination.
 func IsTerminating(experiment *v1alpha1.Experiment) bool {
 	if experiment.Spec.Terminate {
 		return true
 	}
 	if HasFinished(experiment) {
 		return true
+	}
+	for _, ts := range experiment.Status.TemplateStatuses {
+		switch ts.Status {
+		case v1alpha1.TemplateStatusFailed, v1alpha1.TemplateStatusError:
+			return true
+		}
 	}
 	for _, run := range experiment.Status.AnalysisRuns {
 		switch run.Status {

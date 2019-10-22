@@ -24,6 +24,7 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -168,6 +169,13 @@ func NewExperimentController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
+			if defaults.GetReplicasOrDefault(newRS.Spec.Replicas) == defaults.GetReplicasOrDefault(oldRS.Spec.Replicas) &&
+				newRS.Status.Replicas == oldRS.Status.Replicas &&
+				newRS.Status.ReadyReplicas == oldRS.Status.ReadyReplicas &&
+				newRS.Status.AvailableReplicas == oldRS.Status.AvailableReplicas {
+				// we only care about changes to replicaset's replica counters. ignore everything else
+				return
+			}
 			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.enqueueExperiment)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -296,12 +304,13 @@ func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experimen
 	return nil
 }
 
+// enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
 func (c *ExperimentController) enqueueIfCompleted(obj interface{}) {
 	run, ok := obj.(*v1alpha1.AnalysisRun)
 	if !ok {
 		return
 	}
 	if run.Status != nil && run.Status.Status.Completed() {
-		controllerutil.EnqueueParentObject(run, register.AnalysisRunKind, c.enqueueExperiment)
+		controllerutil.EnqueueParentObject(run, register.ExperimentKind, c.enqueueExperiment)
 	}
 }

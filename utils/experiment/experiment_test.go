@@ -16,7 +16,7 @@ func TestHasStarted(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasStarted(e))
 
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.Status = v1alpha1.AnalysisStatusPending
 	assert.True(t, HasStarted(e))
 }
 
@@ -24,10 +24,10 @@ func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasFinished(e))
 
-	e.Status.Running = pointer.BoolPtr(true)
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	assert.False(t, HasFinished(e))
 
-	e.Status.Running = pointer.BoolPtr(false)
+	e.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	assert.True(t, HasFinished(e))
 }
 
@@ -38,7 +38,7 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 	}
 	assert.Equal(t, int32(1), CalculateTemplateReplicasCount(e, template))
 
-	e.Status.Running = pointer.BoolPtr(false)
+	e.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
 }
 
