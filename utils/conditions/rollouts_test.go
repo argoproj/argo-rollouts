@@ -632,17 +632,19 @@ func TestRolloutComplete(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "6cb88c6bcf", ""),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "6cb88c6bcf", "6cb88c6bcf"),
 			expected: true,
 		},
 		{
-			name:     "BlueGreen not completed: active service does not point at updated rs",
-			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
+			name: "BlueGreen not completed: active service does not point at updated rs",
+			// update hash to status.CurrentPodHash after k8s library update
+			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", "6cb88c6bcf"),
 			expected: false,
 		},
 		{
-			name:     "BlueGreen not completed:: preview service points at something",
-			r:        blueGreenRollout(1, 1, 1, 1, true, "active", "preview"),
+			name: "BlueGreen not completed: preview service does not point at updated rs",
+			// update hash to status.CurrentPodHash after k8s library update
+			r:        blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", ""),
 			expected: false,
 		},
 		{

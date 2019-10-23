@@ -224,7 +224,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		activeSelectorComplete := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
 		previewSelectorComplete := true
 		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			previewSelectorComplete = newStatus.BlueGreen.PreviewSelector == ""
+			previewSelectorComplete = newStatus.BlueGreen.PreviewSelector == newStatus.CurrentPodHash
 		}
 		completedStrategy = activeSelectorComplete && previewSelectorComplete
 	}
@@ -240,7 +240,6 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 
 	replicas := defaults.GetRolloutReplicasOrDefault(rollout)
 	return newStatus.UpdatedReplicas == replicas &&
-		newStatus.Replicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
 		rollout.Status.ObservedGeneration == ComputeGenerationHash(rollout.Spec) &&
 		completedStrategy
