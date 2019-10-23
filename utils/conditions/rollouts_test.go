@@ -636,9 +636,14 @@ func TestRolloutComplete(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "BlueGreen not completed: active service does not point at updated rs",
+			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", "6cb88c6bcf"),
+			r:        blueGreenRollout(5, 6, 5, 5, true, "6cb88c6bcf", "6cb88c6bcf"),
+			expected: true,
+		},
+		{
+			name:     "BlueGreen not completed: active service does not point at updated rs",
+			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
 			expected: false,
 		},
 		{
@@ -678,7 +683,7 @@ func TestRolloutComplete(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "not complete: still running old pods",
+			name:     "Canary not complete: still running old pods",
 			r:        rollout(1, 2, 1, 1, true),
 			expected: false,
 		},
