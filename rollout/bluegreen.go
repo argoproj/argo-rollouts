@@ -135,6 +135,9 @@ func reconcileBlueGreenTemplateChange(roCtx *blueGreenContext) bool {
 
 func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) bool {
 	rollout := roCtx.Rollout()
+	if rollout.Spec.Paused {
+		return false
+	}
 
 	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
 		return false

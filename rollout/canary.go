@@ -105,6 +105,11 @@ func (c *RolloutController) reconcileStableRS(roCtx *canaryContext) (bool, error
 func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
+
+	if rollout.Spec.Paused {
+		return false
+	}
+
 	if len(rollout.Spec.Strategy.Canary.Steps) == 0 {
 		logCtx.Info("Rollout does not have any steps")
 		return false
@@ -208,6 +213,9 @@ func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Re
 
 func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 	r := roCtx.Rollout()
+	if r.Spec.Paused {
+		return false
+	}
 	logCtx := roCtx.Log()
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
 	if currentStep == nil {
