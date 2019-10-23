@@ -75,7 +75,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	}
 
 	if !replicasetutil.ReadyForPause(r, newRS, allRSs) {
-		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
+		logutil.WithRollout(r).Infof("New RS '%s' is not ready to pause", newRS.Name)
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
 
