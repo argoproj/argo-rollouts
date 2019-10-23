@@ -542,20 +542,21 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	expectedPatch := `{
-		"spec":{
-			"paused": true
-		},
 		"status": {
 			"conditions": %s,
 			"canary": {
 				"currentStepAnalysisRun": null
 			},
-			"pauseStartTime": "%s"
+			"pauseConditions": [{
+					"reason": "%s",
+					"startTime": "%s"
+			}],
+			"controllerPause": true
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {

@@ -10404,6 +10404,8 @@ spec:
                 - type
                 type: object
               type: array
+            controllerPause:
+              type: boolean
             currentPodHash:
               type: string
             currentStepHash:
@@ -10413,6 +10415,19 @@ spec:
               type: integer
             observedGeneration:
               type: string
+            pauseConditions:
+              items:
+                properties:
+                  reason:
+                    type: string
+                  startTime:
+                    format: date-time
+                    type: string
+                required:
+                - reason
+                - startTime
+                type: object
+              type: array
             pauseStartTime:
               format: date-time
               type: string

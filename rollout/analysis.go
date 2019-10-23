@@ -44,7 +44,7 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
 	otherArs := roCtx.OtherAnalysisRuns()
-	if rollout.Spec.Paused {
+	if len(rollout.Status.PauseConditions) > 0 {
 		return nil
 	}
 	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
@@ -145,6 +145,10 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
 		}
 		return currentAr, err
+	}
+
+	if currentAr.Status != nil && currentAr.Status.Status == v1alpha1.AnalysisStatusInconclusive {
+		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	}
 
 	return currentAr, nil

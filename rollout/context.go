@@ -21,14 +21,19 @@ type rolloutContext interface {
 	OtherAnalysisRuns() []*v1alpha1.AnalysisRun
 	CurrentExperiment() *v1alpha1.Experiment
 	OtherExperiments() []*v1alpha1.Experiment
+
+	PauseContext() *pauseContext
 }
 
 type blueGreenContext struct {
-	rollout  *v1alpha1.Rollout
-	log      *log.Entry
+	rollout *v1alpha1.Rollout
+	log     *log.Entry
+
 	newRS    *appsv1.ReplicaSet
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
+
+	pauseContext *pauseContext
 }
 
 type canaryContext struct {
@@ -45,16 +50,25 @@ type canaryContext struct {
 
 	currentEx *v1alpha1.Experiment
 	otherExs  []*v1alpha1.Experiment
+
+	pauseContext *pauseContext
 }
 
 func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) *blueGreenContext {
 	allRSs := append(olderRSs, newRS)
+	logCtx := logutil.WithRollout(r)
 	return &blueGreenContext{
-		rollout:  r,
-		log:      logutil.WithRollout(r),
+		rollout: r,
+		log:     logCtx,
+
 		newRS:    newRS,
 		olderRSs: olderRSs,
 		allRSs:   allRSs,
+
+		pauseContext: &pauseContext{
+			rollout: r,
+			log:     logCtx,
+		},
 	}
 }
 
@@ -93,6 +107,10 @@ func (bgCtx *blueGreenContext) OtherExperiments() []*v1alpha1.Experiment {
 	return nil
 }
 
+func (bgCtx *blueGreenContext) PauseContext() *pauseContext {
+	return bgCtx.pauseContext
+}
+
 func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
 	allRSs := append(olderRSs, newRS)
 	if stableRS != nil {
@@ -102,9 +120,10 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 	currentEx := experimentutil.GetCurrentExperiment(r, exList)
 	otherExs := experimentutil.GetOldExperiments(r, exList)
+	logCtx := logutil.WithRollout(r)
 	return &canaryContext{
 		rollout:  r,
-		log:      logutil.WithRollout(r),
+		log:      logCtx,
 		newRS:    newRS,
 		stableRS: stableRS,
 		olderRSs: olderRSs,
@@ -115,6 +134,11 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 
 		currentEx: currentEx,
 		otherExs:  otherExs,
+
+		pauseContext: &pauseContext{
+			rollout: r,
+			log:     logCtx,
+		},
 	}
 }
 
@@ -163,4 +187,8 @@ func (cCtx *canaryContext) CurrentExperiment() *v1alpha1.Experiment {
 
 func (cCtx *canaryContext) OtherExperiments() []*v1alpha1.Experiment {
 	return cCtx.otherExs
+}
+
+func (cCtx *canaryContext) PauseContext() *pauseContext {
+	return cCtx.pauseContext
 }

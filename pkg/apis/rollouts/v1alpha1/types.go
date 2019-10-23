@@ -254,8 +254,30 @@ type RolloutPause struct {
 	Duration *int32 `json:"duration,omitempty"`
 }
 
+// PauseReason reasons that the rollout can pause
+type PauseReason string
+
+const (
+	// PauseReasonInconclusiveAnalysis pauses rollout when rollout has an inconclusive analysis run
+	PauseReasonInconclusiveAnalysis PauseReason = "InconclusiveAnalysisRun"
+	// PauseReasonCanaryPauseStep pause rollout for canary pause step
+	PauseReasonCanaryPauseStep PauseReason = "CanaryPauseStep"
+	// PauseReasonBlueGreenPause pause rollout before promoting rollout
+	PauseReasonBlueGreenPause PauseReason = "BlueGreenPause"
+)
+
+// PauseCondition the reason for a pause and when it started
+type PauseCondition struct {
+	Reason    PauseReason `json:"reason"`
+	StartTime metav1.Time `json:"startTime"`
+}
+
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
+	// PauseConditions indicates why the rollout is currently paused
+	PauseConditions []PauseCondition `json:"pauseConditions,omitempty"`
+	//ControllerPause indicates the controller has paused the rollout
+	ControllerPause bool `json:"controllerPause,omitempty"`
 	// CurrentPodHash the hash of the current pod template
 	// +optional
 	CurrentPodHash string `json:"currentPodHash,omitempty"`
