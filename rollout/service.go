@@ -36,7 +36,7 @@ func (c RolloutController) switchServiceSelector(service *corev1.Service, newRol
 	return err
 }
 
-func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) (bool, error) {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
@@ -45,11 +45,6 @@ func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, pre
 	}
 	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
-	//If the active service selector does not point to any RS,
-	// we short-circuit changing the preview service to set the active first.
-	if activeSvc.Spec.Selector == nil {
-		return false, nil
-	}
 	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	// If preview service already points to the new RS, skip the next steps
 	if previewSvc.Spec.Selector != nil {

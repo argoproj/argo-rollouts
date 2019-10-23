@@ -55,7 +55,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
-	switchPreviewSvc, err := c.reconcilePreviewService(roCtx, previewSvc, activeSvc)
+	switchPreviewSvc, err := c.reconcilePreviewService(roCtx, previewSvc)
 	if err != nil {
 		return err
 	}
