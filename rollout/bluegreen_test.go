@@ -32,37 +32,6 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 	return rollout
 }
 
-//TODO(dthomson) remove test
-func TestBlueGreenHandleNotPreviewChangeAfterActiveSet(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-
-	r2 := bumpVersion(r1)
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
-
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	future := metav1.NewTime(metav1.Now().Add(10 * time.Second)).UTC().Format(time.RFC3339)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = future
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	f.kubeobjects = append(f.kubeobjects, previewSvc)
-	f.serviceLister = append(f.serviceLister, previewSvc)
-
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	f.kubeobjects = append(f.kubeobjects, activeSvc)
-	f.serviceLister = append(f.serviceLister, activeSvc)
-
-	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
-}
-
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -574,31 +543,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 	})
 }
 
-//TODO(dthomson) remove test
-func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	r.Status.AvailableReplicas = 1
-	f.rolloutLister = append(f.rolloutLister, r)
-	f.objects = append(f.objects, r)
-
-	rs := newReplicaSetWithStatus(r, 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs)
-	f.replicaSetLister = append(f.replicaSetLister, rs)
-
-	previewSvc := newService("preview", 80, nil)
-	activeSvc := newService("active", 80, nil)
-	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
-	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
-
-	f.expectPatchServiceAction(activeSvc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
-	f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
-}
-
-func TestBlueGreenAddScaleDownDelayToPreviousActiveService(t *testing.T) {
+func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
