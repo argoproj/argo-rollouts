@@ -46,33 +46,20 @@ func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, pre
 	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
 	//If the active service selector does not point to any RS,
-	// we short-circuit changing the preview service.
+	// we short-circuit changing the preview service to set the active first.
 	if activeSvc.Spec.Selector == nil {
 		return false, nil
 	}
-	// If the active service selector points at the new RS, the
-	// preview service should point at nothing
-	curActiveSelector, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if !ok || curActiveSelector == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-		curPreviewSelector, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if !ok || curPreviewSelector != "" {
-			err := c.switchServiceSelector(previewSvc, "", r)
-			if err != nil {
-				return false, err
-			}
-		}
-		return false, nil
-	}
-
+	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	// If preview service already points to the new RS, skip the next steps
 	if previewSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+		if ok && currentSelectorValue == newPodHash {
 			return false, nil
 		}
 	}
 
-	err := c.switchServiceSelector(previewSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+	err := c.switchServiceSelector(previewSvc, newPodHash, r)
 	if err != nil {
 		return false, err
 	}
@@ -80,42 +67,22 @@ func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, pre
 	return true, nil
 }
 
-func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc *corev1.Service, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, activeSvc *corev1.Service) (bool, error) {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-
-	switchActiveSvc := true
+	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	if activeSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-			switchActiveSvc = false
-		}
-	}
-	if switchActiveSvc {
-		err := c.switchServiceSelector(activeSvc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-
-	switchPreviewSvc := false
-	if previewSvc != nil && previewSvc.Spec.Selector != nil {
-		currentSelectorValue, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if !ok || currentSelectorValue != "" {
-			switchPreviewSvc = true
+		if ok && currentSelectorValue == newPodHash {
+			return false, nil
 		}
 	}
 
-	if switchPreviewSvc {
-		err := c.switchServiceSelector(previewSvc, "", r)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
+	err := c.switchServiceSelector(activeSvc, newPodHash, r)
+	if err != nil {
+		return false, err
 	}
-
-	return false, nil
+	return true, nil
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist

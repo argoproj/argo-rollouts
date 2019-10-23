@@ -32,7 +32,8 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 	return rollout
 }
 
-func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
+//TODO(dthomson) remove test
+func TestBlueGreenHandleNotPreviewChangeAfterActiveSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -58,7 +59,6 @@ func TestBlueGreenHandleResetPreviewAfterActiveSet(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
-	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 }
@@ -111,6 +111,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	f.kubeobjects = append(f.kubeobjects, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
@@ -120,9 +121,11 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
-	f.expectPatchServiceAction(previewSvc, "")
+	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
+
+	assert.True(t, f.verifyPatchedService(servicePatch, rsPodHash))
 }
 
 func TestBlueGreenHandlePause(t *testing.T) {
@@ -571,6 +574,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 	})
 }
 
+//TODO(dthomson) remove test
 func TestBlueGreenSkipPreviewUpdateActive(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

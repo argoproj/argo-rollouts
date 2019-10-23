@@ -105,7 +105,6 @@ func TestReconcileActiveService(t *testing.T) {
 	tests := []struct {
 		name           string
 		activeSvc      *corev1.Service
-		previewSvc     *corev1.Service
 		expectedResult bool
 	}{
 		{
@@ -114,15 +113,8 @@ func TestReconcileActiveService(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name:           "Switch Preview selector to empty string",
+			name:           "No switch required if the active service already points at new RS",
 			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
-			previewSvc:     newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
-			expectedResult: true,
-		},
-		{
-			name:           "No switch required if the active service already points at new RS and the preview is not point at any RS",
-			activeSvc:      newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: defaultTestPodHash}),
-			previewSvc:     newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""}),
 			expectedResult: false,
 		},
 	}
@@ -138,11 +130,8 @@ func TestReconcileActiveService(t *testing.T) {
 			f.rolloutLister = append(f.rolloutLister, ro)
 			f.objects = append(f.objects, ro)
 			f.kubeobjects = append(f.kubeobjects, rs, test.activeSvc)
-			if test.previewSvc != nil {
-				f.kubeobjects = append(f.kubeobjects, test.previewSvc)
-			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			result, err := c.reconcileActiveService(roCtx, test.previewSvc, test.activeSvc)
+			result, err := c.reconcileActiveService(roCtx, test.activeSvc)
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedResult, result)
 		})
