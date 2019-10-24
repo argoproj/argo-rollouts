@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -105,15 +106,14 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	stableRS := roCtx.StableRS()
 	otherExs := roCtx.OtherExperiments()
 
-	for _, otherEx := range otherExs {
-		if !otherEx.Status.Status.Completed() {
-			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
-			experimentIf := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace)
-			err := experimentutil.Terminate(experimentIf, otherEx.Name)
-			if err != nil {
-				return err
-			}
-		}
+	if rollout.Status.Abort {
+		allExs := append(otherExs, roCtx.CurrentExperiment())
+		return c.cancelExperiments(roCtx, allExs)
+	}
+
+	err := c.cancelExperiments(roCtx, otherExs)
+	if err != nil {
+		return err
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
@@ -143,11 +143,28 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	}
 
 	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, roCtx.AllRSs())
-	err := c.deleteExperiments(roCtx, exsToDelete)
+	err = c.deleteExperiments(roCtx, exsToDelete)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {
+	for i := range exs {
+		ex := exs[i]
+		if ex == nil {
+			continue
+		}
+		if ex.Status.Running != nil && *ex.Status.Running {
+			roCtx.Log().Infof("Canceling other running experiment '%s' owned by rollout", ex.Name)
+			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Patch(ex.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

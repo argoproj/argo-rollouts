@@ -44,9 +44,11 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
 	otherArs := roCtx.OtherAnalysisRuns()
-	if len(rollout.Status.PauseConditions) > 0 {
-		return nil
+	if rollout.Status.Abort {
+		allArs := append(roCtx.CurrentAnalysisRuns(), otherArs...)
+		return c.cancelAnalysisRuns(roCtx, allArs)
 	}
+
 	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
 
 	stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)

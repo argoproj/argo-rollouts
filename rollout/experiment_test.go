@@ -450,3 +450,36 @@ func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
 	deletedEx := f.getDeletedExperiment(deletedIndex)
 	assert.Equal(t, deletedEx, exToDelete.Name)
 }
+
+func TestCancelExperimentWhenAborted(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	ex.Name = "test"
+	ex.Status.Running = pointer.BoolPtr(true)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	r2.Status.Abort = true
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.experimentLister = append(f.experimentLister, ex)
+	f.objects = append(f.objects, r2, ex)
+
+	f.expectPatchExperimentAction(ex)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
