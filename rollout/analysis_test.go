@@ -599,7 +599,11 @@ func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
-			"conditions": %s
+			"canary":{
+				"currentStepAnalysisRun": null
+			},
+			"conditions": %s,
+			"abort": true
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.RolloutAnalysisRunFailedReason, r2, false)

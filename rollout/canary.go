@@ -292,14 +292,24 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	}
 
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
-	if currBackgroundAr != nil {
-		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() || analysisutil.IsTerminating(currBackgroundAr) {
+	if currBackgroundAr != nil && !r.Status.Abort {
+		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+		} else if currBackgroundAr.Status.Status == v1alpha1.AnalysisStatusError || currBackgroundAr.Status.Status == v1alpha1.AnalysisStatusFailed {
+			newStatus.Abort = true
+		}
+	}
+	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
+	if currStepAr != nil && !r.Status.Abort {
+		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() {
+			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+		} else if currStepAr.Status.Status == v1alpha1.AnalysisStatusError || currStepAr.Status.Status == v1alpha1.AnalysisStatusFailed {
+			newStatus.Abort = true
 		}
 	}
 
-	if r.Status.Abort {
-		newStatus.Abort = r.Status.Abort
+	if r.Status.Abort || newStatus.Abort {
+		newStatus.Abort = true
 		if stepCount > int32(0) {
 			if newStatus.Canary.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
@@ -337,6 +347,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	if completedCurrentCanaryStep(roCtx) {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
+		newStatus.Canary.CurrentStepAnalysisRun = ""
 		if int(*currentStepIndex) == len(r.Spec.Strategy.Canary.Steps) {
 			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 		}
@@ -345,14 +356,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
-	}
-
-	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
-	if currStepAr != nil {
-		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() || analysisutil.IsTerminating(currStepAr) {
-			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
-		}
-
 	}
 
 	if currExp != nil {
