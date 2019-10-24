@@ -1135,3 +1135,79 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
+
+func TestHandleCanaryAbort(t *testing.T) {
+	t.Run("Scale up stable ReplicaSet", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{
+			{SetWeight: int32Ptr(10)},
+			{SetWeight: int32Ptr(20)},
+			{SetWeight: int32Ptr(30)},
+		}
+		r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		rs1 := newReplicaSetWithStatus(r1, 9, 9)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2 := bumpVersion(r1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
+		r2.Status.Abort = true
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+
+		rsIndex := f.expectUpdateReplicaSetAction(rs2)
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		updatedRS := f.getUpdatedReplicaSet(rsIndex)
+		assert.Equal(t, int32(10), *updatedRS.Spec.Replicas)
+
+		patch := f.getPatchedRollout(patchIndex)
+		expectedPatch := `{
+			"status":{
+				"currentStepIndex": 0,
+				"conditions": %s
+			}
+		}`
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	})
+
+	t.Run("Do not reset currentStepCount if newRS is stableRS", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{
+			{SetWeight: int32Ptr(10)},
+			{SetWeight: int32Ptr(20)},
+			{SetWeight: int32Ptr(30)},
+		}
+		r1 := newCanaryRollout("foo", 2, nil, steps, int32Ptr(3), intstr.FromInt(1), intstr.FromInt(0))
+		r1.Status.Abort = true
+		rs1 := newReplicaSetWithStatus(r1, 2, 2)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 2, 2, 2, false)
+
+		f.kubeobjects = append(f.kubeobjects, rs1)
+		f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+		f.rolloutLister = append(f.rolloutLister, r1)
+		f.objects = append(f.objects, r1)
+
+		patchIndex := f.expectPatchRolloutAction(r1)
+		f.run(getKey(r1, t))
+		patch := f.getPatchedRollout(patchIndex)
+		expectedPatch := `{
+			"status":{
+				"conditions": %s
+			}
+		}`
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false)
+		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	})
+}

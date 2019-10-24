@@ -298,11 +298,24 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 	}
 
+	if r.Status.Abort {
+		newStatus.Abort = r.Status.Abort
+		if stepCount > int32(0) {
+			if newStatus.Canary.StableRS == newStatus.CurrentPodHash {
+				newStatus.CurrentStepIndex = &stepCount
+			} else {
+				newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
+			}
+		}
+		roCtx.PauseContext().ClearPauseConditions()
+		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
+		return c.persistRolloutStatus(roCtx, &newStatus)
+	}
+
 	if currentStepIndex != nil && *currentStepIndex == stepCount {
 		logCtx.Info("Rollout has executed every step")
 		newStatus.CurrentStepIndex = &stepCount
 		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(r.Spec.Replicas) {
-			//TODO(dthomson) cancel background analysis here not when we reach currentStepIndex == stepCount
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}

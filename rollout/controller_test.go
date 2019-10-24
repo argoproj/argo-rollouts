@@ -156,6 +156,10 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 		if reason == conditions.ReplicaSetUpdatedReason {
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
 		}
+		if reason == conditions.RolloutAbortedReason {
+			msg = conditions.RolloutAbortedMessage
+			status = corev1.ConditionFalse
+		}
 		if reason == conditions.RolloutExperimentFailedReason {
 			exName := fmt.Sprintf("%s%s", experimentutil.ExperimentGeneratedNameFromRollout(resource), MockGeneratedNameSuffix)
 			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, exName, resource.Name)
