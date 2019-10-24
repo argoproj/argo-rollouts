@@ -222,11 +222,7 @@ func (ec *experimentContext) enqueueAfterDuration() {
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
 func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
-	if ec.ex.Status.AvailableAt == nil {
-		return
-	}
 	ec.log.Infof("Reconciling analysis %s", analysis.Name)
-
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
 	if prevStatus == nil {
 		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
@@ -254,6 +250,17 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
 	}()
+
+	if ec.ex.Status.AvailableAt == nil {
+		// If we are not not available yet, don't start any runs
+		if err := ec.verifyAnalysisTemplate(analysis); err != nil {
+			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
+			newStatus.Status = v1alpha1.AnalysisStatusError
+			newStatus.Message = msg
+			ec.log.Warn(msg)
+		}
+		return
+	}
 
 	if prevStatus.AnalysisRun == "" {
 		// AnalysisRun needs to be created (unless we are terminating)
@@ -420,4 +427,10 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		},
 	}
 	return &ar, nil
+}
+
+// verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists
+func (ec *experimentContext) verifyAnalysisTemplate(analysis v1alpha1.ExperimentAnalysisTemplateRef) error {
+	_, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	return err
 }

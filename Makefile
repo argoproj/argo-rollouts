@@ -2,6 +2,7 @@ PACKAGE=github.com/argoproj/argo-rollouts
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 PLUGIN_CLI_NAME?=kubectl-argo-rollouts
+TEST_TARGET ?= ./...
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -80,7 +81,12 @@ lint:
 
 .PHONY: test
 test:
-	go test -failfast -covermode=count -coverprofile=coverage.out ./...
+	go test -failfast -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+
+.PHONY: coverage
+coverage: test
+	go tool cover -html=coverage.out -o coverage.html
+	open coverage.html
 
 .PHONY: mocks
 mocks:

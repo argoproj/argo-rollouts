@@ -58,7 +58,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 }
 func TestSetExperimentToPending(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil, nil)
+	e := newExperiment("foo", templates, nil)
 	e.Status = v1alpha1.ExperimentStatus{}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
@@ -83,7 +83,7 @@ func TestSetExperimentToPending(t *testing.T) {
 
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.AvailableAt = now()
 	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -113,7 +113,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Status = v1alpha1.AnalysisStatusPending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -140,7 +140,7 @@ func TestSetAvailableAt(t *testing.T) {
 
 func TestNoPatch(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:               v1alpha1.ExperimentProgressing,
 		Reason:             conditions.NewRSAvailableReason,
@@ -167,7 +167,7 @@ func TestNoPatch(t *testing.T) {
 
 func TestSuccessAfterDurationPasses(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, pointer.Int32Ptr(5), pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, pointer.Int32Ptr(5))
 
 	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
@@ -202,7 +202,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 // TestDontRequeueWithoutDuration verifies we don't enter a hot loop because we keep requeuing
 func TestDontRequeueWithoutDuration(t *testing.T) {
 	templates := generateTemplates("bar")
-	ex := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	ex := newExperiment("foo", templates, nil)
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	exCtx := newTestContext(ex)
 	enqueueCalled := false
@@ -215,15 +215,14 @@ func TestDontRequeueWithoutDuration(t *testing.T) {
 
 func TestFailReplicaSetCreation(t *testing.T) {
 	templates := generateTemplates("good", "bad")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	exCtx := newTestContext(e)
 
 	// Cause failure of the second replicaset
 	calls := 0
 	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
-	fakeClient.ReactionChain = nil
-	fakeClient.AddReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClient.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if calls == 0 {
 			calls++
 			return true, templateToRS(e, templates[0], 0), nil

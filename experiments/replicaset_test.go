@@ -14,7 +14,7 @@ import (
 
 func TestCreateMultipleRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	f := newFixture(t, e)
 	defer f.Close()
@@ -47,7 +47,7 @@ func TestCreateMultipleRS(t *testing.T) {
 
 func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name:               "bar",
 		LastTransitionTime: now(),
@@ -77,7 +77,7 @@ func TestCreateMissingRS(t *testing.T) {
 
 func TestTemplateHasMultipleRS(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	rs := templateToRS(e, templates[0], 0)
 	rs2 := rs.DeepCopy()
@@ -91,7 +91,7 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 
 func TestAdoptRS(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Status = v1alpha1.AnalysisStatusPending
 
 	rs := templateToRS(e, templates[0], 0)
@@ -120,7 +120,7 @@ func TestAdoptRS(t *testing.T) {
 
 func TestNameCollision(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Status = v1alpha1.AnalysisStatusPending
 
 	deploy := &appsv1.Deployment{

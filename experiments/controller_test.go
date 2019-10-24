@@ -57,9 +57,10 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	// rolloutLister    []*v1alpha1.Rollout
-	experimentLister []*v1alpha1.Experiment
-	replicaSetLister []*appsv1.ReplicaSet
+	experimentLister       []*v1alpha1.Experiment
+	replicaSetLister       []*appsv1.ReplicaSet
+	analysisRunLister      []*v1alpha1.AnalysisRun
+	analysisTemplateLister []*v1alpha1.AnalysisTemplate
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -77,6 +78,10 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	for _, obj := range objects {
 		switch obj.(type) {
+		case *v1alpha1.AnalysisTemplate:
+			f.objects = append(f.objects, obj)
+		case *v1alpha1.AnalysisRun:
+			f.objects = append(f.objects, obj)
 		case *v1alpha1.Experiment:
 			f.objects = append(f.objects, obj)
 			f.experimentLister = append(f.experimentLister, obj.(*v1alpha1.Experiment))
@@ -140,7 +145,7 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 	}
 }
 
-func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32, running *bool) *v1alpha1.Experiment {
+func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -347,6 +352,13 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
 	}
 
+	for _, r := range f.analysisRunLister {
+		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(r)
+	}
+
+	for _, r := range f.analysisTemplateLister {
+		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(r)
+	}
 	return c, i, k8sI
 }
 
@@ -503,6 +515,12 @@ func (f *fixture) expectPatchExperimentAction(experiment *v1alpha1.Experiment) i
 	return len
 }
 
+func (f *fixture) expectCreateAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewCreateAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r))
+	return len
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)
@@ -554,11 +572,25 @@ func (f *fixture) getPatchedExperiment(index int) string {
 	return string(patchAction.GetPatch())
 }
 
+func (f *fixture) getPatchedExperimentAsObj(index int) *v1alpha1.Experiment {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	var ex v1alpha1.Experiment
+	err := json.Unmarshal(patchAction.GetPatch(), &ex)
+	if err != nil {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return &ex
+}
+
 func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	e := newExperiment("foo", nil, pointer.Int32Ptr(10), pointer.BoolPtr(true))
+	e := newExperiment("foo", nil, pointer.Int32Ptr(10))
 	now := metav1.Now()
 	e.DeletionTimestamp = &now
 
@@ -616,7 +648,7 @@ func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisStatu
 
 func TestAddInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Spec.Templates[0].Name = ""
 
 	f := newFixture(t, e)
@@ -637,7 +669,7 @@ func TestAddInvalidSpec(t *testing.T) {
 
 func TestKeepInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
 		Status:  corev1.ConditionTrue,
@@ -655,7 +687,7 @@ func TestKeepInvalidSpec(t *testing.T) {
 
 func TestUpdateInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
@@ -685,7 +717,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 
 func TestRemoveInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:   v1alpha1.InvalidExperimentSpec,
