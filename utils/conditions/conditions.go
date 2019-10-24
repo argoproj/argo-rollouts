@@ -220,6 +220,8 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
 func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
+	replicas := defaults.GetRolloutReplicasOrDefault(rollout)
+
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		activeSelectorComplete := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
 		previewSelectorComplete := true
@@ -235,10 +237,10 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
 		}
 		currentRSIsStable := newStatus.Canary.StableRS != "" && newStatus.Canary.StableRS == newStatus.CurrentPodHash
-		completedStrategy = executedAllSteps && currentRSIsStable
+		scaleDownOldReplicas := newStatus.Replicas == replicas
+		completedStrategy = executedAllSteps && currentRSIsStable && scaleDownOldReplicas
 	}
 
-	replicas := defaults.GetRolloutReplicasOrDefault(rollout)
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
 		rollout.Status.ObservedGeneration == ComputeGenerationHash(rollout.Spec) &&
