@@ -81,7 +81,11 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	for _, analysis := range ec.ex.Spec.Analyses {
 		ec.reconcileAnalysisRun(analysis)
 	}
-	ec.enqueueAfterDuration()
+	if duration := calculateEnqueueDuration(ec.ex); duration != nil {
+		ec.log.Infof("Enqueueing Experiment in %s seconds", duration.String())
+		ec.enqueueExperimentAfter(ec.ex, *duration)
+
+	}
 	return ec.calculateStatus()
 }
 
@@ -132,6 +136,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		// termination, or changed replica count
 		if *rs.Spec.Replicas != desiredReplicaCount {
 			ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+			templateStatus.LastTransitionTime = &now
 		}
 		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
@@ -196,27 +201,41 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
 }
 
-// enqueueAfterDuration enqueues the experiment at the appropriate duration time after status.availableAt
-func (ec *experimentContext) enqueueAfterDuration() {
-	// TODO(jessesuen): we need to requeue for ProgressDeadlineSeconds too
-	if !experimentutil.HasStarted(ec.ex) {
-		return
+// calculateEnqueueDuration returns an appropriate duration to requeue the experiment. This will be
+// the shortest of:
+// * status.availableAt + spec.duration
+// * status.templateStatuses[].lastTransitionTime + spec.progressDeadlineSeconds
+// Returns nil if there is no need to requeue
+func calculateEnqueueDuration(ex *v1alpha1.Experiment) *time.Duration {
+	if !experimentutil.HasStarted(ex) {
+		return nil
 	}
-	if ec.isTerminating {
-		return
+	if experimentutil.IsTerminating(ex) {
+		return nil
 	}
-	if ec.ex.Spec.Duration == nil {
-		return
+	var candidateDuration *time.Duration
+	if ex.Status.AvailableAt != nil && ex.Spec.Duration != nil {
+		// Set candidate duration to status.availableAt + duration
+		passedDuration, timeRemaining := experimentutil.PassedDurations(ex)
+		if passedDuration {
+			candidateDuration = &timeRemaining
+		}
 	}
-	if ec.ex.Status.AvailableAt == nil {
-		return
+	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
+	now := time.Now()
+	for _, ts := range ex.Status.TemplateStatuses {
+		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
+		if ts.Status != v1alpha1.TemplateStatusProgressing && ts.Status != v1alpha1.TemplateStatusRunning {
+			continue
+		}
+		if ts.LastTransitionTime != nil {
+			progressDeadlineDuration := ts.LastTransitionTime.Add(time.Second * time.Duration(deadlineSeconds)).Sub(now)
+			if candidateDuration == nil || progressDeadlineDuration < *candidateDuration {
+				candidateDuration = &progressDeadlineDuration
+			}
+		}
 	}
-	passedDuration, timeRemaining := experimentutil.PassedDurations(ec.ex)
-	if passedDuration {
-		return
-	}
-	ec.log.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
-	ec.enqueueExperimentAfter(ec.ex, timeRemaining)
+	return candidateDuration
 }
 
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
@@ -387,9 +406,6 @@ func (ec *experimentContext) assessTemplates() v1alpha1.AnalysisStatus {
 // assessTemplates looks at all the template statuses, and gives an assessment to be used for the
 // experiment status.
 func (ec *experimentContext) assessAnalysisRuns() v1alpha1.AnalysisStatus {
-	if len(ec.ex.Spec.Analyses) == 0 {
-		return v1alpha1.AnalysisStatusSuccessful
-	}
 	worstStatus := v1alpha1.AnalysisStatusSuccessful
 	allCompleted := true
 	for _, a := range ec.ex.Spec.Analyses {

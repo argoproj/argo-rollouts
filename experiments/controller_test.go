@@ -51,6 +51,11 @@ func now() *metav1.Time {
 	return &now
 }
 
+func secondsAgo(seconds int) *metav1.Time {
+	ago := metav1.Time{Time: time.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
+	return &ago
+}
+
 type fixture struct {
 	t *testing.T
 
@@ -521,6 +526,12 @@ func (f *fixture) expectCreateAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
 	return len
 }
 
+func (f *fixture) expectPatchAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r.Name, types.MergePatchType, nil))
+	return len
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)
@@ -584,6 +595,20 @@ func (f *fixture) getPatchedExperimentAsObj(index int) *v1alpha1.Experiment {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	return &ex
+}
+
+func (f *fixture) getPatchedAnalysisRunAsObj(index int) *v1alpha1.AnalysisRun {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	var run v1alpha1.AnalysisRun
+	err := json.Unmarshal(patchAction.GetPatch(), &run)
+	if err != nil {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return &run
 }
 
 func TestNoReconcileForDeletedExperiment(t *testing.T) {

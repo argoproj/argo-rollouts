@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -34,7 +35,7 @@ func generateAnalysisTemplates(names ...string) []v1alpha1.AnalysisTemplate {
 	return templates
 }
 
-func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, template *v1alpha1.AnalysisTemplate) *v1alpha1.AnalysisRun {
+func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, spec *v1alpha1.AnalysisTemplateSpec) *v1alpha1.AnalysisRun {
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName:    fmt.Sprintf("%s-%s-", ex.Name, name),
@@ -42,8 +43,9 @@ func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, template *v1alp
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: template.Spec,
+			AnalysisSpec: *spec,
 		},
+		Status: &v1alpha1.AnalysisRunStatus{},
 	}
 	return &ar
 }
@@ -82,7 +84,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
-	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0])
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
 
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
@@ -132,7 +134,7 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	e.Status.Status = v1alpha1.AnalysisStatusRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
-	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0])
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
 
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
@@ -147,4 +149,169 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, patchedEx.Status.AnalysisRuns[0].Status)
 	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "intentional error")
+}
+
+func TestAnalysisRunSuccessful(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, nil)
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: "success-rate",
+		},
+	}
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Name = ar.GenerateName + "abc123"
+	ar.Status = &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisStatusSuccessful,
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			Status:      v1alpha1.AnalysisStatusRunning,
+			AnalysisRun: ar.Name,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar)
+	defer f.Close()
+
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, patchedEx.Status.AnalysisRuns[0].Status)
+}
+
+func TestAssessAnalysisRunStatuses(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, nil)
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: "success-rate",
+		},
+		{
+			Name:         "latency",
+			TemplateName: "latency",
+		},
+	}
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Spec.Duration = pointer.Int32Ptr(60)
+	e.Status.AvailableAt = secondsAgo(61)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar1.Name = ar1.GenerateName + "abc123"
+	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar2.Name = ar2.GenerateName + "abc123"
+
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		{
+			Name:   e.Spec.Templates[0].Name,
+			Status: v1alpha1.TemplateStatusSuccessful,
+		},
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			AnalysisRun: ar1.Name,
+		},
+		{
+			Name:        e.Spec.Analyses[1].Name,
+			AnalysisRun: ar2.Name,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		first    v1alpha1.AnalysisStatus
+		second   v1alpha1.AnalysisStatus
+		expected v1alpha1.AnalysisStatus
+	}{
+		{
+			name:     "all successful",
+			first:    v1alpha1.AnalysisStatusSuccessful,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: v1alpha1.AnalysisStatusSuccessful,
+		},
+		{
+			name:     "failed,successful",
+			first:    v1alpha1.AnalysisStatusFailed,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: v1alpha1.AnalysisStatusFailed,
+		},
+		{
+			name:     "successful,failed",
+			first:    v1alpha1.AnalysisStatusSuccessful,
+			second:   v1alpha1.AnalysisStatusFailed,
+			expected: v1alpha1.AnalysisStatusFailed,
+		},
+		{
+			name:     "running,successful",
+			first:    v1alpha1.AnalysisStatusRunning,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: v1alpha1.AnalysisStatusRunning,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			ar1.Status.Status = test.first
+			e.Status.AnalysisRuns[0].Status = test.first
+			ar2.Status.Status = test.second
+			e.Status.AnalysisRuns[1].Status = test.second
+			f := newFixture(t, e, rs, ar1, ar2)
+			if test.expected != v1alpha1.AnalysisStatusRunning {
+				patchIdx := f.expectPatchExperimentAction(e)
+				f.run(getKey(e, t))
+				patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+				assert.Equal(t, test.expected, patchedEx.Status.Status)
+			} else {
+				f.run(getKey(e, t))
+			}
+			f.Close()
+		})
+	}
+}
+
+// TestTerminateAnalysisRuns verifies we terminate analysis runs when experiment is terminating
+func TestTerminateAnalysisRuns(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, nil)
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: "success-rate",
+		},
+	}
+	e.Spec.Terminate = true
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.AvailableAt = secondsAgo(60)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Name = ar.GenerateName + "abc123"
+	ar.Status = &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisStatusRunning,
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			Status:      v1alpha1.AnalysisStatusRunning,
+			AnalysisRun: ar.Name,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar)
+	defer f.Close()
+
+	arPatchIdx := f.expectPatchAnalysisRunAction(ar)
+	f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedAr := f.getPatchedAnalysisRunAsObj(arPatchIdx)
+	assert.True(t, patchedAr.Spec.Terminate)
 }

@@ -199,8 +199,9 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 		// TODO(jessesuen): gracefully handle conflict issues
 		msg := fmt.Sprintf("Failed to scale %s %s: %v", rs.Name, scalingOperation, err)
 		ec.recorder.Event(ec.ex, corev1.EventTypeWarning, "ReplicaSetUpdateError", msg)
+	} else {
+		ec.log.Infof("Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, *(rs.Spec.Replicas), newScale)
 	}
-	ec.log.Infof("Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, *(rs.Spec.Replicas), newScale)
 	return scaled, newRS, err
 }
 
