@@ -19,6 +19,10 @@ type pauseContext struct {
 	clearPauseConditions bool
 }
 
+func (pCtx *pauseContext) HasAddPause() bool {
+	return len(pCtx.addPauseReasons) > 0
+}
+
 func (pCtx *pauseContext) AddPauseCondition(reason v1alpha1.PauseReason) {
 	pCtx.addPauseReasons = append(pCtx.addPauseReasons, reason)
 }
