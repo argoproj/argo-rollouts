@@ -18,8 +18,10 @@ spec:
     blueGreen:
       previewService: string
       previewReplicaCount: *int32
+      autoPromotionEnabled: true
       autoPromotionSeconds: *int32
       scaleDownDelaySeconds: *int32
+      scaleDownDelayRevisionLimit: *int32
 ```
 
 ### PreviewService
@@ -52,3 +54,7 @@ The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after
 
 Defaults to 30
 
+### ScaleDownDelayRevisionLimit
+The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
+
+Default to nil
