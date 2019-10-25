@@ -167,10 +167,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 		}
 		if reason == conditions.RolloutAnalysisRunFailedReason {
 			atName := ""
-			if resource.Spec.Strategy.Canary.Steps != nil && resource.Status.CurrentStepIndex != nil {
+			if resource.Spec.Strategy.Canary.Analysis != nil {
+				atName = resource.Spec.Strategy.Canary.Analysis.TemplateName
+			} else if resource.Spec.Strategy.Canary.Steps != nil && resource.Status.CurrentStepIndex != nil {
 				atName = resource.Spec.Strategy.Canary.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
 			}
-			//TODO(dthomson) Add support for parellel analysisRuns too
 			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, atName, resource.Status.CurrentPodHash, MockGeneratedNameSuffix)
 			msg = fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, arName, resource.Name)
 			status = corev1.ConditionFalse
