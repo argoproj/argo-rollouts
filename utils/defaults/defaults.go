@@ -31,22 +31,6 @@ func GetReplicasOrDefault(replicas *int32) int32 {
 	return *replicas
 }
 
-// GetRolloutReplicasOrDefault returns the specified number of replicas in a rollout or the default number
-func GetRolloutReplicasOrDefault(rollout *v1alpha1.Rollout) int32 {
-	if rollout.Spec.Replicas == nil {
-		return DefaultReplicas
-	}
-	return *rollout.Spec.Replicas
-}
-
-// GetExperimentTemplateReplicasOrDefault returns the specified number of replicas in a Experiment template or the default number
-func GetExperimentTemplateReplicasOrDefault(template v1alpha1.TemplateSpec) int32 {
-	if template.Replicas == nil {
-		return DefaultReplicas
-	}
-	return *template.Replicas
-}
-
 // GetRevisionHistoryLimitOrDefault returns the specified number of replicas in a rollout or the default number
 func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.RevisionHistoryLimit == nil {

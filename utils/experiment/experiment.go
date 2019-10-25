@@ -69,7 +69,7 @@ func CalculateTemplateReplicasCount(experiment *v1alpha1.Experiment, template v1
 	if HasFinished(experiment) {
 		return int32(0)
 	}
-	return defaults.GetExperimentTemplateReplicasOrDefault(template)
+	return defaults.GetReplicasOrDefault(template.Replicas)
 }
 
 // GetTemplateStatusMapping returns a mapping of name to template statuses

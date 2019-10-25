@@ -321,7 +321,6 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 
 	c := NewExperimentController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
-		i.Argoproj().V1alpha1().Rollouts(),
 		i.Argoproj().V1alpha1().Experiments(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
@@ -384,7 +383,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced))
 	}
 
 	err := c.syncHandler(experimentName)

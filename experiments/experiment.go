@@ -81,10 +81,10 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	for _, analysis := range ec.ex.Spec.Analyses {
 		ec.reconcileAnalysisRun(analysis)
 	}
+
 	if duration := calculateEnqueueDuration(ec.ex); duration != nil {
 		ec.log.Infof("Enqueueing Experiment in %s seconds", duration.String())
 		ec.enqueueExperimentAfter(ec.ex, *duration)
-
 	}
 	return ec.calculateStatus()
 }
@@ -92,7 +92,8 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 // reconcileTemplate reconciles a template to a ReplicaSet. Creates or scales them down as necessary
 // will update status.templateStatuses with the current assessed values
 func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
-	ec.log.Infof("Reconciling template %s", template.Name)
+	logCtx := ec.log.WithField("template", template.Name)
+	logCtx.Info("Reconciling template")
 	templateStatus := experimentutil.GetTemplateStatus(ec.ex.Status, template.Name)
 	if templateStatus == nil {
 		templateStatus = &v1alpha1.TemplateStatus{
@@ -112,11 +113,11 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		if templateStatus.Status.Completed() {
 			// do nothing (not even pollute the logs)
 		} else if ec.isTerminating {
-			ec.log.Infof("Skipping ReplicaSet creation for template %s: experiment is terminating", template.Name)
+			logCtx.Info("Skipping ReplicaSet creation: experiment is terminating")
 		} else {
 			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 			if err != nil {
-				ec.log.Warnf("Failed to create ReplicaSet: %v", err)
+				logCtx.Warnf("Failed to create ReplicaSet: %v", err)
 				if !k8serrors.IsAlreadyExists(err) {
 					templateStatus.Status = v1alpha1.TemplateStatusError
 					templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
@@ -149,10 +150,11 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		prevStatus.ReadyReplicas != templateStatus.ReadyReplicas ||
 		prevStatus.AvailableReplicas != templateStatus.AvailableReplicas {
 
-		ec.log.Infof("Template '%s' progressed from (C:%d, U:%d, R:%d, A:%d) to (C:%d, U:%d, R:%d, A:%d)", template.Name,
-			prevStatus.Replicas, prevStatus.UpdatedReplicas, prevStatus.ReadyReplicas, prevStatus.AvailableReplicas,
-			templateStatus.Replicas, templateStatus.UpdatedReplicas, templateStatus.ReadyReplicas, templateStatus.AvailableReplicas,
-		)
+		logCtx.Info("Template progressed")
+		logCtx.Infof("Prev status: Current: %d, Updated: %d, Ready: %d, Available: %d",
+			prevStatus.Replicas, prevStatus.UpdatedReplicas, prevStatus.ReadyReplicas, prevStatus.AvailableReplicas)
+		logCtx.Infof("New status: Current: %d, Updated: %d, Ready: %d, Available: %d",
+			templateStatus.Replicas, templateStatus.UpdatedReplicas, templateStatus.ReadyReplicas, templateStatus.AvailableReplicas)
 		templateStatus.LastTransitionTime = &now
 	}
 
@@ -241,7 +243,8 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment) *time.Duration {
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
 func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
-	ec.log.Infof("Reconciling analysis %s", analysis.Name)
+	logCtx := ec.log.WithField("analysis", analysis.Name)
+	logCtx.Infof("Reconciling analysis")
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
 	if prevStatus == nil {
 		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
@@ -276,7 +279,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Status = v1alpha1.AnalysisStatusError
 			newStatus.Message = msg
-			ec.log.Warn(msg)
+			logCtx.Warn(msg)
 		}
 		return
 	}
@@ -284,7 +287,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	if prevStatus.AnalysisRun == "" {
 		// AnalysisRun needs to be created (unless we are terminating)
 		if ec.isTerminating {
-			ec.log.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
+			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
 			return
 		}
 		run, err := ec.createAnalysisRun(analysis)
@@ -292,11 +295,11 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Status = v1alpha1.AnalysisStatusError
 			newStatus.Message = msg
-			ec.log.Warn(msg)
+			logCtx.Warn(msg)
 		} else {
 			newStatus.Status = v1alpha1.AnalysisStatusPending
 			newStatus.AnalysisRun = run.Name
-			ec.log.Infof("Created %s", run.Name)
+			logCtx.Infof("Created %s", run.Name)
 		}
 		return
 	}
@@ -317,7 +320,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	if ec.isTerminating {
 		if !run.Status.Status.Completed() && !run.Spec.Terminate {
 			msg := fmt.Sprintf("Terminating %s (%s)", analysis.Name, run.Name)
-			ec.log.Warnf(msg)
+			logCtx.Warnf(msg)
 			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, "Terminate", msg)
 			analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 			err := analysisutil.TerminateRun(analysisRunIf, run.Name)

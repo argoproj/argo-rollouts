@@ -26,7 +26,7 @@ func AtDesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS 
 
 //DesiredReplicaCountsForCanary calculates the desired endstate replica count for the new and stable replicasets
 func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) (int32, int32) {
-	rolloutSpecReplica := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	setWeight := GetCurrentSetWeight(rollout)
 
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(setWeight) / 100))))
@@ -76,7 +76,7 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 // replicas 1 currentWeight 95 NewRS 0 stableRS 1 max unavailable 0, surge 1 - should return newRS 1 stableRS 1
 // For more examples, check the TestCalculateReplicaCountsForCanary test in canary/canary_test.go
 func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
-	rolloutSpecReplica := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	setWeight := GetCurrentSetWeight(rollout)
 
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(setWeight) / 100))))

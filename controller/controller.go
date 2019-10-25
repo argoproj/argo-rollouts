@@ -127,7 +127,6 @@ func NewManager(
 		kubeclientset,
 		argoprojclientset,
 		replicaSetInformer,
-		rolloutsInformer,
 		experimentsInformer,
 		analysisRunInformer,
 		analysisTemplateInformer,

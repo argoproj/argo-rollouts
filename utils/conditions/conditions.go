@@ -238,7 +238,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		completedStrategy = executedAllSteps && currentRSIsStable
 	}
 
-	replicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	replicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.Replicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&

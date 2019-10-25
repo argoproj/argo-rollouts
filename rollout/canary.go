@@ -170,7 +170,7 @@ func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.Repli
 func (c *RolloutController) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
 	logCtx := logutil.WithRollout(rollout)
 	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
-	minAvailable := defaults.GetRolloutReplicasOrDefault(rollout) - replicasetutil.MaxUnavailable(rollout)
+	minAvailable := defaults.GetReplicasOrDefault(rollout.Spec.Replicas) - replicasetutil.MaxUnavailable(rollout)
 	maxScaleDown := availablePodCount - minAvailable
 	if maxScaleDown <= 0 {
 		// Cannot scale down.
@@ -293,7 +293,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	if currentStepIndex != nil && *currentStepIndex == stepCount {
 		logCtx.Info("Rollout has executed every step")
 		newStatus.CurrentStepIndex = &stepCount
-		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(r.Spec.Replicas) {
 			//TODO(dthomson) cancel background analysis here not when we reach currentStepIndex == stepCount
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
@@ -305,7 +305,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 	if stepCount == 0 {
 		logCtx.Info("Rollout has no steps")
-		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetRolloutReplicasOrDefault(r) {
+		if newRS != nil && newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(r.Spec.Replicas) {
 			logCtx.Info("New RS has successfully progressed")
 			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
