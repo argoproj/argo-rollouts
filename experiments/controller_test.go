@@ -85,8 +85,10 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 		switch obj.(type) {
 		case *v1alpha1.AnalysisTemplate:
 			f.objects = append(f.objects, obj)
+			f.analysisTemplateLister = append(f.analysisTemplateLister, obj.(*v1alpha1.AnalysisTemplate))
 		case *v1alpha1.AnalysisRun:
 			f.objects = append(f.objects, obj)
+			f.analysisRunLister = append(f.analysisRunLister, obj.(*v1alpha1.AnalysisRun))
 		case *v1alpha1.Experiment:
 			f.objects = append(f.objects, obj)
 			f.experimentLister = append(f.experimentLister, obj.(*v1alpha1.Experiment))
@@ -201,16 +203,6 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 			LastTransitionTime: metav1.Now().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name),
-		}
-	}
-	if reason == conditions.TimedOutReason {
-		return &v1alpha1.ExperimentCondition{
-			Type:               v1alpha1.ExperimentProgressing,
-			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
-			Reason:             reason,
-			Message:            fmt.Sprintf(conditions.ExperimentTimeOutMessage, experiment.Name),
 		}
 	}
 	if reason == conditions.InvalidSpecReason {

@@ -3,7 +3,6 @@ package conditions
 import (
 	"fmt"
 	"reflect"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,16 +10,12 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 const (
 	// ExperimentProgressingMessage is added in a Experiment when one of its replica sets is updated as part
 	// of the experiment process.
 	ExperimentProgressingMessage = "Experiment %q is progressing."
-	// ExperimentTimeOutMessage is added in a experiment when the experiment fails to show any progress
-	// within the given deadline (progressDeadlineSeconds).
-	ExperimentTimeOutMessage = "Experiment %q has timed out progressing."
 	// ExperimentRunningMessage is added when a experiment has all the templates running
 	ExperimentRunningMessage = "Experiment %q is running."
 	// ExperimentCompletedMessage is added when the experiment is completed
@@ -122,35 +117,6 @@ func ExperimentProgressing(experiment *v1alpha1.Experiment, newStatus v1alpha1.E
 	}
 
 	return false
-}
-
-// ExperimentTimeOut indicates when the experiment has pasted the progress deadline limit
-func ExperimentTimeOut(experiment *v1alpha1.Experiment, newStatus v1alpha1.ExperimentStatus) bool {
-	if experiment.Status.AvailableAt != nil {
-		return false
-	}
-	condition := GetExperimentCondition(newStatus, v1alpha1.ExperimentProgressing)
-	if condition == nil {
-		return false
-	}
-
-	if condition.Reason == TimedOutReason {
-		return true
-	}
-
-	// Look at the difference in seconds between now and the last time we reported any
-	// progress or tried to create a replica set, or resumed a paused experiment and
-	// compare against progressDeadlineSeconds.
-	from := condition.LastUpdateTime
-	now := time.Now()
-
-	progressDeadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(experiment)
-	delta := time.Duration(progressDeadlineSeconds) * time.Second
-	timedOut := from.Add(delta).Before(now)
-	logCtx := logutil.WithExperiment(experiment)
-
-	logCtx.Infof("Timed out (%t) [last progress check: %v - now: %v]", timedOut, from, now)
-	return timedOut
 }
 
 // ExperimentCompleted Indicates when the experiment has finished and completely scaled down

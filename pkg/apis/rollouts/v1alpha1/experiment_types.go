@@ -112,10 +112,6 @@ type ExperimentStatus struct {
 	// TemplateStatuses holds the ReplicaSet related statuses for individual templates
 	// +optional
 	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty"`
-	// Running indicates if the experiment has started. If the experiment is not running, the controller will
-	// scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet.
-	// +optional
-	//Running *bool `json:"running,omitempty"`
 	// AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
 	// run for the duration of specificed in the spec.
 	// +optional

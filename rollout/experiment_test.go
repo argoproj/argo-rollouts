@@ -119,10 +119,7 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
-	ex.Status.Conditions = []v1alpha1.ExperimentCondition{{
-		Type:   v1alpha1.ExperimentProgressing,
-		Reason: conditions.TimedOutReason,
-	}}
+	ex.Status.Status = v1alpha1.AnalysisStatusFailed
 	ex.Name = fmt.Sprintf("%s%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 

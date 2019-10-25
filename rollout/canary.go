@@ -229,7 +229,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 		return true
 	}
 	experiment := roCtx.CurrentExperiment()
-	if currentStep.Experiment != nil && experiment != nil && conditions.ExperimentCompleted(experiment.Status) && !conditions.ExperimentTimeOut(experiment, experiment.Status) {
+	if currentStep.Experiment != nil && experiment != nil && conditions.ExperimentCompleted(experiment.Status) && experiment.Status.Status == v1alpha1.AnalysisStatusSuccessful {
 		return true
 	}
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -344,7 +344,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 	if currExp != nil {
 		newStatus.Canary.CurrentExperiment = currExp.Name
-		if conditions.ExperimentTimeOut(currExp, currExp.Status) {
+		if currExp.Status.Status.Completed() && currExp.Status.Status != v1alpha1.AnalysisStatusSuccessful {
 			newStatus.Canary.ExperimentFailed = true
 		}
 	}
