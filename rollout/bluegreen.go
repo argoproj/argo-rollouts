@@ -55,7 +55,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
-	switchPreviewSvc, err := c.reconcilePreviewService(roCtx, previewSvc, activeSvc)
+	switchPreviewSvc, err := c.reconcilePreviewService(roCtx, previewSvc)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	}
 
 	if !replicasetutil.ReadyForPause(r, newRS, allRSs) {
-		logutil.WithRollout(r).Infof("New RS '%s' is not fully saturated", newRS.Name)
+		logutil.WithRollout(r).Infof("New RS '%s' is not ready to pause", newRS.Name)
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
 
@@ -101,7 +101,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		logCtx.Infof("New RS '%s' is not fully saturated", newRS.Name)
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
-	switchActiveSvc, err := c.reconcileActiveService(roCtx, previewSvc, activeSvc)
+	switchActiveSvc, err := c.reconcileActiveService(roCtx, activeSvc)
 	if err != nil {
 		return err
 	}
@@ -135,6 +135,9 @@ func reconcileBlueGreenTemplateChange(roCtx *blueGreenContext) bool {
 
 func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) bool {
 	rollout := roCtx.Rollout()
+	if rollout.Spec.Paused {
+		return false
+	}
 
 	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
 		return false

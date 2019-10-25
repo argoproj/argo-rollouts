@@ -94,11 +94,6 @@ func (f *fixture) Close() {
 	f.unfreezeTime()
 }
 
-const (
-	// update this value after every k8s library update
-	defaultTestPodHash = "56d899fbc4"
-)
-
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -876,6 +871,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
+	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 

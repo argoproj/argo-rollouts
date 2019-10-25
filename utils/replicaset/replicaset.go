@@ -85,7 +85,8 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 			if newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != rollout.Status.CurrentPodHash {
 				return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 			}
-			if len(rollout.Status.PauseConditions) == 0 && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+			isNotPaused := !rollout.Spec.Paused && len(rollout.Status.PauseConditions) == 0
+			if isNotPaused && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
 				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
 			}
 			return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil

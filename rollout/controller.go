@@ -273,7 +273,7 @@ func (c *RolloutController) syncHandler(key string) error {
 		return err
 	}
 
-	if len(rollout.Status.PauseConditions) > 0 || isScalingEvent {
+	if len(rollout.Status.PauseConditions) > 0 || r.Spec.Paused || isScalingEvent {
 		return c.syncReplicasOnly(r, rsList, isScalingEvent)
 	}
 

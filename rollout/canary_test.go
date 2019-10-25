@@ -1056,3 +1056,44 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	assert.True(t, ok)
 	assert.Nil(t, controllerPause)
 }
+
+func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(10),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: pointer.Int32Ptr(60),
+			},
+		},
+		{
+			SetWeight: pointer.Int32Ptr(20),
+		},
+	}
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 2, 1, 2, true)
+	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
+	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
+	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
+		StartTime: overAMinuteAgo,
+	}}
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1)
+	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
+	r1.Spec.Paused = true
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r1, OnlyObservedGenerationPatch), patch)
+}
