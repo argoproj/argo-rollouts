@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  generateName: experiment-degrade-
+spec:
+  progressDeadlineSeconds: 30
+  templates:
+  - name: image-does-not-exist
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:does-not-exist

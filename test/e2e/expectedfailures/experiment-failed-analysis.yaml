@@ -1,8 +1,7 @@
----
 kind: AnalysisTemplate
 apiVersion: argoproj.io/v1alpha1
 metadata:
-  name: job
+  name: bad-job
 spec:
   metrics:
   - name: test
@@ -14,7 +13,7 @@ spec:
               containers:
               - name: sleep
                 image: alpine:3.8
-                command: [sleep, "30"]
+                command: [exit, "1"]
               restartPolicy: Never
           backoffLimit: 0
 
@@ -22,9 +21,8 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 metadata:
-  name: experiment-with-analysis
+  name: experiment-failed-analysis
 spec:
-  duration: 60
   templates:
   - name: baseline
     selector:
@@ -39,5 +37,5 @@ spec:
         - name: rollouts-demo
           image: argoproj/rollouts-demo:blue
   analyses:
-  - name: job
-    templateName: job
+  - name: bad-job
+    templateName: bad-job

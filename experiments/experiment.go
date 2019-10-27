@@ -349,18 +349,14 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	switch ec.newStatus.Status {
 	case "":
 		ec.newStatus.Status = v1alpha1.AnalysisStatusPending
-	case v1alpha1.AnalysisStatusPending:
-		templateStatus, templateMessage := ec.assessTemplates()
-		ec.newStatus.Status = templateStatus
-		ec.newStatus.Message = templateMessage
-		if ec.newStatus.Status == v1alpha1.AnalysisStatusRunning {
-			now := metav1.Now()
-			ec.newStatus.AvailableAt = &now
-			ec.log.Infof("marked available at %v", now)
-		}
-	case v1alpha1.AnalysisStatusRunning:
+	case v1alpha1.AnalysisStatusPending, v1alpha1.AnalysisStatusRunning:
 		templateStatus, templateMessage := ec.assessTemplates()
 		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
+		if templateStatus == v1alpha1.AnalysisStatusRunning && ec.newStatus.AvailableAt == nil {
+			now := metav1.Now()
+			ec.newStatus.AvailableAt = &now
+			ec.log.Infof("Marked AvailableAt: %v", now)
+		}
 		if templateStatus.Completed() {
 			if templateStatus == v1alpha1.AnalysisStatusSuccessful {
 				// If the templates have completed successfully (e.g. it ran without degrading for
