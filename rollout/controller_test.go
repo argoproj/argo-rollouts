@@ -1171,3 +1171,41 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
+
+func TestMigrateToPauseConditionsCanary(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Paused = true
+	now := metav1.Now()
+	r.Status.PauseStartTime = &now
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	updateIndex := f.expectUpdateRolloutAction(r)
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(updateIndex)
+	assert.Nil(t, updatedRollout.Status.PauseStartTime)
+	assert.False(t, updatedRollout.Spec.Paused)
+	assert.NotNil(t, updatedRollout.Status.PauseConditions[0].StartTime)
+	assert.Equal(t, updatedRollout.Status.PauseConditions[0].Reason, v1alpha1.PauseReasonCanaryPauseStep)
+}
+
+func TestMigrateToPauseConditionsBlueGreen(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r.Spec.Paused = true
+	now := metav1.Now()
+	r.Status.PauseStartTime = &now
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	updateIndex := f.expectUpdateRolloutAction(r)
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(updateIndex)
+	assert.Nil(t, updatedRollout.Status.PauseStartTime)
+	assert.False(t, updatedRollout.Spec.Paused)
+	assert.NotNil(t, updatedRollout.Status.PauseConditions[0].StartTime)
+	assert.Equal(t, updatedRollout.Status.PauseConditions[0].Reason, v1alpha1.PauseReasonBlueGreenPause)
+}

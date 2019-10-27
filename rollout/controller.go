@@ -221,6 +221,16 @@ func (c *RolloutController) syncHandler(key string) error {
 		return nil
 	}
 
+	// TODO(dthomson) remove before v0.7 release
+	migrated, err := c.migrateToPauseConditon(r)
+	if migrated {
+		logCtx.Infof("Migrated PauseStartTime to use pause conditions")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
@@ -228,7 +238,6 @@ func (c *RolloutController) syncHandler(key string) error {
 		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
 		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
 		return err
-
 	}
 	defer func() {
 		duration := time.Since(startTime)
@@ -297,4 +306,26 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
+}
+
+func (c *RolloutController) migrateToPauseConditon(r *v1alpha1.Rollout) (bool, error) {
+	rollout := r.DeepCopy()
+	if !rollout.Spec.Paused || rollout.Status.PauseStartTime == nil {
+		return false, nil
+	}
+	var reason v1alpha1.PauseReason
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		reason = v1alpha1.PauseReasonBlueGreenPause
+	} else if rollout.Spec.Strategy.Canary != nil {
+		reason = v1alpha1.PauseReasonCanaryPauseStep
+	}
+	cond := v1alpha1.PauseCondition{
+		Reason:    reason,
+		StartTime: *rollout.Status.PauseStartTime,
+	}
+	rollout.Status.PauseConditions = append(rollout.Status.PauseConditions, cond)
+	rollout.Status.PauseStartTime = nil
+	rollout.Spec.Paused = false
+	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+	return true, err
 }
