@@ -18,7 +18,7 @@ func calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1
 	}
 
 	switch {
-	case conditions.ExperimentCompleted(newStatus):
+	case newStatus.Status.Completed() && newStatus.Status == v1alpha1.AnalysisStatusSuccessful:
 		msg := fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name)
 		condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionFalse, conditions.ExperimentCompleteReason, msg)
 		conditions.SetExperimentCondition(&newStatus, *condition)

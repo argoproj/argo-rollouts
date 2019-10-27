@@ -111,8 +111,8 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	assert.NotNil(t, updatedRs2)
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 
-	expPatch := f.getPatchedExperiment(expPatchIndex)
-	assert.Equal(t, `{"status":{"status":"Successful"}}`, expPatch)
+	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, expPatchObj.Status.Status)
 }
 
 func TestSetAvailableAt(t *testing.T) {
@@ -194,12 +194,12 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
-
+	cond := newCondition(conditions.ExperimentCompleteReason, e)
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 			"status": "Successful"
 		}
-	}`, templateStatuses, nil)
+	}`, templateStatuses, cond)
 	assert.Equal(t, expectedPatch, patch)
 }
 

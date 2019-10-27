@@ -119,33 +119,6 @@ func ExperimentProgressing(experiment *v1alpha1.Experiment, newStatus v1alpha1.E
 	return false
 }
 
-// ExperimentCompleted Indicates when the experiment has finished and completely scaled down
-func ExperimentCompleted(newStatus v1alpha1.ExperimentStatus) bool {
-	if !newStatus.Status.Completed() {
-		return false
-	}
-	if newStatus.AvailableAt == nil {
-		return false
-	}
-	new := experimentutil.GetTemplateStatusMapping(newStatus)
-	for i := range new {
-		status := new[i]
-		if status.Replicas != int32(0) {
-			return false
-		}
-		if status.UpdatedReplicas != int32(0) {
-			return false
-		}
-		if status.AvailableReplicas != int32(0) {
-			return false
-		}
-		if status.ReadyReplicas != int32(0) {
-			return false
-		}
-	}
-	return true
-}
-
 // ExperimentRunning indicates when a experiment has become healthy and started to run for the `spec.duration` time
 func ExperimentRunning(experiment *v1alpha1.Experiment) bool {
 	passedDuration, _ := experimentutil.PassedDurations(experiment)
