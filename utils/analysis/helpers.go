@@ -10,6 +10,8 @@ import (
 // analysisStatusOrder is a list of completed analysis sorted in best to worst condition
 var analysisStatusOrder = []v1alpha1.AnalysisStatus{
 	v1alpha1.AnalysisStatusSuccessful,
+	v1alpha1.AnalysisStatusRunning,
+	v1alpha1.AnalysisStatusPending,
 	v1alpha1.AnalysisStatusInconclusive,
 	v1alpha1.AnalysisStatusError,
 	v1alpha1.AnalysisStatusFailed,
@@ -18,9 +20,6 @@ var analysisStatusOrder = []v1alpha1.AnalysisStatus{
 // IsWorse returns whether or not the new health status code is a worser condition than the current.
 // Both statuses must be already completed
 func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
-	if !current.Completed() || !new.Completed() {
-		panic("IsWorse called against incomplete statuses")
-	}
 	currentIndex := 0
 	newIndex := 0
 	for i, code := range analysisStatusOrder {
@@ -32,6 +31,14 @@ func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
 		}
 	}
 	return newIndex > currentIndex
+}
+
+// Worst returns the worst of the two statuses
+func Worst(left, right v1alpha1.AnalysisStatus) v1alpha1.AnalysisStatus {
+	if IsWorse(left, right) {
+		return right
+	}
+	return left
 }
 
 // IsTerminating returns whether or not the analysis run is terminating, either because a terminate

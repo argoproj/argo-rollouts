@@ -30,6 +30,11 @@ func TestIsWorst(t *testing.T) {
 	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusFailed))
 }
 
+func TestWorst(t *testing.T) {
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, Worst(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusFailed))
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, Worst(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusSuccessful))
+}
+
 func TestIsFastFailTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: &v1alpha1.AnalysisRunStatus{

@@ -66,7 +66,11 @@ func PassedDurations(experiment *v1alpha1.Experiment) (bool, time.Duration) {
 }
 
 func CalculateTemplateReplicasCount(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) int32 {
-	if HasFinished(experiment) {
+	if HasFinished(experiment) || IsTerminating(experiment) {
+		return int32(0)
+	}
+	templateStatus := GetTemplateStatus(experiment.Status, template.Name)
+	if templateStatus != nil && templateStatus.Status.Completed() {
 		return int32(0)
 	}
 	return defaults.GetReplicasOrDefault(template.Replicas)
@@ -172,8 +176,7 @@ var templateStatusOrder = []v1alpha1.TemplateStatusCode{
 	v1alpha1.TemplateStatusFailed,
 }
 
-// TemplateIsWorse returns whether or not the new health status code is a worser condition than the current.
-// Both statuses must be already completed
+// TemplateIsWorse returns whether or not the new template status is a worser condition than the current.
 func TemplateIsWorse(current, new v1alpha1.TemplateStatusCode) bool {
 	currentIndex := 0
 	newIndex := 0
@@ -186,4 +189,11 @@ func TemplateIsWorse(current, new v1alpha1.TemplateStatusCode) bool {
 		}
 	}
 	return newIndex > currentIndex
+}
+
+func Worst(left, right v1alpha1.TemplateStatusCode) v1alpha1.TemplateStatusCode {
+	if TemplateIsWorse(left, right) {
+		return right
+	}
+	return left
 }

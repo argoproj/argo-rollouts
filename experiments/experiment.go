@@ -101,10 +101,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		}
 	}
 	prevStatus := templateStatus.DeepCopy()
-	var desiredReplicaCount int32 = 0
-	if !ec.isTerminating && !templateStatus.Status.Completed() {
-		desiredReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	}
+	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	now := metav1.Now()
 
 	rs := ec.templateRSs[template.Name]
@@ -353,15 +350,41 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	case "":
 		ec.newStatus.Status = v1alpha1.AnalysisStatusPending
 	case v1alpha1.AnalysisStatusPending:
-		ec.newStatus.Status = ec.assessTemplates()
+		templateStatus, templateMessage := ec.assessTemplates()
+		ec.newStatus.Status = templateStatus
+		ec.newStatus.Message = templateMessage
 		if ec.newStatus.Status == v1alpha1.AnalysisStatusRunning {
 			now := metav1.Now()
 			ec.newStatus.AvailableAt = &now
+			ec.log.Infof("marked available at %v", now)
 		}
 	case v1alpha1.AnalysisStatusRunning:
-		ec.newStatus.Status = ec.assessTemplates()
-		if passed, _ := experimentutil.PassedDurations(ec.ex); passed {
-			ec.newStatus.Status = ec.assessAnalysisRuns()
+		templateStatus, templateMessage := ec.assessTemplates()
+		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
+		if templateStatus.Completed() {
+			if templateStatus == v1alpha1.AnalysisStatusSuccessful {
+				// If the templates have completed successfully (e.g. it ran without degrading for
+				// the entire duration), then the status of the Experiment is deferred to the status
+				// the analyses results.
+				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Message = analysesMessage
+			} else {
+				// Otherwise, use the Failed/Error template status as the Experiment status
+				ec.newStatus.Status = templateStatus
+				ec.newStatus.Message = templateMessage
+			}
+		} else {
+			if analysesStatus.Completed() && analysesStatus != v1alpha1.AnalysisStatusSuccessful {
+				// The templates are still Running, but analysis failed, errored or was inconclusive
+				// We will now fail the experiment.
+				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Message = analysesMessage
+			} else {
+				// The templates are still Running/Progressing, and the analysis are either still
+				// Running/Pending/Successful.
+				ec.newStatus.Status = templateStatus
+				ec.newStatus.Message = templateMessage
+			}
 		}
 	}
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
@@ -378,53 +401,54 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	return ec.newStatus
 }
 
-// assessTemplates looks at all the template statuses, and gives an assessment to be used for the
-// experiment status.
-func (ec *experimentContext) assessTemplates() v1alpha1.AnalysisStatus {
+// assessTemplates examines at all the template statuses, and returns the worst of them to be
+// considered as the experiment status, along with the message
+func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisStatus, string) {
 	worstStatus := v1alpha1.TemplateStatusSuccessful
+	message := ""
 	for _, template := range ec.ex.Spec.Templates {
 		templateStatus := experimentutil.GetTemplateStatus(*ec.newStatus, template.Name)
 		if templateStatus == nil {
-			if experimentutil.TemplateIsWorse(worstStatus, v1alpha1.TemplateStatusProgressing) {
-				worstStatus = v1alpha1.TemplateStatusProgressing
-			}
+			worstStatus = experimentutil.Worst(worstStatus, v1alpha1.TemplateStatusProgressing)
 		} else {
 			if experimentutil.TemplateIsWorse(worstStatus, templateStatus.Status) {
 				worstStatus = templateStatus.Status
+				message = templateStatus.Message
 			}
 		}
 	}
 	switch worstStatus {
 	case v1alpha1.TemplateStatusProgressing:
-		return v1alpha1.AnalysisStatusPending
+		return v1alpha1.AnalysisStatusPending, message
 	case v1alpha1.TemplateStatusFailed:
-		return v1alpha1.AnalysisStatusFailed
+		return v1alpha1.AnalysisStatusFailed, message
 	case v1alpha1.TemplateStatusError:
-		return v1alpha1.AnalysisStatusError
+		return v1alpha1.AnalysisStatusError, message
+	case v1alpha1.TemplateStatusSuccessful:
+		return v1alpha1.AnalysisStatusSuccessful, message
 	}
-	// Successful and Running template status codes are both considered to be running
-	return v1alpha1.AnalysisStatusRunning
+	return v1alpha1.AnalysisStatusRunning, message
 }
 
-// assessTemplates looks at all the template statuses, and gives an assessment to be used for the
-// experiment status.
-func (ec *experimentContext) assessAnalysisRuns() v1alpha1.AnalysisStatus {
+// assessTemplates examines all the analysisrun statuses, and returns the worst of the statuses.
+// This status will be under consideration as the experiment status (dependant on other factors).
+// Any Failed, Error, Inconclusive runs will cause the Experiment to complete prematurely. If there
+// are no analyses, will return AnalysisStatusSuccessful.
+func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisStatus, string) {
 	worstStatus := v1alpha1.AnalysisStatusSuccessful
-	allCompleted := true
+	message := ""
 	for _, a := range ec.ex.Spec.Analyses {
 		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
-		if as.Status.Completed() {
-			if analysisutil.IsWorse(worstStatus, as.Status) {
-				worstStatus = as.Status
-			}
-		} else {
-			allCompleted = false
+		if analysisutil.IsWorse(worstStatus, as.Status) {
+			worstStatus = as.Status
+			message = as.Message
 		}
 	}
-	if !allCompleted {
-		return v1alpha1.AnalysisStatusRunning
+	if worstStatus == v1alpha1.AnalysisStatusPending {
+		// since this will be used as experiment stauts, we should return Running instead of Pending
+		worstStatus = v1alpha1.AnalysisStatusRunning
 	}
-	return worstStatus
+	return worstStatus, message
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template

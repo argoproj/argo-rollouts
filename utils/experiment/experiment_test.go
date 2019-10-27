@@ -43,6 +43,14 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 
 	e.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
+
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, v1alpha1.TemplateStatus{
+		Name:   "template",
+		Status: v1alpha1.TemplateStatusFailed,
+	})
+	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
+
 }
 
 func TestPassedDurations(t *testing.T) {

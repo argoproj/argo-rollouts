@@ -100,6 +100,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
 	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
@@ -109,6 +110,9 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
 	assert.NotNil(t, updatedRs2)
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
+
+	expPatch := f.getPatchedExperiment(expPatchIndex)
+	assert.Equal(t, `{"status":{"status":"Successful"}}`, expPatch)
 }
 
 func TestSetAvailableAt(t *testing.T) {

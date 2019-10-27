@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -185,7 +186,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, patchedEx.Status.AnalysisRuns[0].Status)
 }
 
-func TestAssessAnalysisRunStatuses(t *testing.T) {
+func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
@@ -259,6 +260,7 @@ func TestAssessAnalysisRunStatuses(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
+			log.Info(test.name)
 			ar1.Status.Status = test.first
 			e.Status.AnalysisRuns[0].Status = test.first
 			ar2.Status.Status = test.second
@@ -272,6 +274,98 @@ func TestAssessAnalysisRunStatuses(t *testing.T) {
 			} else {
 				f.run(getKey(e, t))
 			}
+			f.Close()
+		})
+	}
+}
+
+// TestFailExperimentWhenAnalysisFails verifies that an failed analysis can cause the experiment to
+// prematurely fail
+func TestFailExperimentWhenAnalysisFails(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, nil)
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: "success-rate",
+		},
+		{
+			Name:         "latency",
+			TemplateName: "latency",
+		},
+	}
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Spec.Duration = pointer.Int32Ptr(300)
+	e.Status.AvailableAt = secondsAgo(60)
+	rs := templateToRS(e, templates[0], 1)
+	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar1.Name = ar1.GenerateName + "abc123"
+	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar2.Name = ar2.GenerateName + "abc123"
+
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			AnalysisRun: ar1.Name,
+		},
+		{
+			Name:        e.Spec.Analyses[1].Name,
+			AnalysisRun: ar2.Name,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		first    v1alpha1.AnalysisStatus
+		second   v1alpha1.AnalysisStatus
+		expected v1alpha1.AnalysisStatus
+	}{
+		{
+			name:     "all successful",
+			first:    v1alpha1.AnalysisStatusSuccessful,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: "", // empty string means patch did not update the experiment status
+		},
+		{
+			name:     "failed,successful",
+			first:    v1alpha1.AnalysisStatusFailed,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: v1alpha1.AnalysisStatusFailed,
+		},
+		{
+			name:     "successful,failed",
+			first:    v1alpha1.AnalysisStatusSuccessful,
+			second:   v1alpha1.AnalysisStatusFailed,
+			expected: v1alpha1.AnalysisStatusFailed,
+		},
+		{
+			name:     "running,successful",
+			first:    v1alpha1.AnalysisStatusRunning,
+			second:   v1alpha1.AnalysisStatusSuccessful,
+			expected: "", // empty string means patch did not update the experiment status
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			log.Info(test.name)
+			ar1.Status.Status = test.first
+			e.Status.AnalysisRuns[0].Status = test.first
+			ar2.Status.Status = test.second
+			e.Status.AnalysisRuns[1].Status = test.second
+			f := newFixture(t, e, rs, ar1, ar2)
+
+			if test.expected == v1alpha1.AnalysisStatusFailed {
+				f.expectUpdateReplicaSetAction(rs) // scale down to 0
+			}
+			patchIdx := f.expectPatchExperimentAction(e)
+			f.run(getKey(e, t))
+			patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+			assert.Equal(t, test.expected, patchedEx.Status.Status)
+
 			f.Close()
 		})
 	}
