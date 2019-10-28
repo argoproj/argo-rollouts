@@ -18,7 +18,7 @@ func calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1
 	}
 
 	switch {
-	case conditions.ExperimentCompleted(newStatus):
+	case newStatus.Status.Completed() && newStatus.Status == v1alpha1.AnalysisStatusSuccessful:
 		msg := fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name)
 		condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionFalse, conditions.ExperimentCompleteReason, msg)
 		conditions.SetExperimentCondition(&newStatus, *condition)
@@ -48,12 +48,6 @@ func calculateExperimentConditions(experiment *v1alpha1.Experiment, newStatus v1
 		// `spec.duration` field. If the condition already exists, we ignore this update.
 		msg := fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name)
 		condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
-		conditions.SetExperimentCondition(&newStatus, *condition)
-	case conditions.ExperimentTimeOut(experiment, newStatus):
-		// Update the experiments with a timeout condition. If the condition already exists,
-		// we ignore this update.
-		msg := fmt.Sprintf(conditions.ExperimentTimeOutMessage, experiment.Name)
-		condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
 		conditions.SetExperimentCondition(&newStatus, *condition)
 	}
 	return &newStatus

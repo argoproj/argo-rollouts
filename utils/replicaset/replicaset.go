@@ -80,19 +80,19 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
 			activeRS, _ := GetReplicaSetByTemplateHash(allRSs, rollout.Status.BlueGreen.ActiveSelector)
 			if activeRS == nil || activeRS.Name == newRS.Name {
-				return defaults.GetRolloutReplicasOrDefault(rollout), nil
+				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
 			}
 			if newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != rollout.Status.CurrentPodHash {
 				return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 			}
 			isNotPaused := !rollout.Spec.Paused && len(rollout.Status.PauseConditions) == 0
 			if isNotPaused && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-				return defaults.GetRolloutReplicasOrDefault(rollout), nil
+				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
 			}
 			return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 		}
 
-		return defaults.GetRolloutReplicasOrDefault(rollout), nil
+		return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS, olderRSs := GetStableRS(rollout, newRS, allRSs)
@@ -229,7 +229,7 @@ func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 
 // MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
 func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	if rollout.Spec.Strategy.Canary == nil || rolloutReplicas == 0 {
 		return int32(0)
 	}
@@ -244,7 +244,7 @@ func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 
 // MaxSurge returns the maximum surge pods a rolling deployment can take.
 func MaxSurge(rollout *v1alpha1.Rollout) int32 {
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	if rollout.Spec.Strategy.Canary == nil {
 		return int32(0)
 	}

@@ -24,6 +24,7 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -38,13 +39,15 @@ type ExperimentController struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	replicaSetLister  appslisters.ReplicaSetLister
-	rolloutsLister    listers.RolloutLister
-	experimentsLister listers.ExperimentLister
+	replicaSetLister       appslisters.ReplicaSetLister
+	experimentsLister      listers.ExperimentLister
+	analysisTemplateLister listers.AnalysisTemplateLister
+	analysisRunLister      listers.AnalysisRunLister
 
-	replicaSetSynced cache.InformerSynced
-	experimentSynced cache.InformerSynced
-	rolloutSynced    cache.InformerSynced
+	replicaSetSynced       cache.InformerSynced
+	experimentSynced       cache.InformerSynced
+	analysisTemplateSynced cache.InformerSynced
+	analysisRunSynced      cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
 
@@ -70,8 +73,9 @@ func NewExperimentController(
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
-	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
+	analysisRunInformer informers.AnalysisRunInformer,
+	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	resyncPeriod time.Duration,
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	experimentWorkQueue workqueue.RateLimitingInterface,
@@ -84,21 +88,23 @@ func NewExperimentController(
 	}
 
 	controller := &ExperimentController{
-		kubeclientset:       kubeclientset,
-		argoProjClientset:   argoProjClientset,
-		replicaSetControl:   replicaSetControl,
-		replicaSetLister:    replicaSetInformer.Lister(),
-		rolloutsLister:      rolloutsInformer.Lister(),
-		experimentsLister:   experimentsInformer.Lister(),
-		metricsServer:       metricsServer,
-		rolloutWorkqueue:    rolloutWorkQueue,
-		experimentWorkqueue: experimentWorkQueue,
+		kubeclientset:          kubeclientset,
+		argoProjClientset:      argoProjClientset,
+		replicaSetControl:      replicaSetControl,
+		replicaSetLister:       replicaSetInformer.Lister(),
+		experimentsLister:      experimentsInformer.Lister(),
+		analysisTemplateLister: analysisTemplateInformer.Lister(),
+		analysisRunLister:      analysisRunInformer.Lister(),
+		metricsServer:          metricsServer,
+		rolloutWorkqueue:       rolloutWorkQueue,
+		experimentWorkqueue:    experimentWorkQueue,
 
-		replicaSetSynced: replicaSetInformer.Informer().HasSynced,
-		experimentSynced: experimentsInformer.Informer().HasSynced,
-		rolloutSynced:    rolloutsInformer.Informer().HasSynced,
-		recorder:         recorder,
-		resyncPeriod:     resyncPeriod,
+		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
+		experimentSynced:       experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced: analysisTemplateInformer.Informer().HasSynced,
+		recorder:               recorder,
+		resyncPeriod:           resyncPeriod,
 	}
 
 	controller.enqueueExperiment = func(obj interface{}) {
@@ -158,10 +164,29 @@ func NewExperimentController(
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
+			if defaults.GetReplicasOrDefault(newRS.Spec.Replicas) == defaults.GetReplicasOrDefault(oldRS.Spec.Replicas) &&
+				newRS.Status.Replicas == oldRS.Status.Replicas &&
+				newRS.Status.ReadyReplicas == oldRS.Status.ReadyReplicas &&
+				newRS.Status.AvailableReplicas == oldRS.Status.AvailableReplicas {
+				// we only care about changes to replicaset's replica counters. ignore everything else
+				return
+			}
 			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.enqueueExperiment)
 		},
 		DeleteFunc: func(obj interface{}) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
+		},
+	})
+
+	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controller.enqueueIfCompleted(newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.enqueueIfCompleted(obj)
 		},
 	})
 	return controller
@@ -231,21 +256,19 @@ func (ec *ExperimentController) syncHandler(key string) error {
 		return err
 	}
 
-	exCtx := experimentContext{
-		log:                    logCtx,
-		ex:                     experiment,
-		templateRSs:            templateRSs,
-		kubeclientset:          ec.kubeclientset,
-		argoProjClientset:      ec.argoProjClientset,
-		replicaSetLister:       ec.replicaSetLister,
-		recorder:               ec.recorder,
-		enqueueExperimentAfter: ec.enqueueExperimentAfter,
-	}
+	exCtx := newExperimentContext(
+		experiment,
+		templateRSs,
+		ec.kubeclientset,
+		ec.argoProjClientset,
+		ec.replicaSetLister,
+		ec.analysisTemplateLister,
+		ec.analysisRunLister,
+		ec.recorder,
+		ec.enqueueExperimentAfter,
+	)
 
-	newStatus, err := exCtx.reconcile()
-	if err != nil {
-		return err
-	}
+	newStatus := exCtx.reconcile()
 	return ec.persistExperimentStatus(experiment, newStatus)
 }
 
@@ -274,4 +297,15 @@ func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experimen
 	}
 	logCtx.Info("Patch status successfully")
 	return nil
+}
+
+// enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
+func (c *ExperimentController) enqueueIfCompleted(obj interface{}) {
+	run, ok := obj.(*v1alpha1.AnalysisRun)
+	if !ok {
+		return
+	}
+	if run.Status != nil && run.Status.Status.Completed() {
+		controllerutil.EnqueueParentObject(run, register.ExperimentKind, c.enqueueExperiment)
+	}
 }

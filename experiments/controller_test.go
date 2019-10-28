@@ -46,15 +46,26 @@ const (
 	}`
 )
 
+func now() *metav1.Time {
+	now := metav1.Time{Time: time.Now().Truncate(time.Second)}
+	return &now
+}
+
+func secondsAgo(seconds int) *metav1.Time {
+	ago := metav1.Time{Time: time.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
+	return &ago
+}
+
 type fixture struct {
 	t *testing.T
 
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	// rolloutLister    []*v1alpha1.Rollout
-	experimentLister []*v1alpha1.Experiment
-	replicaSetLister []*appsv1.ReplicaSet
+	experimentLister       []*v1alpha1.Experiment
+	replicaSetLister       []*appsv1.ReplicaSet
+	analysisRunLister      []*v1alpha1.AnalysisRun
+	analysisTemplateLister []*v1alpha1.AnalysisTemplate
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -65,11 +76,29 @@ type fixture struct {
 	unfreezeTime    func()
 }
 
-func newFixture(t *testing.T) *fixture {
+func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f := &fixture{}
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
+	for _, obj := range objects {
+		switch obj.(type) {
+		case *v1alpha1.AnalysisTemplate:
+			f.objects = append(f.objects, obj)
+			f.analysisTemplateLister = append(f.analysisTemplateLister, obj.(*v1alpha1.AnalysisTemplate))
+		case *v1alpha1.AnalysisRun:
+			f.objects = append(f.objects, obj)
+			f.analysisRunLister = append(f.analysisRunLister, obj.(*v1alpha1.AnalysisRun))
+		case *v1alpha1.Experiment:
+			f.objects = append(f.objects, obj)
+			f.experimentLister = append(f.experimentLister, obj.(*v1alpha1.Experiment))
+		case *appsv1.ReplicaSet:
+			f.kubeobjects = append(f.kubeobjects, obj)
+			f.replicaSetLister = append(f.replicaSetLister, obj.(*appsv1.ReplicaSet))
+		}
+	}
+	f.client = fake.NewSimpleClientset(f.objects...)
+	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
 	patch := monkey.Patch(time.Now, func() time.Time { return now })
@@ -111,17 +140,19 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 	return templates
 }
 
-func generateTemplatesStatus(name string, replica, availableReplicas int32) v1alpha1.TemplateStatus {
+func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time) v1alpha1.TemplateStatus {
 	return v1alpha1.TemplateStatus{
-		Name:              name,
-		Replicas:          replica,
-		UpdatedReplicas:   availableReplicas,
-		ReadyReplicas:     availableReplicas,
-		AvailableReplicas: availableReplicas,
+		Name:               name,
+		Replicas:           replica,
+		UpdatedReplicas:    availableReplicas,
+		ReadyReplicas:      availableReplicas,
+		AvailableReplicas:  availableReplicas,
+		Status:             status,
+		LastTransitionTime: transitionTime,
 	}
 }
 
-func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32, running *bool) *v1alpha1.Experiment {
+func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -133,7 +164,7 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int
 			Duration:  duration,
 		},
 		Status: v1alpha1.ExperimentStatus{
-			Running: running,
+			Status: v1alpha1.AnalysisStatusPending,
 		},
 	}
 	if duration != nil {
@@ -174,16 +205,6 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 			Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name),
 		}
 	}
-	if reason == conditions.TimedOutReason {
-		return &v1alpha1.ExperimentCondition{
-			Type:               v1alpha1.ExperimentProgressing,
-			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
-			Reason:             reason,
-			Message:            fmt.Sprintf(conditions.ExperimentTimeOutMessage, experiment.Name),
-		}
-	}
 	if reason == conditions.InvalidSpecReason {
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.InvalidExperimentSpec,
@@ -212,7 +233,7 @@ func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, avail
 			Name:            fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, podHash),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
-			Labels:          rsLabels,
+			Labels:          newReplicaSetLabels(ex.Name, template.Name),
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
 		Spec: appsv1.ReplicaSetSpec{
@@ -284,9 +305,6 @@ func getKey(experiment *v1alpha1.Experiment, t *testing.T) string {
 type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*ExperimentController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
-	f.client = fake.NewSimpleClientset(f.objects...)
-	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
-
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -295,8 +313,9 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 
 	c := NewExperimentController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
-		i.Argoproj().V1alpha1().Rollouts(),
 		i.Argoproj().V1alpha1().Experiments(),
+		i.Argoproj().V1alpha1().AnalysisRuns(),
+		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		resync(),
 		rolloutWorkqueue,
 		experimentWorkqueue,
@@ -329,6 +348,13 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
 	}
 
+	for _, r := range f.analysisRunLister {
+		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(r)
+	}
+
+	for _, r := range f.analysisTemplateLister {
+		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(r)
+	}
 	return c, i, k8sI
 }
 
@@ -349,7 +375,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutSynced, c.experimentSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced))
 	}
 
 	err := c.syncHandler(experimentName)
@@ -416,7 +442,7 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 
 // filterInformerActions filters list, and watch actions for testing resources.
 // Since list, and watch don't change resource state we can filter it to lower
-// nose level in our tests.
+// noise level in our tests.
 func filterInformerActions(actions []core.Action) []core.Action {
 	ret := []core.Action{}
 	for _, action := range actions {
@@ -425,7 +451,11 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "replicaSets") ||
 			action.Matches("watch", "replicaSets") ||
 			action.Matches("list", "experiments") ||
-			action.Matches("watch", "experiments") {
+			action.Matches("watch", "experiments") ||
+			action.Matches("list", "analysistemplates") ||
+			action.Matches("watch", "analysistemplates") ||
+			action.Matches("list", "analysisruns") ||
+			action.Matches("watch", "analysisruns") {
 			continue
 		}
 		ret = append(ret, action)
@@ -481,6 +511,18 @@ func (f *fixture) expectPatchExperimentAction(experiment *v1alpha1.Experiment) i
 	return len
 }
 
+func (f *fixture) expectCreateAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewCreateAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r))
+	return len
+}
+
+func (f *fixture) expectPatchAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r.Name, types.MergePatchType, nil))
+	return len
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)
@@ -532,11 +574,39 @@ func (f *fixture) getPatchedExperiment(index int) string {
 	return string(patchAction.GetPatch())
 }
 
+func (f *fixture) getPatchedExperimentAsObj(index int) *v1alpha1.Experiment {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	var ex v1alpha1.Experiment
+	err := json.Unmarshal(patchAction.GetPatch(), &ex)
+	if err != nil {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return &ex
+}
+
+func (f *fixture) getPatchedAnalysisRunAsObj(index int) *v1alpha1.AnalysisRun {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	var run v1alpha1.AnalysisRun
+	err := json.Unmarshal(patchAction.GetPatch(), &run)
+	if err != nil {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return &run
+}
+
 func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	e := newExperiment("foo", nil, pointer.Int32Ptr(10), pointer.BoolPtr(true))
+	e := newExperiment("foo", nil, pointer.Int32Ptr(10))
 	now := metav1.Now()
 	e.DeletionTimestamp = &now
 
@@ -554,21 +624,21 @@ const (
 	NoChange availableAtResults = "NoChange"
 )
 
-func validatePatch(t *testing.T, patch string, running *bool, availableleAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
+func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisStatus, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
 	e := v1alpha1.Experiment{}
 	err := json.Unmarshal([]byte(patch), &e)
 	if err != nil {
 		panic(err)
 	}
 	actualStatus := e.Status
-	if availableleAt == Set {
+	if availableAt == Set {
 		assert.NotNil(t, actualStatus.AvailableAt)
-	} else if availableleAt == Nulled {
+	} else if availableAt == Nulled {
 		assert.Contains(t, patch, `"availableAt": null`)
-	} else if availableleAt == NoChange {
+	} else if availableAt == NoChange {
 		assert.Nil(t, actualStatus.AvailableAt)
 	}
-	assert.Equal(t, e.Status.Running, running)
+	assert.Equal(t, statusCode, e.Status.Status)
 	assert.Len(t, actualStatus.TemplateStatuses, len(templateStatuses))
 	for i := range templateStatuses {
 		assert.Contains(t, actualStatus.TemplateStatuses, templateStatuses[i])
@@ -593,15 +663,12 @@ func validatePatch(t *testing.T, patch string, running *bool, availableleAt avai
 }
 
 func TestAddInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -617,11 +684,8 @@ func TestAddInvalidSpec(t *testing.T) {
 }
 
 func TestKeepInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
 		Status:  corev1.ConditionTrue,
@@ -630,19 +694,16 @@ func TestKeepInvalidSpec(t *testing.T) {
 	}}
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	f.run(getKey(e, t))
 
 }
 
 func TestUpdateInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
@@ -653,8 +714,8 @@ func TestUpdateInvalidSpec(t *testing.T) {
 
 	e.Spec.Templates[0].Name = ""
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -671,11 +732,8 @@ func TestUpdateInvalidSpec(t *testing.T) {
 }
 
 func TestRemoveInvalidSpec(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:   v1alpha1.InvalidExperimentSpec,
@@ -683,8 +741,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		Reason: conditions.InvalidSpecReason,
 	}}
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
+	f := newFixture(t, e)
+	defer f.Close()
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
@@ -700,8 +758,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0),
-		generateTemplatesStatus("baz", 0, 0),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 

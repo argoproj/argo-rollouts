@@ -125,8 +125,7 @@ func TestRunCreateFail(t *testing.T) {
 
 	// The following causes the Create call to fail
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
-	fakeClient.ReactionChain = nil
-	fakeClient.AddReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClient.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 
@@ -200,8 +199,7 @@ func TestTerminateError(t *testing.T) {
 	// cause delete to fail
 	errMsg := "random delete error"
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
-	fakeClient.ReactionChain = nil
-	fakeClient.AddReactor("delete", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClient.PrependReactor("delete", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 

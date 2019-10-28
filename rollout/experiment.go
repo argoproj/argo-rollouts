@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -16,14 +15,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-)
-
-const (
-	cancelExperimentPatch = `{
-		"status": {
-			"running": false
-		}
-	}`
 )
 
 // GetExperimentFromTemplate takes the canary experiment step and converts it to an experiment
@@ -114,11 +105,11 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	stableRS := roCtx.StableRS()
 	otherExs := roCtx.OtherExperiments()
 
-	for i := range otherExs {
-		otherEx := otherExs[i]
-		if otherEx.Status.Running != nil && *otherEx.Status.Running {
+	for _, otherEx := range otherExs {
+		if !otherEx.Status.Status.Completed() {
 			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace).Patch(otherEx.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
+			experimentIf := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace)
+			err := experimentutil.Terminate(experimentIf, otherEx.Name)
 			if err != nil {
 				return err
 			}

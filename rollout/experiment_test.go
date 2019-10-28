@@ -119,10 +119,7 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
-	ex.Status.Conditions = []v1alpha1.ExperimentCondition{{
-		Type:   v1alpha1.ExperimentProgressing,
-		Reason: conditions.TimedOutReason,
-	}}
+	ex.Status.Status = v1alpha1.AnalysisStatusFailed
 	ex.Name = fmt.Sprintf("%s%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
@@ -176,7 +173,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 			Labels:          map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash},
 		},
 		Status: v1alpha1.ExperimentStatus{
-			Running: pointer.BoolPtr(true),
+			Status: v1alpha1.AnalysisStatusPending,
 		},
 	}
 
@@ -188,9 +185,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	exPatch := f.getPatchedExperiment(exPatchIndex)
-	assert.NotNil(t, exPatch.Status.Running)
-	assert.False(t, *exPatch.Status.Running)
-
+	assert.True(t, exPatch.Spec.Terminate)
 }
 
 func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
@@ -219,7 +214,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Status.Running = pointer.BoolPtr(false)
+	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	now := metav1.Now()
 	ex.Status.AvailableAt = &now
 	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
@@ -382,6 +377,7 @@ func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
+	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	r2.Status.Canary.CurrentExperiment = ex.Name
 	exWithNoMatchingPodHash := ex.DeepCopy()
 	exWithNoMatchingPodHash.UID = uuid.NewUUID()
@@ -428,13 +424,14 @@ func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
 	rs3 := newReplicaSetWithStatus(r3, 0, 0)
 
 	ex, _ := GetExperimentFromTemplate(r3, rs2, rs1)
+	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	exToDelete := ex.DeepCopy()
-	exToDelete.Name = "older-analysis-run"
+	exToDelete.Name = "older-experiment"
 	exToDelete.UID = uuid.NewUUID()
 	exToDelete.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs1PodHash
 

@@ -49,8 +49,7 @@ func TestResumeCmdSuccess(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
 	defer tf.Cleanup()
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.ReactionChain = nil
-	fakeClient.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			if string(patchAction.GetPatch()) == unpausePatch {
 				ro.Status.PauseConditions = nil

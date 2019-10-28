@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -303,83 +302,6 @@ func TestExperimentProgressing(t *testing.T) {
 
 }
 
-func TestExperimentComplete(t *testing.T) {
-	now := metav1.Now()
-	isTrue := pointer.BoolPtr(true)
-	isFalse := pointer.BoolPtr(false)
-	experiment := func(current, updated, available, ready int32, running *bool, availableAt *metav1.Time) *v1alpha1.Experiment {
-		e := &v1alpha1.Experiment{
-			Spec: v1alpha1.ExperimentSpec{},
-			Status: v1alpha1.ExperimentStatus{
-				TemplateStatuses: []v1alpha1.TemplateStatus{{
-					Name:              "test",
-					Replicas:          current,
-					UpdatedReplicas:   updated,
-					AvailableReplicas: available,
-					ReadyReplicas:     ready,
-				}},
-				Running:     running,
-				AvailableAt: availableAt,
-			},
-		}
-		return e
-	}
-
-	tests := []struct {
-		name     string
-		e        *v1alpha1.Experiment
-		expected bool
-	}{
-
-		{
-			name:     "Experiment not running",
-			e:        experiment(0, 0, 0, 0, nil, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: running set to true",
-			e:        experiment(0, 0, 0, 0, isTrue, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: not available yet",
-			e:        experiment(0, 0, 0, 0, isFalse, nil),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: waiting for no ready replicas",
-			e:        experiment(0, 0, 0, 5, isFalse, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: waiting for no available replicas",
-			e:        experiment(0, 0, 5, 0, isFalse, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: waiting for no updated replicas",
-			e:        experiment(0, 5, 0, 0, isFalse, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment not finished: waiting for no replicas",
-			e:        experiment(5, 0, 0, 0, isFalse, &now),
-			expected: false,
-		},
-		{
-			name:     "Experiment Completed",
-			e:        experiment(0, 0, 0, 0, isFalse, &now),
-			expected: true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, ExperimentCompleted(test.e.Status))
-		})
-	}
-}
-
 func TestExperimentRunning(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, ExperimentRunning(e))
@@ -387,81 +309,6 @@ func TestExperimentRunning(t *testing.T) {
 	now := metav1.Now()
 	e.Status.AvailableAt = &now
 	assert.True(t, ExperimentRunning(e))
-}
-
-func TestExperimentTimeOut(t *testing.T) {
-
-	now := metav1.Now()
-	before := metav1.NewTime(now.Add(-10 * time.Second))
-
-	conditons := func(reason string, lastUpdate metav1.Time) []v1alpha1.ExperimentCondition {
-		return []v1alpha1.ExperimentCondition{{
-			Type:           v1alpha1.ExperimentProgressing,
-			Reason:         reason,
-			LastUpdateTime: lastUpdate,
-		}}
-	}
-
-	tests := []struct {
-		name                    string
-		progressDeadlineSeconds int32
-		isAvailable             bool
-		newStatus               v1alpha1.ExperimentStatus
-		expected                bool
-	}{
-		{
-			name:        "New RS is Available",
-			isAvailable: true,
-			newStatus: v1alpha1.ExperimentStatus{
-				Conditions: conditons(NewRSAvailableReason, metav1.Now()),
-			},
-			expected: false,
-		},
-		{
-			name: "Has no progressing condition",
-			newStatus: v1alpha1.ExperimentStatus{
-				Conditions: []v1alpha1.ExperimentCondition{},
-			},
-			expected: false,
-		},
-		{
-			name: "Experiment is already has timed out condition",
-			newStatus: v1alpha1.ExperimentStatus{
-				Conditions: conditons(TimedOutReason, metav1.Now()),
-			},
-			expected: true,
-		},
-		{
-			name:                    "Experiment has not timed out",
-			progressDeadlineSeconds: 30,
-			newStatus: v1alpha1.ExperimentStatus{
-				Conditions: conditons(ReplicaSetUpdatedReason, before),
-			},
-			expected: false,
-		},
-		{
-			name:                    "Experiment has timed out",
-			progressDeadlineSeconds: 5,
-			newStatus: v1alpha1.ExperimentStatus{
-				Conditions: conditons(ReplicaSetUpdatedReason, before),
-			},
-			expected: true,
-		},
-	}
-	for i := range tests {
-		test := tests[i]
-		t.Run(test.name, func(t *testing.T) {
-			experiment := &v1alpha1.Experiment{
-				Spec: v1alpha1.ExperimentSpec{
-					ProgressDeadlineSeconds: &test.progressDeadlineSeconds,
-				},
-			}
-			if test.isAvailable {
-				experiment.Status.AvailableAt = &now
-			}
-			assert.Equal(t, test.expected, ExperimentTimeOut(experiment, test.newStatus))
-		})
-	}
 }
 
 func TestVerifyExperimentSpecBaseCases(t *testing.T) {

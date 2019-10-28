@@ -1,35 +1,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 metadata:
-  name: example-experiment
+  generateName: experiment-basic-
 spec:
-  duration: 60
+  duration: 30
   templates:
   - name: baseline
     selector:
       matchLabels:
         app: rollouts-demo
-        color: blue
     template:
       metadata:
         labels:
           app: rollouts-demo
-          color: blue
       spec:
         containers:
-        - name: guestbook
+        - name: rollouts-demo
           image: argoproj/rollouts-demo:blue
   - name: canary
     selector:
       matchLabels:
         app: rollouts-demo
-        color: yellow
     template:
       metadata:
         labels:
           app: rollouts-demo
-          color: yellow
       spec:
         containers:
-        - name: guestbook
+        - name: rollouts-demo
           image: argoproj/rollouts-demo:yellow

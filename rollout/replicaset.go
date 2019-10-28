@@ -74,7 +74,7 @@ func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, 
 	newRS := roCtx.NewRS()
 	allRSs := roCtx.AllRSs()
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+		rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 		if *(newRS.Spec.Replicas) == rolloutReplicas {
 			// Scaling not required.
 			return false, nil

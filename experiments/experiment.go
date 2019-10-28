@@ -1,141 +1,475 @@
 package experiments
 
 import (
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	rolloutslisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 type experimentContext struct {
-	log                    *log.Entry
+	// parameters supplied to the context
 	ex                     *v1alpha1.Experiment
 	templateRSs            map[string]*appsv1.ReplicaSet
 	kubeclientset          kubernetes.Interface
 	argoProjClientset      clientset.Interface
+	analysisTemplateLister rolloutslisters.AnalysisTemplateLister
+	analysisRunLister      rolloutslisters.AnalysisRunLister
 	replicaSetLister       appslisters.ReplicaSetLister
 	recorder               record.EventRecorder
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
+
+	// calculated values during reconciliation
+	log       *log.Entry
+	newStatus *v1alpha1.ExperimentStatus
+	// if isTerminating is true, will not create any analysis runs or replicasets, will scale down
+	// all existing replicasets, and terminate all analysis runs
+	isTerminating bool
 }
 
-func (ec *experimentContext) reconcile() (*v1alpha1.ExperimentStatus, error) {
-	if !experimentutil.HasStarted(ec.ex) {
-		ec.log.Info("Experiment has not started yet")
-		return ec.calculateStatus(), nil
-	}
+func newExperimentContext(
+	experiment *v1alpha1.Experiment,
+	templateRSs map[string]*appsv1.ReplicaSet,
+	kubeclientset kubernetes.Interface,
+	argoProjClientset clientset.Interface,
+	replicaSetLister appslisters.ReplicaSetLister,
+	analysisTemplateLister rolloutslisters.AnalysisTemplateLister,
+	analysisRunLister rolloutslisters.AnalysisRunLister,
+	recorder record.EventRecorder,
+	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
+) *experimentContext {
 
-	passedDuration, _ := experimentutil.PassedDurations(ec.ex)
-	if ec.ex.Status.AvailableAt != nil && !passedDuration {
-		ec.checkEnqueueExperimentDuringRun()
-	}
+	exCtx := experimentContext{
+		ex:                     experiment,
+		templateRSs:            templateRSs,
+		kubeclientset:          kubeclientset,
+		argoProjClientset:      argoProjClientset,
+		replicaSetLister:       replicaSetLister,
+		analysisTemplateLister: analysisTemplateLister,
+		analysisRunLister:      analysisRunLister,
+		recorder:               recorder,
+		enqueueExperimentAfter: enqueueExperimentAfter,
 
-	statuses := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
-	for i := range ec.ex.Spec.Templates {
-		template := ec.ex.Spec.Templates[i]
-		ec.log.Infof("Reconciling template %s", template.Name)
-		templateReady, err := ec.reconcileTemplate(template, statuses[template.Name])
-		if err != nil {
-			return nil, err
-		}
-		if templateReady {
-			ec.log.Infof("Not finished reconciling template %s", template.Name)
-		}
+		log:           log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace),
+		newStatus:     experiment.Status.DeepCopy(),
+		isTerminating: experimentutil.IsTerminating(experiment),
 	}
-
-	return ec.calculateStatus(), nil
+	return &exCtx
 }
 
-func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec, templateStatus v1alpha1.TemplateStatus) (bool, error) {
-	name := template.Name
-	existingTemplateRS, ok := ec.templateRSs[name]
-	if !ok {
-		newRS, err := ec.reconcileReplicaSet(template, templateStatus)
-		if err != nil {
-			return false, err
-		}
-		ec.templateRSs[name] = newRS
-		return false, nil
+func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
+	for _, template := range ec.ex.Spec.Templates {
+		ec.reconcileTemplate(template)
 	}
-	templateReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	if *existingTemplateRS.Spec.Replicas != templateReplicaCount {
-		scaled, _, err := ec.scaleReplicaSetAndRecordEvent(existingTemplateRS, templateReplicaCount)
-		if err != nil {
-			return false, err
-		}
-		if scaled {
-			return false, nil
-		}
+
+	for _, analysis := range ec.ex.Spec.Analyses {
+		ec.reconcileAnalysisRun(analysis)
 	}
-	if templateReplicaCount != replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{existingTemplateRS}) {
-		return false, nil
+
+	if duration := calculateEnqueueDuration(ec.ex); duration != nil {
+		ec.log.Infof("Enqueueing Experiment in %s seconds", duration.String())
+		ec.enqueueExperimentAfter(ec.ex, *duration)
 	}
-	return true, nil
+	return ec.calculateStatus()
 }
 
-func (ec *experimentContext) checkEnqueueExperimentDuringRun() {
-	if passed, timeRemaining := experimentutil.PassedDurations(ec.ex); !passed {
-		ec.log.Infof("Enqueueing Experiment in %s seconds", timeRemaining.String())
-		ec.enqueueExperimentAfter(ec.ex, timeRemaining)
+// reconcileTemplate reconciles a template to a ReplicaSet. Creates or scales them down as necessary
+// will update status.templateStatuses with the current assessed values
+func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
+	logCtx := ec.log.WithField("template", template.Name)
+	logCtx.Info("Reconciling template")
+	templateStatus := experimentutil.GetTemplateStatus(ec.ex.Status, template.Name)
+	if templateStatus == nil {
+		templateStatus = &v1alpha1.TemplateStatus{
+			Name: template.Name,
+		}
 	}
+	prevStatus := templateStatus.DeepCopy()
+	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
+	now := metav1.Now()
+
+	rs := ec.templateRSs[template.Name]
+	if rs == nil {
+		// Create the ReplicaSet if necessary
+		if templateStatus.Status.Completed() {
+			// do nothing (not even pollute the logs)
+		} else if ec.isTerminating {
+			logCtx.Info("Skipping ReplicaSet creation: experiment is terminating")
+		} else {
+			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
+			if err != nil {
+				logCtx.Warnf("Failed to create ReplicaSet: %v", err)
+				if !k8serrors.IsAlreadyExists(err) {
+					templateStatus.Status = v1alpha1.TemplateStatusError
+					templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
+				}
+			}
+			if newRS != nil {
+				ec.templateRSs[template.Name] = newRS
+				templateStatus.LastTransitionTime = &now
+			}
+		}
+		templateStatus.Replicas = 0
+		templateStatus.UpdatedReplicas = 0
+		templateStatus.ReadyReplicas = 0
+		templateStatus.AvailableReplicas = 0
+	} else {
+		// If we get here, replicaset exists. We need to ensure it's scaled properly based on
+		// termination, or changed replica count
+		if *rs.Spec.Replicas != desiredReplicaCount {
+			ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+			templateStatus.LastTransitionTime = &now
+		}
+		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+	}
+
+	if prevStatus.Replicas != templateStatus.Replicas ||
+		prevStatus.UpdatedReplicas != templateStatus.UpdatedReplicas ||
+		prevStatus.ReadyReplicas != templateStatus.ReadyReplicas ||
+		prevStatus.AvailableReplicas != templateStatus.AvailableReplicas {
+
+		logCtx.Info("Template progressed")
+		logCtx.Infof("Prev status: Current: %d, Updated: %d, Ready: %d, Available: %d",
+			prevStatus.Replicas, prevStatus.UpdatedReplicas, prevStatus.ReadyReplicas, prevStatus.AvailableReplicas)
+		logCtx.Infof("New status: Current: %d, Updated: %d, Ready: %d, Available: %d",
+			templateStatus.Replicas, templateStatus.UpdatedReplicas, templateStatus.ReadyReplicas, templateStatus.AvailableReplicas)
+		templateStatus.LastTransitionTime = &now
+	}
+
+	// Don't allow template statuses to transition out of completed statuses
+	if !templateStatus.Status.Completed() {
+		if desiredReplicaCount == templateStatus.AvailableReplicas {
+			passedDuration, _ := experimentutil.PassedDurations(ec.ex)
+			if passedDuration {
+				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
+			} else if ec.isTerminating {
+				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
+			} else {
+				templateStatus.Status = v1alpha1.TemplateStatusRunning
+			}
+		} else {
+			from := now
+			if templateStatus.LastTransitionTime != nil {
+				from = *templateStatus.LastTransitionTime
+			}
+			progressDeadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ec.ex)
+			deadline := from.Add(time.Duration(progressDeadlineSeconds) * time.Second)
+			if now.Time.After(deadline) {
+				templateStatus.Status = v1alpha1.TemplateStatusFailed
+				templateStatus.Message = fmt.Sprintf("Template '%s' exceeded its progressDeadlineSeconds (%d)", template.Name, progressDeadlineSeconds)
+			} else if ec.isTerminating {
+				templateStatus.Status = v1alpha1.TemplateStatusSuccessful
+			} else {
+				templateStatus.Status = v1alpha1.TemplateStatusProgressing
+			}
+		}
+	}
+
+	if prevStatus.Status != templateStatus.Status {
+		msg := fmt.Sprintf("Template '%s' transitioned from %s -> %s", template.Name, prevStatus.Status, templateStatus.Status)
+		if templateStatus.Message != "" {
+			msg = msg + ": " + templateStatus.Message
+		}
+		ec.log.Info(msg)
+		switch templateStatus.Status {
+		case v1alpha1.TemplateStatusFailed, v1alpha1.TemplateStatusError:
+			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(templateStatus.Status), msg)
+		default:
+			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(templateStatus.Status), msg)
+		}
+	}
+	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+}
+
+// calculateEnqueueDuration returns an appropriate duration to requeue the experiment. This will be
+// the shortest of:
+// * status.availableAt + spec.duration
+// * status.templateStatuses[].lastTransitionTime + spec.progressDeadlineSeconds
+// Returns nil if there is no need to requeue
+func calculateEnqueueDuration(ex *v1alpha1.Experiment) *time.Duration {
+	if !experimentutil.HasStarted(ex) {
+		return nil
+	}
+	if experimentutil.IsTerminating(ex) {
+		return nil
+	}
+	var candidateDuration *time.Duration
+	if ex.Status.AvailableAt != nil && ex.Spec.Duration != nil {
+		// Set candidate duration to status.availableAt + duration
+		passedDuration, timeRemaining := experimentutil.PassedDurations(ex)
+		if passedDuration {
+			candidateDuration = &timeRemaining
+		}
+	}
+	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
+	now := time.Now()
+	for _, ts := range ex.Status.TemplateStatuses {
+		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
+		if ts.Status != v1alpha1.TemplateStatusProgressing && ts.Status != v1alpha1.TemplateStatusRunning {
+			continue
+		}
+		if ts.LastTransitionTime != nil {
+			progressDeadlineDuration := ts.LastTransitionTime.Add(time.Second * time.Duration(deadlineSeconds)).Sub(now)
+			if candidateDuration == nil || progressDeadlineDuration < *candidateDuration {
+				candidateDuration = &progressDeadlineDuration
+			}
+		}
+	}
+	return candidateDuration
+}
+
+// reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
+// Updates the analysis run statuses, which may subsequently fail the experiment.
+func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
+	logCtx := ec.log.WithField("analysis", analysis.Name)
+	logCtx.Infof("Reconciling analysis")
+	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
+	if prevStatus == nil {
+		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
+			Name: analysis.Name,
+		}
+	}
+	newStatus := prevStatus.DeepCopy()
+
+	// setAnalysisRunStatus is a convenience method to:
+	// 1. update the runStatus
+	// 2. log a message and emit an event on status changess
+	defer func() {
+		if prevStatus.Status != newStatus.Status {
+			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Status, newStatus.Status)
+			if newStatus.Message != "" {
+				msg = msg + ": " + newStatus.Message
+			}
+			ec.log.Info(msg)
+			switch newStatus.Status {
+			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+				ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(newStatus.Status), msg)
+			default:
+				ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(newStatus.Status), msg)
+			}
+		}
+		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
+	}()
+
+	if ec.ex.Status.AvailableAt == nil {
+		// If we are not not available yet, don't start any runs
+		if err := ec.verifyAnalysisTemplate(analysis); err != nil {
+			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
+			newStatus.Status = v1alpha1.AnalysisStatusError
+			newStatus.Message = msg
+			logCtx.Warn(msg)
+		}
+		return
+	}
+
+	if prevStatus.AnalysisRun == "" {
+		// AnalysisRun needs to be created (unless we are terminating)
+		if ec.isTerminating {
+			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
+			return
+		}
+		run, err := ec.createAnalysisRun(analysis)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
+			newStatus.Status = v1alpha1.AnalysisStatusError
+			newStatus.Message = msg
+			logCtx.Warn(msg)
+		} else {
+			newStatus.Status = v1alpha1.AnalysisStatusPending
+			newStatus.AnalysisRun = run.Name
+			logCtx.Infof("Created %s", run.Name)
+		}
+		return
+	}
+
+	// If we get here, analysis run has been previously created and we are just checking its status
+	if prevStatus.Status.Completed() {
+		// runStatus is already completed. nothing to do
+		return
+	}
+
+	run, err := ec.analysisRunLister.AnalysisRuns(ec.ex.Namespace).Get(prevStatus.AnalysisRun)
+	if err != nil {
+		newStatus.Status = v1alpha1.AnalysisStatusError
+		newStatus.Message = err.Error()
+		return
+	}
+
+	if ec.isTerminating {
+		if !run.Status.Status.Completed() && !run.Spec.Terminate {
+			msg := fmt.Sprintf("Terminating %s (%s)", analysis.Name, run.Name)
+			logCtx.Warnf(msg)
+			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, "Terminate", msg)
+			analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
+			err := analysisutil.TerminateRun(analysisRunIf, run.Name)
+			if err != nil {
+				newStatus.Status = v1alpha1.AnalysisStatusError
+				newStatus.Message = err.Error()
+			}
+		}
+		return
+	}
+
+	if run.Status != nil {
+		newStatus.Status = run.Status.Status
+		newStatus.Message = run.Status.Message
+	}
+}
+
+func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
+	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
+	run, err := ec.newAnalysisRun(analysis, analysis.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	return analysisRunIf.Create(run)
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
-	newStatus := v1alpha1.ExperimentStatus{
-		Conditions: ec.ex.Status.Conditions,
-	}
-
-	newStatus.Running = ec.ex.Status.Running
-	if !experimentutil.HasStarted(ec.ex) {
-		newStatus.Running = pointer.BoolPtr(true)
-	}
-
-	if passed, _ := experimentutil.PassedDurations(ec.ex); passed {
-		newStatus.Running = pointer.BoolPtr(false)
-	}
-
-	previousTemplateStatus := experimentutil.GetTemplateStatusMapping(ec.ex.Status)
-
-	allAvailable := true
-	for i := range ec.ex.Spec.Templates {
-		template := ec.ex.Spec.Templates[i]
-		templateStatus := v1alpha1.TemplateStatus{
-			Name: template.Name,
+	prevStatus := ec.newStatus.DeepCopy()
+	switch ec.newStatus.Status {
+	case "":
+		ec.newStatus.Status = v1alpha1.AnalysisStatusPending
+	case v1alpha1.AnalysisStatusPending, v1alpha1.AnalysisStatusRunning:
+		templateStatus, templateMessage := ec.assessTemplates()
+		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
+		if templateStatus == v1alpha1.AnalysisStatusRunning && ec.newStatus.AvailableAt == nil {
+			now := metav1.Now()
+			ec.newStatus.AvailableAt = &now
+			ec.log.Infof("Marked AvailableAt: %v", now)
 		}
-		if previousStatus, ok := previousTemplateStatus[template.Name]; ok {
-			templateStatus.CollisionCount = previousStatus.CollisionCount
-		}
-
-		rs, ok := ec.templateRSs[template.Name]
-		if ok {
-			replicaCount := defaults.GetExperimentTemplateReplicasOrDefault(template)
-			templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-			templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-			templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-			templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-			if replicaCount != templateStatus.AvailableReplicas {
-				allAvailable = false
+		if templateStatus.Completed() {
+			if templateStatus == v1alpha1.AnalysisStatusSuccessful {
+				// If the templates have completed successfully (e.g. it ran without degrading for
+				// the entire duration), then the status of the Experiment is deferred to the status
+				// the analyses results.
+				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Message = analysesMessage
+			} else {
+				// Otherwise, use the Failed/Error template status as the Experiment status
+				ec.newStatus.Status = templateStatus
+				ec.newStatus.Message = templateMessage
 			}
 		} else {
-			allAvailable = false
+			if analysesStatus.Completed() && analysesStatus != v1alpha1.AnalysisStatusSuccessful {
+				// The templates are still Running, but analysis failed, errored or was inconclusive
+				// We will now fail the experiment.
+				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Message = analysesMessage
+			} else {
+				// The templates are still Running/Progressing, and the analysis are either still
+				// Running/Pending/Successful.
+				ec.newStatus.Status = templateStatus
+				ec.newStatus.Message = templateMessage
+			}
 		}
-		newStatus.TemplateStatuses = append(newStatus.TemplateStatuses, templateStatus)
+	}
+	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
+	if prevStatus.Status != ec.newStatus.Status {
+		msg := fmt.Sprintf("Experiment transitioned from %s -> %s", prevStatus.Status, ec.newStatus.Status)
+		ec.log.Info(msg)
+		switch ec.newStatus.Status {
+		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive:
+			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(ec.newStatus.Status), msg)
+		default:
+			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(ec.newStatus.Status), msg)
+		}
+	}
+	return ec.newStatus
+}
+
+// assessTemplates examines at all the template statuses, and returns the worst of them to be
+// considered as the experiment status, along with the message
+func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisStatus, string) {
+	worstStatus := v1alpha1.TemplateStatusSuccessful
+	message := ""
+	for _, template := range ec.ex.Spec.Templates {
+		templateStatus := experimentutil.GetTemplateStatus(*ec.newStatus, template.Name)
+		if templateStatus == nil {
+			worstStatus = experimentutil.Worst(worstStatus, v1alpha1.TemplateStatusProgressing)
+		} else {
+			if experimentutil.TemplateIsWorse(worstStatus, templateStatus.Status) {
+				worstStatus = templateStatus.Status
+				message = templateStatus.Message
+			}
+		}
+	}
+	switch worstStatus {
+	case v1alpha1.TemplateStatusProgressing:
+		return v1alpha1.AnalysisStatusPending, message
+	case v1alpha1.TemplateStatusFailed:
+		return v1alpha1.AnalysisStatusFailed, message
+	case v1alpha1.TemplateStatusError:
+		return v1alpha1.AnalysisStatusError, message
+	case v1alpha1.TemplateStatusSuccessful:
+		return v1alpha1.AnalysisStatusSuccessful, message
+	}
+	return v1alpha1.AnalysisStatusRunning, message
+}
+
+// assessTemplates examines all the analysisrun statuses, and returns the worst of the statuses.
+// This status will be under consideration as the experiment status (dependant on other factors).
+// Any Failed, Error, Inconclusive runs will cause the Experiment to complete prematurely. If there
+// are no analyses, will return AnalysisStatusSuccessful.
+func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisStatus, string) {
+	worstStatus := v1alpha1.AnalysisStatusSuccessful
+	message := ""
+	for _, a := range ec.ex.Spec.Analyses {
+		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
+		if analysisutil.IsWorse(worstStatus, as.Status) {
+			worstStatus = as.Status
+			message = as.Message
+		}
+	}
+	if worstStatus == v1alpha1.AnalysisStatusPending {
+		// since this will be used as experiment status, we should return Running instead of Pending
+		worstStatus = v1alpha1.AnalysisStatusRunning
+	}
+	return worstStatus, message
+}
+
+// newAnalysisRun generates an AnalysisRun from the experiment and template
+func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
+	template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	if err != nil {
+		return nil, err
 	}
 
-	newStatus.AvailableAt = ec.ex.Status.AvailableAt
-	if allAvailable && ec.ex.Status.AvailableAt == nil {
-		now := metav1.Now()
-		newStatus.AvailableAt = &now
+	ar := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName:    fmt.Sprintf("%s-%s-", ec.ex.Name, analysis.Name),
+			Namespace:       ec.ex.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: template.Spec,
+			Arguments:    args,
+		},
 	}
-	return calculateExperimentConditions(ec.ex, newStatus)
+	return &ar, nil
+}
+
+// verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists
+func (ec *experimentContext) verifyAnalysisTemplate(analysis v1alpha1.ExperimentAnalysisTemplateRef) error {
+	_, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	return err
 }

@@ -12,12 +12,10 @@ import (
 )
 
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
 
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(2)
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
 	}}
@@ -29,11 +27,10 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 		*prevCond,
 	}
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
 	rs := templateToRS(e, templates[0], 1)
-	f.replicaSetLister = append(f.replicaSetLister, rs)
-	f.kubeobjects = append(f.kubeobjects, rs)
+
+	f := newFixture(t, e, rs)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 
@@ -43,40 +40,37 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 	cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
 	cond[0].LastTransitionTime = prevTime.Rfc3339Copy()
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusProgressing, now()),
 	}
-	validatePatch(t, patch, nil, NoChange, templateStatuses, cond)
+	validatePatch(t, patch, "", NoChange, templateStatuses, cond)
 }
 
 func TestEnterTimeoutDegradedState(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil, pointer.BoolPtr(true))
+	e := newExperiment("foo", templates, nil)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
-		Name: "bar",
+		Name:   "bar",
+		Status: v1alpha1.TemplateStatusProgressing,
 	}}
 	e.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(30)
-	prevCond := newCondition(conditions.ReplicaSetUpdatedReason, e)
-	prevTime := metav1.NewTime(metav1.Now().Add(-1 * time.Minute))
-	prevCond.LastUpdateTime = prevTime
-	prevCond.LastTransitionTime = prevTime
-	e.Status.Conditions = []v1alpha1.ExperimentCondition{
-		*prevCond,
-	}
+	prevTime := metav1.NewTime(metav1.Now().Add(-1 * time.Minute).Truncate(time.Second))
+	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 
-	f.experimentLister = append(f.experimentLister, e)
-	f.objects = append(f.objects, e)
 	rs := templateToRS(e, templates[0], 0)
-	f.replicaSetLister = append(f.replicaSetLister, rs)
-	f.kubeobjects = append(f.kubeobjects, rs)
+	f := newFixture(t, e, rs)
+	defer f.Close()
 
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
 
 	patch := f.getPatchedExperiment(patchIndex)
-	cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.TimedOutReason, e)}
-	validatePatch(t, patch, nil, NoChange, nil, cond)
+
+	ts := generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusFailed, now())
+	ts.LastTransitionTime = &prevTime
+	ts.Message = "Template 'bar' exceeded its progressDeadlineSeconds (30)"
+	templateStatuses := []v1alpha1.TemplateStatus{
+		ts,
+	}
+	validatePatch(t, patch, v1alpha1.AnalysisStatusFailed, NoChange, templateStatuses, nil)
 }

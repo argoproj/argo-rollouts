@@ -6,7 +6,7 @@ spec:
   replicas: 5
   selector:
     matchLabels:
-      app: guestbook
+      app: rollout
   template:
     metadata:
       labels:
@@ -14,8 +14,7 @@ spec:
     spec:
       containers:
       - name: guestbook
-        # The image below can be flip from 0.1 to 0.2 
-        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        image: argoproj/rollouts-demo:blue
         ports:
         - containerPort: 80
   minReadySeconds: 30

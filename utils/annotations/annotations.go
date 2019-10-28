@@ -138,7 +138,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	}
 	// If the new replica set is about to be created, we need to add replica annotations to it.
 	//TODO: look at implementation due to surge
-	if !exists && SetReplicasAnnotations(newRS, defaults.GetRolloutReplicasOrDefault(rollout)) {
+	if !exists && SetReplicasAnnotations(newRS, defaults.GetReplicasOrDefault(rollout.Spec.Replicas)) {
 		annotationChanged = true
 	}
 	return annotationChanged
@@ -190,7 +190,7 @@ func IsSaturated(rollout *v1alpha1.Rollout, rs *appsv1.ReplicaSet) bool {
 	if err != nil {
 		return false
 	}
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	return *(rs.Spec.Replicas) == rolloutReplicas &&
 		int32(desired) == rolloutReplicas &&
 		rs.Status.AvailableReplicas == rolloutReplicas

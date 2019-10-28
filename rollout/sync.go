@@ -277,7 +277,7 @@ func (c *RolloutController) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*
 		if !ok {
 			continue
 		}
-		if desired != defaults.GetRolloutReplicasOrDefault(rollout) {
+		if desired != defaults.GetReplicasOrDefault(rollout.Spec.Replicas) {
 			return true, nil
 		}
 	}
@@ -303,7 +303,7 @@ func (c *RolloutController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int3
 
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
 	fullScaleDown := newScale == int32(0)
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
 	scaled := false
@@ -553,7 +553,7 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	if r.Spec.Strategy.BlueGreen != nil && activeRS != nil && annotations.IsSaturated(r, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
-	} else if r.Spec.Strategy.Canary != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) >= defaults.GetRolloutReplicasOrDefault(r) {
+	} else if r.Spec.Strategy.Canary != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs) >= defaults.GetReplicasOrDefault(r.Spec.Replicas) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
 		conditions.SetRolloutCondition(&newStatus, *availability)
 	} else {

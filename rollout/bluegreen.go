@@ -275,7 +275,7 @@ func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1
 
 // Should run only on scaling events and not during the normal rollout process.
 func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet, previewSvc *corev1.Service, activeSvc *corev1.Service) error {
-	rolloutReplicas := defaults.GetRolloutReplicasOrDefault(rollout)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""

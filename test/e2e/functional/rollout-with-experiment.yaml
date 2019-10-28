@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-with-experiment
+  labels:
+    app: rollout-with-experiment
+spec:
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+  strategy:
+    canary:
+      steps:
+      - experiment:
+          duration: 30
+          templates:
+          - name: baseline
+            specRef: stable
+            replicas: 1
+          - name: canary
+            specRef: canary
+            replicas: 1
