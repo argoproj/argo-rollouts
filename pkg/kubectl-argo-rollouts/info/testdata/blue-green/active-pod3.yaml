@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2019-10-27T09:50:52Z"
+  generateName: bluegreen-demo-6cbccd9f99-
+  labels:
+    app: bluegreen-demo
+    rollouts-pod-template-hash: 6cbccd9f99
+  name: bluegreen-demo-6cbccd9f99-t2d4f
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: bluegreen-demo-6cbccd9f99
+    uid: 43737e88-f89f-11e9-a15b-42010aa80033
+  resourceVersion: "27881935"
+  selfLink: /api/v1/namespaces/jesse-test/pods/bluegreen-demo-6cbccd9f99-t2d4f
+  uid: 437bb317-f89f-11e9-a15b-42010aa80033
+spec:
+  containers:
+  - image: argoproj/rollouts-demo:blue
+    imagePullPolicy: Always
+    name: bluegreen-demo
+    ports:
+    - containerPort: 8080
+      name: http
+      protocol: TCP
+    resources:
+      requests:
+        cpu: 5m
+        memory: 32Mi
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-5wzlj
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: gke-argoproj-demo-01-default-pool-848985e7-h5qj
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: default-token-5wzlj
+    secret:
+      defaultMode: 420
+      secretName: default-token-5wzlj
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2019-10-27T09:50:52Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2019-10-27T09:50:56Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2019-10-27T09:50:56Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2019-10-27T09:50:52Z"
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: docker://3afb3f6f2f2aa330dee830bfb7c9781a02bbaa6f40be428d4f9d7a8f6fc80f92
+    image: argoproj/rollouts-demo:blue
+    imageID: docker-pullable://argoproj/rollouts-demo@sha256:dbacf9072cf6675fd3dd51981c3881bba3e088ba8f9352bcb2a89fae2e8894ea
+    lastState: {}
+    name: bluegreen-demo
+    ready: true
+    restartCount: 0
+    state:
+      running:
+        startedAt: "2019-10-27T09:50:55Z"
+  hostIP: 10.168.0.29
+  phase: Running
+  podIP: 10.16.5.228
+  qosClass: Burstable
+  startTime: "2019-10-27T09:50:52Z"

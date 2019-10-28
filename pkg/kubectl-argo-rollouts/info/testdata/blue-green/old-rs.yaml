@@ -1,0 +1,59 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  annotations:
+    rollout.argoproj.io/desired-replicas: "3"
+    rollout.argoproj.io/revision: "8"
+    rollout.argoproj.io/revision-history: "6"
+  creationTimestamp: "2019-10-26T08:53:17Z"
+  generation: 4
+  labels:
+    app: bluegreen-demo
+    rollouts-pod-template-hash: 746d5fddf6
+  name: bluegreen-demo-746d5fddf6
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: bluegreen-demo
+    uid: fe2872f3-f79f-11e9-a15b-42010aa80033
+  resourceVersion: "27401999"
+  selfLink: /apis/extensions/v1beta1/namespaces/jesse-test/replicasets/bluegreen-demo-746d5fddf6
+  uid: 0dd183de-f7ce-11e9-a15b-42010aa80033
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: bluegreen-demo
+      rollouts-pod-template-hash: 746d5fddf6
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: bluegreen-demo
+        rollouts-pod-template-hash: 746d5fddf6
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:red
+        imagePullPolicy: Always
+        name: bluegreen-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  observedGeneration: 4
+  replicas: 0
