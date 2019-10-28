@@ -369,7 +369,6 @@ func (c *RolloutController) reconcileCanaryReplicaSets(roCtx *canaryContext) (bo
 	newRS := roCtx.NewRS()
 	olderRSs := roCtx.OlderRSs()
 	allRSs := roCtx.AllRSs()
-	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
 	scaledNewRS, err := c.reconcileNewReplicaSet(roCtx)
 	if err != nil {
 		return false, err

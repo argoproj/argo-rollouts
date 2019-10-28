@@ -72,6 +72,10 @@ func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*a
 func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
+	if newRS == nil {
+		return false, nil
+	}
+	roCtx.Log().Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
 	allRSs := roCtx.AllRSs()
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
