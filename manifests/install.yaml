@@ -10632,6 +10632,7 @@ rules:
   - update
   - watch
   - patch
+  - create
   - delete
 - apiGroups:
   - argoproj.io
