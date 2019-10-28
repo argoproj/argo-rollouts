@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -157,9 +156,9 @@ func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alp
 		if ex == nil {
 			continue
 		}
-		if ex.Status.Running != nil && *ex.Status.Running {
+		if !ex.Spec.Terminate && !experimentutil.HasFinished(ex) {
 			roCtx.Log().Infof("Canceling other running experiment '%s' owned by rollout", ex.Name)
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Patch(ex.Name, patchtypes.MergePatchType, []byte(cancelExperimentPatch))
+			err := experimentutil.Terminate(c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace), ex.Name)
 			if err != nil {
 				return err
 			}

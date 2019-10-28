@@ -468,7 +468,7 @@ func TestCancelExperimentWhenAborted(t *testing.T) {
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 	ex.Name = "test"
-	ex.Status.Running = pointer.BoolPtr(true)
+	ex.Status.Status = v1alpha1.AnalysisStatusRunning
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	r2.Status.Abort = true
