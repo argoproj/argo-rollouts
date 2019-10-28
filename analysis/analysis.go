@@ -363,7 +363,11 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		}
 		if lastMeasurement.FinishedAt == nil {
 			// unfinished in-flight measurement.
-			// TODO(jessesuen) perhaps ask provider for an appropriate time to poll?
+			if lastMeasurement.ResumeAt != nil {
+				if reconcileTime == nil || reconcileTime.After(lastMeasurement.ResumeAt.Time) {
+					reconcileTime = &lastMeasurement.ResumeAt.Time
+				}
+			}
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)

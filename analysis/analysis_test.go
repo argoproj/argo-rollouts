@@ -730,6 +730,43 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
 }
 
+func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
+	now := metav1.Now()
+	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
+	nowPlus10 := metav1.NewTime(now.Add(time.Second * 10))
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name:     "success-rate",
+						Interval: pointer.Int32Ptr(60),
+					},
+				},
+			},
+		},
+		Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:   "success-rate",
+					Status: v1alpha1.AnalysisStatusRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:     "99",
+							Status:    v1alpha1.AnalysisStatusSuccessful,
+							StartedAt: &nowMinus30,
+							ResumeAt:  &nowPlus10,
+						},
+					},
+				},
+			},
+		},
+	}
+	// ensure we requeue at correct interval
+	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
+}
+
 func TestCalculateNextReconcileUponError(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{

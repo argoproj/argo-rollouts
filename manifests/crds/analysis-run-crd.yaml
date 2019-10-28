@@ -2569,6 +2569,9 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        resumeAt:
+                          format: date-time
+                          type: string
                         startedAt:
                           format: date-time
                           type: string
