@@ -441,7 +441,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisStatus, stri
 		}
 	}
 	if worstStatus == v1alpha1.AnalysisStatusPending {
-		// since this will be used as experiment stauts, we should return Running instead of Pending
+		// since this will be used as experiment status, we should return Running instead of Pending
 		worstStatus = v1alpha1.AnalysisStatusRunning
 	}
 	return worstStatus, message

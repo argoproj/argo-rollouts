@@ -191,6 +191,7 @@ func TemplateIsWorse(current, new v1alpha1.TemplateStatusCode) bool {
 	return newIndex > currentIndex
 }
 
+// Worst returns the worst of the supplied status codes
 func Worst(left, right v1alpha1.TemplateStatusCode) v1alpha1.TemplateStatusCode {
 	if TemplateIsWorse(left, right) {
 		return right

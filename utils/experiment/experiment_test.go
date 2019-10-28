@@ -334,6 +334,12 @@ func TestTemplateIsWorse(t *testing.T) {
 	}
 }
 
+func TestWorse(t *testing.T) {
+	assert.Equal(t, v1alpha1.TemplateStatusFailed, Worst(v1alpha1.TemplateStatusSuccessful, v1alpha1.TemplateStatusFailed))
+	assert.Equal(t, v1alpha1.TemplateStatusFailed, Worst(v1alpha1.TemplateStatusFailed, v1alpha1.TemplateStatusSuccessful))
+	assert.Equal(t, v1alpha1.TemplateStatusSuccessful, Worst(v1alpha1.TemplateStatusSuccessful, v1alpha1.TemplateStatusSuccessful))
+}
+
 func TestTerminate(t *testing.T) {
 	e := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{

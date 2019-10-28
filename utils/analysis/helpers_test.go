@@ -4,8 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
 func TestIsWorst(t *testing.T) {
@@ -175,4 +179,27 @@ func TestIsTerminating(t *testing.T) {
 	successRate.Status = v1alpha1.AnalysisStatusError
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
+}
+
+func TestTerminateRun(t *testing.T) {
+	e := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+	client := fake.NewSimpleClientset(e)
+	patched := false
+	client.PrependReactor("patch", "analysisruns", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			if string(patchAction.GetPatch()) == `{"spec":{"terminate":true}}` {
+				patched = true
+			}
+		}
+		return true, e, nil
+	})
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	err := TerminateRun(runIf, "foo")
+	assert.NoError(t, err)
+	assert.True(t, patched)
 }
