@@ -246,7 +246,7 @@ func TestProcessVectorResponse(t *testing.T) {
 	}
 	metric := v1alpha1.Metric{
 		SuccessCondition: "10 in result",
-		FailureCondition: "false",
+		FailureCondition: "len(result) != 2",
 	}
 
 	response := model.Vector{

@@ -110,7 +110,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		newStatus := p.evaluateResult(result, metric)
 		return valueStr, newStatus, nil
 	case model.Vector:
-		result := make([]float64, len(value))
+		result := make([]float64, 0, len(value))
 		valueStr := "["
 		for _, s := range value {
 			if s != nil {
