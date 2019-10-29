@@ -218,4 +218,6 @@ type Measurement struct {
 	// Metadata stores additional metadata about this metric result, used by the different providers
 	// (e.g. kayenta run ID, job name)
 	Metadata map[string]string `json:"metadata,omitempty"`
+	// ResumeAt is the  timestamp when the analysisRun should try to resume the measurement
+	ResumeAt *metav1.Time `json:"resumeAt,omitempty"`
 }

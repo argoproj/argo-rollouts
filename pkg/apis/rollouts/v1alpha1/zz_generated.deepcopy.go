@@ -664,6 +664,10 @@ func (in *Measurement) DeepCopyInto(out *Measurement) {
 			(*out)[key] = val
 		}
 	}
+	if in.ResumeAt != nil {
+		in, out := &in.ResumeAt, &out.ResumeAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

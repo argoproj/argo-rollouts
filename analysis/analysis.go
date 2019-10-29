@@ -107,6 +107,10 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		}
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
+			now := metav1.Now()
+			if lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
+				continue
+			}
 			// last measurement is still in-progress. need to complete it
 			log.WithField("metric", metric.Name).Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
@@ -363,7 +367,11 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		}
 		if lastMeasurement.FinishedAt == nil {
 			// unfinished in-flight measurement.
-			// TODO(jessesuen) perhaps ask provider for an appropriate time to poll?
+			if lastMeasurement.ResumeAt != nil {
+				if reconcileTime == nil || reconcileTime.After(lastMeasurement.ResumeAt.Time) {
+					reconcileTime = &lastMeasurement.ResumeAt.Time
+				}
+			}
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)

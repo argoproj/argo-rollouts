@@ -1146,6 +1146,12 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 							},
 						},
 					},
+					"resumeAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResumeAt is the earliest timestamp when the analysisRun should take another measurement for the metric",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 				Required: []string{"status"},
 			},
