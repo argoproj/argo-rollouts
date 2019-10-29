@@ -105,7 +105,7 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	stableRS := roCtx.StableRS()
 	otherExs := roCtx.OtherExperiments()
 
-	if rollout.Status.Abort {
+	if roCtx.PauseContext().IsAborted() {
 		allExs := append(otherExs, roCtx.CurrentExperiment())
 		return c.cancelExperiments(roCtx, allExs)
 	}

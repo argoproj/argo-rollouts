@@ -276,6 +276,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 			}
 		}
 		roCtx.PauseContext().ClearPauseConditions()
+		roCtx.PauseContext().RemoveAbort()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
@@ -292,29 +293,25 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 		}
 		roCtx.PauseContext().ClearPauseConditions()
+		roCtx.PauseContext().RemoveAbort()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
-	if currBackgroundAr != nil && !r.Status.Abort {
+	if currBackgroundAr != nil && !roCtx.PauseContext().IsAborted() {
 		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
-		} else if currBackgroundAr.Status.Status == v1alpha1.AnalysisStatusError || currBackgroundAr.Status.Status == v1alpha1.AnalysisStatusFailed {
-			newStatus.Abort = true
 		}
 	}
 	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
-	if currStepAr != nil && !r.Status.Abort {
+	if currStepAr != nil && !roCtx.PauseContext().IsAborted() {
 		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() {
 			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
-		} else if currStepAr.Status.Status == v1alpha1.AnalysisStatusError || currStepAr.Status.Status == v1alpha1.AnalysisStatusFailed {
-			newStatus.Abort = true
 		}
 	}
 
-	if r.Status.Abort || newStatus.Abort {
-		newStatus.Abort = true
+	if roCtx.PauseContext().IsAborted() {
 		if stepCount > int32(0) {
 			if newStatus.Canary.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
@@ -322,7 +319,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 				newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
 			}
 		}
-		roCtx.PauseContext().ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}

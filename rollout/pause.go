@@ -17,10 +17,30 @@ type pauseContext struct {
 	addPauseReasons      []v1alpha1.PauseReason
 	removePauseReasons   []v1alpha1.PauseReason
 	clearPauseConditions bool
+	addAbort             bool
+	removeAbort          bool
 }
 
 func (pCtx *pauseContext) HasAddPause() bool {
 	return len(pCtx.addPauseReasons) > 0
+}
+
+func (pCtx *pauseContext) IsAborted() bool {
+	if pCtx.removeAbort {
+		return false
+	}
+	if pCtx.addAbort || pCtx.rollout.Status.Abort {
+		return true
+	}
+	return false
+}
+
+func (pCtx *pauseContext) AddAbort() {
+	pCtx.addAbort = true
+}
+
+func (pCtx *pauseContext) RemoveAbort() {
+	pCtx.removeAbort = true
 }
 
 func (pCtx *pauseContext) AddPauseCondition(reason v1alpha1.PauseReason) {
@@ -35,6 +55,16 @@ func (pCtx *pauseContext) ClearPauseConditions() {
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
+	if pCtx.addAbort {
+		newStatus.Abort = true
+		return
+	}
+	if !pCtx.removeAbort && pCtx.rollout.Status.Abort {
+		newStatus.Abort = true
+		return
+	}
+	newStatus.Abort = false
+
 	if pCtx.clearPauseConditions {
 		return
 	}

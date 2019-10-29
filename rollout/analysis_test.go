@@ -663,7 +663,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"abort": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.RolloutAnalysisRunFailedReason, r2, false)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
@@ -718,7 +718,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"abort": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.RolloutAnalysisRunFailedReason, r2, false)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
