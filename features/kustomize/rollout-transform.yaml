@@ -1,52 +1,58 @@
 nameReference:
-- kind: ConfigMap
-  fieldSpecs:
-  - path: spec/volumes/configMap/name
-    kind: Rollout
-  - path: spec/template/spec/containers/envFrom/configMapRef/name
-    kind: Rollout
-  - path: spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
-    kind: Rollout
-  - path: spec/template/spec/initContainers/envFrom/configMapRef/name
-    kind: Rollout
-  - path: spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
-    kind: Rollout
-- kind: Secret
-  fieldSpecs:
-  - path: spec/volumes/configMap/name
-    kind: Rollout
-  - path: spec/template/spec/containers/envFrom/secretRef/name
-    kind: Rollout
-  - path: spec/template/spec/containers/env/valueFrom/secretKeyRef/name
-    kind: Rollout
-  - path: spec/template/spec/initContainers/envFrom/secretRef/name
-    kind: Rollout
-  - path: spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
-    kind: Rollout
-- kind: Service
-  fieldSpecs:
-  - path: spec/strategy/blueGreen/activeService
-    kind: Rollout
-  - path: spec/strategy/blueGreen/previewService
-    kind: Rollout
+  - kind: ConfigMap
+    fieldSpecs:
+      - path: spec/template/spec/volumes/configMap/name
+        kind: Rollout
+      - path: spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/containers/envFrom/configMapRef/name
+        kind: Rollout
+      - path: spec/template/spec/initContainers/envFrom/configMapRef/name
+        kind: Rollout
+      - path: spec/template/spec/volumes/projected/sources/configMap/name
+        kind: Rollout
+  - kind: Secret
+    fieldSpecs:
+      - path: spec/template/spec/volumes/secret/secretName
+        kind: Rollout
+      - path: spec/template/spec/containers/env/valueFrom/secretKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/containers/envFrom/secretRef/name
+        kind: Rollout
+      - path: spec/template/spec/initContainers/envFrom/secretRef/name
+        kind: Rollout
+      - path: spec/template/spec/imagePullSecrets/name
+        kind: Rollout
+      - path: spec/template/spec/volumes/projected/sources/secret/name
+        kind: Rollout
+  - kind: Service
+    fieldSpecs:
+      - path: spec/strategy/blueGreen/activeService
+        kind: Rollout
+      - path: spec/strategy/blueGreen/previewService
+        kind: Rollout
 
 commonLabels:
-- path: spec/selector/matchLabels
-  create: true
-  kind: Rollout
-- path: spec/template/metadata/labels
-  create: true
-  kind: Rollout
+  - path: spec/selector/matchLabels
+    create: true
+    kind: Rollout
+  - path: spec/template/metadata/labels
+    create: true
+    kind: Rollout
 
 commonAnnotations:
-- path: spec/template/metadata/annotations
-  create: true
-  kind: Rollout
+  - path: spec/template/metadata/annotations
+    create: true
+    kind: Rollout
 
 varReference:
-- path: spec/template/spec/containers/command
-  kind: Rollout
-- path: spec/template/spec/initContainers/command
-  kind: Rollout
-- path: spec/template/metadata/annotations
-  kind: Rollout
+  - path: spec/template/spec/containers/command
+    kind: Rollout
+  - path: spec/template/spec/initContainers/command
+    kind: Rollout
+  - path: spec/template/metadata/annotations
+    kind: Rollout
