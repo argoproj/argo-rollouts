@@ -1,8 +1,9 @@
 # Overview
 
 The Rollout object has two available strategies: Canary and BlueGreen. Below are the links to the documenation for each strategy:
-1. [Blue Green](/feature/bluegreen/)
-1. [Canary](/feature/canary/)
+
+1. [Blue Green](/features/bluegreen/)
+1. [Canary](/features/canary/)
 
 The following describes all the available fields of a rollout:
 
