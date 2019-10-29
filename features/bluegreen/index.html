@@ -404,6 +404,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#scaledowndelayrevisionlimit" class="md-nav__link">
+    ScaleDownDelayRevisionLimit
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -591,6 +598,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#scaledowndelayrevisionlimit" class="md-nav__link">
+    ScaleDownDelayRevisionLimit
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -629,8 +643,10 @@ When the rollout changes the selector on a service, there is a propagation delay
     <span class="nt">blueGreen</span><span class="p">:</span>
       <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
       <span class="nt">previewReplicaCount</span><span class="p">:</span> <span class="nv">*int32</span>
+      <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
       <span class="nt">autoPromotionSeconds</span><span class="p">:</span> <span class="nv">*int32</span>
       <span class="nt">scaleDownDelaySeconds</span><span class="p">:</span> <span class="nv">*int32</span>
+      <span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="nv">*int32</span>
 </pre></div>
 
 
@@ -651,6 +667,9 @@ When the rollout changes the selector on a service, there is a propagation delay
 <h3 id="scaledowndelayseconds">ScaleDownDelaySeconds<a class="headerlink" href="#scaledowndelayseconds" title="Permanent link">&para;</a></h3>
 <p>The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.</p>
 <p>Defaults to 30</p>
+<h3 id="scaledowndelayrevisionlimit">ScaleDownDelayRevisionLimit<a class="headerlink" href="#scaledowndelayrevisionlimit" title="Permanent link">&para;</a></h3>
+<p>The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. </p>
+<p>Default to nil</p>
                 
                   
                 
