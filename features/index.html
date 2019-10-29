@@ -477,8 +477,8 @@
                 <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
 <p>The Rollout object has two available strategies: Canary and BlueGreen. Below are the links to the documenation for each strategy:</p>
 <ol>
-<li><a href="/features/bluegreen/">Blue Green</a></li>
-<li><a href="/features/canary/">Canary</a></li>
+<li><a href="bluegreen/">Blue Green</a></li>
+<li><a href="canary/">Canary</a></li>
 </ol>
 <p>The following describes all the available fields of a rollout:</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -488,7 +488,7 @@
 <span class="nt">spec</span><span class="p">:</span>
   <span class="c1"># Number of desired pods. Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.</span>
   <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-  <span class="c1">#Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template&#39;s labels.</span>
+  <span class="c1">#Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template&#39;s labels.`</span>
   <span class="nt">selector</span><span class="p">:</span>
     <span class="nt">matchLabels</span><span class="p">:</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
