@@ -11,6 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -73,6 +74,17 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			}
 		}
 		experiment.Spec.Templates = append(experiment.Spec.Templates, template)
+	}
+
+	if step.Analysis != nil {
+		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(step.Analysis, stableRS, newRS)
+		analysis := step.Analysis
+		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
+			Name:         analysis.TemplateName,
+			TemplateName: analysis.TemplateName,
+			Arguments:    args,
+		}
+		experiment.Spec.Analyses = append(experiment.Spec.Analyses, analysisTemplate)
 	}
 
 	return experiment, nil

@@ -18,6 +18,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
+	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
@@ -25,6 +26,9 @@ func TestRolloutCreateExperiment(t *testing.T) {
 				SpecRef:  v1alpha1.StableSpecRef,
 				Replicas: pointer.Int32Ptr(1),
 			}},
+			Analysis: &v1alpha1.RolloutAnalysisStep{
+				TemplateName: at.Name,
+			},
 		},
 	}}
 
@@ -49,6 +53,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.GenerateName, ex.GenerateName)
+	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {

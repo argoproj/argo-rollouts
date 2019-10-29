@@ -172,6 +172,29 @@ spec:
                             type: object
                           experiment:
                             properties:
+                              analysis:
+                                properties:
+                                  arguments:
+                                    items:
+                                      properties:
+                                        name:
+                                          type: string
+                                        value:
+                                          type: string
+                                        valueFrom:
+                                          properties:
+                                            podTemplateHashValue:
+                                              type: string
+                                          type: object
+                                      required:
+                                      - name
+                                      type: object
+                                    type: array
+                                  templateName:
+                                    type: string
+                                required:
+                                - templateName
+                                type: object
                               duration:
                                 format: int32
                                 type: integer

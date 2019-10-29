@@ -904,6 +904,11 @@ func (in *RolloutExperimentStep) DeepCopyInto(out *RolloutExperimentStep) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Analysis != nil {
+		in, out := &in.Analysis, &out.Analysis
+		*out = new(RolloutAnalysisStep)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

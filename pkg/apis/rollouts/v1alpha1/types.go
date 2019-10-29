@@ -153,6 +153,8 @@ type RolloutExperimentStep struct {
 	// Duration is the duration in seconds that the experiment should run for
 	// +optional
 	Duration *int32 `json:"duration,omitempty"`
+	//AnalysisTemplate what analysis to run with the experiment
+	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
