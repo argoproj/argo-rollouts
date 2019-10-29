@@ -156,3 +156,39 @@ func TestNameCollision(t *testing.T) {
 		validatePatch(t, patch, "", NoChange, templateStatuses, cond)
 	}
 }
+
+// TestNameCollisionWithEquivalentPodTemplateAndControllerUID verifies we consider the labels of the
+// replicaset when encountering name collisions
+func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, nil)
+	e.Status.Status = v1alpha1.AnalysisStatusPending
+
+	rs := templateToRS(e, templates[0], 0)
+	rs.ObjectMeta.Labels[ExperimentTemplateNameLabelKey] = "something-different" // change this to something different
+
+	f := newFixture(t, e, rs)
+	defer f.Close()
+
+	f.expectCreateReplicaSetAction(rs)
+	collisionCountPatchIndex := f.expectPatchExperimentAction(e) // update collision count
+	statusUpdatePatchIndex := f.expectPatchExperimentAction(e)   // updates status
+	f.run(getKey(e, t))
+
+	{
+		patch := f.getPatchedExperiment(collisionCountPatchIndex)
+		templateStatuses := []v1alpha1.TemplateStatus{
+			generateTemplatesStatus("bar", 0, 0, "", nil),
+		}
+		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
+	}
+	{
+		patch := f.getPatchedExperiment(statusUpdatePatchIndex)
+		templateStatuses := []v1alpha1.TemplateStatus{
+			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
+		}
+		cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
+		validatePatch(t, patch, "", NoChange, templateStatuses, cond)
+	}
+}

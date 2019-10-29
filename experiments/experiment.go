@@ -107,11 +107,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	rs := ec.templateRSs[template.Name]
 	if rs == nil {
 		// Create the ReplicaSet if necessary
-		if templateStatus.Status.Completed() {
-			// do nothing (not even pollute the logs)
-		} else if ec.isTerminating {
-			logCtx.Info("Skipping ReplicaSet creation: experiment is terminating")
-		} else {
+		if desiredReplicaCount > 0 {
 			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 			if err != nil {
 				logCtx.Warnf("Failed to create ReplicaSet: %v", err)
@@ -123,19 +119,23 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			if newRS != nil {
 				ec.templateRSs[template.Name] = newRS
 				templateStatus.LastTransitionTime = &now
+				rs = newRS
 			}
 		}
+	} else {
+		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
+		if *rs.Spec.Replicas != desiredReplicaCount {
+			ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+			templateStatus.LastTransitionTime = &now
+		}
+	}
+
+	if rs == nil {
 		templateStatus.Replicas = 0
 		templateStatus.UpdatedReplicas = 0
 		templateStatus.ReadyReplicas = 0
 		templateStatus.AvailableReplicas = 0
 	} else {
-		// If we get here, replicaset exists. We need to ensure it's scaled properly based on
-		// termination, or changed replica count
-		if *rs.Spec.Replicas != desiredReplicaCount {
-			ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
-			templateStatus.LastTransitionTime = &now
-		}
 		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})

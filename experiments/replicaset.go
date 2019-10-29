@@ -89,26 +89,7 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 
 // createReplicaSet creates a new replicaset based on the template
 func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, collisionCount *int32) (*appsv1.ReplicaSet, error) {
-	newRSTemplate := *template.Template.DeepCopy()
-	// The labels must be different for each template because labels are used to match replicasets
-	// to templates. We inject the experiment and template name in the replicaset labels to ensure
-	// uniqueness.
-	replicaSetlabels := newReplicaSetLabels(ec.ex.Name, template.Name)
-	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
-	newRS := appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s", ec.ex.Name, template.Name, podTemplateSpecHash),
-			Namespace:       ec.ex.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
-			Labels:          replicaSetlabels,
-		},
-		Spec: appsv1.ReplicaSetSpec{
-			Replicas:        new(int32),
-			MinReadySeconds: template.MinReadySeconds,
-			Selector:        template.Selector,
-			Template:        newRSTemplate,
-		},
-	}
+	newRS := newReplicaSetFromTemplate(ec.ex, template, collisionCount)
 
 	newReplicasCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	*(newRS.Spec.Replicas) = newReplicasCount
@@ -133,10 +114,14 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 		// deep equal to the PodTemplateSpec of the Experiment, it's the Experiment's new ReplicaSet.
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
 		// the status of the Experiment and requeue to try the creation in the next sync.
-		controllerRef := metav1.GetControllerOf(rs)
-		if controllerRef != nil && controllerRef.UID == ec.ex.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &template.Template) {
+		if ec.isReplicaSetSemanticallyEqual(&newRS, rs) {
+			// NOTE: it should be impossible to get here, because the isReplicaSetSemanticallyEqual()
+			// helper is actually stricter than the the replicaset claim logic that builds up
+			// ec.templateRSs at the start of reconciliation, preventing this code path from
+			// happening entirely. We should consider deleting this if-block entirely.
 			createdRS = rs
 			err = nil
+			ec.log.Warnf("Claimed existing ReplicaSet %s with equivalent template spec", createdRS.Name)
 			break
 		}
 
@@ -181,6 +166,45 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 	}
 
 	return createdRS, nil
+}
+
+// newReplicaSetFromTemplate is a helper to formulate a replicaset from an experiment's template
+func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, collisionCount *int32) appsv1.ReplicaSet {
+	newRSTemplate := *template.Template.DeepCopy()
+	// The labels must be different for each template because labels are used to match replicasets
+	// to templates. We inject the experiment and template name in the replicaset labels to ensure
+	// uniqueness.
+	replicaSetlabels := newReplicaSetLabels(experiment.Name, template.Name)
+	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
+	return appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
+			Namespace:       experiment.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
+			Labels:          replicaSetlabels,
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas:        new(int32),
+			MinReadySeconds: template.MinReadySeconds,
+			Selector:        template.Selector,
+			Template:        newRSTemplate,
+		},
+	}
+}
+
+// isReplicaSetSemanticallyEqual checks to see if an existing ReplicaSet is semantically equal
+// to the ReplicaSet we are trying to create
+func (ec *experimentContext) isReplicaSetSemanticallyEqual(newRS, existingRS *appsv1.ReplicaSet) bool {
+	controllerRef := metav1.GetControllerOf(existingRS)
+	podTemplatesEqual := replicasetutil.PodTemplateEqualIgnoreHash(&existingRS.Spec.Template, &newRS.Spec.Template)
+	existingLabels := existingRS.GetLabels()
+	newLabels := newRS.GetLabels()
+	return controllerRef != nil &&
+		controllerRef.UID == ec.ex.UID &&
+		podTemplatesEqual &&
+		existingLabels != nil &&
+		existingLabels[ExperimentNameLabelKey] == newLabels[ExperimentNameLabelKey] &&
+		existingLabels[ExperimentTemplateNameLabelKey] == newLabels[ExperimentTemplateNameLabelKey]
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
