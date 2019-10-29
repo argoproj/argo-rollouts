@@ -2,8 +2,8 @@
 
 The Rollout object has two available strategies: Canary and BlueGreen. Below are the links to the documenation for each strategy:
 
-1. [Blue Green](/features/bluegreen/)
-1. [Canary](/features/canary/)
+1. [Blue Green](bluegreen.md)
+1. [Canary](canary.md)
 
 The following describes all the available fields of a rollout:
 
@@ -15,7 +15,7 @@ metadata:
 spec:
   # Number of desired pods. Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
   replicas: 5
-  #Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.
+  #Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.`
   selector:
     matchLabels:
       app: guestbook
