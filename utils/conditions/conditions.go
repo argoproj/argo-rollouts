@@ -307,10 +307,6 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	}
 
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		if rollout.Spec.Strategy.BlueGreen.ActiveService == "" {
-			message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.ActiveService")
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
-		}
 		if rollout.Spec.Strategy.BlueGreen.ActiveService == rollout.Spec.Strategy.BlueGreen.PreviewService {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
 		}

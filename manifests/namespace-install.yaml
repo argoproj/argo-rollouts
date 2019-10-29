@@ -7830,6 +7830,8 @@ spec:
                     scaleDownDelaySeconds:
                       format: int32
                       type: integer
+                  required:
+                  - activeService
                   type: object
                 canary:
                   properties:

@@ -561,6 +561,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 						},
 					},
 				},
+				Required: []string{"activeService"},
 			},
 		},
 		Dependencies: []string{},
@@ -1030,7 +1031,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 					},
 					"availableAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Running indicates if the experiment has started. If the experiment is not running, the controller will scale down all RS. If the running field isn't set, that means that the experiment hasn't started yet. Running *bool `json:\"running,omitempty\"` AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
+							Description: "AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
