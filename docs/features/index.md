@@ -1,3 +1,77 @@
 # Overview
 
-This section has all the features of Argo Rollouts. Check out [rollout.yaml](rollout.yaml) for a fully annotated Rollout.
+The Rollout object has two available strategies: Canary and BlueGreen. Below are the links to the documenation for each strategy:
+1. [Blue Green](/feature/bluegreen/)
+1. [Canary](/feature/canary/)
+
+The following describes all the available fields of a rollout:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-rollout-canary
+spec:
+  # Number of desired pods. Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
+  replicas: 5
+  #Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.
+  selector:
+    matchLabels:
+      app: guestbook
+  # Template describes the pods that will be created. Same as deployment
+  template:
+    spec:
+      containers:
+      - name: guestbook
+        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+  # Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
+  minReadySeconds: 30
+  # The number of old ReplicaSets to retain. If unspecified, will retain 10 old ReplicaSets
+  revisionHistoryLimit: 3
+  # Indiciates if the rollout is paused
+  paused: false
+  # The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.
+  progressDeadlineSeconds: 600
+  # field to specify the strategy to run
+  strategy:
+    blueGreen:
+      # Name of the service that the rollout modifies as the active service.
+      activeService: active-service
+      # Name of the service that the rollout modifies as the preview service.
+      previewService: preview-service 
+      # The number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs +optional
+      previewReplicaCount: 1
+      # Indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true. +optional
+      autoPromotionEnabled: false
+      # automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional
+      autoPromotionSeconds: 30
+      # adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
+      scaleDownDelaySeconds: 30
+      # limits the number of old RS that can run at once before getting scaled down. Defaults to nil
+      scaleDownDelayRevisionLimit: 2
+    canary:
+      # CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version. +optional
+      canaryService: canary-service
+      # The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old RC can be scaled down by 30% immediately when the rolling update starts. Once new pods are ready, old RC can be scaled down further, followed by scaling up the new RC, ensuring that at least 70% of original number of pods are available at all times during the update. +optional
+      maxUnavailable: 1
+      # The maximum number of pods that can be scheduled above the original number of pods. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new RC can be scaled up by 30% immediately when the rolling update starts. Once old pods have been killed, new RC can be scaled up further, ensuring that total number of pods running at any time during the update is atmost 130% of original pods. +optional
+      maxSurge: "20%"
+      # Define the order of phases to execute the canary deployment +optional
+      steps:
+        # Sets the ratio of new replicasets to 20%
+      - setWeight: 20 
+        # Pauses the rollout for an hour
+      - pause:
+          duration: 3600 # One hour
+      - setWeight: 40
+      # Sets .spec.paused to true and waits until the field is changed back
+      - pause: {} 
+status:
+  pauseConditions:
+  - reason: StepPause
+    startTime: 2019-10-00T1234
+  - reason: BlueGreenPause
+    startTime: 2019-10-00T1234
+  - reason: AnalysisRunInconclusive
+    startTime: 2019-10-00T1234 
+```
