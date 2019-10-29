@@ -105,15 +105,14 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	stableRS := roCtx.StableRS()
 	otherExs := roCtx.OtherExperiments()
 
-	for _, otherEx := range otherExs {
-		if !otherEx.Status.Status.Completed() {
-			logCtx.Infof("Canceling other running experiment '%s' owned by rollout", otherEx.Name)
-			experimentIf := c.argoprojclientset.ArgoprojV1alpha1().Experiments(otherEx.Namespace)
-			err := experimentutil.Terminate(experimentIf, otherEx.Name)
-			if err != nil {
-				return err
-			}
-		}
+	if roCtx.PauseContext().IsAborted() {
+		allExs := append(otherExs, roCtx.CurrentExperiment())
+		return c.cancelExperiments(roCtx, allExs)
+	}
+
+	err := c.cancelExperiments(roCtx, otherExs)
+	if err != nil {
+		return err
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
@@ -143,11 +142,28 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	}
 
 	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, roCtx.AllRSs())
-	err := c.deleteExperiments(roCtx, exsToDelete)
+	err = c.deleteExperiments(roCtx, exsToDelete)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {
+	for i := range exs {
+		ex := exs[i]
+		if ex == nil {
+			continue
+		}
+		if !ex.Spec.Terminate && !experimentutil.HasFinished(ex) {
+			roCtx.Log().Infof("Canceling other running experiment '%s' owned by rollout", ex.Name)
+			err := experimentutil.Terminate(c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace), ex.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

@@ -497,6 +497,9 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	// Check for progress only if the latest rollout hasn't completed yet.
 	if !isCompleteRollout {
 		switch {
+		case roCtx.PauseContext().IsAborted():
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, conditions.RolloutAbortedMessage)
+			conditions.SetRolloutCondition(&newStatus, *condition)
 		case conditions.RolloutComplete(r, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.

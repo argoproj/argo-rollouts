@@ -505,6 +505,63 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
 
+func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: pointer.Int32Ptr(20)},
+		{SetWeight: pointer.Int32Ptr(30)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+	}
+	ar.Status = &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisStatusInconclusive,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, r2, at, ar)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	expectedPatch := `{
+		"status": {
+			"conditions": %s,
+			"canary": {
+				"currentBackgroundAnalysisRun": null
+			},
+			"pauseConditions": [{
+					"reason": "%s",
+					"startTime": "%s"
+			}],
+			"controllerPause": true
+		}
+	}`
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
+}
+
 func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -559,7 +616,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
-func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {
+func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -599,10 +656,121 @@ func TestErrorConditionAfterErrorAnalysisRun(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
+			"canary":{
+				"currentStepAnalysisRun": null
+			},
+			"conditions": %s,
+			"abort": true
+		}
+	}`
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
+}
+
+func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: pointer.Int32Ptr(20)},
+		{SetWeight: pointer.Int32Ptr(40)},
+	}
+
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+	}
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	ar.Status = &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisStatusError,
+		MetricResults: []v1alpha1.MetricResult{{
+			Status: v1alpha1.AnalysisStatusError,
+		}},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 9, 9)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
+	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, r2, at, ar)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+		"status": {
+			"canary":{
+				"currentBackgroundAnalysisRun": null
+			},
+			"conditions": %s,
+			"abort": true
+		}
+	}`
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
+}
+
+func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	olderAr := ar.DeepCopy()
+	olderAr.Name = "older-analysis-run"
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	r2.Status.Abort = true
+	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar, olderAr)
+	f.objects = append(f.objects, r2, at, ar, olderAr)
+
+	cancelCurrentAr := f.expectPatchAnalysisRunAction(ar)
+	cancelOldAr := f.expectPatchAnalysisRunAction(olderAr)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
+	assert.True(t, f.verifyPatchedAnalysisRun(cancelCurrentAr, ar))
+	patch := f.getPatchedRollout(patchIndex)
+	newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentStepAnalysisRun":null
+			},
 			"conditions": %s
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.RolloutAnalysisRunFailedReason, r2, false)
-
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }

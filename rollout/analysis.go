@@ -42,11 +42,12 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 }
 
 func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
-	rollout := roCtx.Rollout()
 	otherArs := roCtx.OtherAnalysisRuns()
-	if len(rollout.Status.PauseConditions) > 0 {
-		return nil
+	if roCtx.PauseContext().IsAborted() {
+		allArs := append(roCtx.CurrentAnalysisRuns(), otherArs...)
+		return c.cancelAnalysisRuns(roCtx, allArs)
 	}
+
 	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
 
 	stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)
@@ -63,6 +64,9 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	}
 	if backgroundAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
+	}
+	if roCtx.PauseContext().HasAddPause() {
+		return nil
 	}
 
 	err = c.cancelAnalysisRuns(roCtx, otherArs)
@@ -101,6 +105,14 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}
 		return currentAr, err
+	}
+	if currentAr.Status != nil {
+		switch currentAr.Status.Status {
+		case v1alpha1.AnalysisStatusInconclusive:
+			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+			roCtx.PauseContext().AddAbort()
+		}
 	}
 	return currentAr, nil
 }
@@ -147,8 +159,13 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 		return currentAr, err
 	}
 
-	if currentAr.Status != nil && currentAr.Status.Status == v1alpha1.AnalysisStatusInconclusive {
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+	if currentAr.Status != nil {
+		switch currentAr.Status.Status {
+		case v1alpha1.AnalysisStatusInconclusive:
+			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+			roCtx.PauseContext().AddAbort()
+		}
 	}
 
 	return currentAr, nil

@@ -240,6 +240,9 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 // until it finds a setWeight step. The controller defaults to 100 if it iterates through all the steps with no
 // setWeight or if there is no current step (i.e. the controller has already stepped through all the steps).
 func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Status.Abort {
+		return 0
+	}
 	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
 	if currentStep == nil {
 		return 100

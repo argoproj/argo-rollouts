@@ -81,6 +81,11 @@ const (
 	// FoundNewRSMessage is added in a rollout when it adopts an existing replica set.
 	FoundNewRSMessage = "Found new replica set %q"
 
+	// RolloutAbortedReason indicates that the rollout was aborted
+	RolloutAbortedReason = "RolloutAborted"
+	// RolloutAbortedMessage indicates that the rollout was aborted
+	RolloutAbortedMessage = "Rollout is aborted"
+
 	// NewRSAvailableReason is added in a rollout when its newest replica set is made available
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available pods that need to run for the rollout.

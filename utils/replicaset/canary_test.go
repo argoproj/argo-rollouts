@@ -420,6 +420,10 @@ func TestGetCurrentSetWeight(t *testing.T) {
 	setWeight = GetCurrentSetWeight(rollout)
 	assert.Equal(t, setWeight, int32(10))
 
+	rollout.Status.Abort = true
+	setWeight = GetCurrentSetWeight(rollout)
+	assert.Equal(t, setWeight, int32(0))
+
 }
 
 func TestGetCurrentExperiment(t *testing.T) {

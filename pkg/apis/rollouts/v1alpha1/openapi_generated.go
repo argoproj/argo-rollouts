@@ -1808,6 +1808,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStatus is the status for a Rollout resource",
 				Properties: map[string]spec.Schema{
+					"abort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Abort cancel the current rollout progression",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"pauseConditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PauseConditions indicates why the rollout is currently paused",
