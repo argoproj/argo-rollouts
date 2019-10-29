@@ -4,26 +4,18 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
 type PodInfo struct {
-	Name              string
-	UID               types.UID
-	CreationTimestamp metav1.Time
-	Status            string
-	Icon              string
-	Ready             string
-	Restarts          int
-}
-
-func (p *PodInfo) Age() time.Duration {
-	return metav1.Now().Sub(p.CreationTimestamp.Time)
+	Metadata
+	Status   string
+	Icon     string
+	Ready    string
+	Restarts int
 }
 
 func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetInfo {
@@ -47,10 +39,10 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 
 	for _, rsInfo := range rsInfos {
 		sort.Slice(rsInfo.Pods[:], func(i, j int) bool {
-			if rsInfo.Pods[i].CreationTimestamp == rsInfo.Pods[j].CreationTimestamp {
-				return rsInfo.Pods[i].Name < rsInfo.Pods[j].Name
+			if rsInfo.Pods[i].CreationTimestamp != rsInfo.Pods[j].CreationTimestamp {
+				return rsInfo.Pods[i].CreationTimestamp.Before(&rsInfo.Pods[j].CreationTimestamp)
 			}
-			return rsInfo.Pods[i].CreationTimestamp.Before(&rsInfo.Pods[j].CreationTimestamp)
+			return rsInfo.Pods[i].Name < rsInfo.Pods[j].Name
 		})
 	}
 
@@ -59,9 +51,11 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 
 func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo := PodInfo{
-		Name:              pod.Name,
-		UID:               pod.UID,
-		CreationTimestamp: pod.CreationTimestamp,
+		Metadata: Metadata{
+			Name:              pod.Name,
+			CreationTimestamp: pod.CreationTimestamp,
+			UID:               pod.UID,
+		},
 	}
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)

@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2019-10-30T07:26:47Z"
+  generation: 23
+  name: rollout-experiment-analysis
+  namespace: jesse-test
+  resourceVersion: "29254069"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/rollout-experiment-analysis
+  uid: a17d1089-fae6-11e9-a15b-42010aa80033
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: rollout-experiment-analysis
+  strategy:
+    canary:
+      analysis:
+        templateName: random-fail
+      steps:
+      - setWeight: 25
+      - experiment:
+          templates:
+          - metadata: {}
+            name: baseline
+            replicas: 1
+            specRef: stable
+          - metadata: {}
+            name: canary
+            replicas: 1
+            specRef: canary
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rollout-experiment-analysis
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:yellow
+        name: rollouts-demo
+        resources: {}
+status:
+  HPAReplicas: 4
+  availableReplicas: 4
+  blueGreen: {}
+  canary:
+    currentBackgroundAnalysisRun: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
+    currentExperiment: rollout-experiment-analysis-6f646bf7b7-1-vcv27
+    stableRS: f6db98dff
+  conditions:
+  - lastTransitionTime: "2019-10-30T07:26:49Z"
+    lastUpdateTime: "2019-10-30T07:26:49Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-10-30T07:26:44Z"
+    lastUpdateTime: "2019-10-30T07:28:40Z"
+    message: ReplicaSet "rollout-experiment-analysis-6f646bf7b7" is progressing.
+    reason: ReplicaSetUpdated
+    status: "True"
+    type: Progressing
+  currentPodHash: 6f646bf7b7
+  currentStepHash: 5f7ff4d7d8
+  currentStepIndex: 1
+  observedGeneration: 569d957d8
+  readyReplicas: 4
+  replicas: 4
+  selector: app=rollout-experiment-analysis
+  updatedReplicas: 1

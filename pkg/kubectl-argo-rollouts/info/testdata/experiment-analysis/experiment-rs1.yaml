@@ -1,0 +1,51 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  creationTimestamp: "2019-10-30T07:28:43Z"
+  generation: 1
+  labels:
+    experiment.argoproj.io/name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
+    experiment.argoproj.io/template-name: baseline
+  name: rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Experiment
+    name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
+    uid: e6d6a74d-fae6-11e9-a15b-42010aa80033
+  resourceVersion: "29254095"
+  selfLink: /apis/extensions/v1beta1/namespaces/jesse-test/replicasets/rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f
+  uid: e6dbd25a-fae6-11e9-a15b-42010aa80033
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rollout-experiment-analysis
+      rollouts-pod-template-hash: f6db98dff
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rollout-experiment-analysis
+        rollouts-pod-template-hash: f6db98dff
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:blue
+        imagePullPolicy: IfNotPresent
+        name: rollouts-demo
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  fullyLabeledReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1

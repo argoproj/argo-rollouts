@@ -145,7 +145,17 @@ func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
 		return nil, err
 	}
 
-	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods)
+	allExps, err := c.experimentLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	allAnalysisRuns, err := c.analysisRunLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns)
 	return roInfo, nil
 }
 

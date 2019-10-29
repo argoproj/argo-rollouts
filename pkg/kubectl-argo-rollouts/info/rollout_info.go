@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -16,9 +14,8 @@ import (
 )
 
 type RolloutInfo struct {
-	Name              string
-	Namespace         string
-	CreationTimestamp metav1.Time
+	Metadata
+	Namespace string
 
 	Status       string
 	Icon         string
@@ -38,25 +35,25 @@ type RolloutInfo struct {
 	AnalysisRuns []AnalysisRunInfo
 }
 
-type ExperimentInfo struct {
-	Name              string
-	CreationTimestamp metav1.Time
-	Icon              string
-}
+func NewRolloutInfo(
+	ro *v1alpha1.Rollout,
+	allReplicaSets []*appsv1.ReplicaSet,
+	allPods []*corev1.Pod,
+	allExperiments []*v1alpha1.Experiment,
+	allARs []*v1alpha1.AnalysisRun,
+) *RolloutInfo {
 
-type AnalysisRunInfo struct {
-	Name              string
-	CreationTimestamp metav1.Time
-	Icon              string
-}
-
-func NewRolloutInfo(ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) *RolloutInfo {
 	roInfo := RolloutInfo{
-		Name:              ro.Name,
-		Namespace:         ro.Namespace,
-		CreationTimestamp: ro.CreationTimestamp,
+		Metadata: Metadata{
+			Name:              ro.Name,
+			UID:               ro.UID,
+			CreationTimestamp: ro.CreationTimestamp,
+		},
+		Namespace: ro.Namespace,
 	}
-	roInfo.ReplicaSets = getReplicaSetInfo(ro, allReplicaSets, allPods)
+	roInfo.ReplicaSets = getReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
+	roInfo.Experiments = getExperimentInfo(ro, allExperiments, allReplicaSets, allARs, allPods)
+	roInfo.AnalysisRuns = getAnalysisRunInfo(ro.UID, allARs)
 
 	if ro.Spec.Strategy.Canary != nil {
 		roInfo.Strategy = "Canary"
@@ -152,10 +149,6 @@ func rolloutIcon(status string) string {
 	return " "
 }
 
-func (r *RolloutInfo) Age() time.Duration {
-	return metav1.Now().Sub(r.CreationTimestamp.Time)
-}
-
 func (r *RolloutInfo) Images() []string {
 	uniqueImages := make(map[string]bool)
 	var images []string
@@ -173,4 +166,53 @@ func (r *RolloutInfo) Images() []string {
 	}
 	sort.Strings(images)
 	return images
+}
+
+func (r *RolloutInfo) Revisions() []int {
+	revisionMap := make(map[int]bool)
+	for _, rsInfo := range r.ReplicaSets {
+		revisionMap[rsInfo.Revision] = true
+	}
+	for _, expInfo := range r.Experiments {
+		revisionMap[expInfo.Revision] = true
+	}
+	for _, arInfo := range r.AnalysisRuns {
+		revisionMap[arInfo.Revision] = true
+	}
+	revisions := make([]int, 0, len(revisionMap))
+	for k := range revisionMap {
+		revisions = append(revisions, k)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(revisions)))
+	return revisions
+}
+
+func (r *RolloutInfo) ReplicaSetsByRevision(rev int) []ReplicaSetInfo {
+	var replicaSets []ReplicaSetInfo
+	for _, rs := range r.ReplicaSets {
+		if rs.Revision == rev {
+			replicaSets = append(replicaSets, rs)
+		}
+	}
+	return replicaSets
+}
+
+func (r *RolloutInfo) ExperimentsByRevision(rev int) []ExperimentInfo {
+	var experiments []ExperimentInfo
+	for _, e := range r.Experiments {
+		if e.Revision == rev {
+			experiments = append(experiments, e)
+		}
+	}
+	return experiments
+}
+
+func (r *RolloutInfo) AnalysisRunsByRevision(rev int) []AnalysisRunInfo {
+	var runs []AnalysisRunInfo
+	for _, run := range r.AnalysisRuns {
+		if run.Revision == rev {
+			runs = append(runs, run)
+		}
+	}
+	return runs
 }

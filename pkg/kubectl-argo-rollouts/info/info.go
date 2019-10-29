@@ -1,19 +1,35 @@
 package info
 
 import (
+	"strconv"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/duration"
+
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 const (
-	IconProgressing = "◷"
+	IconWaiting     = "◷"
+	IconProgressing = "◌"
 	IconWarning     = "⚠"
 	IconUnknown     = "?"
 	IconOK          = "✔"
 	IconBad         = "✖"
-	IconPaused      = "‖"
+	IconPaused      = "॥"
 	IconNeutral     = "•"
 )
+
+type Metadata struct {
+	Name              string
+	UID               types.UID
+	CreationTimestamp metav1.Time
+}
+
+func (m Metadata) Age() string {
+	return duration.HumanDuration(metav1.Now().Sub(m.CreationTimestamp.Time))
+}
 
 func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.OwnerReference {
 	for _, ownerRef := range ownerRefs {
@@ -24,4 +40,13 @@ func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.Owner
 		}
 	}
 	return nil
+}
+
+func parseRevision(annots map[string]string) int {
+	if annots != nil {
+		if revision, err := strconv.Atoi(annots[annotations.RevisionAnnotation]); err == nil {
+			return revision
+		}
+	}
+	return 0
 }

@@ -2,8 +2,6 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"labels":{"app":"canary-demo","app.kubernetes.io/instance":"jesse-test"},"name":"canary-demo","namespace":"jesse-test"},"spec":{"replicas":5,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"canary-demo"}},"strategy":{"canary":{"canaryService":"canary-demo-preview","steps":[{"setWeight":20},{"pause":{}},{"setWeight":40},{"pause":{"duration":10}},{"setWeight":60},{"pause":{"duration":10}},{"setWeight":80},{"pause":{"duration":10}}]}},"template":{"metadata":{"labels":{"app":"canary-demo"}},"spec":{"containers":[{"image":"argoproj/rollouts-demo:yellow","imagePullPolicy":"Always","name":"canary-demo","ports":[{"containerPort":8080,"name":"http","protocol":"TCP"}],"resources":{"requests":{"cpu":"5m","memory":"32Mi"}}}]}}}}
     rollout.argoproj.io/revision: "31"
   creationTimestamp: "2019-10-25T06:07:18Z"
   generation: 429

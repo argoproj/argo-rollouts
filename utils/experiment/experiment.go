@@ -15,10 +15,6 @@ import (
 
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
 
-func HasStarted(experiment *v1alpha1.Experiment) bool {
-	return experiment.Status.Status != ""
-}
-
 func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Status.Completed()
 }

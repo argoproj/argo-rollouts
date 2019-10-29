@@ -51,68 +51,16 @@ func (r *RolloutObjects) AllObjects() []k8sruntime.Object {
 	return objs
 }
 
-/* NewCanaryRollout() returns the following canary rollout and related objects
-
-Name:            canary-demo
-Namespace:       jesse-test
-Status:          ✖ Degraded
-Strategy:        Canary
-  Step:          0/8
-  SetWeight:     20
-  ActualWeight:  0
-Images:          argoproj/rollouts-demo:green
-Replicas:
-  Desired:       5
-  Current:       6
-  Updated:       1
-  Ready:         5
-  Available:     5
-
-NAME                                    KIND        STATUS              INFO       AGE
-⟳ canary-demo                           Rollout     ✖ Degraded                     7d
-├───⧉ canary-demo-65fb5ffc84 (rev:31)   ReplicaSet  ◷ Progressing       canary     7d
-│   └───□ canary-demo-65fb5ffc84-9wf5r  Pod         ✖ ImagePullBackOff  ready:0/1  7d
-├───⧉ canary-demo-877894d5b (rev:30)    ReplicaSet  ✔ Healthy           stable     7d
-│   ├───□ canary-demo-877894d5b-6jfpt   Pod         ✔ Running           ready:1/1  7d
-│   ├───□ canary-demo-877894d5b-kh7x4   Pod         ✔ Running           ready:1/1  7d
-│   ├───□ canary-demo-877894d5b-7jmqw   Pod         ✔ Running           ready:1/1  7d
-│   ├───□ canary-demo-877894d5b-j8g2b   Pod         ✔ Running           ready:1/1  7d
-│   └───□ canary-demo-877894d5b-jw5qm   Pod         ✔ Running           ready:1/1  7d
-├───⧉ canary-demo-859c99b45c (rev:29)   ReplicaSet  • ScaledDown                   7d
-*/
 func NewCanaryRollout() *RolloutObjects {
 	return discoverObjects(testDir + "/canary")
 }
 
-/* NewBlueGreenRollout returns the following rollout and related objects
-
-Name:            bluegreen-demo
-Namespace:       jesse-test
-Status:          ‖ Paused
-Strategy:        BlueGreen
-Images:          argoproj/rollouts-demo:blue
-                 argoproj/rollouts-demo:green
-Replicas:
-  Desired:       3
-  Current:       6
-  Updated:       3
-  Ready:         6
-  Available:     3
-
-NAME                                       KIND        STATUS        INFO       AGE
-⟳ bluegreen-demo                           Rollout     ‖ Paused                 7d
-├───⧉ bluegreen-demo-74b948fccb (rev:11)   ReplicaSet  ✔ Healthy     preview    7d
-│   ├───□ bluegreen-demo-74b948fccb-5jz59  Pod         ✔ Running     ready:1/1  7d
-│   ├───□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     ready:1/1  7d
-│   └───□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     ready:1/1  7d
-├───⧉ bluegreen-demo-6cbccd9f99 (rev:10)   ReplicaSet  ✔ Healthy     active     7d
-│   ├───□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     ready:1/1  7d
-│   ├───□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     ready:1/1  7d
-│   └───□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     ready:1/1  7d
-├───⧉ bluegreen-demo-746d5fddf6 (rev:8)    ReplicaSet  • ScaledDown             7d
-*/
 func NewBlueGreenRollout() *RolloutObjects {
 	return discoverObjects(testDir + "/blue-green")
+}
+
+func NewExperimentAnalysisRollout() *RolloutObjects {
+	return discoverObjects(testDir + "/experiment-analysis")
 }
 
 func discoverObjects(path string) *RolloutObjects {
@@ -135,7 +83,7 @@ func discoverObjects(path string) *RolloutObjects {
 		switch typeMeta.Kind {
 		case "Rollout":
 			var ro v1alpha1.Rollout
-			err = yaml.Unmarshal(yamlBytes, &ro)
+			err = yaml.UnmarshalStrict(yamlBytes, &ro)
 			if err != nil {
 				panic(err)
 			}
@@ -143,7 +91,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Rollouts = append(objs.Rollouts, &ro)
 		case "ReplicaSet":
 			var rs appsv1.ReplicaSet
-			err = yaml.Unmarshal(yamlBytes, &rs)
+			err = yaml.UnmarshalStrict(yamlBytes, &rs)
 			if err != nil {
 				panic(err)
 			}
@@ -151,7 +99,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.ReplicaSets = append(objs.ReplicaSets, &rs)
 		case "Pod":
 			var pod corev1.Pod
-			err = yaml.Unmarshal(yamlBytes, &pod)
+			err = yaml.UnmarshalStrict(yamlBytes, &pod)
 			if err != nil {
 				panic(err)
 			}
@@ -159,7 +107,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Pods = append(objs.Pods, &pod)
 		case "Experiment":
 			var exp v1alpha1.Experiment
-			err = yaml.Unmarshal(yamlBytes, &exp)
+			err = yaml.UnmarshalStrict(yamlBytes, &exp)
 			if err != nil {
 				panic(err)
 			}
@@ -167,7 +115,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Experiments = append(objs.Experiments, &exp)
 		case "AnalysisRun":
 			var run v1alpha1.AnalysisRun
-			err = yaml.Unmarshal(yamlBytes, &run)
+			err = yaml.UnmarshalStrict(yamlBytes, &run)
 			if err != nil {
 				panic(err)
 			}

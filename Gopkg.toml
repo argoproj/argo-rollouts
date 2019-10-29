@@ -55,3 +55,6 @@ required = [
   name = "github.com/russross/blackfriday"
   version = "v1.5.2"
 
+[[override]]
+  name = "github.com/ghodss/yaml"
+  branch = "master"
