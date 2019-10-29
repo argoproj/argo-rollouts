@@ -64,8 +64,8 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	logCtx.Info("Reconciling AnalysisRun step")
-	addPause, err := c.reconcileAnalysisRuns(roCtx)
-	if addPause {
+	err = c.reconcileAnalysisRuns(roCtx)
+	if roCtx.PauseContext().HasAddPause() {
 		logCtx.Info("Detected pause due to inconclusive AnalysisRun")
 		return c.syncRolloutStatusCanary(roCtx)
 	}

@@ -41,19 +41,19 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) (bool, error) {
+func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
 	otherArs := roCtx.OtherAnalysisRuns()
 	if rollout.Status.Abort {
 		allArs := append(roCtx.CurrentAnalysisRuns(), otherArs...)
-		return false, c.cancelAnalysisRuns(roCtx, allArs)
+		return c.cancelAnalysisRuns(roCtx, allArs)
 	}
 
 	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
 
 	stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if stepAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, stepAnalysisRun)
@@ -61,29 +61,29 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) (bool, e
 
 	backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(roCtx)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if backgroundAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
 	}
 	if roCtx.PauseContext().HasAddPause() {
-		return true, nil
+		return nil
 	}
 
 	err = c.cancelAnalysisRuns(roCtx, otherArs)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	allRSs := roCtx.AllRSs()
 	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, allRSs)
 	err = c.deleteAnalysisRuns(roCtx, arsToDelete)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
-	return false, nil
+	return nil
 }
 
 func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext) (*v1alpha1.AnalysisRun, error) {
