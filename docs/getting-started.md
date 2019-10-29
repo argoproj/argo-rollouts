@@ -90,4 +90,4 @@ $ kubectl patch rollout example-rollout --type merge -p '{"spec": {"paused": fal
 At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat this behavior if the Pod Spec Template is changed again.
 
 ## Going forward
-Check out the [spec documentation](/spec) for more information on other available configuration for a rollout.
+Check out the [feature documentation](/features/) for more configuration options for a rollout.
