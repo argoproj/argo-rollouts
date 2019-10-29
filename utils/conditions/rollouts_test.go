@@ -243,13 +243,6 @@ func TestVerifyRolloutSpecBlueGreen(t *testing.T) {
 	}
 	assert.Nil(t, VerifyRolloutSpec(validRollout, nil))
 
-	noActiveSvc := validRollout.DeepCopy()
-	noActiveSvc.Spec.Strategy.BlueGreen.ActiveService = ""
-	noActiveSvcCond := VerifyRolloutSpec(noActiveSvc, nil)
-	assert.NotNil(t, noActiveSvcCond)
-	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.ActiveService"), noActiveSvcCond.Message)
-	assert.Equal(t, InvalidSpecReason, noActiveSvcCond.Reason)
-
 	sameSvcs := validRollout.DeepCopy()
 	sameSvcs.Spec.Strategy.BlueGreen.ActiveService = "preview"
 	sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
