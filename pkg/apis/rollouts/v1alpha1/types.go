@@ -148,11 +148,11 @@ type CanaryStrategy struct {
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
 type RolloutExperimentStep struct {
-	// Indicates if the rollout should wait for the experiment to finish
-	Duration int32 `json:"duration"`
 	// Templates what templates that should be added to the experiment. Should be non-nil
 	Templates []RolloutExperimentTemplate `json:"templates"`
-	//ProgressingDeadlineSeconds Is it ncessary?
+	// Duration is the duration in seconds that the experiment should run for
+	// +optional
+	Duration *int32 `json:"duration,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -162,7 +162,8 @@ type RolloutExperimentTemplate struct {
 	// Type indicates where the rollout should get the RS template from
 	SpecRef ReplicaSetSpecRef `json:"specRef"`
 	// Replicas replica count for the template
-	Replicas int32 `json:"replicas"`
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 	// AdditionalSelectors additional selectors to use for the RS created from the template
 	// +optional
 	Metadata PodTemplateMetadata `json:"metadata,omitempty"`

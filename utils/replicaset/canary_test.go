@@ -434,7 +434,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 					Steps: []v1alpha1.CanaryStep{
 						{
 							Experiment: &v1alpha1.RolloutExperimentStep{
-								Duration: int32(1),
+								Duration: pointer.Int32Ptr(1),
 							},
 						}, {
 							Pause: &v1alpha1.RolloutPause{},
@@ -447,12 +447,12 @@ func TestGetCurrentExperiment(t *testing.T) {
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(0)
 
 	e := GetCurrentExperimentStep(rollout)
-	assert.Equal(t, int32(1), e.Duration)
+	assert.Equal(t, pointer.Int32Ptr(1), e.Duration)
 
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
 
 	e = GetCurrentExperimentStep(rollout)
-	assert.Equal(t, int32(1), e.Duration)
+	assert.Equal(t, pointer.Int32Ptr(1), e.Duration)
 
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(2)
 
