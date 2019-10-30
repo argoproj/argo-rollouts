@@ -205,7 +205,7 @@ func (c *RolloutController) getAnalysisRunFromRollout(roCtx *canaryContext, roll
 
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-%s-%s-", r.Name, rolloutAnalysisStep.TemplateName, podHash),
+			GenerateName: fmt.Sprintf("%s-%s-%s-", r.Name, rolloutAnalysisStep.Name, podHash),
 			Namespace:    r.Namespace,
 			Labels:       labels,
 			Annotations: map[string]string{

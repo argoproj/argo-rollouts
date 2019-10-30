@@ -129,9 +129,12 @@ spec:
                             - name
                             type: object
                           type: array
+                        name:
+                          type: string
                         templateName:
                           type: string
                       required:
+                      - name
                       - templateName
                       type: object
                     canaryService:
@@ -165,13 +168,44 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              name:
+                                type: string
                               templateName:
                                 type: string
                             required:
+                            - name
                             - templateName
                             type: object
                           experiment:
                             properties:
+                              analyses:
+                                items:
+                                  properties:
+                                    arguments:
+                                      items:
+                                        properties:
+                                          name:
+                                            type: string
+                                          value:
+                                            type: string
+                                          valueFrom:
+                                            properties:
+                                              podTemplateHashValue:
+                                                type: string
+                                            type: object
+                                        required:
+                                        - name
+                                        type: object
+                                      type: array
+                                    name:
+                                      type: string
+                                    templateName:
+                                      type: string
+                                  required:
+                                  - name
+                                  - templateName
+                                  type: object
+                                type: array
                               duration:
                                 format: int32
                                 type: integer

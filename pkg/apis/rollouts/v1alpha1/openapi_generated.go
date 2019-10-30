@@ -1507,6 +1507,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutAnalysisStep defines a template that is used to create a analysisRun",
 				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name the name for the analysisRun",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
@@ -1528,7 +1535,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"templateName"},
+				Required: []string{"name", "templateName"},
 			},
 		},
 		Dependencies: []string{
@@ -1617,12 +1624,25 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 							Format:      "int32",
 						},
 					},
+					"analyses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Analyses what analyses to run with the experiment",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"templates"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"},
 	}
 }
 
