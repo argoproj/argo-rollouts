@@ -251,6 +251,11 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 				return err
 			}
 		}
+		err = c.reconcileAnalysisRuns(roCtx)
+		if err != nil {
+			return err
+		}
+
 		// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
 		// if we are at a pause step with a duration.
 		c.reconcileCanaryPause(roCtx)

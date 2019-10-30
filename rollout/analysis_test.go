@@ -815,3 +815,43 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patch, `"currentBackgroundAnalysisRun":null`)
 }
+
+func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 1, 0, 1, false)
+	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+		StartTime: metav1.Now(),
+	}}
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+}

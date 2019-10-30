@@ -67,9 +67,6 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	if backgroundAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
 	}
-	if roCtx.PauseContext().HasAddPause() {
-		return nil
-	}
 
 	err = c.cancelAnalysisRuns(roCtx, otherArs)
 	if err != nil {
@@ -88,6 +85,7 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 }
 
 func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext) (*v1alpha1.AnalysisRun, error) {
+
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -105,6 +103,9 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		return nil, nil
 	}
 
+	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return currentAr, nil
+	}
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
@@ -148,6 +149,11 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	newRS := roCtx.NewRS()
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
+
+	if len(rollout.Status.PauseConditions) > 0 {
+		return currentAr, nil
+	}
+
 	if step == nil || step.Analysis == nil || index == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		if err != nil {

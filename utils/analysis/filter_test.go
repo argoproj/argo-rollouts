@@ -193,6 +193,7 @@ func TestFilterAnalysisRunsToDelete(t *testing.T) {
 	olderRSs := []*appsv1.ReplicaSet{
 		validRS,
 		deletedRS,
+		nil,
 	}
 	filteredArs := FilterAnalysisRunsToDelete(ars, olderRSs)
 	assert.Len(t, filteredArs, 3)
