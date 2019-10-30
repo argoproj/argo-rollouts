@@ -34,8 +34,7 @@ type blueGreenContext struct {
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
 
-	newStatus v1alpha1.RolloutStatus
-
+	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
 }
 
@@ -69,11 +68,11 @@ func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*
 		olderRSs: olderRSs,
 		allRSs:   allRSs,
 
+		newStatus: v1alpha1.RolloutStatus{},
 		pauseContext: &pauseContext{
 			rollout: r,
 			log:     logCtx,
 		},
-		newStatus: v1alpha1.RolloutStatus{},
 	}
 }
 
@@ -144,11 +143,11 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 		currentEx: currentEx,
 		otherExs:  otherExs,
 
+		newStatus: v1alpha1.RolloutStatus{},
 		pauseContext: &pauseContext{
 			rollout: r,
 			log:     logCtx,
 		},
-		newStatus: v1alpha1.RolloutStatus{},
 	}
 }
 

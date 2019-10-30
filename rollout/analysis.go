@@ -3,8 +3,6 @@ package rollout
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/utils/conditions"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -85,7 +84,6 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 }
 
 func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext) (*v1alpha1.AnalysisRun, error) {
-
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -150,7 +148,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
 
-	if len(rollout.Status.PauseConditions) > 0 {
+	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 

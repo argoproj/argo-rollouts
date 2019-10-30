@@ -251,6 +251,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 				return err
 			}
 		}
+		// Reconciling AnalysisRuns to manage Background AnalysisRun if necessary
 		err = c.reconcileAnalysisRuns(roCtx)
 		if err != nil {
 			return err
