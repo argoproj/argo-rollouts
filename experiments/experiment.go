@@ -82,11 +82,12 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 		ec.reconcileAnalysisRun(analysis)
 	}
 
-	if duration := calculateEnqueueDuration(ec.ex); duration != nil {
+	newStatus := ec.calculateStatus()
+	if duration := calculateEnqueueDuration(ec.ex, newStatus); duration != nil {
 		ec.log.Infof("Enqueueing Experiment in %s seconds", duration.String())
 		ec.enqueueExperimentAfter(ec.ex, *duration)
 	}
-	return ec.calculateStatus()
+	return newStatus
 }
 
 // reconcileTemplate reconciles a template to a ReplicaSet. Creates or scales them down as necessary
@@ -205,10 +206,9 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 // * status.availableAt + spec.duration
 // * status.templateStatuses[].lastTransitionTime + spec.progressDeadlineSeconds
 // Returns nil if there is no need to requeue
-func calculateEnqueueDuration(ex *v1alpha1.Experiment) *time.Duration {
-	if !experimentutil.HasStarted(ex) {
-		return nil
-	}
+func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) *time.Duration {
+	ex = ex.DeepCopy()
+	ex.Status = *(newStatus.DeepCopy())
 	if experimentutil.IsTerminating(ex) {
 		return nil
 	}
@@ -216,18 +216,22 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment) *time.Duration {
 	if ex.Status.AvailableAt != nil && ex.Spec.Duration != nil {
 		// Set candidate duration to status.availableAt + duration
 		passedDuration, timeRemaining := experimentutil.PassedDurations(ex)
-		if passedDuration {
+		if !passedDuration {
 			candidateDuration = &timeRemaining
 		}
 	}
 	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
 	now := time.Now()
-	for _, ts := range ex.Status.TemplateStatuses {
+	for _, template := range ex.Spec.Templates {
 		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
-		if ts.Status != v1alpha1.TemplateStatusProgressing && ts.Status != v1alpha1.TemplateStatusRunning {
+		ts := experimentutil.GetTemplateStatus(ex.Status, template.Name)
+		if ts == nil || (ts.Status != v1alpha1.TemplateStatusProgressing && ts.Status != v1alpha1.TemplateStatusRunning) {
 			continue
 		}
-		if ts.LastTransitionTime != nil {
+		desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ex, template)
+		// only requeue if we are not meeting our desired replicas, since if we are at our desired
+		// replicas, then theres nothing to check on
+		if ts.AvailableReplicas != desiredReplicaCount && ts.LastTransitionTime != nil {
 			progressDeadlineDuration := ts.LastTransitionTime.Add(time.Second * time.Duration(deadlineSeconds)).Sub(now)
 			if candidateDuration == nil || progressDeadlineDuration < *candidateDuration {
 				candidateDuration = &progressDeadlineDuration
