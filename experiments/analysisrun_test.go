@@ -46,7 +46,6 @@ func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, spec *v1alpha1.
 		Spec: v1alpha1.AnalysisRunSpec{
 			AnalysisSpec: *spec,
 		},
-		Status: &v1alpha1.AnalysisRunStatus{},
 	}
 	return &ar
 }
@@ -166,7 +165,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar.Name = ar.GenerateName + "abc123"
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusSuccessful,
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
@@ -388,7 +387,7 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	rs.Spec.Replicas = new(int32)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar.Name = ar.GenerateName + "abc123"
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusRunning,
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{

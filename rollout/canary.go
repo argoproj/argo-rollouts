@@ -239,7 +239,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 	}
 	currentArs := roCtx.CurrentAnalysisRuns()
 	currentStepAr := analysisutil.GetCurrentStepAnalysisRun(currentArs)
-	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status != nil && currentStepAr.Status.Status.Completed()
+	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Status.Completed()
 	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Status == v1alpha1.AnalysisStatusSuccessful {
 		return true
 	}
@@ -300,13 +300,13 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
 	if currBackgroundAr != nil && !roCtx.PauseContext().IsAborted() {
-		if currBackgroundAr.Status == nil || !currBackgroundAr.Status.Status.Completed() {
+		if !currBackgroundAr.Status.Status.Completed() {
 			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
 	}
 	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
 	if currStepAr != nil && !roCtx.PauseContext().IsAborted() {
-		if currStepAr.Status == nil || !currStepAr.Status.Status.Completed() {
+		if !currStepAr.Status.Status.Completed() {
 			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
 		}
 	}

@@ -41,7 +41,7 @@ func TestWorst(t *testing.T) {
 
 func TestIsFastFailTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -68,13 +68,13 @@ func TestIsFastFailTerminating(t *testing.T) {
 	assert.True(t, IsTerminating(run))
 	run.Status.MetricResults = nil
 	assert.False(t, IsTerminating(run))
-	run.Status = nil
+	run.Status = v1alpha1.AnalysisRunStatus{}
 	assert.False(t, IsTerminating(run))
 }
 
 func TestGetResult(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -90,7 +90,7 @@ func TestGetResult(t *testing.T) {
 
 func TestSetResult(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{},
+		Status: v1alpha1.AnalysisRunStatus{},
 	}
 	res := v1alpha1.MetricResult{
 		Name:   "success-rate",
@@ -106,7 +106,7 @@ func TestSetResult(t *testing.T) {
 
 func TestMetricCompleted(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -136,7 +136,7 @@ func TestLastMeasurement(t *testing.T) {
 		Value:  "98",
 	}
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -157,7 +157,7 @@ func TestLastMeasurement(t *testing.T) {
 
 func TestIsTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{

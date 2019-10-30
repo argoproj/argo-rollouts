@@ -483,8 +483,7 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	currArs := roCtx.CurrentAnalysisRuns()
 	for i := range currArs {
 		currAr := currArs[i]
-		hasStatus := currAr != nil && currAr.Status != nil
-		if hasStatus && (currAr.Status.Status == v1alpha1.AnalysisStatusError || currAr.Status.Status == v1alpha1.AnalysisStatusFailed) {
+		if currAr != nil && (currAr.Status.Status == v1alpha1.AnalysisStatusError || currAr.Status.Status == v1alpha1.AnalysisStatusFailed) {
 			failedAnalysisRun = currArs[i]
 		}
 	}

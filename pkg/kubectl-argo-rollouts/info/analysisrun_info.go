@@ -32,16 +32,14 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				UID:               run.UID,
 			},
 		}
-		if run.Status != nil {
-			arInfo.Status = string(run.Status.Status)
-			for _, mr := range run.Status.MetricResults {
-				arInfo.Successful += mr.Successful
-				arInfo.Failed += mr.Failed
-				arInfo.Inconclusive += mr.Inconclusive
-				arInfo.Error += mr.Error
-			}
-			arInfo.Icon = analysisIcon(run.Status.Status)
+		arInfo.Status = string(run.Status.Status)
+		for _, mr := range run.Status.MetricResults {
+			arInfo.Successful += mr.Successful
+			arInfo.Failed += mr.Failed
+			arInfo.Inconclusive += mr.Inconclusive
+			arInfo.Error += mr.Error
 		}
+		arInfo.Icon = analysisIcon(run.Status.Status)
 		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)
 
 		arInfos = append(arInfos, arInfo)

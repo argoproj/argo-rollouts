@@ -48,7 +48,7 @@ func newRun() *v1alpha1.AnalysisRun {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -106,7 +106,7 @@ func newTerminatingRun(status v1alpha1.AnalysisStatus) *v1alpha1.AnalysisRun {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -164,7 +164,7 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -212,7 +212,7 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -242,7 +242,7 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -287,7 +287,7 @@ func TestGenerateMetricTasksIncomplete(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -330,7 +330,7 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -378,7 +378,7 @@ func TestGenerateMetricTasksError(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -421,7 +421,7 @@ func TestAssessRunStatus(t *testing.T) {
 	}
 	{
 		// ensure if one metric is still running, entire run is still running
-		run.Status = &v1alpha1.AnalysisRunStatus{
+		run.Status = v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -438,7 +438,7 @@ func TestAssessRunStatus(t *testing.T) {
 	}
 	{
 		// ensure we take the worst of the completed metrics
-		run.Status = &v1alpha1.AnalysisRunStatus{
+		run.Status = v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -480,7 +480,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -658,7 +658,7 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -711,7 +711,7 @@ func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -751,7 +751,7 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -800,7 +800,7 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -834,7 +834,7 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -967,7 +967,7 @@ func TestReconcileAnalysisRunResumeInProgress(t *testing.T) {
 				},
 			},
 		},
-		Status: &v1alpha1.AnalysisRunStatus{
+		Status: v1alpha1.AnalysisRunStatus{
 			Status: v1alpha1.AnalysisStatusRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
@@ -1017,7 +1017,7 @@ func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
 					},
 				},
 			},
-			Status: &v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisRunStatus{
 				Status: v1alpha1.AnalysisStatusRunning,
 				MetricResults: []v1alpha1.MetricResult{
 					{
