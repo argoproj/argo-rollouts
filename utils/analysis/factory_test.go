@@ -90,6 +90,9 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: count must be >= maxFailures")
+		spec.Metrics[0].Count = 0
+		err = ValidateAnalysisTemplateSpec(spec)
+		assert.NoError(t, err)
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
@@ -106,6 +109,9 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateAnalysisTemplateSpec(spec)
 		assert.EqualError(t, err, "metrics[0]: count must be >= maxInconclusive")
+		spec.Metrics[0].Count = 0
+		err = ValidateAnalysisTemplateSpec(spec)
+		assert.NoError(t, err)
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{

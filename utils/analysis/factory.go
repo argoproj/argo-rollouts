@@ -71,11 +71,13 @@ func ValidateAnalysisTemplateSpec(spec v1alpha1.AnalysisTemplateSpec) error {
 
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
-	if metric.Count < metric.MaxFailures {
-		return fmt.Errorf("count must be >= maxFailures")
-	}
-	if metric.Count < metric.MaxInconclusive {
-		return fmt.Errorf("count must be >= maxInconclusive")
+	if metric.Count > 0 {
+		if metric.Count < metric.MaxFailures {
+			return fmt.Errorf("count must be >= maxFailures")
+		}
+		if metric.Count < metric.MaxInconclusive {
+			return fmt.Errorf("count must be >= maxInconclusive")
+		}
 	}
 	if metric.Count > 1 && metric.Interval == nil {
 		return fmt.Errorf("interval must be specified when count > 1")
