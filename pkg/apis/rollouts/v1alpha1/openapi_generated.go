@@ -1149,7 +1149,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 					},
 					"resumeAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResumeAt is the earliest timestamp when the analysisRun should take another measurement for the metric",
+							Description: "ResumeAt is the  timestamp when the analysisRun should try to resume the measurement",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1597,13 +1597,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutExperimentStep defines a template that is used to create a experiment for a step",
 				Properties: map[string]spec.Schema{
-					"duration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Indicates if the rollout should wait for the experiment to finish",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
 					"templates": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Templates what templates that should be added to the experiment. Should be non-nil",
@@ -1617,8 +1610,15 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 							},
 						},
 					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the duration in seconds that the experiment should run for",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
-				Required: []string{"duration", "templates"},
+				Required: []string{"templates"},
 			},
 		},
 		Dependencies: []string{
@@ -1660,7 +1660,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 						},
 					},
 				},
-				Required: []string{"name", "specRef", "replicas"},
+				Required: []string{"name", "specRef"},
 			},
 		},
 		Dependencies: []string{

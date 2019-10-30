@@ -7925,12 +7925,10 @@ spec:
                                       type: string
                                   required:
                                   - name
-                                  - replicas
                                   - specRef
                                   type: object
                                 type: array
                             required:
-                            - duration
                             - templates
                             type: object
                           pause:

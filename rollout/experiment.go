@@ -9,10 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -34,15 +32,15 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			},
 		},
 		Spec: v1alpha1.ExperimentSpec{
-			Duration:                &step.Duration,
-			ProgressDeadlineSeconds: pointer.Int32Ptr(defaults.GetProgressDeadlineSecondsOrDefault(r)),
+			Duration:                step.Duration,
+			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 		},
 	}
 	for i := range step.Templates {
 		templateStep := step.Templates[i]
 		template := v1alpha1.TemplateSpec{
 			Name:     templateStep.Name,
-			Replicas: &templateStep.Replicas,
+			Replicas: templateStep.Replicas,
 		}
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {

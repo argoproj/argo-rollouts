@@ -23,7 +23,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: int32(1),
+				Replicas: pointer.Int32Ptr(1),
 			}},
 		},
 	}}
@@ -197,7 +197,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: int32(1),
+				Replicas: pointer.Int32Ptr(1),
 			}},
 		},
 	}}
@@ -250,7 +250,7 @@ func TestRolloutDoNotCreateExperimentWithoutNewRS(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "canary-template",
 				SpecRef:  v1alpha1.CanarySpecRef,
-				Replicas: int32(1),
+				Replicas: pointer.Int32Ptr(1),
 			}},
 		},
 	}}
@@ -287,7 +287,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: int32(1),
+				Replicas: pointer.Int32Ptr(1),
 			}},
 		},
 	}}
@@ -317,7 +317,7 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: int32(1),
+				Replicas: pointer.Int32Ptr(1),
 			}},
 		},
 	}}
