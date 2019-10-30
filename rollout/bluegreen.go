@@ -222,7 +222,7 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	newRS := roCtx.NewRS()
 	oldRSs := roCtx.OlderRSs()
 	allRSs := roCtx.AllRSs()
-	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
+	newStatus := c.calculateBaseStatus(roCtx)
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {

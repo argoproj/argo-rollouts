@@ -325,7 +325,10 @@ func (c *RolloutController) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int3
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
-func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, rollout *v1alpha1.Rollout) v1alpha1.RolloutStatus {
+func (c *RolloutController) calculateBaseStatus(roCtx rolloutContext) v1alpha1.RolloutStatus {
+	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	allRSs := roCtx.AllRSs()
 	prevStatus := rollout.Status
 
 	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
@@ -345,14 +348,14 @@ func (c *RolloutController) calculateBaseStatus(allRSs []*appsv1.ReplicaSet, new
 		currentPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 
-	return v1alpha1.RolloutStatus{
-		CurrentPodHash:  currentPodHash,
-		Replicas:        replicasetutil.GetActualReplicaCountForReplicaSets(allRSs),
-		UpdatedReplicas: replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS}),
-		ReadyReplicas:   replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs),
-		CollisionCount:  rollout.Status.CollisionCount,
-		Conditions:      prevStatus.Conditions,
-	}
+	newStatus := roCtx.NewStatus()
+	newStatus.CurrentPodHash = currentPodHash
+	newStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
+	newStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
+	newStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs)
+	newStatus.CollisionCount = rollout.Status.CollisionCount
+	newStatus.Conditions = prevStatus.Conditions
+	return newStatus
 }
 
 // cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets

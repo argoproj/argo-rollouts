@@ -23,6 +23,7 @@ type rolloutContext interface {
 	OtherExperiments() []*v1alpha1.Experiment
 
 	PauseContext() *pauseContext
+	NewStatus() v1alpha1.RolloutStatus
 }
 
 type blueGreenContext struct {
@@ -32,6 +33,8 @@ type blueGreenContext struct {
 	newRS    *appsv1.ReplicaSet
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
+
+	newStatus v1alpha1.RolloutStatus
 
 	pauseContext *pauseContext
 }
@@ -51,6 +54,7 @@ type canaryContext struct {
 	currentEx *v1alpha1.Experiment
 	otherExs  []*v1alpha1.Experiment
 
+	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
 }
 
@@ -69,6 +73,7 @@ func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*
 			rollout: r,
 			log:     logCtx,
 		},
+		newStatus: v1alpha1.RolloutStatus{},
 	}
 }
 
@@ -111,6 +116,10 @@ func (bgCtx *blueGreenContext) PauseContext() *pauseContext {
 	return bgCtx.pauseContext
 }
 
+func (bgCtx *blueGreenContext) NewStatus() v1alpha1.RolloutStatus {
+	return bgCtx.newStatus
+}
+
 func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
 	allRSs := append(olderRSs, newRS)
 	if stableRS != nil {
@@ -139,6 +148,7 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 			rollout: r,
 			log:     logCtx,
 		},
+		newStatus: v1alpha1.RolloutStatus{},
 	}
 }
 
@@ -168,6 +178,19 @@ func (cCtx *canaryContext) AllRSs() []*appsv1.ReplicaSet {
 
 func (cCtx *canaryContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
 	cCtx.currentArs = ars
+	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(ars)
+	if currBackgroundAr != nil && !cCtx.PauseContext().IsAborted() {
+		if !currBackgroundAr.Status.Status.Completed() {
+			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+		}
+	}
+	currStepAr := analysisutil.GetCurrentStepAnalysisRun(ars)
+	if currStepAr != nil && !cCtx.PauseContext().IsAborted() {
+		if !currStepAr.Status.Status.Completed() {
+			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+		}
+	}
+
 }
 
 func (cCtx *canaryContext) CurrentAnalysisRuns() []*v1alpha1.AnalysisRun {
@@ -191,4 +214,8 @@ func (cCtx *canaryContext) OtherExperiments() []*v1alpha1.Experiment {
 
 func (cCtx *canaryContext) PauseContext() *pauseContext {
 	return cCtx.pauseContext
+}
+
+func (cCtx *canaryContext) NewStatus() v1alpha1.RolloutStatus {
+	return cCtx.newStatus
 }
