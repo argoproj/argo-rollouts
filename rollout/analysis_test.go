@@ -65,6 +65,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
+		Name:         at.Name,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -113,6 +114,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysisStep{
 			TemplateName: at.Name,
+			Name:         at.Name,
 		},
 	}}
 
@@ -164,6 +166,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysisStep{
 			TemplateName: "invalid-template-ref",
+			Name:         "invalid-template-ref",
 		},
 	}}
 
