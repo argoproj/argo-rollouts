@@ -20,7 +20,7 @@ import (
 const (
 	cancelAnalysisRun = `{
 		"spec": {
-			"terminated": true
+			"terminate": true
 		}
 	}`
 )
