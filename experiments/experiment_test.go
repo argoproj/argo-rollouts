@@ -3,6 +3,7 @@ package experiments
 import (
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -203,18 +204,82 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-// TestDontRequeueWithoutDuration verifies we don't enter a hot loop because we keep requeuing
+// TestDontRequeueWithoutDuration verifies we don't requeue if an experiment does not have
+// spec.duration set, and is running properly, since would cause a hot loop.
 func TestDontRequeueWithoutDuration(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, nil)
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
 	exCtx := newTestContext(ex)
+	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs1,
+	}
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.Tracker().Add(rs1)
 	enqueueCalled := false
 	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
 		enqueueCalled = true
 	}
-	exCtx.reconcile()
+	newStatus := exCtx.reconcile()
 	assert.False(t, enqueueCalled)
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, newStatus.Status)
+}
+
+// TestRequeueAfterDuration verifies we requeue after an appropriate status.availableAt + spec.duration
+func TestRequeueAfterDuration(t *testing.T) {
+	templates := generateTemplates("bar")
+	ex := newExperiment("foo", templates, nil)
+	ex.Spec.Duration = pointer.Int32Ptr(30)
+	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+	exCtx := newTestContext(ex)
+	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs1,
+	}
+	enqueueCalled := false
+	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+		enqueueCalled = true
+		// ensures we are enqueued around ~20 seconds
+		twentySeconds := time.Second * time.Duration(20)
+		delta := math.Abs(float64(twentySeconds - duration))
+		assert.True(t, delta < float64(100*time.Millisecond), "")
+	}
+	exCtx.reconcile()
+	assert.True(t, enqueueCalled)
+}
+
+// TestRequeueAfterProgressDeadlineSeconds verifies we requeue at an appropriate
+// lastTransitionTime + spec.progressDeadlineSeconds
+func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
+	templates := generateTemplates("bar")
+	ex := newExperiment("foo", templates, nil)
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+	}
+	now := metav1.Now()
+	ex.Status.TemplateStatuses[0].LastTransitionTime = &now
+	exCtx := newTestContext(ex)
+	rs1 := templateToRS(ex, ex.Spec.Templates[0], 0)
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs1,
+	}
+	enqueueCalled := false
+	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+		enqueueCalled = true
+		// ensures we are enqueued around 10 minutes
+		tenMinutes := time.Second * time.Duration(600)
+		delta := math.Abs(float64(tenMinutes - duration))
+		assert.True(t, delta < float64(100*time.Millisecond))
+	}
+	exCtx.reconcile()
+	assert.True(t, enqueueCalled)
 }
 
 func TestFailReplicaSetCreation(t *testing.T) {
