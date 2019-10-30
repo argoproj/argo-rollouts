@@ -3,6 +3,8 @@ package rollout
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,6 +99,12 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		}
 		return nil, err
 	}
+
+	// Do not create a background run if the rollout is completely rolled out
+	if conditions.RolloutComplete(rollout, &rollout.Status) {
+		return nil, nil
+	}
+
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
