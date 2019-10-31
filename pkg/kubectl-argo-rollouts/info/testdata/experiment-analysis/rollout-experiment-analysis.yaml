@@ -4,10 +4,10 @@ metadata:
   annotations:
     rollout.argoproj.io/revision: "2"
   creationTimestamp: "2019-10-30T07:26:47Z"
-  generation: 23
+  generation: 25
   name: rollout-experiment-analysis
   namespace: jesse-test
-  resourceVersion: "29254069"
+  resourceVersion: "29424125"
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/rollout-experiment-analysis
   uid: a17d1089-fae6-11e9-a15b-42010aa80033
 spec:
@@ -46,7 +46,6 @@ status:
   availableReplicas: 4
   blueGreen: {}
   canary:
-    currentBackgroundAnalysisRun: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
     currentExperiment: rollout-experiment-analysis-6f646bf7b7-1-vcv27
     stableRS: f6db98dff
   conditions:
@@ -56,16 +55,20 @@ status:
     reason: AvailableReason
     status: "True"
     type: Available
-  - lastTransitionTime: "2019-10-30T07:26:44Z"
-    lastUpdateTime: "2019-10-30T07:28:40Z"
-    message: ReplicaSet "rollout-experiment-analysis-6f646bf7b7" is progressing.
-    reason: ReplicaSetUpdated
-    status: "True"
+  - lastTransitionTime: "2019-10-30T16:13:38Z"
+    lastUpdateTime: "2019-10-30T16:13:38Z"
+    message: ReplicaSet "rollout-experiment-analysis-6f646bf7b7" has timed out progressing.
+    reason: ProgressDeadlineExceeded
+    status: "False"
     type: Progressing
+  controllerPause: true
   currentPodHash: 6f646bf7b7
   currentStepHash: 5f7ff4d7d8
   currentStepIndex: 1
   observedGeneration: 569d957d8
+  pauseConditions:
+  - reason: InconclusiveAnalysisRun
+    startTime: "2019-10-30T16:13:40Z"
   readyReplicas: 4
   replicas: 4
   selector: app=rollout-experiment-analysis

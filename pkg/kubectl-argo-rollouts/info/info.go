@@ -21,10 +21,22 @@ const (
 	IconNeutral     = "•"
 )
 
+const (
+	InfoTagCanary  = "canary"
+	InfoTagStable  = "stable"
+	InfoTagActive  = "active"
+	InfoTagPreview = "preview"
+)
+
 type Metadata struct {
 	Name              string
 	UID               types.UID
 	CreationTimestamp metav1.Time
+}
+
+type ImageInfo struct {
+	Image string
+	Tags  []string
 }
 
 func (m Metadata) Age() string {

@@ -34,7 +34,11 @@ var (
 		info.IconOK:          FgGreen,
 		info.IconBad:         FgRed,
 		info.IconPaused:      FgWhite,
-		//info.IconNeutral:     FgWhite,
+		//info.IconNeutral:     FgWhite, // (foreground is better than white)
+		info.InfoTagCanary:  FgYellow,
+		info.InfoTagStable:  FgGreen,
+		info.InfoTagActive:  FgGreen,
+		info.InfoTagPreview: FgBlue,
 	}
 )
 
@@ -120,6 +124,7 @@ const (
 	tableFormat = "%-17s%v\n"
 )
 
+// Clear clears the terminal for updates for live watching of rollouts
 func (o *GetOptions) Clear() {
 	fmt.Fprint(o.Out, "\033[H\033[2J")
 	fmt.Fprint(o.Out, "\033[0;0H")
@@ -152,6 +157,19 @@ func (o *GetOptions) WatchRollout(stopCh <-chan struct{}) {
 	}
 }
 
+// formatImage formats an ImageInfo with colorized imageinfo tags (e.g. canary, stable)
+func (o *GetOptions) formatImage(image info.ImageInfo) string {
+	imageStr := image.Image
+	if len(image.Tags) > 0 {
+		var colorizedTags []string
+		for _, tag := range image.Tags {
+			colorizedTags = append(colorizedTags, o.colorize(tag))
+		}
+		imageStr = fmt.Sprintf("%s (%s)", image.Image, strings.Join(colorizedTags, ", "))
+	}
+	return imageStr
+}
+
 func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "Name:", roInfo.Name)
 	fmt.Fprintf(o.Out, tableFormat, "Namespace:", roInfo.Namespace)
@@ -164,9 +182,9 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	}
 	images := roInfo.Images()
 	if len(images) > 0 {
-		fmt.Fprintf(o.Out, tableFormat, "Images:", images[0])
+		fmt.Fprintf(o.Out, tableFormat, "Images:", o.formatImage(images[0]))
 		for i := 1; i < len(images); i++ {
-			fmt.Fprintf(o.Out, tableFormat, "", images[i])
+			fmt.Fprintf(o.Out, tableFormat, "", o.formatImage(images[i]))
 		}
 	}
 	fmt.Fprint(o.Out, "Replicas:\n")
@@ -209,7 +227,7 @@ func (o *GetOptions) PrintRevision(w io.Writer, roInfo *info.RolloutInfo, revisi
 	total := len(replicaSets) + len(experiments) + len(analysisRuns)
 	curr := 0
 
-	for _, rsInfo := range replicaSets {
+	getPrefixes := func() (string, string) {
 		isLast := curr == total-1
 		curr++
 		var childPrefix, childSubpfx string
@@ -220,32 +238,19 @@ func (o *GetOptions) PrintRevision(w io.Writer, roInfo *info.RolloutInfo, revisi
 			childPrefix = subpfx + "└──"
 			childSubpfx = subpfx + "   "
 		}
+		return childPrefix, childSubpfx
+	}
+
+	for _, rsInfo := range replicaSets {
+		childPrefix, childSubpfx := getPrefixes()
 		o.PrintReplicaSetInfo(w, rsInfo, childPrefix, childSubpfx)
 	}
 	for _, expInfo := range experiments {
-		isLast := curr == total-1
-		curr++
-		var childPrefix, childSubpfx string
-		if !isLast {
-			childPrefix = subpfx + "├──"
-			childSubpfx = subpfx + "│  "
-		} else {
-			childPrefix = subpfx + "└──"
-			childSubpfx = subpfx + "   "
-		}
+		childPrefix, childSubpfx := getPrefixes()
 		o.PrintExperimentInfo(w, expInfo, childPrefix, childSubpfx)
 	}
 	for _, arInfo := range analysisRuns {
-		isLast := curr == total-1
-		curr++
-		var childPrefix, childSubpfx string
-		if !isLast {
-			childPrefix = subpfx + "├──"
-			childSubpfx = subpfx + "│  "
-		} else {
-			childPrefix = subpfx + "└──"
-			childSubpfx = subpfx + "   "
-		}
+		childPrefix, childSubpfx := getPrefixes()
 		o.PrintAnalysisRunInfo(w, arInfo, childPrefix, childSubpfx)
 	}
 }
@@ -254,16 +259,16 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 	infoCols := []string{}
 	name := rsInfo.Name
 	if rsInfo.Stable {
-		infoCols = append(infoCols, o.ansiFormat("stable", FgGreen))
+		infoCols = append(infoCols, o.colorize(info.InfoTagStable))
 		name = o.ansiFormat(name, FgGreen)
 	} else if rsInfo.Canary {
-		infoCols = append(infoCols, o.ansiFormat("canary", FgYellow))
+		infoCols = append(infoCols, o.colorize(info.InfoTagCanary))
 		name = o.ansiFormat(name, FgYellow)
 	} else if rsInfo.Active {
-		infoCols = append(infoCols, o.ansiFormat("active", FgGreen))
+		infoCols = append(infoCols, o.colorize(info.InfoTagActive))
 		name = o.ansiFormat(name, FgGreen)
 	} else if rsInfo.Preview {
-		infoCols = append(infoCols, o.ansiFormat("preview", FgBlue))
+		infoCols = append(infoCols, o.colorize(info.InfoTagPreview))
 		name = o.ansiFormat(name, FgBlue)
 	}
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, rsInfo.Age(), strings.Join(infoCols, ","))
@@ -272,15 +277,15 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 		isLast := i == len(rsInfo.Pods)-1
 		var podPrefix string
 		if !isLast {
-			podPrefix = "├"
+			podPrefix = "├──"
 		} else {
-			podPrefix = "└"
+			podPrefix = "└──"
 		}
 		podInfoCol := []string{fmt.Sprintf("ready:%s", podInfo.Ready)}
 		if podInfo.Restarts > 0 {
 			podInfoCol = append(podInfoCol, fmt.Sprintf("restarts:%d", podInfo.Restarts))
 		}
-		fmt.Fprintf(w, "%s──%s %s\t%s\t%s %s\t%s\t%v\n", podPrefix, IconPod, podInfo.Name, "Pod", o.colorize(podInfo.Icon), podInfo.Status, podInfo.Age(), strings.Join(podInfoCol, ","))
+		fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", podPrefix, IconPod, podInfo.Name, "Pod", o.colorize(podInfo.Icon), podInfo.Status, podInfo.Age(), strings.Join(podInfoCol, ","))
 	}
 }
 
@@ -343,12 +348,13 @@ func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunIn
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconAnalysis, name, "AnalysisRun", o.colorize(arInfo.Icon), arInfo.Status, arInfo.Age(), strings.Join(infoCols, ","))
 }
 
-func (o *GetOptions) colorize(icon string) string {
+// colorize adds ansii color codes to the string based on well known words
+func (o *GetOptions) colorize(s string) string {
 	if o.noColor {
-		return icon
+		return s
 	}
-	color := colorMapping[icon]
-	return o.ansiFormat(icon, color)
+	color := colorMapping[s]
+	return o.ansiFormat(s, color)
 }
 
 // ansiFormat wraps ANSI escape codes to a string to format the string to a desired color.

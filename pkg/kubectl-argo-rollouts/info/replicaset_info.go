@@ -19,6 +19,7 @@ type ReplicaSetInfo struct {
 	Canary    bool
 	Active    bool
 	Preview   bool
+	Replicas  int32
 	Available int32
 	Images    []string
 	Pods      []PodInfo
@@ -38,6 +39,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 				UID:               rs.UID,
 			},
 			Status:    getReplicaSetHealth(rs),
+			Replicas:  rs.Status.Replicas,
 			Available: rs.Status.AvailableReplicas,
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)

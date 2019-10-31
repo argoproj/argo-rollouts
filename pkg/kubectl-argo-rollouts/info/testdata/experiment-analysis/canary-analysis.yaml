@@ -5,7 +5,7 @@ metadata:
     rollout.argoproj.io/revision: "2"
   creationTimestamp: "2019-10-30T07:28:40Z"
   generateName: rollout-experiment-analysis-random-fail-6f646bf7b7-
-  generation: 16
+  generation: 18
   labels:
     rollout-type: Background
     rollouts-pod-template-hash: 6f646bf7b7
@@ -18,7 +18,7 @@ metadata:
     kind: Rollout
     name: rollout-experiment-analysis
     uid: a17d1089-fae6-11e9-a15b-42010aa80033
-  resourceVersion: "29256902"
+  resourceVersion: "29424124"
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/analysisruns/rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
   uid: e50bceec-fae6-11e9-a15b-42010aa80033
 spec:
@@ -49,7 +49,7 @@ spec:
                 restartPolicy: Never
 status:
   metricResults:
-  - count: 7
+  - count: 8
     error: 1
     failed: 4
     inconclusive: 1
@@ -89,7 +89,12 @@ status:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rmngtj
       startedAt: "2019-10-30T07:29:51Z"
       status: Failed
+    - finishedAt: "2019-10-30T16:13:40Z"
+      metadata:
+        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rsxm69
+      startedAt: "2019-10-30T16:13:38Z"
+      status: Successful
     name: random-fail
-    status: Running
-    successful: 3
-  status: Running
+    status: Inconclusive
+    successful: 4
+  status: Inconclusive

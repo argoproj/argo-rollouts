@@ -149,22 +149,49 @@ func rolloutIcon(status string) string {
 	return " "
 }
 
-func (r *RolloutInfo) Images() []string {
-	uniqueImages := make(map[string]bool)
-	var images []string
-	for _, rsInfo := range r.ReplicaSets {
-		if rsInfo.Available == 0 {
-			continue
+// Images returns a list of images that are currently running along with tags on which stack they belong to
+func (r *RolloutInfo) Images() []ImageInfo {
+	uniqueImages := make(map[string]ImageInfo)
+	appendIfMissing := func(condition bool, image string, infoTag string) {
+		if _, ok := uniqueImages[image]; !ok {
+			uniqueImages[image] = ImageInfo{
+				Image: image,
+			}
 		}
-		for _, image := range rsInfo.Images {
-			if !uniqueImages[image] {
-				images = append(images, image)
-				uniqueImages[image] = true
-				//fmt.Println(podInfo.Name, image, rsInfo.Name, rsInfo.Available, podInfo.Ready)
+		if condition {
+			doAppend := true
+			for _, existingTag := range uniqueImages[image].Tags {
+				if existingTag == infoTag {
+					doAppend = false
+					break
+				}
+			}
+			if doAppend {
+				newInfo := uniqueImages[image]
+				newInfo.Tags = append(uniqueImages[image].Tags, infoTag)
+				uniqueImages[image] = newInfo
 			}
 		}
 	}
-	sort.Strings(images)
+	for _, rsInfo := range r.ReplicaSets {
+		if rsInfo.Replicas > 0 {
+			for _, image := range rsInfo.Images {
+				appendIfMissing(rsInfo.Canary, image, InfoTagCanary)
+				appendIfMissing(rsInfo.Stable, image, InfoTagStable)
+				appendIfMissing(rsInfo.Active, image, InfoTagActive)
+				appendIfMissing(rsInfo.Preview, image, InfoTagPreview)
+			}
+		}
+	}
+
+	var images []ImageInfo
+	for _, v := range uniqueImages {
+		images = append(images, v)
+	}
+
+	sort.Slice(images[:], func(i, j int) bool {
+		return images[i].Image < images[j].Image
+	})
 	return images
 }
 

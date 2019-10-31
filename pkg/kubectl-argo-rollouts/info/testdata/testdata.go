@@ -69,9 +69,7 @@ func discoverObjects(path string) *RolloutObjects {
 		panic(err)
 	}
 	// we set creation timestamp so that AGE output in CLI can be compared
-	aWeekAgo := metav1.Time{
-		Time: time.Now().Add(-7 * 24 * time.Hour).Truncate(time.Second),
-	}
+	aWeekAgo := metav1.NewTime(time.Now().Add(-7 * 24 * time.Hour).Truncate(time.Second))
 
 	var objs RolloutObjects
 	for _, file := range files {

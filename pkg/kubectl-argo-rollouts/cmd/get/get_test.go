@@ -89,8 +89,8 @@ Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
 Strategy:        BlueGreen
-Images:          argoproj/rollouts-demo:blue
-                 argoproj/rollouts-demo:green
+Images:          argoproj/rollouts-demo:blue (active)
+                 argoproj/rollouts-demo:green (preview)
 Replicas:
   Desired:       3
   Current:       6
@@ -99,19 +99,19 @@ Replicas:
   Available:     3
 
 NAME                                        KIND        STATUS        AGE  INFO
-⟳ bluegreen-demo                            Rollout     ॥ Paused      7d   
-├──# revision:11                                                           
+⟳ bluegreen-demo                            Rollout     ॥ Paused      7d
+├──# revision:11
 │  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   preview
 │     ├──□ bluegreen-demo-74b948fccb-5jz59  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
-├──# revision:10                                                           
+├──# revision:10
 │  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   active
 │     ├──□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     7d   ready:1/1
-└──# revision:8                                                            
-   └──⧉ bluegreen-demo-746d5fddf6           ReplicaSet  • ScaledDown  7d   
+└──# revision:8
+   └──⧉ bluegreen-demo-746d5fddf6           ReplicaSet  • ScaledDown  7d
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }
@@ -136,7 +136,8 @@ Strategy:        Canary
   Step:          0/8
   SetWeight:     20
   ActualWeight:  0
-Images:          argoproj/rollouts-demo:green
+Images:          argoproj/rollouts-demo:does-not-exist (canary)
+                 argoproj/rollouts-demo:green (stable)
 Replicas:
   Desired:       5
   Current:       6
@@ -145,19 +146,19 @@ Replicas:
   Available:     5
 
 NAME                                     KIND        STATUS              AGE  INFO
-⟳ canary-demo                            Rollout     ✖ Degraded          7d   
-├──# revision:31                                                              
+⟳ canary-demo                            Rollout     ✖ Degraded          7d
+├──# revision:31
 │  └──⧉ canary-demo-65fb5ffc84           ReplicaSet  ◌ Progressing       7d   canary
 │     └──□ canary-demo-65fb5ffc84-9wf5r  Pod         ✖ ImagePullBackOff  7d   ready:0/1
-├──# revision:30                                                              
+├──# revision:30
 │  └──⧉ canary-demo-877894d5b            ReplicaSet  ✔ Healthy           7d   stable
 │     ├──□ canary-demo-877894d5b-6jfpt   Pod         ✔ Running           7d   ready:1/1
 │     ├──□ canary-demo-877894d5b-7jmqw   Pod         ✔ Running           7d   ready:1/1
 │     ├──□ canary-demo-877894d5b-j8g2b   Pod         ✔ Running           7d   ready:1/1
 │     ├──□ canary-demo-877894d5b-jw5qm   Pod         ✔ Running           7d   ready:1/1
 │     └──□ canary-demo-877894d5b-kh7x4   Pod         ✔ Running           7d   ready:1/1
-└──# revision:29                                                              
-   └──⧉ canary-demo-859c99b45c           ReplicaSet  • ScaledDown        7d   
+└──# revision:29
+   └──⧉ canary-demo-859c99b45c           ReplicaSet  • ScaledDown        7d
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }
@@ -177,13 +178,13 @@ func TestExperimentRollout(t *testing.T) {
 	expectedOut := strings.TrimPrefix(`
 Name:            rollout-experiment-analysis
 Namespace:       jesse-test
-Status:          ◌ Progressing
+Status:          ✖ Degraded
 Strategy:        Canary
   Step:          1/2
   SetWeight:     25
   ActualWeight:  25
-Images:          argoproj/rollouts-demo:blue
-                 argoproj/rollouts-demo:yellow
+Images:          argoproj/rollouts-demo:blue (stable)
+                 argoproj/rollouts-demo:yellow (canary)
 Replicas:
   Desired:       4
   Current:       4
@@ -191,22 +192,22 @@ Replicas:
   Ready:         4
   Available:     4
 
-NAME                                                                           KIND         STATUS         AGE  INFO
-⟳ rollout-experiment-analysis                                                  Rollout      ◌ Progressing  7d
+NAME                                                                           KIND         STATUS          AGE  INFO
+⟳ rollout-experiment-analysis                                                  Rollout      ✖ Degraded      7d
 ├──# revision:2
-│  ├──⧉ rollout-experiment-analysis-6f646bf7b7                                 ReplicaSet   ✔ Healthy      7d   canary
-│  │  └──□ rollout-experiment-analysis-6f646bf7b7-wn5w8                        Pod          ✔ Running      7d   ready:1/1
-│  ├──Σ rollout-experiment-analysis-6f646bf7b7-1-vcv27                         Experiment   ◌ Running      7d
-│  │  ├──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f  ReplicaSet   ✔ Healthy      7d
-│  │  │  └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7dczdst  Pod          ✔ Running      7d   ready:1/1
-│  │  └──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699dcf5d     ReplicaSet   ✔ Healthy      7d
-│  │     └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699vgr24  Pod          ✔ Running      7d   ready:1/1
-│  └──α rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr               AnalysisRun  ◌ Running      7d   ✔ 3,✖ 4,? 1,⚠ 1
+│  ├──⧉ rollout-experiment-analysis-6f646bf7b7                                 ReplicaSet   ✔ Healthy       7d   canary
+│  │  └──□ rollout-experiment-analysis-6f646bf7b7-wn5w8                        Pod          ✔ Running       7d   ready:1/1
+│  ├──Σ rollout-experiment-analysis-6f646bf7b7-1-vcv27                         Experiment   ◌ Running       7d
+│  │  ├──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f  ReplicaSet   ✔ Healthy       7d
+│  │  │  └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7dczdst  Pod          ✔ Running       7d   ready:1/1
+│  │  └──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699dcf5d     ReplicaSet   ✔ Healthy       7d
+│  │     └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699vgr24  Pod          ✔ Running       7d   ready:1/1
+│  └──α rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr               AnalysisRun  ? Inconclusive  7d   ✔ 4,✖ 4,? 1,⚠ 1
 └──# revision:1
-   └──⧉ rollout-experiment-analysis-f6db98dff                                  ReplicaSet   ✔ Healthy      7d   stable
-      ├──□ rollout-experiment-analysis-f6db98dff-8dmnz                         Pod          ✔ Running      7d   ready:1/1
-      ├──□ rollout-experiment-analysis-f6db98dff-bb6v6                         Pod          ✔ Running      7d   ready:1/1
-      └──□ rollout-experiment-analysis-f6db98dff-bq55x                         Pod          ✔ Running      7d   ready:1/1
+   └──⧉ rollout-experiment-analysis-f6db98dff                                  ReplicaSet   ✔ Healthy       7d   stable
+      ├──□ rollout-experiment-analysis-f6db98dff-8dmnz                         Pod          ✔ Running       7d   ready:1/1
+      ├──□ rollout-experiment-analysis-f6db98dff-bb6v6                         Pod          ✔ Running       7d   ready:1/1
+      └──□ rollout-experiment-analysis-f6db98dff-bq55x                         Pod          ✔ Running       7d   ready:1/1
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }

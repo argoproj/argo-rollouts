@@ -68,14 +68,13 @@ func TestAddKubectlFlags(t *testing.T) {
 	assert.Empty(t, stdout)
 }
 
-func TestRolloutsClientset(t *testing.T) {
+func TestClientsets(t *testing.T) {
 	iostreams, _, _, _ := genericclioptions.NewTestIOStreams()
 	tf := cmdtesting.NewTestFactory().WithNamespace("foo")
 	defer tf.Cleanup()
 	o := options.NewArgoRolloutsOptions(iostreams)
 	o.RESTClientGetter = tf
 	o.RESTClientGetter.ToRawKubeConfigLoader().Namespace()
-	//o.ConfigFlags = tf
 
 	var cmd = &cobra.Command{
 		Use:               "foo SOMETHING",
@@ -84,6 +83,7 @@ func TestRolloutsClientset(t *testing.T) {
 		RunE: func(c *cobra.Command, args []string) error {
 			assert.Equal(t, "foo", o.Namespace())
 			_ = o.RolloutsClientset()
+			_ = o.KubeClientset()
 			return nil
 		},
 	}
