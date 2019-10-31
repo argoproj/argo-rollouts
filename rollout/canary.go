@@ -252,10 +252,9 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	allRSs := roCtx.AllRSs()
-	currArs := roCtx.CurrentAnalysisRuns()
 	currExp := roCtx.CurrentExperiment()
 
-	newStatus := c.calculateBaseStatus(allRSs, newRS, r)
+	newStatus := c.calculateBaseStatus(roCtx)
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
@@ -296,19 +295,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		roCtx.PauseContext().RemoveAbort()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
-	}
-
-	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(currArs)
-	if currBackgroundAr != nil && !roCtx.PauseContext().IsAborted() {
-		if !currBackgroundAr.Status.Status.Completed() {
-			newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
-		}
-	}
-	currStepAr := analysisutil.GetCurrentStepAnalysisRun(currArs)
-	if currStepAr != nil && !roCtx.PauseContext().IsAborted() {
-		if !currStepAr.Status.Status.Completed() {
-			newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
-		}
 	}
 
 	if roCtx.PauseContext().IsAborted() {

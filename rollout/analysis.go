@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -19,7 +20,7 @@ import (
 const (
 	cancelAnalysisRun = `{
 		"spec": {
-			"terminated": true
+			"terminate": true
 		}
 	}`
 )
@@ -65,9 +66,6 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	if backgroundAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
 	}
-	if roCtx.PauseContext().HasAddPause() {
-		return nil
-	}
 
 	err = c.cancelAnalysisRuns(roCtx, otherArs)
 	if err != nil {
@@ -96,6 +94,15 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 			return nil, err
 		}
 		return nil, err
+	}
+
+	// Do not create a background run if the rollout is completely rolled out
+	if conditions.RolloutComplete(rollout, &rollout.Status) {
+		return nil, nil
+	}
+
+	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return currentAr, nil
 	}
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
@@ -140,6 +147,11 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	newRS := roCtx.NewRS()
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
+
+	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return currentAr, nil
+	}
+
 	if step == nil || step.Analysis == nil || index == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		if err != nil {

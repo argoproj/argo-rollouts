@@ -115,6 +115,9 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.
 	olderRsPodHashes := map[string]bool{}
 	for i := range olderRSs {
 		rs := olderRSs[i]
+		if rs == nil {
+			continue
+		}
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			olderRsPodHashes[podHash] = rs.DeletionTimestamp != nil
 		}
