@@ -27,8 +27,6 @@ spec:
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
                   interval:

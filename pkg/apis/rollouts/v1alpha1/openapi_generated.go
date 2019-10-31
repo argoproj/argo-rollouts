@@ -212,6 +212,12 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 						},
 					},
 					"arguments": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Arguments hold the arguments to the run to be used by metric providers",
 							Type:        []string{"array"},
@@ -219,20 +225,6 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
-									},
-								},
-							},
-						},
-					},
-					"replicaSets": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
 									},
 								},
 							},
@@ -275,6 +267,12 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 						},
 					},
 					"metricResults": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "MetricResults contains the metrics collected during the run",
 							Type:        []string{"array"},
@@ -388,6 +386,12 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 				Description: "AnalysisTemplateSpec is the specification for a AnalysisTemplate resource",
 				Properties: map[string]spec.Schema{
 					"metrics": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Metrics contains the list of metrics to query as part of an analysis run",
 							Type:        []string{"array"},
@@ -812,6 +816,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 						},
 					},
 					"arguments": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Arguments the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
@@ -941,6 +951,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 				Description: "ExperimentSpec is the spec for a Experiment resource",
 				Properties: map[string]spec.Schema{
 					"templates": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Templates are a list of PodSpecs that define the ReplicaSets that should be run during an experiment.",
 							Type:        []string{"array"},
@@ -975,6 +991,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 						},
 					},
 					"analyses": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Analyses references AnalysisTemplates to run during the experiment",
 							Type:        []string{"array"},
@@ -1017,6 +1039,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 						},
 					},
 					"templateStatuses": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateStatuses holds the ReplicaSet related statuses for individual templates",
 							Type:        []string{"array"},
@@ -1049,6 +1077,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 						},
 					},
 					"analysisRuns": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRuns tracks the status of AnalysisRuns associated with this Experiment",
 							Type:        []string{"array"},
@@ -1224,13 +1258,6 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Format:      "int32",
 						},
 					},
-					"failFast": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailFast will fail the entire analysis run prematurely",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider configuration to the external system to use to verify the analysis",
@@ -1293,6 +1320,12 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 						},
 					},
 					"measurements": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Measurements holds the most recent measurements collected for the metric",
 							Type:        []string{"array"},
@@ -1522,6 +1555,12 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 						},
 					},
 					"arguments": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Arguments the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
@@ -1625,6 +1664,12 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 						},
 					},
 					"analyses": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Analyses what analyses to run with the experiment",
 							Type:        []string{"array"},

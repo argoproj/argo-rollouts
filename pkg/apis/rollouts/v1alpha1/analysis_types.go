@@ -26,7 +26,9 @@ type AnalysisTemplateList struct {
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
-	Metrics []Metric `json:"metrics"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // Metric defines a metric in which to perform analysis
@@ -61,8 +63,6 @@ type Metric struct {
 	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
 	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
-	// FailFast will fail the entire analysis run prematurely
-	FailFast bool `json:"failFast,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
 }
@@ -151,9 +151,9 @@ type AnalysisRunSpec struct {
 	// AnalysisSpec holds the AnalysisSpec definition for performing analysis
 	AnalysisSpec AnalysisTemplateSpec `json:"analysisSpec"`
 	// Arguments hold the arguments to the run to be used by metric providers
-	Arguments []Argument `json:"arguments,omitempty"`
-	// ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis
-	ReplicaSets []string `json:"replicaSets,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Arguments []Argument `json:"arguments,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
 }
@@ -173,7 +173,9 @@ type AnalysisRunStatus struct {
 	// Message is a message explaining current statuss
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
-	MetricResults []MetricResult `json:"metricResults,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	MetricResults []MetricResult `json:"metricResults,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -184,7 +186,9 @@ type MetricResult struct {
 	// Status is the overall aggregate status of the metric
 	Status AnalysisStatus `json:"status"`
 	// Measurements holds the most recent measurements collected for the metric
-	Measurements []Measurement `json:"measurements,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Measurements []Measurement `json:"measurements,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// Message contains a message describing current condition (e.g. error messages)
 	Message string `json:"message,omitempty"`
 	// Count is the number of times the metric was measured without Error

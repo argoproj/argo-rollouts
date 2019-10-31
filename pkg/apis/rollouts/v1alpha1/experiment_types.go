@@ -19,7 +19,9 @@ type Experiment struct {
 // ExperimentSpec is the spec for a Experiment resource
 type ExperimentSpec struct {
 	// Templates are a list of PodSpecs that define the ReplicaSets that should be run during an experiment.
-	Templates []TemplateSpec `json:"templates"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Templates []TemplateSpec `json:"templates" patchStrategy:"merge" patchMergeKey:"name"`
 	// Duration the amount of time for the experiment to run. If not listed, the experiment will run for an
 	// indefinite amount of time, stopped either via termination, or a failed analysis run.
 	// +optional
@@ -34,7 +36,9 @@ type ExperimentSpec struct {
 	// Terminate is used to prematurely stop the experiment
 	Terminate bool `json:"terminate,omitempty"`
 	// Analyses references AnalysisTemplates to run during the experiment
-	Analyses []ExperimentAnalysisTemplateRef `json:"analyses,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Analyses []ExperimentAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 type TemplateSpec struct {
@@ -110,8 +114,10 @@ type ExperimentStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 	// TemplateStatuses holds the ReplicaSet related statuses for individual templates
+	// +patchMergeKey=name
+	// +patchStrategy=merge
 	// +optional
-	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty"`
+	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
 	// run for the duration of specificed in the spec.
 	// +optional
@@ -120,8 +126,10 @@ type ExperimentStatus struct {
 	// +optional
 	Conditions []ExperimentCondition `json:"conditions,omitempty"`
 	// AnalysisRuns tracks the status of AnalysisRuns associated with this Experiment
+	// +patchMergeKey=name
+	// +patchStrategy=merge
 	// +optional
-	AnalysisRuns []ExperimentAnalysisRunStatus `json:"analysisRuns,omitempty"`
+	AnalysisRuns []ExperimentAnalysisRunStatus `json:"analysisRuns,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // ExperimentConditionType defines the conditions of Experiment
@@ -180,8 +188,10 @@ type ExperimentAnalysisTemplateRef struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName"`
 	// Arguments the arguments that will be added to the AnalysisRuns
+	// +patchMergeKey=name
+	// +patchStrategy=merge
 	// +optional
-	Arguments []Argument `json:"arguments,omitempty"`
+	Arguments []Argument `json:"arguments,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 type ExperimentAnalysisRunStatus struct {

@@ -29,8 +29,6 @@ spec:
                       count:
                         format: int32
                         type: integer
-                      failFast:
-                        type: boolean
                       failureCondition:
                         type: string
                       interval:
@@ -2525,10 +2523,6 @@ spec:
                 - name
                 - value
                 type: object
-              type: array
-            replicaSets:
-              items:
-                type: string
               type: array
             terminate:
               type: boolean
