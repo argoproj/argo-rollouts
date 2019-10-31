@@ -1,0 +1,58 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  annotations:
+    rollout.argoproj.io/desired-replicas: "5"
+    rollout.argoproj.io/revision: "29"
+  creationTimestamp: "2019-10-26T09:16:20Z"
+  generation: 2
+  labels:
+    app: canary-demo
+    rollouts-pod-template-hash: 859c99b45c
+  name: canary-demo-859c99b45c
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: canary-demo
+    uid: b350ba76-f6ed-11e9-a15b-42010aa80033
+  resourceVersion: "28253220"
+  selfLink: /apis/extensions/v1beta1/namespaces/jesse-test/replicasets/canary-demo-859c99b45c
+  uid: 4606e4bc-f7d1-11e9-a15b-42010aa80033
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: canary-demo
+      rollouts-pod-template-hash: 859c99b45c
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: canary-demo
+        rollouts-pod-template-hash: 859c99b45c
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:asdf
+        imagePullPolicy: Always
+        name: canary-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  observedGeneration: 2
+  replicas: 0

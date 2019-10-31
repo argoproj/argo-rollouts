@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "11"
+  creationTimestamp: "2019-10-26T03:23:34Z"
+  generation: 410
+  labels:
+    app: bluegreen-demo
+    app.kubernetes.io/instance: jesse-canary
+  name: bluegreen-demo
+  namespace: jesse-test
+  resourceVersion: "28252661"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/bluegreen-demo
+  uid: fe2872f3-f79f-11e9-a15b-42010aa80033
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: bluegreen-demo
+  strategy:
+    blueGreen:
+      activeService: bluegreen-demo
+      autoPromotionEnabled: false
+      previewService: bluegreen-demo-preview
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: bluegreen-demo
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:green
+        imagePullPolicy: Always
+        name: bluegreen-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  HPAReplicas: 3
+  availableReplicas: 3
+  blueGreen:
+    activeSelector: 6cbccd9f99
+    previewSelector: 74b948fccb
+  canary: {}
+  conditions:
+  - lastTransitionTime: "2019-10-26T03:23:36Z"
+    lastUpdateTime: "2019-10-26T03:23:36Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-10-28T04:50:20Z"
+    lastUpdateTime: "2019-10-28T04:50:20Z"
+    message: Rollout is paused
+    reason: RolloutPaused
+    status: Unknown
+    type: Progressing
+  controllerPause: true
+  currentPodHash: 74b948fccb
+  observedGeneration: 7d66d4485f
+  pauseConditions:
+  - reason: BlueGreenPause
+    startTime: "2019-10-28T04:50:20Z"
+  readyReplicas: 6
+  replicas: 6
+  selector: app=bluegreen-demo,rollouts-pod-template-hash=6cbccd9f99
+  updatedReplicas: 3

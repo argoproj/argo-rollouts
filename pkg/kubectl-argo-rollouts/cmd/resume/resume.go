@@ -18,7 +18,7 @@ const (
 	"spec": {
 		"paused": false
 	},
-	"status: {
+	"status": {
 		"pauseConditions": null
 	}
 }`

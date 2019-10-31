@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/pause"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/resume"
@@ -33,6 +34,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return o.UsageErr(c)
 		},
 	}
+	cmd.AddCommand(get.NewCmdGet(o))
 	cmd.AddCommand(list.NewCmdList(o))
 	cmd.AddCommand(pause.NewCmdPause(o))
 	cmd.AddCommand(resume.NewCmdResume(o))

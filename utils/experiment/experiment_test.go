@@ -15,14 +15,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
-func TestHasStarted(t *testing.T) {
-	e := &v1alpha1.Experiment{}
-	assert.False(t, HasStarted(e))
-
-	e.Status.Status = v1alpha1.AnalysisStatusPending
-	assert.True(t, HasStarted(e))
-}
-
 func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasFinished(e))

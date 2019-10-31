@@ -155,12 +155,12 @@
   revision = "d6023ce2651d8eafb5c75bb0c7167536102ec9f5"
 
 [[projects]]
-  digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
+  branch = "master"
+  digest = "1:ec95c1c49fbec27ab5383b9c47fae5c2fe1d97ac5b41d36d78e17588a44e9f3f"
   name = "github.com/ghodss/yaml"
   packages = ["."]
   pruneopts = ""
-  revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
-  version = "v1.0.0"
+  revision = "25d852aebe32c875e9c044af3eef9c7dc6bc777f"
 
 [[projects]]
   digest = "1:c8052dcf3ec378a9a6bc4f00ecc10d6d5eb3cc1f8faaf6b2f70f047e8881d446"
@@ -324,12 +324,31 @@
   version = "v1.1.5"
 
 [[projects]]
+  branch = "master"
+  digest = "1:14a9763035ddd561bd2434463ff342a5cec5fd94730d2bd33d21a14714ee57e1"
+  name = "github.com/juju/ansiterm"
+  packages = [
+    ".",
+    "tabwriter",
+  ]
+  pruneopts = ""
+  revision = "720a0952cc2ac777afc295d9861263e2a4cf96a1"
+
+[[projects]]
   digest = "1:6a874e3ddfb9db2b42bd8c85b6875407c702fa868eed20634ff489bc896ccfd3"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
   pruneopts = ""
   revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:b60ba8f16c4bd2c27ddab8c95f045d1275df450b28d0d95513a9e70c8ae9910c"
+  name = "github.com/lunixbochs/vtclean"
+  packages = ["."]
+  pruneopts = ""
+  revision = "88cfb0c2efe8ed7b0ccf0af83db39359829027bb"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -342,6 +361,22 @@
   ]
   pruneopts = ""
   revision = "60711f1a8329503b04e1c88535f419d0bb440bff"
+
+[[projects]]
+  digest = "1:9b58ad18b38cf0d44b1d006fce319e45f200eafa406fe7f65fe0d0194b9f7a9f"
+  name = "github.com/mattn/go-colorable"
+  packages = ["."]
+  pruneopts = ""
+  revision = "98ec13f34aabf44cc914c65a1cfb7b9bc815aef1"
+  version = "v0.1.4"
+
+[[projects]]
+  digest = "1:5794dadc5456af270fc564d98efbfa1f3627cd6c733ca772d14409793772064f"
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  pruneopts = ""
+  revision = "88ba11cfdc67c7588b30042edf244b2875f892b6"
+  version = "v0.0.10"
 
 [[projects]]
   digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
@@ -778,6 +813,7 @@
     "pkg/util/cache",
     "pkg/util/clock",
     "pkg/util/diff",
+    "pkg/util/duration",
     "pkg/util/errors",
     "pkg/util/framer",
     "pkg/util/httpstream",
@@ -1211,6 +1247,7 @@
     "pkg/serviceaccount",
     "pkg/util/hash",
     "pkg/util/labels",
+    "pkg/util/node",
     "pkg/util/parsers",
     "pkg/util/taints",
   ]
@@ -1281,6 +1318,7 @@
     "github.com/emicklei/go-restful",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/spec",
+    "github.com/juju/ansiterm",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/api",
     "github.com/prometheus/client_golang/api/prometheus/v1",
@@ -1307,6 +1345,7 @@
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/apimachinery/pkg/util/duration",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/apimachinery/pkg/util/rand",
     "k8s.io/apimachinery/pkg/util/runtime",
@@ -1349,6 +1388,7 @@
     "k8s.io/kubernetes/pkg/controller",
     "k8s.io/kubernetes/pkg/util/hash",
     "k8s.io/kubernetes/pkg/util/labels",
+    "k8s.io/kubernetes/pkg/util/node",
     "k8s.io/utils/pointer",
   ]
   solver-name = "gps-cdcl"

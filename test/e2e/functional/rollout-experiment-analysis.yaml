@@ -1,0 +1,55 @@
+---
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: random-fail
+spec:
+  metrics:
+  - name: random-fail
+    interval: 10
+    maxFailures: 5
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sh, -c]
+                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
+              restartPolicy: Never
+          backoffLimit: 0
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-experiment-analysis
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: rollout-experiment-analysis
+  template:
+    metadata:
+      labels:
+        app: rollout-experiment-analysis
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+  strategy:
+    canary:
+      analysis:
+        templateName: random-fail
+      steps:
+      - setWeight: 25
+      - experiment:
+          templates:
+          - name: baseline
+            specRef: stable
+            replicas: 1
+          - name: canary
+            specRef: canary
+            replicas: 1

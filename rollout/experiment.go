@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -37,6 +38,12 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 		},
 	}
+	if newRS.Annotations != nil && newRS.Annotations[annotations.RevisionAnnotation] != "" {
+		experiment.Annotations = map[string]string{
+			annotations.RevisionAnnotation: newRS.Annotations[annotations.RevisionAnnotation],
+		}
+	}
+
 	for i := range step.Templates {
 		templateStep := step.Templates[i]
 		template := v1alpha1.TemplateSpec{

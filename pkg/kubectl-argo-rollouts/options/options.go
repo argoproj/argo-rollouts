@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
 	roclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -28,6 +29,7 @@ type ArgoRolloutsOptions struct {
 	KlogLevel        int
 	LogLevel         string
 	RolloutsClient   roclientset.Interface
+	KubeClient       kubernetes.Interface
 
 	Log *log.Logger
 	genericclioptions.IOStreams
@@ -105,6 +107,23 @@ func (o *ArgoRolloutsOptions) RolloutsClientset() roclientset.Interface {
 	}
 	o.RolloutsClient = rolloutsClient
 	return o.RolloutsClient
+}
+
+// KubeClientset returns a Kubernetes client interface based on client flags
+func (o *ArgoRolloutsOptions) KubeClientset() kubernetes.Interface {
+	if o.KubeClient != nil {
+		return o.KubeClient
+	}
+	config, err := o.RESTClientGetter.ToRESTConfig()
+	if err != nil {
+		panic(err)
+	}
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+	o.KubeClient = kubeClient
+	return o.KubeClient
 }
 
 // Namespace returns the namespace based on client flags or kube context
