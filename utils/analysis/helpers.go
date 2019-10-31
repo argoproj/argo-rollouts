@@ -48,12 +48,10 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	if run.Spec.Terminate {
 		return true
 	}
-	if run.Status != nil {
-		for _, res := range run.Status.MetricResults {
-			switch res.Status {
-			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
-				return true
-			}
+	for _, res := range run.Status.MetricResults {
+		switch res.Status {
+		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+			return true
 		}
 	}
 	return false

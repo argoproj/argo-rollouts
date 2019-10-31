@@ -40,16 +40,14 @@ type metricTask struct {
 }
 
 func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
-	if origRun.Status != nil && origRun.Status.Status.Completed() {
+	if origRun.Status.Status.Completed() {
 		return origRun
 	}
 	log := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
-	if run.Status == nil {
-		run.Status = &v1alpha1.AnalysisRunStatus{
-			MetricResults: make([]v1alpha1.MetricResult, 0),
-		}
+	if run.Status.MetricResults == nil {
+		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
 		err := analysisutil.ValidateAnalysisTemplateSpec(run.Spec.AnalysisSpec)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
@@ -404,9 +402,6 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 
 // trimMeasurementHistory trims the measurement history to the specified limit
 func trimMeasurementHistory(run *v1alpha1.AnalysisRun, limit int) {
-	if run.Status == nil {
-		return
-	}
 	for i, result := range run.Status.MetricResults {
 		length := len(result.Measurements)
 		if length > limit {

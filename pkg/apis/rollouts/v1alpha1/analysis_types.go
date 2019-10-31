@@ -134,8 +134,8 @@ type JobMetric struct {
 type AnalysisRun struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              AnalysisRunSpec    `json:"spec"`
-	Status            *AnalysisRunStatus `json:"status,omitempty"`
+	Spec              AnalysisRunSpec   `json:"spec"`
+	Status            AnalysisRunStatus `json:"status,omitempty"`
 }
 
 // AnalysisRunList is a list of AnalysisTemplate resources

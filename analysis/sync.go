@@ -8,7 +8,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func (c *AnalysisController) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newStatus *v1alpha1.AnalysisRunStatus) error {
+func (c *AnalysisController) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newStatus v1alpha1.AnalysisRunStatus) error {
 	logCtx := logutil.WithAnalysisRun(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.AnalysisRun{

@@ -333,10 +333,8 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 		return
 	}
 
-	if run.Status != nil {
-		newStatus.Status = run.Status.Status
-		newStatus.Message = run.Status.Message
-	}
+	newStatus.Status = run.Status.Status
+	newStatus.Message = run.Status.Message
 }
 
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {

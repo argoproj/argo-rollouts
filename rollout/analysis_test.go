@@ -377,7 +377,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	arWithDiffPodHash := ar.DeepCopy()
 	arWithDiffPodHash.Name = "older-analysis-run"
 	arWithDiffPodHash.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "abc123"
-	arWithDiffPodHash.Status = &v1alpha1.AnalysisRunStatus{
+	arWithDiffPodHash.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusSuccessful,
 	}
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -473,7 +473,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusSuccessful,
 	}
 
@@ -525,7 +525,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
 	}
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusInconclusive,
 	}
 
@@ -579,7 +579,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusInconclusive,
 	}
 
@@ -633,7 +633,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusError,
 		MetricResults: []v1alpha1.MetricResult{{
 			Status: v1alpha1.AnalysisStatusError,
@@ -688,7 +688,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 		TemplateName: at.Name,
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	ar.Status = &v1alpha1.AnalysisRunStatus{
+	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusError,
 		MetricResults: []v1alpha1.MetricResult{{
 			Status: v1alpha1.AnalysisStatusError,
