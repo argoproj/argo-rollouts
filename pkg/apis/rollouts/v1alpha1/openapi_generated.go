@@ -1661,7 +1661,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					},
 					"specRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Type indicates where the rollout should get the RS template from",
+							Description: "SpecRef indicates where the rollout should get the RS template from",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1675,8 +1675,14 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AdditionalSelectors additional selectors to use for the RS created from the template",
+							Description: "Metadata sets labels and annotations to use for the RS created from the template",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"),
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will use the same selector as the Rollout",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
 				},
@@ -1684,7 +1690,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 

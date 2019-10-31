@@ -1,0 +1,35 @@
+# This example demonstrates how start a new baseline and canary stack as part of the Rollout update.
+# Comparing a canary against a baseline (as opposed to existing production instances) is considered
+# a common best practice when performing canary analysis, since it eliminates many differences that
+# may skew the results of an analysis (cache warmup time, heap size, etc).
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-baseline-vs-canary
+spec:
+  replicas: 5
+  minReadySeconds: 10
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: rollout-baseline-vs-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-baseline-vs-canary
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+      - experiment:
+          templates:
+          - name: baseline
+            specRef: stable
+          - name: canary
+            specRef: canary

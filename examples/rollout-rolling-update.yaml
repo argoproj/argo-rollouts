@@ -1,0 +1,30 @@
+# This example demonstrates how to use normal rolling update for a Rollout update strategy.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-rollingupdate
+spec:
+  replicas: 5
+  minReadySeconds: 10
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: rollout-rollingupdate
+  template:
+    metadata:
+      labels:
+        app: rollout-rollingupdate
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    # For a normal rolling update, simply specify the canary strategy without steps defined.
+    # The maxSurge and maxUnavailable fields can be specified. If omitted, defaults to 25% and 0
+    # respectively.
+    canary:
+      maxSurge: 1
+      maxUnavailable: 1

@@ -1,0 +1,59 @@
+# This example demonstrates a Rollout which performs background analysis while the Rollout is updating.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-with-analysis
+spec:
+  replicas: 4
+  minReadySeconds: 10
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: rollout-with-analysis
+  template:
+    metadata:
+      labels:
+        app: rollout-with-analysis
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      # An AnalysisTemplate is referenced here, which starts an AnalysisRun as soon as the update
+      # begins, and terminates the run when the update completes. A failure/error of the analysis
+      # will cause the rollout's update to abort, and set the canary weight to zero.
+      analysis:
+        name: random-fail
+        templateName: random-fail
+      steps:
+      - setWeight: 50
+      - pause: {}
+
+---
+# This AnalysisTemplate will run a Kubernetes Job every 10 seconds, with a 50% chance of failure.
+# When the number of accumulated failures exceeds maxFailures, it will cause the rollout to abort.
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: random-fail
+spec:
+  metrics:
+  - name: random-fail
+    interval: 10
+    maxFailures: 2
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sh, -c]
+                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
+              restartPolicy: Never
+          backoffLimit: 0

@@ -1,0 +1,71 @@
+# This example demonstrates how to deploy a preview ReplicaSet using an Experiment. The preview
+# ReplicaSet will run but receive no production traffic, since its selector labels are set
+# differently than the rollout's selector labels.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary-preview
+spec:
+  replicas: 5
+  minReadySeconds: 10
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: rollout-canary-production
+  template:
+    metadata:
+      labels:
+        app: rollout-canary-production
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+      # The initial step starts an experiment that runs a single pod ReplicaSet using the new pod spec
+      # When the experiment is terminated, the rollout will progress through rest of the canary steps.
+      - experiment:
+          templates:
+          - name: canary-preview
+            specRef: canary
+            # Selector and metadata are overwritten to be something different from the rollout's
+            # spec.selector. This allows the preview stack to be reachable through a different
+            # service without receiving production traffic.
+            selector:
+              matchLabels:
+                app: rollout-canary-preview
+            metadata:
+              labels:
+                app: rollout-canary-preview
+
+---
+# The rollout-canary-preview service will point to the preview stack, making them reachable without
+# exposing them to production traffic.
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-canary-preview
+spec:
+  selector:
+    app: rollout-canary-preview
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-canary-production
+spec:
+  selector:
+    app: rollout-canary-production
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

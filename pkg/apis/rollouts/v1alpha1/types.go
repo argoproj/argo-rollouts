@@ -153,7 +153,7 @@ type RolloutExperimentStep struct {
 	// Duration is the duration in seconds that the experiment should run for
 	// +optional
 	Duration *int32 `json:"duration,omitempty"`
-	//Analyses what analyses to run with the experiment
+	// Analyses what analyses to run with the experiment
 	Analyses []RolloutAnalysisStep `json:"analyses,omitempty"`
 }
 
@@ -161,17 +161,21 @@ type RolloutExperimentStep struct {
 type RolloutExperimentTemplate struct {
 	// Name description of template that passed to the template
 	Name string `json:"name"`
-	// Type indicates where the rollout should get the RS template from
+	// SpecRef indicates where the rollout should get the RS template from
 	SpecRef ReplicaSetSpecRef `json:"specRef"`
 	// Replicas replica count for the template
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
-	// AdditionalSelectors additional selectors to use for the RS created from the template
+	// Metadata sets labels and annotations to use for the RS created from the template
 	// +optional
 	Metadata PodTemplateMetadata `json:"metadata,omitempty"`
+	// Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will
+	// use the same selector as the Rollout
+	// +optional
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
-//PodTemplateMetadata extra labels to add to the template
+// PodTemplateMetadata extra labels to add to the template
 type PodTemplateMetadata struct {
 	// Labels Additional labels to add to the experiment
 	// +optional

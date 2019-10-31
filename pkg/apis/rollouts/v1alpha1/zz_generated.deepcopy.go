@@ -929,6 +929,11 @@ func (in *RolloutExperimentTemplate) DeepCopyInto(out *RolloutExperimentTemplate
 		**out = **in
 	}
 	in.Metadata.DeepCopyInto(&out.Metadata)
+	if in.Selector != nil {
+		in, out := &in.Selector, &out.Selector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
