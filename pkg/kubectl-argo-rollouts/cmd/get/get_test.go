@@ -149,7 +149,7 @@ NAME                                     KIND        STATUS              AGE  IN
 ⟳ canary-demo                            Rollout     ✖ Degraded          7d
 ├──# revision:31
 │  └──⧉ canary-demo-65fb5ffc84           ReplicaSet  ◌ Progressing       7d   canary
-│     └──□ canary-demo-65fb5ffc84-9wf5r  Pod         ✖ ImagePullBackOff  7d   ready:0/1
+│     └──□ canary-demo-65fb5ffc84-9wf5r  Pod         ⚠ ImagePullBackOff  7d   ready:0/1
 ├──# revision:30
 │  └──⧉ canary-demo-877894d5b            ReplicaSet  ✔ Healthy           7d   stable
 │     ├──□ canary-demo-877894d5b-6jfpt   Pod         ✔ Running           7d   ready:1/1

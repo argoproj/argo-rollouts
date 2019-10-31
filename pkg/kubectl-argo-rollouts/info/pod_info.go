@@ -141,15 +141,22 @@ func podIcon(status string) string {
 	if strings.HasPrefix(status, "Signal:") || strings.HasPrefix(status, "ExitCode:") {
 		return IconBad
 	}
+	// See:
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/images/types.go
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/kuberuntime/kuberuntime_container.go
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/container/sync_result.go
+	if strings.HasSuffix(status, "Error") || strings.HasPrefix(status, "Err") {
+		return IconWarning
+	}
 	switch status {
 	case "Pending", "Terminating", "ContainerCreating":
 		return IconProgressing
-	case "Error":
-		return IconWarning
 	case "Running", "Completed":
 		return IconOK
-	case "Failed", "ErrImagePull", "ImagePullBackOff":
+	case "Failed", "InvalidImageName", "CrashLoopBackOff":
 		return IconBad
+	case "ImagePullBackOff", "RegistryUnavailable":
+		return IconWarning
 	case "Unknown":
 		return IconUnknown
 	}
