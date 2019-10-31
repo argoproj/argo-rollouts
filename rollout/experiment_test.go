@@ -342,6 +342,17 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 	stable, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, err)
 	assert.Equal(t, rs1.Spec.Template, stable.Spec.Templates[0].Template)
+	assert.Equal(t, rs1.Spec.Selector, stable.Spec.Templates[0].Selector)
+
+	newSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"foo": "bar",
+		},
+	}
+	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Selector = &newSelector
+	modifiedSelector, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+	assert.Equal(t, newSelector, *modifiedSelector.Spec.Templates[0].Selector)
 
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].SpecRef = v1alpha1.CanarySpecRef
 	canary, err := GetExperimentFromTemplate(r2, rs1, rs2)

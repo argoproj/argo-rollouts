@@ -62,9 +62,14 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		template.Template = templateRS.Spec.Template
 		template.MinReadySeconds = templateRS.Spec.MinReadySeconds
 
-		template.Selector = templateRS.Spec.Selector.DeepCopy()
+		if templateStep.Selector != nil {
+			template.Selector = templateStep.Selector.DeepCopy()
+		} else {
+			template.Selector = templateRS.Spec.Selector.DeepCopy()
+		}
+
 		if templateStep.Metadata.Labels != nil {
-			if templateStep.Metadata.Labels == nil {
+			if template.Template.ObjectMeta.Labels == nil {
 				template.Template.ObjectMeta.Labels = make(map[string]string)
 			}
 			for key := range templateStep.Metadata.Labels {
