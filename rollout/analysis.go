@@ -12,7 +12,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -96,8 +95,8 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		return nil, err
 	}
 
-	// Do not create a background run if the rollout is completely rolled out
-	if conditions.RolloutComplete(rollout, &rollout.Status) {
+	// Do not create a background run if the rollout is completely rolled out or just created
+	if rollout.Status.Canary.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" {
 		return nil, nil
 	}
 
