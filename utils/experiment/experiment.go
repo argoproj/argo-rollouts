@@ -1,6 +1,7 @@
 package experiment
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -90,16 +91,6 @@ func GetCollisionCountForTemplate(experiment *v1alpha1.Experiment, template v1al
 		collisionCount = templateStatus.CollisionCount
 	}
 	return collisionCount
-}
-
-// ExperimentGeneratedNameFromRollout gets the name of the experiment based on the rollout
-func ExperimentGeneratedNameFromRollout(rollout *v1alpha1.Rollout) string {
-	currentStep := int32(0)
-	if rollout.Status.CurrentStepIndex != nil {
-		currentStep = *rollout.Status.CurrentStepIndex
-	}
-	podTemplateSpecHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-	return fmt.Sprintf("%s-%s-%d-", rollout.Name, podTemplateSpecHash, currentStep)
 }
 
 // ReplicasetNameFromExperiment gets the replicaset name based off of the experiment and the template
@@ -193,4 +184,17 @@ func Worst(left, right v1alpha1.TemplateStatusCode) v1alpha1.TemplateStatusCode 
 		return right
 	}
 	return left
+}
+
+// IsSemanticallyEqual checks to see if two experiments are semantically equal
+func IsSemanticallyEqual(left, right *v1alpha1.Experiment) bool {
+	leftBytes, err := json.Marshal(left.Spec)
+	if err != nil {
+		panic(err)
+	}
+	rightBytes, err := json.Marshal(right.Spec)
+	if err != nil {
+		panic(err)
+	}
+	return string(leftBytes) == string(rightBytes)
 }

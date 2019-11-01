@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"encoding/json"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
@@ -98,8 +100,21 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 	return nil
 }
 
-// TerminateRun terminates an anlysis run
+// TerminateRun terminates an analysis run
 func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string) error {
 	_, err := analysisRunIf.Patch(name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`))
 	return err
+}
+
+// IsSemanticallyEqual checks to see if two analysis runs are semantically equal
+func IsSemanticallyEqual(left, right *v1alpha1.AnalysisRun) bool {
+	leftBytes, err := json.Marshal(left.Spec)
+	if err != nil {
+		panic(err)
+	}
+	rightBytes, err := json.Marshal(right.Spec)
+	if err != nil {
+		panic(err)
+	}
+	return string(leftBytes) == string(rightBytes)
 }

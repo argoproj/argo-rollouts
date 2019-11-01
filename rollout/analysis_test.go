@@ -91,9 +91,8 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArGeneratedName := fmt.Sprintf("%s-%s-%s-", r2.Name, at.Name, rs2PodHash)
-	expectedArName := fmt.Sprintf("%s%s", expectedArGeneratedName, MockGeneratedNameSuffix)
-	assert.Equal(t, expectedArGeneratedName, createdAr.GenerateName)
+	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{
@@ -144,9 +143,8 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArGeneratedName := fmt.Sprintf("%s-%s-%s-", r2.Name, at.Name, rs2PodHash)
-	expectedArName := fmt.Sprintf("%s%s", expectedArGeneratedName, MockGeneratedNameSuffix)
-	assert.Equal(t, expectedArGeneratedName, createdAr.GenerateName)
+	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{

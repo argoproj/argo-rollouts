@@ -60,13 +60,13 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentExperiment": "%s%s"
+				"currentExperiment": "%s"
 			},
 			"conditions": %s
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.GenerateName, MockGeneratedNameSuffix, conds)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
@@ -127,7 +127,6 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
 	ex.Status.Status = v1alpha1.AnalysisStatusFailed
-	ex.Name = fmt.Sprintf("%s%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -267,17 +266,17 @@ func TestRolloutDoNotCreateExperimentWithoutNewRS(t *testing.T) {
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	//ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	// f.kubeobjects = append(f.kubeobjects, rs1)
+	// f.replicaSetLister = append(f.replicaSetLister, rs1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.experimentLister = append(f.experimentLister, ex)
-	f.objects = append(f.objects, r2, ex)
+	//f.objects = append(f.objects, r2, ex)
+	f.objects = append(f.objects, r2)
 
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)
@@ -302,15 +301,12 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, "", 1, 1, 1, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.experimentLister = append(f.experimentLister, ex)
-	f.objects = append(f.objects, r2, ex)
+	f.objects = append(f.objects, r2)
 
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)

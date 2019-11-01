@@ -630,7 +630,7 @@ func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
 	isPaused := len(r.Status.PauseConditions) > 0 || r.Spec.Paused
-	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused {
+	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || r.Status.Abort {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the

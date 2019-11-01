@@ -5,8 +5,7 @@ metadata:
   name: rollout-rollingupdate
 spec:
   replicas: 5
-  minReadySeconds: 10
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: rollout-rollingupdate

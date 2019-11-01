@@ -32,7 +32,7 @@ func GetCurrentBackgroundAnalysisRun(currentArs []*v1alpha1.AnalysisRun) *v1alph
 
 // FilterCurrentRolloutAnalysisRuns returns analysisRuns that match the analysisRuns listed in the rollout status
 func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, []*v1alpha1.AnalysisRun) {
-	return filterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
+	return FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
 		if ar.Name == r.Status.Canary.CurrentStepAnalysisRun {
 			return true
 		}
@@ -45,7 +45,7 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 
 // FilterAnalysisRunsByRolloutType returns a list of analysisRuns that have the rollout-type of the typeFilter
 func FilterAnalysisRunsByRolloutType(analysisRuns []*v1alpha1.AnalysisRun, typeFilter string) []*v1alpha1.AnalysisRun {
-	analysisRunsByType, _ := filterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
+	analysisRunsByType, _ := FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
 		analysisRunType, ok := ar.Labels[v1alpha1.RolloutTypeLabel]
 		if !ok || analysisRunType != typeFilter {
 			return false
@@ -57,7 +57,7 @@ func FilterAnalysisRunsByRolloutType(analysisRuns []*v1alpha1.AnalysisRun, typeF
 
 // FilterAnalysisRunsByName returns the analysisRuns with the name provided
 func FilterAnalysisRunsByName(analysisRuns []*v1alpha1.AnalysisRun, name string) *v1alpha1.AnalysisRun {
-	analysisRunsByName, _ := filterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
+	analysisRunsByName, _ := FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
 		return ar.Name == name
 	})
 	if len(analysisRunsByName) == 1 {
@@ -66,7 +66,7 @@ func FilterAnalysisRunsByName(analysisRuns []*v1alpha1.AnalysisRun, name string)
 	return nil
 }
 
-func filterAnalysisRuns(ars []*v1alpha1.AnalysisRun, cond func(ar *v1alpha1.AnalysisRun) bool) ([]*v1alpha1.AnalysisRun, []*v1alpha1.AnalysisRun) {
+func FilterAnalysisRuns(ars []*v1alpha1.AnalysisRun, cond func(ar *v1alpha1.AnalysisRun) bool) ([]*v1alpha1.AnalysisRun, []*v1alpha1.AnalysisRun) {
 	condTrue := []*v1alpha1.AnalysisRun{}
 	condFalse := []*v1alpha1.AnalysisRun{}
 	for i := range ars {

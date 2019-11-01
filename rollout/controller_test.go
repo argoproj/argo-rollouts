@@ -40,7 +40,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
 var (
@@ -161,18 +160,20 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 			status = corev1.ConditionFalse
 		}
 		if reason == conditions.RolloutExperimentFailedReason {
-			exName := fmt.Sprintf("%s%s", experimentutil.ExperimentGeneratedNameFromRollout(resource), MockGeneratedNameSuffix)
+			// rollout-experiment-step-5668c9d57b-2-1
+			exName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, resource.Status.CurrentPodHash, "2", "0")
 			msg = fmt.Sprintf(conditions.RolloutExperimentFailedMessage, exName, resource.Name)
 			status = corev1.ConditionFalse
 		}
 		if reason == conditions.RolloutAnalysisRunFailedReason {
+			// rollout-analysis-step-58bfdcfddd-4-random-fail
 			atName := ""
 			if resource.Spec.Strategy.Canary.Analysis != nil {
 				atName = resource.Spec.Strategy.Canary.Analysis.TemplateName
 			} else if resource.Spec.Strategy.Canary.Steps != nil && resource.Status.CurrentStepIndex != nil {
 				atName = resource.Spec.Strategy.Canary.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
 			}
-			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, atName, resource.Status.CurrentPodHash, MockGeneratedNameSuffix)
+			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, resource.Status.CurrentPodHash, "10", atName)
 			msg = fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, arName, resource.Name)
 			status = corev1.ConditionFalse
 		}
@@ -429,7 +430,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
 		objMap, _ := converter.ToUnstructured(createAction.GetObject())
 		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
-		ar.Name = ar.GenerateName + MockGeneratedNameSuffix
+		if ar.Name == "" && ar.GenerateName != "" {
+			ar.Name = ar.GenerateName + MockGeneratedNameSuffix
+		}
 		return true, ar.DeepCopyObject(), nil
 	})
 
@@ -442,7 +445,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
 		objMap, _ := converter.ToUnstructured(createAction.GetObject())
 		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ex)
-		ex.Name = ex.GenerateName + MockGeneratedNameSuffix
+		if ex.Name == "" && ex.GenerateName != "" {
+			ex.Name = ex.GenerateName + MockGeneratedNameSuffix
+		}
 		return true, ex.DeepCopyObject(), nil
 	})
 

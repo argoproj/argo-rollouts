@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/controller"
@@ -24,24 +25,30 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		return nil, nil
 	}
 	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	currentStep := int32(0)
+	if r.Status.CurrentStepIndex != nil {
+		currentStep = *r.Status.CurrentStepIndex
+	}
+	revision := ""
+	if r.Annotations != nil {
+		revision = r.Annotations[annotations.RevisionAnnotation]
+	}
 	experiment := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    experimentutil.ExperimentGeneratedNameFromRollout(r),
+			Name:            fmt.Sprintf("%s-%s-%s-%d", r.Name, podHash, revision, currentStep),
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 			Labels: map[string]string{
 				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+			},
+			Annotations: map[string]string{
+				annotations.RevisionAnnotation: revision,
 			},
 		},
 		Spec: v1alpha1.ExperimentSpec{
 			Duration:                step.Duration,
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 		},
-	}
-	if newRS.Annotations != nil && newRS.Annotations[annotations.RevisionAnnotation] != "" {
-		experiment.Annotations = map[string]string{
-			annotations.RevisionAnnotation: newRS.Annotations[annotations.RevisionAnnotation],
-		}
 	}
 
 	for i := range step.Templates {
@@ -154,11 +161,12 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 			return err
 		}
 
-		currentEx, err = c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
+		currentEx, err = c.createExperimentWithCollisionHandling(roCtx, newEx)
 		if err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("Created Experiment '%s'", newEx.Name)
+
+		msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 		roCtx.SetCurrentExperiment(currentEx)
 	}
@@ -170,6 +178,35 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	}
 
 	return nil
+}
+
+// createExperimentWithCollisionHandling creates the given experiment, but with a new name
+// in the event that an experiment with the same name already exists
+func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryContext, newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+	collisionCount := 1
+	baseName := newEx.Name
+	for {
+		currentEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
+		if err == nil {
+			return currentEx, nil
+		}
+		if !k8serrors.IsAlreadyExists(err) {
+			return nil, err
+		}
+		existingEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Get(newEx.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		existingEqual := experimentutil.IsSemanticallyEqual(newEx, existingEx)
+		roCtx.log.Infof("Encountered collision of existing experiment %s (status: %s, equal: %v)", existingEx.Name, existingEx.Status.Status, existingEqual)
+		if !existingEx.Status.Status.Completed() && existingEqual {
+			// If we get here, the existing experiment has been determined to be our experiment and we
+			// likely reconciled the rollout with a stale cache (quite common).
+			return existingEx, nil
+		}
+		newEx.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		collisionCount++
+	}
 }
 
 func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {

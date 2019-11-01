@@ -18,10 +18,10 @@ func TestGetExperiments(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	r.Status.Canary.CurrentExperiment = ExperimentGeneratedNameFromRollout(r)
+	r.Status.Canary.CurrentExperiment = "foo-exp"
 	ex1 := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ExperimentGeneratedNameFromRollout(r),
+			Name: "foo-exp",
 			UID:  uuid.NewUUID(),
 		},
 	}

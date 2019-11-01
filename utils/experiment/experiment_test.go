@@ -147,29 +147,6 @@ func TestExperimentByCreationTimestamp(t *testing.T) {
 	})
 }
 
-func TestExperimentGeneratedNameFromRollout(t *testing.T) {
-	r := v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo",
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					Steps: []v1alpha1.CanaryStep{{
-						Experiment: &v1alpha1.RolloutExperimentStep{},
-					}},
-				},
-			},
-		},
-	}
-	name := ExperimentGeneratedNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-0-", name)
-
-	r.Status.CurrentStepIndex = pointer.Int32Ptr(1)
-	name = ExperimentGeneratedNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-1-", name)
-}
-
 func TestIsTeriminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
