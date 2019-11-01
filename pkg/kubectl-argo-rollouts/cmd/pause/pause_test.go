@@ -33,7 +33,7 @@ func TestPauseCmd(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
-			Namespace: "test",
+			Namespace: metav1.NamespaceDefault,
 		},
 	}
 
@@ -51,7 +51,7 @@ func TestPauseCmd(t *testing.T) {
 
 	cmd := NewCmdPause(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"guestbook", "-n", "test"})
+	cmd.SetArgs([]string{"guestbook"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
