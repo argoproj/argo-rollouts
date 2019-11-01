@@ -33,7 +33,7 @@ func TestResumeCmdSuccess(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
-			Namespace: "test",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Paused: true,
@@ -61,7 +61,7 @@ func TestResumeCmdSuccess(t *testing.T) {
 
 	cmd := NewCmdResume(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"guestbook", "-n", "test"})
+	cmd.SetArgs([]string{"guestbook"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
@@ -79,7 +79,7 @@ func TestResumeCmdError(t *testing.T) {
 	defer tf.Cleanup()
 	cmd := NewCmdResume(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
+	cmd.SetArgs([]string{"doesnotexist"})
 	err := cmd.Execute()
 	assert.Error(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
