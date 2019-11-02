@@ -3,6 +3,7 @@ package rollout
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/util/uuid"
 
@@ -210,7 +211,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 
 }
 
-func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
+func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -241,15 +242,60 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
+			"abort": true,
 			"conditions": %s,
 			"canary": {
-				"experimentFailed": true
+				"currentExperiment": null
 			}
 		}
 	}`
-	generatedConditons := generateConditionsPatch(true, conditions.RolloutExperimentFailedReason, r2, false)
+	generatedConditons := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditons)), patch)
+}
 
+func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
+	ex.Status.Status = v1alpha1.AnalysisStatusInconclusive
+	r2.Status.Canary.CurrentExperiment = ex.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.experimentLister = append(f.experimentLister, ex)
+	f.objects = append(f.objects, r2, ex)
+
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatchFmt := `{
+		"status": {
+			"pauseConditions": [{
+				"reason": "%s",
+				"startTime": "%s"
+			}],
+			"conditions": %s,
+			"controllerPause": true
+		}
+	}`
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions))
+	assert.Equal(t, expectedPatch, patch)
 }
 
 func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {

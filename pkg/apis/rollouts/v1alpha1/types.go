@@ -269,6 +269,8 @@ type PauseReason string
 const (
 	// PauseReasonInconclusiveAnalysis pauses rollout when rollout has an inconclusive analysis run
 	PauseReasonInconclusiveAnalysis PauseReason = "InconclusiveAnalysisRun"
+	// PauseReasonInconclusiveExperiment pauses rollout when rollout has an inconclusive experiment
+	PauseReasonInconclusiveExperiment PauseReason = "InconclusiveExperiment"
 	// PauseReasonCanaryPauseStep pause rollout for canary pause step
 	PauseReasonCanaryPauseStep PauseReason = "CanaryPauseStep"
 	// PauseReasonBlueGreenPause pause rollout before promoting rollout

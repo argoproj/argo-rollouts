@@ -139,6 +139,10 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		return c.cancelExperiments(roCtx, allExs)
 	}
 
+	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return nil
+	}
+
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
 	if step == nil || step.Experiment == nil {
 		return nil
@@ -165,6 +169,15 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		logCtx.Info(msg)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 		roCtx.SetCurrentExperiment(currentEx)
+	}
+
+	if currentEx != nil {
+		switch currentEx.Status.Status {
+		case v1alpha1.AnalysisStatusInconclusive:
+			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
+		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+			roCtx.PauseContext().AddAbort()
+		}
 	}
 
 	for i, otherEx := range otherExs {
