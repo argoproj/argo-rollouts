@@ -139,20 +139,15 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		return c.cancelExperiments(roCtx, allExs)
 	}
 
-	err := c.cancelExperiments(roCtx, otherExs)
-	if err != nil {
-		return err
-	}
-
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
 	if step == nil || step.Experiment == nil {
 		return nil
 	}
 	currentEx := roCtx.CurrentExperiment()
 	if currentEx == nil {
-		// An new experiment can not be created if the newRS or stableRS is not created yet
-		if newRS == nil || stableRS == nil {
-			logCtx.Infof("Cannot create experiment until newRS and stableRS both exist")
+		// An new experiment can not be created if the stableRS is not created yet
+		if stableRS == nil {
+			logCtx.Infof("Cannot create experiment until stableRS exists")
 			return nil
 		}
 
@@ -167,8 +162,22 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		}
 
 		msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
+		logCtx.Info(msg)
 		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 		roCtx.SetCurrentExperiment(currentEx)
+	}
+
+	for i, otherEx := range otherExs {
+		if otherEx.Name == currentEx.Name {
+			logCtx.Infof("Rescued %s from inadvertent termination", currentEx.Name)
+			otherExs = append(otherExs[:i], otherExs[i+1:]...)
+			break
+		}
+	}
+
+	err := c.cancelExperiments(roCtx, otherExs)
+	if err != nil {
+		return err
 	}
 
 	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, roCtx.AllRSs())
@@ -197,11 +206,11 @@ func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryC
 		if err != nil {
 			return nil, err
 		}
-		existingEqual := experimentutil.IsSemanticallyEqual(newEx, existingEx)
+		existingEqual := experimentutil.IsSemanticallyEqual(newEx.Spec, existingEx.Spec)
 		roCtx.log.Infof("Encountered collision of existing experiment %s (status: %s, equal: %v)", existingEx.Name, existingEx.Status.Status, existingEqual)
 		if !existingEx.Status.Status.Completed() && existingEqual {
-			// If we get here, the existing experiment has been determined to be our experiment and we
-			// likely reconciled the rollout with a stale cache (quite common).
+			// If we get here, the existing experiment has been determined to be our experiment and
+			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil
 		}
 		newEx.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)

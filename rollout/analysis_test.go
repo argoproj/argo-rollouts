@@ -41,7 +41,7 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 	}
 	return &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s-%s", r.Name, at.Name, podHash, MockGeneratedNameSuffix),
+			Name:            fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", at.Name),
 			Namespace:       metav1.NamespaceDefault,
 			Labels:          labels,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
@@ -103,6 +103,120 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 		}
 	}`
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+// TestCreateAnalysisRunWithCollision ensures we will create an new analysis run with a new name
+// when there is a conflict (e.g. such as when there is a retry)
+func TestCreateAnalysisRunWithCollision(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+		Name:         at.Name,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	ar.Status.Status = v1alpha1.AnalysisStatusFailed
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at, ar)
+
+	f.expectCreateAnalysisRunAction(ar) // this fails due to conflict
+	f.expectGetAnalysisRunAction(ar)    // get will retrieve the existing one to compare semantic equality
+	expectedAR := ar.DeepCopy()
+	expectedAR.Name = ar.Name + ".1"
+	createdIndex := f.expectCreateAnalysisRunAction(expectedAR) // this succeeds
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	assert.Equal(t, expectedAR.Name, createdAr.Name)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": "%s"
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedAR.Name)), patch)
+}
+
+// TestCreateAnalysisRunWithCollisionAndSemanticEquality will ensure we do not create an extra
+// AnalysisRun when the existing one is our own.
+func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		TemplateName: at.Name,
+		Name:         at.Name,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at, ar)
+
+	f.expectCreateAnalysisRunAction(ar) // this fails due to conflict
+	f.expectGetAnalysisRunAction(ar)    // get will retrieve the existing one to compare semantic equality
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": "%s"
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name)), patch)
 }
 
 func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {

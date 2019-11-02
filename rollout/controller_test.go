@@ -421,36 +421,6 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
 	}
 
-	f.client.PrependReactor("create", "analysisruns", func(action core.Action) (bool, runtime.Object, error) {
-		createAction, ok := action.(core.CreateAction)
-		if !ok {
-			assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
-		}
-		ar := &v1alpha1.AnalysisRun{}
-		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-		objMap, _ := converter.ToUnstructured(createAction.GetObject())
-		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
-		if ar.Name == "" && ar.GenerateName != "" {
-			ar.Name = ar.GenerateName + MockGeneratedNameSuffix
-		}
-		return true, ar.DeepCopyObject(), nil
-	})
-
-	f.client.PrependReactor("create", "experiments", func(action core.Action) (bool, runtime.Object, error) {
-		createAction, ok := action.(core.CreateAction)
-		if !ok {
-			assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
-		}
-		ex := &v1alpha1.Experiment{}
-		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-		objMap, _ := converter.ToUnstructured(createAction.GetObject())
-		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ex)
-		if ex.Name == "" && ex.GenerateName != "" {
-			ex.Name = ex.GenerateName + MockGeneratedNameSuffix
-		}
-		return true, ex.DeepCopyObject(), nil
-	})
-
 	return c, i, k8sI
 }
 
@@ -484,7 +454,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
-			actionsBytes, _ := json.Marshal(actions[i:])
+			actionsBytes, _ := json.MarshalIndent(actions[i:], "", "  ")
 			f.t.Errorf("%d unexpected actions: %+v", len(actions)-len(f.actions), string(actionsBytes))
 			break
 		}
@@ -500,7 +470,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	k8sActions := filterInformerActions(f.kubeclient.Actions())
 	for i, action := range k8sActions {
 		if len(f.kubeactions) < i+1 {
-			actionsBytes, _ := json.Marshal(k8sActions[i:])
+			actionsBytes, _ := json.MarshalIndent(k8sActions[i:], "", "  ")
 			f.t.Errorf("%d unexpected actions: %+v", len(k8sActions)-len(f.kubeactions), string(actionsBytes))
 			break
 		}
@@ -625,6 +595,18 @@ func (f *fixture) expectCreateAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
 	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "analysisruns"}, ar.Namespace, ar)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) expectGetAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "analysisruns"}, ar.Namespace, ar.Name))
+	return len
+}
+
+func (f *fixture) expectGetExperimentAction(ex *v1alpha1.Experiment) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex.Name))
 	return len
 }
 

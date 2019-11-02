@@ -331,3 +331,17 @@ func TestTerminate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, patched)
 }
+
+func TestIsSemanticallyEqual(t *testing.T) {
+	left := &v1alpha1.ExperimentSpec{
+		Templates: []v1alpha1.TemplateSpec{
+			{
+				Name: "canary",
+			},
+		},
+	}
+	right := left.DeepCopy()
+	assert.True(t, IsSemanticallyEqual(*left, *right))
+	right.Templates[0].Replicas = pointer.Int32Ptr(1)
+	assert.False(t, IsSemanticallyEqual(*left, *right))
+}

@@ -187,12 +187,12 @@ func Worst(left, right v1alpha1.TemplateStatusCode) v1alpha1.TemplateStatusCode 
 }
 
 // IsSemanticallyEqual checks to see if two experiments are semantically equal
-func IsSemanticallyEqual(left, right *v1alpha1.Experiment) bool {
-	leftBytes, err := json.Marshal(left.Spec)
+func IsSemanticallyEqual(left, right v1alpha1.ExperimentSpec) bool {
+	leftBytes, err := json.Marshal(left)
 	if err != nil {
 		panic(err)
 	}
-	rightBytes, err := json.Marshal(right.Spec)
+	rightBytes, err := json.Marshal(right)
 	if err != nil {
 		panic(err)
 	}

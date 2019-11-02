@@ -203,3 +203,19 @@ func TestTerminateRun(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, patched)
 }
+
+func TestIsSemanticallyEqual(t *testing.T) {
+	left := &v1alpha1.AnalysisRunSpec{
+		AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+			},
+		},
+	}
+	right := left.DeepCopy()
+	assert.True(t, IsSemanticallyEqual(*left, *right))
+	right.AnalysisSpec.Metrics[0].Name = "foo"
+	assert.False(t, IsSemanticallyEqual(*left, *right))
+}

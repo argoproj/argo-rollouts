@@ -76,7 +76,7 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	otherArs, _ = analysisutil.FilterAnalysisRuns(otherArs, func(ar *v1alpha1.AnalysisRun) bool {
 		for _, curr := range newCurrentAnalysisRuns {
 			if ar.Name == curr.Name {
-				roCtx.log.Infof("Saved %s from inadvertent termination", ar.Name)
+				roCtx.log.Infof("Rescued %s from inadvertent termination", ar.Name)
 				return false
 			}
 		}
@@ -164,7 +164,7 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 		if err != nil {
 			return nil, err
 		}
-		existingEqual := analysisutil.IsSemanticallyEqual(ar, existingAR)
+		existingEqual := analysisutil.IsSemanticallyEqual(ar.Spec, existingAR.Spec)
 		roCtx.log.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v)", existingAR.Name, existingAR.Status.Status, existingEqual)
 		if !existingAR.Status.Status.Completed() && existingEqual {
 			// If we get here, the existing AR has been determined to be our analysis run and we
@@ -247,7 +247,7 @@ func (c *RolloutController) getAnalysisRunFromRollout(roCtx *canaryContext, roll
 	revision := r.Annotations[annotations.RevisionAnnotation]
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			// TOOD(jessesuen): consider incorporating the step index into the name like we do for experiments
+			// TODO(jessesuen): consider incorporating the step index into the name like we do for experiments
 			Name:      fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, revision, rolloutAnalysisStep.Name),
 			Namespace: r.Namespace,
 			Labels:    labels,

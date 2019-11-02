@@ -107,12 +107,12 @@ func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string
 }
 
 // IsSemanticallyEqual checks to see if two analysis runs are semantically equal
-func IsSemanticallyEqual(left, right *v1alpha1.AnalysisRun) bool {
-	leftBytes, err := json.Marshal(left.Spec)
+func IsSemanticallyEqual(left, right v1alpha1.AnalysisRunSpec) bool {
+	leftBytes, err := json.Marshal(left)
 	if err != nil {
 		panic(err)
 	}
-	rightBytes, err := json.Marshal(right.Spec)
+	rightBytes, err := json.Marshal(right)
 	if err != nil {
 		panic(err)
 	}
