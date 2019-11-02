@@ -15,12 +15,14 @@ import (
 // Provider methods to query a external systems and generate a measurement
 type Provider interface {
 	// Run start a new external system call for a measurement
-	//idempotent and do nothing if a call has been started
+	// Should be idempotent and do nothing if a call has already been started
 	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument) v1alpha1.Measurement
 	// Checks if the external system call is finished and returns the current measurement
 	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) v1alpha1.Measurement
 	// Terminate will terminate an in-progress measurement
 	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) v1alpha1.Measurement
+	// GarbageCollect is used to garbage collect completed measurements to the specified limit
+	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) error
 	// Type gets the provider type
 	Type() string
 }
@@ -29,6 +31,8 @@ type ProviderFactory struct {
 	KubeClient kubernetes.Interface
 	JobLister  batchlisters.JobLister
 }
+
+type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error)
 
 // NewProvider creates the correct provider based on the provider type of the Metric
 func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {

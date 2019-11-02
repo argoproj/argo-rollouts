@@ -115,10 +115,8 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
 		// the status of the Experiment and requeue to try the creation in the next sync.
 		if ec.isReplicaSetSemanticallyEqual(&newRS, rs) {
-			// NOTE: it should be impossible to get here, because the isReplicaSetSemanticallyEqual()
-			// helper is actually stricter than the the replicaset claim logic that builds up
-			// ec.templateRSs at the start of reconciliation, preventing this code path from
-			// happening entirely. We should consider deleting this if-block entirely.
+			// NOTE: we should only get here when the informer cache is stale and we already
+			// succeeded in creating this replicaset
 			createdRS = rs
 			err = nil
 			ec.log.Warnf("Claimed existing ReplicaSet %s with equivalent template spec", createdRS.Name)

@@ -1048,9 +1048,15 @@ func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
 // TestTrimMeasurementHistory verifies we trim the measurement list appropriately to the correct length
 // and retain the newest measurements
 func TestTrimMeasurementHistory(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	f.provider.On("GarbageCollect", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	{
 		run := newRun()
-		trimMeasurementHistory(run, 2)
+		c.garbageCollectMeasurements(run, 2)
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
@@ -1059,7 +1065,7 @@ func TestTrimMeasurementHistory(t *testing.T) {
 	}
 	{
 		run := newRun()
-		trimMeasurementHistory(run, 1)
+		c.garbageCollectMeasurements(run, 1)
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 1)
