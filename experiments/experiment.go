@@ -337,13 +337,31 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	newStatus.Message = run.Status.Message
 }
 
+// createAnalysisRun creates the analysis run. If an existing runs exists with same name, and is
+// semantically equal, returns the existing one, otherwise errors
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	run, err := ec.newAnalysisRun(analysis, analysis.Arguments)
 	if err != nil {
 		return nil, err
 	}
-	return analysisRunIf.Create(run)
+	newRun, createErr := analysisRunIf.Create(run)
+	if createErr != nil {
+		if !k8serrors.IsAlreadyExists(createErr) {
+			return nil, createErr
+		}
+		existingRun, err := analysisRunIf.Get(run.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		controllerRef := metav1.GetControllerOf(existingRun)
+		if ec.ex.UID == controllerRef.UID && analysisutil.IsSemanticallyEqual(run.Spec, existingRun.Spec) {
+			ec.log.Infof("Claimed existing analysisrun %s", existingRun.Name)
+			return existingRun, nil
+		}
+		return nil, createErr
+	}
+	return newRun, nil
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
@@ -458,7 +476,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    fmt.Sprintf("%s-%s-", ec.ex.Name, analysis.Name),
+			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name),
 			Namespace:       ec.ex.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
 		},
