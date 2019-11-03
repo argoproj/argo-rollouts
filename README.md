@@ -11,3 +11,8 @@ Deployments resources offer two strategies to deploy changes: `RollingUpdate` an
 
 ## Documentation
 To learn more about Argo CD go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
+
+## Who uses Argo Rollouts?
+Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
+
+1. Intuit (https://www.intuit.com/)
