@@ -855,3 +855,31 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
+
+func TestDoNotCreateBackgroundAnalysisRunOnNewRollout(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
+		Name:         "background",
+		TemplateName: at.Name,
+	}
+	r1.Status.CurrentPodHash = ""
+	rs1 := newReplicaSet(r1, 1)
+
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r1, at)
+
+	f.expectCreateReplicaSetAction(rs1)
+	// Update the revision
+	f.expectUpdateRolloutAction(r1)
+	f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+}
