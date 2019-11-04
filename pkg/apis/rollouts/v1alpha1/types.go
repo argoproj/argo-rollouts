@@ -369,9 +369,6 @@ type CanaryStatus struct {
 	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
-	// ExperimentFailed indicates the most recent executed experiment in the canary steps failed
-	// +optional
-	ExperimentFailed bool `json:"experimentFailed,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
 	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step

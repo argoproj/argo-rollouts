@@ -497,6 +497,14 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 		}
 	}
 
+	var failedExp *v1alpha1.Experiment
+	if currExp := roCtx.CurrentExperiment(); currExp != nil {
+		switch currExp.Status.Status {
+		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError:
+			failedExp = currExp
+		}
+	}
+
 	// If there is only one replica set that is active then that means we are not running
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this rollout.
@@ -521,9 +529,8 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 			msg := fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, failedAnalysisRun.Name, r.Name)
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAnalysisRunFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
-		case newStatus.Canary.ExperimentFailed:
-			currentEx := roCtx.CurrentExperiment()
-			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, currentEx.Name, r.Name)
+		case failedExp != nil:
+			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, failedExp.Name, r.Name)
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutExperimentFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		case conditions.RolloutProgressing(r, &newStatus):

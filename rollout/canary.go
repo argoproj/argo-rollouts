@@ -347,10 +347,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 
 	if currExp != nil {
 		newStatus.Canary.CurrentExperiment = currExp.Name
-		switch currExp.Status.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError:
-			newStatus.Canary.ExperimentFailed = true
-		}
 	}
 
 	newStatus.CurrentStepIndex = currentStepIndex
