@@ -29,61 +29,43 @@ const (
 )
 
 const (
-	ExperimentNameLabelKey         = "experiment.argoproj.io/name"
-	ExperimentTemplateNameLabelKey = "experiment.argoproj.io/template-name"
+	ExperimentNameAnnotationKey         = "experiment.argoproj.io/name"
+	ExperimentTemplateNameAnnotationKey = "experiment.argoproj.io/template-name"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.Experiment) (map[string]*appsv1.ReplicaSet, error) {
-	// List all ReplicaSets to find those we own but that no longer match our
-	// selector. They will be orphaned by ClaimReplicaSets().
 	rsList, err := c.replicaSetLister.ReplicaSets(experiment.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
-
-	// If any adoptions are attempted, we should first recheck for deletion with
-	// an uncached quorum read sometime after listing ReplicaSets (see #42639).
-	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Get(experiment.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		if fresh.UID != experiment.UID {
-			return nil, fmt.Errorf("original Experiment %v/%v is gone: got uid %v, wanted %v", experiment.Namespace, experiment.Name, fresh.UID, experiment.UID)
-		}
-		return fresh, nil
-	})
-
-	templateToRS := make(map[string]*appsv1.ReplicaSet)
-	for _, template := range experiment.Spec.Templates {
-		rsLabelSelector := metav1.SetAsLabelSelector(newReplicaSetLabels(experiment.Name, template.Name))
-		rsSelector, err := metav1.LabelSelectorAsSelector(rsLabelSelector)
-		if err != nil {
-			return nil, fmt.Errorf("experiment %s/%s has invalid label selector: %v", experiment.Namespace, experiment.Name, err)
-		}
-		templateRSs := make([]*appsv1.ReplicaSet, 0)
-		for _, rs := range rsList {
-			if rsSelector.Matches(labels.Set(rs.ObjectMeta.Labels)) {
-				templateRSs = append(templateRSs, rs)
+	templateDefined := func(name string) bool {
+		for _, tmpl := range experiment.Spec.Templates {
+			if tmpl.Name == name {
+				return true
 			}
 		}
-
-		cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, experiment, rsSelector, controllerKind, canAdoptFunc)
-		templateRSs, err = cm.ClaimReplicaSets(templateRSs)
-		if err != nil {
-			return nil, err
+		return false
+	}
+	templateToRS := make(map[string]*appsv1.ReplicaSet)
+	for _, rs := range rsList {
+		controllerRef := metav1.GetControllerOf(rs)
+		if controllerRef == nil || controllerRef.UID != experiment.UID || rs.Annotations == nil || rs.Annotations[ExperimentNameAnnotationKey] != experiment.Name {
+			continue
 		}
-		matches := len(templateRSs)
-		if matches > 1 {
-			return nil, fmt.Errorf("multiple ReplicaSets match single experiment template")
-		} else if matches == 1 {
-			templateToRS[template.Name] = templateRSs[0]
-			logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
-			logCtx.Infof("Claimed ReplicaSet '%s' for template '%s'", templateRSs[0].Name, template.Name)
+		if templateName := rs.Annotations[ExperimentTemplateNameAnnotationKey]; templateName != "" {
+			if _, ok := templateToRS[templateName]; ok {
+				return nil, fmt.Errorf("multiple ReplicaSets match single experiment template: %s", templateName)
+			}
+			if templateDefined(templateName) {
+				templateToRS[templateName] = rs
+				logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
+				logCtx.Infof("Claimed ReplicaSet '%s' for template '%s'", rs.Name, templateName)
+			}
 		}
 	}
+
 	return templateToRS, nil
 }
 
@@ -169,17 +151,17 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 // newReplicaSetFromTemplate is a helper to formulate a replicaset from an experiment's template
 func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, collisionCount *int32) appsv1.ReplicaSet {
 	newRSTemplate := *template.Template.DeepCopy()
-	// The labels must be different for each template because labels are used to match replicasets
-	// to templates. We inject the experiment and template name in the replicaset labels to ensure
-	// uniqueness.
-	replicaSetlabels := newReplicaSetLabels(experiment.Name, template.Name)
+	// The annotations must be different for each template because annotations are used to match
+	// replicasets to templates. We inject the experiment and template name in the replicaset
+	// annotations to ensure uniqueness.
+	replicaSetAnnotations := newReplicaSetAnnotations(experiment.Name, template.Name)
 	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
 	return appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
 			Namespace:       experiment.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
-			Labels:          replicaSetlabels,
+			Annotations:     replicaSetAnnotations,
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas:        new(int32),
@@ -195,14 +177,14 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 func (ec *experimentContext) isReplicaSetSemanticallyEqual(newRS, existingRS *appsv1.ReplicaSet) bool {
 	controllerRef := metav1.GetControllerOf(existingRS)
 	podTemplatesEqual := replicasetutil.PodTemplateEqualIgnoreHash(&existingRS.Spec.Template, &newRS.Spec.Template)
-	existingLabels := existingRS.GetLabels()
-	newLabels := newRS.GetLabels()
+	existingAnnotations := existingRS.GetAnnotations()
+	newAnnotations := newRS.GetAnnotations()
 	return controllerRef != nil &&
 		controllerRef.UID == ec.ex.UID &&
 		podTemplatesEqual &&
-		existingLabels != nil &&
-		existingLabels[ExperimentNameLabelKey] == newLabels[ExperimentNameLabelKey] &&
-		existingLabels[ExperimentTemplateNameLabelKey] == newLabels[ExperimentTemplateNameLabelKey]
+		existingAnnotations != nil &&
+		existingAnnotations[ExperimentNameAnnotationKey] == newAnnotations[ExperimentNameAnnotationKey] &&
+		existingAnnotations[ExperimentTemplateNameAnnotationKey] == newAnnotations[ExperimentTemplateNameAnnotationKey]
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
@@ -243,9 +225,9 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 	return scaled, rs, err
 }
 
-func newReplicaSetLabels(experimentName, templateName string) map[string]string {
+func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
-		ExperimentNameLabelKey:         experimentName,
-		ExperimentTemplateNameLabelKey: templateName,
+		ExperimentNameAnnotationKey:         experimentName,
+		ExperimentTemplateNameAnnotationKey: templateName,
 	}
 }

@@ -141,7 +141,7 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 	if podHash == "" {
 		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
 	}
-	ar, err := c.getAnalysisRunFromRollout(roCtx, rolloutAnalysisStep, args, podHash, labels)
+	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysisStep, args, podHash, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +161,10 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 			return nil, err
 		}
 		existingEqual := analysisutil.IsSemanticallyEqual(ar.Spec, existingAR.Spec)
-		roCtx.log.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v)", existingAR.Name, existingAR.Status.Status, existingEqual)
-		if !existingAR.Status.Status.Completed() && existingEqual {
+		controllerRef := metav1.GetControllerOf(existingAR)
+		controllerUIDEqual := controllerRef != nil && controllerRef.UID == roCtx.Rollout().UID
+		roCtx.log.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingAR.Name, existingAR.Status.Status, existingEqual, controllerUIDEqual)
+		if !existingAR.Status.Status.Completed() && existingEqual && controllerUIDEqual {
 			// If we get here, the existing AR has been determined to be our analysis run and we
 			// likely reconciled the rollout with a stale cache (quite common).
 			ar = existingAR
@@ -229,8 +231,8 @@ func (c *RolloutController) cancelAnalysisRuns(roCtx *canaryContext, analysisRun
 	return nil
 }
 
-// getAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *RolloutController) getAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, args []v1alpha1.Argument, podHash string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+// newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
+func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, args []v1alpha1.Argument, podHash string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	r := roCtx.Rollout()
 	logctx := roCtx.Log()
 	template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(rolloutAnalysisStep.TemplateName)
