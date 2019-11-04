@@ -488,23 +488,6 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 		return newStatus
 	}
 
-	var failedAnalysisRun *v1alpha1.AnalysisRun
-	currArs := roCtx.CurrentAnalysisRuns()
-	for i := range currArs {
-		currAr := currArs[i]
-		if currAr != nil && (currAr.Status.Status == v1alpha1.AnalysisStatusError || currAr.Status.Status == v1alpha1.AnalysisStatusFailed) {
-			failedAnalysisRun = currArs[i]
-		}
-	}
-
-	var failedExp *v1alpha1.Experiment
-	if currExp := roCtx.CurrentExperiment(); currExp != nil {
-		switch currExp.Status.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError:
-			failedExp = currExp
-		}
-	}
-
 	// If there is only one replica set that is active then that means we are not running
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this rollout.
@@ -524,14 +507,6 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 				msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, newRS.Name)
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
-			conditions.SetRolloutCondition(&newStatus, *condition)
-		case failedAnalysisRun != nil:
-			msg := fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, failedAnalysisRun.Name, r.Name)
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAnalysisRunFailedReason, msg)
-			conditions.SetRolloutCondition(&newStatus, *condition)
-		case failedExp != nil:
-			msg := fmt.Sprintf(conditions.RolloutExperimentFailedMessage, failedExp.Name, r.Name)
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutExperimentFailedReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		case conditions.RolloutProgressing(r, &newStatus):
 			// If there is any progress made, continue by not checking if the rollout failed. This
