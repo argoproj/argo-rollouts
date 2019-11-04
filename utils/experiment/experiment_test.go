@@ -147,29 +147,6 @@ func TestExperimentByCreationTimestamp(t *testing.T) {
 	})
 }
 
-func TestExperimentGeneratedNameFromRollout(t *testing.T) {
-	r := v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo",
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					Steps: []v1alpha1.CanaryStep{{
-						Experiment: &v1alpha1.RolloutExperimentStep{},
-					}},
-				},
-			},
-		},
-	}
-	name := ExperimentGeneratedNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-0-", name)
-
-	r.Status.CurrentStepIndex = pointer.Int32Ptr(1)
-	name = ExperimentGeneratedNameFromRollout(&r)
-	assert.Equal(t, "foo-6cb88c6bcf-1-", name)
-}
-
 func TestIsTeriminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
@@ -353,4 +330,18 @@ func TestTerminate(t *testing.T) {
 	err := Terminate(expIf, "foo")
 	assert.NoError(t, err)
 	assert.True(t, patched)
+}
+
+func TestIsSemanticallyEqual(t *testing.T) {
+	left := &v1alpha1.ExperimentSpec{
+		Templates: []v1alpha1.TemplateSpec{
+			{
+				Name: "canary",
+			},
+		},
+	}
+	right := left.DeepCopy()
+	assert.True(t, IsSemanticallyEqual(*left, *right))
+	right.Templates[0].Replicas = pointer.Int32Ptr(1)
+	assert.False(t, IsSemanticallyEqual(*left, *right))
 }

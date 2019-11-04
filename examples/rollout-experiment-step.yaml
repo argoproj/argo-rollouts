@@ -1,0 +1,66 @@
+# This example demonstrates a Rollout which begins an an experiment at a specified step.
+# The rollout willl not proceed to the next step until the experiment is completed and successful.
+# In this example, the experiment itself starts its own AnalysisRun which is tied to the experiment.
+# This is useful for when analysis should be done only during the experimentation phase, but not
+# during the regular update of the rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-experiment-step
+spec:
+  replicas: 4
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-experiment-step
+  template:
+    metadata:
+      labels:
+        app: rollout-experiment-step
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+      - setWeight: 25
+      # The second step is the experiment which starts a single canary pod
+      - experiment:
+          templates:
+          - name: canary
+            specRef: canary
+          # This experiment performs its own analysis by referencing one or more AnalysisTemplates
+          # here. The success or failure of these runs will progress or abort the rollout respectively.
+          analyses:
+          - name: random-fail
+            templateName: random-fail
+
+---
+# This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
+# When the number of accumulated failures exceeds maxFailures, it will cause the analysis run to
+# fail, and subsequently cause the rollout to abort.
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: random-fail
+spec:
+  metrics:
+  - name: random-fail
+    interval: 5
+    maxFailures: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sh, -c]
+                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
+              restartPolicy: Never
+          backoffLimit: 0

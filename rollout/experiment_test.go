@@ -53,20 +53,123 @@ func TestRolloutCreateExperiment(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
-	assert.Equal(t, createdEx.GenerateName, ex.GenerateName)
+	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentExperiment": "%s%s"
+				"currentExperiment": "%s"
 			},
 			"conditions": %s
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.GenerateName, MockGeneratedNameSuffix, conds)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+}
+
+func TestCreateExperimentWithCollision(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32Ptr(1),
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	ex.Status.Status = v1alpha1.AnalysisStatusFailed
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.experimentLister = append(f.experimentLister, ex)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2, ex)
+
+	f.expectCreateExperimentAction(ex)                  // create fails
+	f.expectGetExperimentAction(ex)                     // get existing
+	createExIndex := f.expectCreateExperimentAction(ex) // create with a new name
+	patchIndex := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdEx := f.getCreatedExperiment(createExIndex)
+	assert.Equal(t, ex.Name+".1", createdEx.Name)
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentExperiment": "%s"
+			},
+			"conditions": %s
+		}
+	}`
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
+}
+
+func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32Ptr(1),
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	ex.Status.Status = v1alpha1.AnalysisStatusRunning
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.experimentLister = append(f.experimentLister, ex)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2, ex)
+
+	createExIndex := f.expectCreateExperimentAction(ex)
+	f.expectGetExperimentAction(ex) // get existing to verify semantic equality
+	patchIndex := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdEx := f.getCreatedExperiment(createExIndex)
+	assert.Equal(t, ex.Name, createdEx.Name)
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentExperiment": "%s"
+			},
+			"conditions": %s
+		}
+	}`
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
@@ -127,7 +230,6 @@ func TestRolloutDegradedExperimentEnterDegraded(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
 	ex.Status.Status = v1alpha1.AnalysisStatusFailed
-	ex.Name = fmt.Sprintf("%s%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -248,43 +350,6 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
 }
 
-func TestRolloutDoNotCreateExperimentWithoutNewRS(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	steps := []v1alpha1.CanaryStep{{
-		Experiment: &v1alpha1.RolloutExperimentStep{
-			Templates: []v1alpha1.RolloutExperimentTemplate{{
-				Name:     "canary-template",
-				SpecRef:  v1alpha1.CanarySpecRef,
-				Replicas: pointer.Int32Ptr(1),
-			}},
-		},
-	}}
-
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
-
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, false)
-
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.experimentLister = append(f.experimentLister, ex)
-	f.objects = append(f.objects, r2, ex)
-
-	f.expectCreateReplicaSetAction(rs2)
-	f.expectUpdateRolloutAction(r2)
-	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
-}
-
 func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -302,15 +367,12 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, "", 1, 1, 1, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.experimentLister = append(f.experimentLister, ex)
-	f.objects = append(f.objects, r2, ex)
+	f.objects = append(f.objects, r2)
 
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)

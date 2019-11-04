@@ -65,6 +65,22 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 	if backgroundAnalysisRun != nil {
 		newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
 	}
+	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
+
+	// Due to the possibility that we are operating on stale/inconsistent data in the informer, it's
+	// possible that otherArs includes the current analysis runs that we just created or reclaimed
+	// in newCurrentAnalysisRuns, despite the fact that our rollout status did not have those set.
+	// To prevent us from terminating the runs that we just created moments ago, rebuild otherArs
+	// to ensure it does not include the newly created runs.
+	otherArs, _ = analysisutil.FilterAnalysisRuns(otherArs, func(ar *v1alpha1.AnalysisRun) bool {
+		for _, curr := range newCurrentAnalysisRuns {
+			if ar.Name == curr.Name {
+				roCtx.log.Infof("Rescued %s from inadvertent termination", ar.Name)
+				return false
+			}
+		}
+		return true
+	})
 
 	err = c.cancelAnalysisRuns(roCtx, otherArs)
 	if err != nil {
@@ -78,7 +94,6 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx *canaryContext) error {
 		return err
 	}
 
-	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
 	return nil
 }
 
@@ -133,9 +148,31 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 	if err != nil {
 		return nil, err
 	}
-	ar, err = c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Create(ar)
-	if err != nil {
-		return nil, err
+	collisionCount := 1
+	baseName := ar.Name
+	for {
+		newAR, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Create(ar)
+		if err == nil {
+			ar = newAR
+			break
+		}
+		if !k8serrors.IsAlreadyExists(err) {
+			return nil, err
+		}
+		existingAR, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Get(ar.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		existingEqual := analysisutil.IsSemanticallyEqual(ar.Spec, existingAR.Spec)
+		roCtx.log.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v)", existingAR.Name, existingAR.Status.Status, existingEqual)
+		if !existingAR.Status.Status.Completed() && existingEqual {
+			// If we get here, the existing AR has been determined to be our analysis run and we
+			// likely reconciled the rollout with a stale cache (quite common).
+			ar = existingAR
+			break
+		}
+		ar.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		collisionCount++
 	}
 	return ar, nil
 }
@@ -153,9 +190,6 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 
 	if step == nil || step.Analysis == nil || index == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
-		if err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 	if currentAr == nil {
@@ -209,14 +243,15 @@ func (c *RolloutController) getAnalysisRunFromRollout(roCtx *canaryContext, roll
 		}
 		return nil, err
 	}
-
+	revision := r.Annotations[annotations.RevisionAnnotation]
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-%s-%s-", r.Name, rolloutAnalysisStep.Name, podHash),
-			Namespace:    r.Namespace,
-			Labels:       labels,
+			// TODO(jessesuen): consider incorporating the step index into the name like we do for experiments
+			Name:      fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, revision, rolloutAnalysisStep.Name),
+			Namespace: r.Namespace,
+			Labels:    labels,
 			Annotations: map[string]string{
-				annotations.RevisionAnnotation: r.Annotations[annotations.RevisionAnnotation],
+				annotations.RevisionAnnotation: revision,
 			},
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},

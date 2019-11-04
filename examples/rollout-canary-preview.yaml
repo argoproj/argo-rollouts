@@ -6,9 +6,8 @@ kind: Rollout
 metadata:
   name: rollout-canary-preview
 spec:
-  replicas: 5
-  minReadySeconds: 10
-  revisionHistoryLimit: 3
+  replicas: 3
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: rollout-canary-production

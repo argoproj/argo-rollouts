@@ -5,9 +5,8 @@ kind: Rollout
 metadata:
   name: rollout-bluegreen
 spec:
-  replicas: 1
-  minReadySeconds: 10
-  revisionHistoryLimit: 3
+  replicas: 2
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: rollout-bluegreen
