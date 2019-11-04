@@ -581,13 +581,6 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
-					"experimentFailed": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ExperimentFailed indicates the most recent executed experiment in the canary steps failed",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"currentStepAnalysisRun": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentStepAnalysisRun indicates the analysisRun for the current step index",

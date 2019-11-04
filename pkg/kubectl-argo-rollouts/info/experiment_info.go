@@ -43,6 +43,7 @@ func getExperimentInfo(
 		expInfo.Icon = analysisIcon(exp.Status.Status)
 		expInfo.Revision = parseRevision(exp.ObjectMeta.Annotations)
 		expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
+		expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
 
 		expInfos = append(expInfos, expInfo)
 	}

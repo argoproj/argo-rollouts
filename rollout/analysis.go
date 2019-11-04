@@ -104,9 +104,6 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentBackgroundAnalysisRun)
 	if rollout.Spec.Strategy.Canary.Analysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
-		if err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 

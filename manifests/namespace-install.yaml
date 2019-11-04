@@ -10432,8 +10432,6 @@ spec:
                   type: string
                 currentStepAnalysisRun:
                   type: string
-                experimentFailed:
-                  type: boolean
                 stableRS:
                   type: string
               type: object

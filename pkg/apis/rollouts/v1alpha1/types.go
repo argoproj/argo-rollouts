@@ -269,6 +269,8 @@ type PauseReason string
 const (
 	// PauseReasonInconclusiveAnalysis pauses rollout when rollout has an inconclusive analysis run
 	PauseReasonInconclusiveAnalysis PauseReason = "InconclusiveAnalysisRun"
+	// PauseReasonInconclusiveExperiment pauses rollout when rollout has an inconclusive experiment
+	PauseReasonInconclusiveExperiment PauseReason = "InconclusiveExperiment"
 	// PauseReasonCanaryPauseStep pause rollout for canary pause step
 	PauseReasonCanaryPauseStep PauseReason = "CanaryPauseStep"
 	// PauseReasonBlueGreenPause pause rollout before promoting rollout
@@ -367,9 +369,6 @@ type CanaryStatus struct {
 	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
-	// ExperimentFailed indicates the most recent executed experiment in the canary steps failed
-	// +optional
-	ExperimentFailed bool `json:"experimentFailed,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
 	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
