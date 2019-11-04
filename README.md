@@ -10,4 +10,9 @@ Argo Rollouts controller, uses the Rollout custom resource to provide additional
 Deployments resources offer two strategies to deploy changes: `RollingUpdate` and `Recreate`. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller.  In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable options.
 
 ## Documentation
-To learn more about Argo CD go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
+To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
+
+## Who uses Argo Rollouts?
+Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
+
+1. Intuit (https://www.intuit.com/)
