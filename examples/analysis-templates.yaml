@@ -1,0 +1,52 @@
+# This file contains AnalysisTemplates referenced by Rollouts and Experiments in the examples.
+# Please apply this file first, before running any of the examples.
+
+---
+# This AnalysisTemplate will run a Kubernetes Job every 5 seconds that succeeds.
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: pass
+spec:
+  metrics:
+  - name: pass
+    interval: 5
+    maxFailures: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sh, -c]
+                args: [exit 0]
+              restartPolicy: Never
+          backoffLimit: 0
+
+---
+# This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
+# When the number of accumulated failures exceeds maxFailures, it will cause the analysis run to
+# fail, and subsequently cause the rollout or experiment to abort.
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: random-fail
+spec:
+  metrics:
+  - name: random-fail
+    interval: 5
+    maxFailures: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sh, -c]
+                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
+              restartPolicy: Never
+          backoffLimit: 0

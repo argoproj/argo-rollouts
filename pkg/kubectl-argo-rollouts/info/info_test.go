@@ -75,3 +75,18 @@ func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 		},
 	})
 }
+
+func TestExperimentInfo(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisRollout()
+	expInfo := NewExperimentInfo(rolloutObjs.Experiments[0], rolloutObjs.ReplicaSets, rolloutObjs.AnalysisRuns, rolloutObjs.Pods)
+	assert.Equal(t, expInfo.Name, rolloutObjs.Experiments[0].Name)
+
+	assert.Equal(t, expInfo.Images(), []ImageInfo{
+		{
+			Image: "argoproj/rollouts-demo:blue",
+		},
+		{
+			Image: "argoproj/rollouts-demo:yellow",
+		},
+	})
+}

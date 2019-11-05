@@ -34,7 +34,7 @@ func stripTrailingWhitespace(s string) string {
 	return strings.Join(newLines, "\n")
 }
 
-func TestGetRolloutUsage(t *testing.T) {
+func TestGetUsage(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	cmd := NewCmdGet(o)
@@ -44,10 +44,30 @@ func TestGetRolloutUsage(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetRolloutUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestGetExperimentUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdGetExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.Error(t, err)
+}
+
 func TestRolloutNotFound(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
-	cmd := NewCmdGet(o)
+	cmd := NewCmdGetRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"does-not-exist"})
 	err := cmd.Execute()
@@ -61,7 +81,7 @@ func TestRolloutNotFound(t *testing.T) {
 func TestWatchRolloutNotFound(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
-	cmd := NewCmdGet(o)
+	cmd := NewCmdGetRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"does-not-exist", "-w"})
 	err := cmd.Execute()
@@ -78,7 +98,7 @@ func TestGetBlueGreenRollout(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
 	defer tf.Cleanup()
-	cmd := NewCmdGet(o)
+	cmd := NewCmdGetRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
 	err := cmd.Execute()
@@ -122,7 +142,7 @@ func TestGetCanaryRollout(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
 	defer tf.Cleanup()
-	cmd := NewCmdGet(o)
+	cmd := NewCmdGetRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
 	err := cmd.Execute()
@@ -169,7 +189,7 @@ func TestExperimentRollout(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
 	defer tf.Cleanup()
-	cmd := NewCmdGet(o)
+	cmd := NewCmdGetRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
 	err := cmd.Execute()
@@ -208,6 +228,35 @@ NAME                                                                           K
       ├──□ rollout-experiment-analysis-f6db98dff-8dmnz                         Pod          ✔ Running       7d   ready:1/1
       ├──□ rollout-experiment-analysis-f6db98dff-bb6v6                         Pod          ✔ Running       7d   ready:1/1
       └──□ rollout-experiment-analysis-f6db98dff-bq55x                         Pod          ✔ Running       7d   ready:1/1
+`, "\n")
+	assertStdout(t, expectedOut, o.IOStreams)
+}
+
+func TestGetExperiment(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Experiments[0].Name, "--no-color"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	expectedOut := strings.TrimPrefix(`
+Name:            rollout-experiment-analysis-6f646bf7b7-1-vcv27
+Namespace:       jesse-test
+Status:          ◌ Running
+Images:          argoproj/rollouts-demo:blue
+                 argoproj/rollouts-demo:yellow
+
+NAME                                                                     KIND        STATUS     AGE  INFO
+Σ rollout-experiment-analysis-6f646bf7b7-1-vcv27                         Experiment  ◌ Running  7d
+├──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f  ReplicaSet  ✔ Healthy  7d
+│  └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7dczdst  Pod         ✔ Running  7d   ready:1/1
+└──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699dcf5d     ReplicaSet  ✔ Healthy  7d
+   └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699vgr24  Pod         ✔ Running  7d   ready:1/1
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }

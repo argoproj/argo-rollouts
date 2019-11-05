@@ -53,6 +53,7 @@ func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo := PodInfo{
 		Metadata: Metadata{
 			Name:              pod.Name,
+			Namespace:         pod.Namespace,
 			CreationTimestamp: pod.CreationTimestamp,
 			UID:               pod.UID,
 		},

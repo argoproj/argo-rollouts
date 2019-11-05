@@ -2,8 +2,13 @@ package analysis
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	log "github.com/sirupsen/logrus"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
@@ -117,4 +122,39 @@ func IsSemanticallyEqual(left, right v1alpha1.AnalysisRunSpec) bool {
 		panic(err)
 	}
 	return string(leftBytes) == string(rightBytes)
+}
+
+// CreateWithCollisionCounter attempts to create the given analysisrun and if an AlreadyExists error
+// is encountered, and the existing run is semantically equal and running, returns the exiting run.
+func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
+	newControllerRef := metav1.GetControllerOf(&run)
+	if newControllerRef == nil {
+		return nil, errors.New("Supplied run does not have an owner reference")
+	}
+	collisionCount := 1
+	baseName := run.Name
+	for {
+		createdRun, err := analysisRunIf.Create(&run)
+		if err == nil {
+			return createdRun, nil
+		}
+		if !k8serrors.IsAlreadyExists(err) {
+			return nil, err
+		}
+		existingRun, err := analysisRunIf.Get(run.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		existingEqual := IsSemanticallyEqual(run.Spec, existingRun.Spec)
+		controllerRef := metav1.GetControllerOf(existingRun)
+		controllerUIDEqual := controllerRef != nil && controllerRef.UID == newControllerRef.UID
+		logCtx.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingRun.Name, existingRun.Status.Status, existingEqual, controllerUIDEqual)
+		if !existingRun.Status.Status.Completed() && existingEqual && controllerUIDEqual {
+			// If we get here, the existing run has been determined to be our analysis run and we
+			// likely reconciled the rollout with a stale cache (quite common).
+			return existingRun, nil
+		}
+		run.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		collisionCount++
+	}
 }

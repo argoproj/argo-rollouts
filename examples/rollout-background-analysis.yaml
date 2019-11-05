@@ -1,4 +1,8 @@
 # This example demonstrates a Rollout which performs background analysis while the Rollout is updating.
+#
+# Prerequisites:
+# * kubectl apply -f analysis-templates.yaml
+#
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -31,29 +35,3 @@ spec:
       steps:
       - setWeight: 25
       - pause: {}
-
----
-# This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
-# When the number of accumulated failures exceeds maxFailures, it will cause the analysis run to
-# fail, and subsequently cause the rollout to abort.
-kind: AnalysisTemplate
-apiVersion: argoproj.io/v1alpha1
-metadata:
-  name: random-fail
-spec:
-  metrics:
-  - name: random-fail
-    interval: 5
-    maxFailures: 1
-    provider:
-      job:
-        spec:
-          template:
-            spec:
-              containers:
-              - name: sleep
-                image: alpine:3.8
-                command: [sh, -c]
-                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
-              restartPolicy: Never
-          backoffLimit: 0

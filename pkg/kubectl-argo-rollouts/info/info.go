@@ -30,6 +30,7 @@ const (
 
 type Metadata struct {
 	Name              string
+	Namespace         string
 	UID               types.UID
 	CreationTimestamp metav1.Time
 }
