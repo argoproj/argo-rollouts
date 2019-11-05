@@ -158,6 +158,14 @@ func TestTerminate(t *testing.T) {
 	assert.Equal(t, previousMeasurement, measurement)
 }
 
+func TestGarbageCollect(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{}
+	p := NewPrometheusProvider(mock, *e)
+	err := p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
+	assert.NoError(t, err)
+}
+
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	p := Provider{}
 	metric := v1alpha1.Metric{

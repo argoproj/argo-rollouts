@@ -9,8 +9,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
@@ -39,6 +41,7 @@ func newTestJobProvider(objects ...runtime.Object) *JobProvider {
 func newRunWithJobMetric() *v1alpha1.AnalysisRun {
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
+			UID:       types.UID("dummyuid"),
 			Name:      "dummyrun",
 			Namespace: "dummynamespace",
 		},
@@ -60,11 +63,18 @@ func newRunWithJobMetric() *v1alpha1.AnalysisRun {
 	return &run
 }
 
-func newJob(jobType batchv1.JobConditionType) *batchv1.Job {
+func newJob(run *v1alpha1.AnalysisRun, jobType batchv1.JobConditionType) *batchv1.Job {
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "dummyrun-metric-abc123",
 			Namespace: "dummynamespace",
+			Annotations: map[string]string{
+				AnalysisRunNameAnnotationKey:   run.Name,
+				AnalysisRunMetricAnnotationKey: run.Spec.AnalysisSpec.Metrics[0].Name,
+			},
+			Labels: map[string]string{
+				AnalysisRunUIDLabelKey: string(run.UID),
+			},
 		},
 		Status: batchv1.JobStatus{},
 	}
@@ -103,19 +113,28 @@ func TestRun(t *testing.T) {
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Nil(t, measurement.FinishedAt)
 
-	// NOTE: fake clientsets don't generate names from generateName, so we don't check for the
-	// expected job name here, just the fact that we set something in measurement metadata.
-	_, ok := measurement.Metadata[JobNameKey]
-	assert.True(t, ok)
+	expectedName := fmt.Sprintf("%s.%s.1", run.UID, metric.Name)
+	assert.Equal(t, expectedName, measurement.Metadata[JobNameKey])
 
-	// Ensure the job was created with the right generateName in the right namespace with
+	// Ensure the job was created with the right name in the right namespace with
 	// right ownership reference and right label
 	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%s-%s-", run.Name, metric.Name), jobs.Items[0].GenerateName)
-	assert.Equal(t, run.Name, jobs.Items[0].ObjectMeta.Labels[AnalysisRunLabelKey])
+	assert.Equal(t, expectedName, jobs.Items[0].Name)
+	assert.Equal(t, string(run.UID), jobs.Items[0].ObjectMeta.Labels[AnalysisRunUIDLabelKey])
 	expectedOwnerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
 	assert.Equal(t, expectedOwnerRef, jobs.Items[0].ObjectMeta.OwnerReferences)
+
+	// do it again, this time it should bump up the run ID
+	run.Status.MetricResults = []v1alpha1.MetricResult{
+		{
+			Name:  metric.Name,
+			Count: 1,
+		},
+	}
+	measurement = p.Run(run, metric, nil)
+	expectedName = fmt.Sprintf("%s.%s.2", run.UID, metric.Name)
+	assert.Equal(t, expectedName, measurement.Metadata[JobNameKey])
 }
 
 func TestRunCreateFail(t *testing.T) {
@@ -135,10 +154,23 @@ func TestRunCreateFail(t *testing.T) {
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
-func TestResumeCompletedJob(t *testing.T) {
-	job := newJob(batchv1.JobComplete)
-	p := newTestJobProvider(job)
+func TestRunCreateCollision(t *testing.T) {
+	p := newTestJobProvider()
 	run := newRunWithJobMetric()
+
+	existingJob := newMetricJob(run, run.Spec.AnalysisSpec.Metrics[0])
+	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.Tracker().Add(existingJob)
+
+	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0], nil)
+	assert.Equal(t, v1alpha1.AnalysisStatusRunning, measurement.Status)
+	assert.Nil(t, measurement.FinishedAt)
+}
+
+func TestResumeCompletedJob(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, batchv1.JobComplete)
+	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
@@ -146,9 +178,9 @@ func TestResumeCompletedJob(t *testing.T) {
 }
 
 func TestResumeFailedJob(t *testing.T) {
-	job := newJob(batchv1.JobFailed)
-	p := newTestJobProvider(job)
 	run := newRunWithJobMetric()
+	job := newJob(run, batchv1.JobFailed)
+	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, v1alpha1.AnalysisStatusFailed, measurement.Status)
@@ -177,13 +209,14 @@ func TestResumeMeasurementNoMetadata(t *testing.T) {
 }
 
 func TestTerminateMeasurement(t *testing.T) {
-	job := newJob("")
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
 
 	providerWithJob := newTestJobProvider(job)
 	providerWithoutJob := newTestJobProvider()
 
 	for _, p := range []*JobProvider{providerWithJob, providerWithoutJob} {
-		run := newRunWithJobMetric()
+
 		measurement := newRunningMeasurement(job.Name)
 		measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
@@ -218,4 +251,38 @@ func TestTerminateMeasurementNoMetadata(t *testing.T) {
 	assert.Equal(t, "job metadata reference missing", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
 	assert.NotNil(t, measurement.FinishedAt)
+}
+
+func TestGarbageCollect(t *testing.T) {
+	run := newRunWithJobMetric()
+	run.Status.MetricResults = []v1alpha1.MetricResult{
+		{
+			Name: run.Spec.AnalysisSpec.Metrics[0].Name,
+		},
+	}
+	now := time.Now()
+	var objs []runtime.Object
+	for i := 0; i < 12; i++ {
+		job := newJob(run, batchv1.JobComplete)
+		job.Name = fmt.Sprintf("%s-%d", job.Name, i)
+		job.CreationTimestamp = metav1.NewTime(now.Add(time.Second * time.Duration(i)))
+		objs = append(objs, job)
+	}
+	p := newTestJobProvider(objs...)
+	err := p.GarbageCollect(run, run.Spec.AnalysisSpec.Metrics[0], 10)
+	assert.NoError(t, err)
+	allJobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, allJobs.Items, 10)
+	basename := newJob(run, "").Name
+
+	for i := 0; i < 12; i++ {
+		_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).Get(fmt.Sprintf("%s-%d", basename, i), metav1.GetOptions{})
+		if i < 2 {
+			// ensure we deleted the oldest
+			assert.True(t, k8serrors.IsNotFound(err))
+		} else {
+			assert.NoError(t, err)
+		}
+	}
 }

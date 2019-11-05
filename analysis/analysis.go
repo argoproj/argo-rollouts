@@ -77,7 +77,11 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		run.Status.Status = newStatus
 	}
 
-	trimMeasurementHistory(run, DefaultMeasurementHistoryLimit)
+	err := c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
+	if err != nil {
+		// TODO(jessesuen): surface errors to controller so they can be retried
+		log.Warnf("Failed to garbage collect measurements: %v", err)
+	}
 
 	nextReconcileTime := calculateNextReconcileTime(run)
 	if nextReconcileTime != nil {
@@ -400,13 +404,38 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 	return reconcileTime
 }
 
-// trimMeasurementHistory trims the measurement history to the specified limit
-func trimMeasurementHistory(run *v1alpha1.AnalysisRun, limit int) {
+// garbageCollectMeasurements trims the measurement history to the specified limit and GCs old measurements
+func (c *AnalysisController) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int) error {
+	var errors []error
+
+	metricsByName := make(map[string]v1alpha1.Metric)
+	for _, metric := range run.Spec.AnalysisSpec.Metrics {
+		metricsByName[metric.Name] = metric
+	}
+
 	for i, result := range run.Status.MetricResults {
 		length := len(result.Measurements)
 		if length > limit {
+			metric, ok := metricsByName[result.Name]
+			if !ok {
+				continue
+			}
+			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
+			provider, err := c.newProvider(*log, metric)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
+			err = provider.GarbageCollect(run, metric, limit)
+			if err != nil {
+				return err
+			}
 			result.Measurements = result.Measurements[length-limit : length]
 		}
 		run.Status.MetricResults[i] = result
 	}
+	if len(errors) > 0 {
+		return errors[0]
+	}
+	return nil
 }

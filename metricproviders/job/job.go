@@ -2,15 +2,19 @@ package job
 
 import (
 	"errors"
+	"fmt"
+	"sort"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 )
 
@@ -18,8 +22,13 @@ const (
 	ProviderType = "job"
 	// JobNameKey is the measurement's metadata key holding the job name associated with the measurement
 	JobNameKey = "job-name"
-	// AnalysisRunLabelKey is the job's label key where we label the name of the AnalysisRun associated to it
-	AnalysisRunLabelKey = "analysisrun.argoproj.io/name"
+	// AnalysisRunNameAnnotationKey is the job's annotation key containing the name of the controller AnalysisRun
+	AnalysisRunNameAnnotationKey = "analysisrun.argoproj.io/name"
+	// AnalysisRunMetricLabelKey is the job's annotation key containing the name of the associated AnalysisRun metric
+	AnalysisRunMetricAnnotationKey = "analysisrun.argoproj.io/metric-name"
+	// AnalysisRunUIDLabelKey is the job's label key containing the uid of the associated AnalysisRun
+	// Also used to filter the job informer
+	AnalysisRunUIDLabelKey = "analysisrun.argoproj.io/uid"
 )
 
 var (
@@ -44,27 +53,70 @@ func (p *JobProvider) Type() string {
 	return ProviderType
 }
 
+// newJobName returns a new job name for the run and metric. Names must be shortened so that it can
+// fit into a 63 character label, since the k8s job controller incorporates the job name into the
+// pod spec labels.
+func newJobName(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) string {
+	jobID := getJobIDSuffix(run, metric.Name)
+	return fmt.Sprintf("%s.%s.%d", run.UID, metric.Name, jobID)
+}
+
+// getJobIDSuffix returns a numeric id which will be used as part of the job name. This is equal
+// to the total number of measurements ever taken + 1.
+func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
+	res := analysisutil.GetResult(run, metricName)
+	if res == nil {
+		return 1
+	}
+	return int(res.Count + res.Error + 1)
+}
+
+func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) *batchv1.Job {
+	job := batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            newJobName(run, metric),
+			Namespace:       run.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)},
+			Annotations: map[string]string{
+				AnalysisRunNameAnnotationKey:   run.Name,
+				AnalysisRunMetricAnnotationKey: metric.Name,
+			},
+			Labels: map[string]string{
+				AnalysisRunUIDLabelKey: string(run.UID),
+			},
+		},
+		Spec: metric.Provider.Job.Spec,
+	}
+	return &job
+}
+
 func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) v1alpha1.Measurement {
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
 		Status:    v1alpha1.AnalysisStatusRunning,
 	}
-	job := batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    run.Name + "-" + metric.Name + "-",
-			Namespace:       run.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)},
-			Labels: map[string]string{
-				AnalysisRunLabelKey: run.Name,
-			},
-		},
-		Spec: metric.Provider.Job.Spec,
-	}
-	createdJob, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).Create(&job)
-	if err != nil {
-		p.logCtx.Errorf("job create (generateName: %s) failed: %v", job.ObjectMeta.GenerateName, err)
-		return metricutil.MarkMeasurementError(measurement, err)
+	job := newMetricJob(run, metric)
+	jobIf := p.kubeclientset.BatchV1().Jobs(run.Namespace)
+	createdJob, createErr := jobIf.Create(job)
+	if createErr != nil {
+		if !k8serrors.IsAlreadyExists(createErr) {
+			p.logCtx.Errorf("job create %s failed: %v", job.Name, createErr)
+			return metricutil.MarkMeasurementError(measurement, createErr)
+		}
+		existingJob, err := jobIf.Get(job.Name, metav1.GetOptions{})
+		if err != nil {
+			p.logCtx.Errorf("job create (verify) %s failed: %v", job.Name, createErr)
+			return metricutil.MarkMeasurementError(measurement, createErr)
+		}
+		controllerRef := metav1.GetControllerOf(existingJob)
+		if run.UID != controllerRef.UID {
+			// NOTE: we don't bother to check for semantic equality. UID is good enough
+			p.logCtx.Errorf("job create (uid check) %s failed: %v", job.Name, createErr)
+			return metricutil.MarkMeasurementError(measurement, createErr)
+		}
+		p.logCtx.Infof("duplicate job create detected %s", job.Name)
+		createdJob = existingJob
 	}
 	measurement.Metadata = map[string]string{
 		JobNameKey: createdJob.Name,
@@ -104,17 +156,14 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	// TODO(jessesuen): retry
-	foregroundDelete := metav1.DeletePropagationForeground
-	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &foregroundDelete}
-	err = p.kubeclientset.BatchV1().Jobs(run.Namespace).Delete(jobName, &deleteOpts)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	err = p.deleteJob(run.Namespace, jobName)
+	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	p.logCtx.Infof("job %s/%s terminated", run.Namespace, jobName)
 	now := metav1.Now()
 	measurement.FinishedAt = &now
 	measurement.Status = v1alpha1.AnalysisStatusSuccessful
+	p.logCtx.Infof("job %s/%s terminated", run.Namespace, jobName)
 	return measurement
 }
 
@@ -123,4 +172,42 @@ func getJobName(measurement v1alpha1.Measurement) (string, error) {
 		return measurement.Metadata[JobNameKey], nil
 	}
 	return "", errors.New("job metadata reference missing")
+}
+
+func (p *JobProvider) deleteJob(namespace, jobName string) error {
+	foregroundDelete := metav1.DeletePropagationForeground
+	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &foregroundDelete}
+
+	// TODO(jessesuen): retry
+	err := p.kubeclientset.BatchV1().Jobs(namespace).Delete(jobName, &deleteOpts)
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// GarbageCollect deletes an old jobs
+func (p *JobProvider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
+	set := labels.Set(map[string]string{
+		AnalysisRunUIDLabelKey: string(run.UID),
+	})
+	selector := labels.SelectorFromSet(set)
+	jobs, err := p.jobLister.List(selector)
+	if err != nil {
+		return err
+	}
+	sort.Slice(jobs[:], func(i, j int) bool {
+		return jobs[i].CreationTimestamp.Before(&jobs[j].CreationTimestamp)
+	})
+	totalJobs := len(jobs)
+	if totalJobs > limit {
+		for i := 0; i < totalJobs-limit; i++ {
+			err = p.deleteJob(run.Namespace, jobs[i].Name)
+			if err != nil {
+				return err
+			}
+			p.logCtx.Infof("job %s/%s garbage collected", run.Namespace, jobs[i].Name)
+		}
+	}
+	return nil
 }

@@ -79,6 +79,11 @@ func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 	return measurement
 }
 
+// GarbageCollect is a no-op for the prometheus provider
+func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
+	return nil
+}
+
 func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1alpha1.AnalysisStatus {
 	successCondition, err := evaluate.EvalCondition(result, metric.SuccessCondition)
 	if err != nil {

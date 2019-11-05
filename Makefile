@@ -90,7 +90,7 @@ coverage: test
 
 .PHONY: mocks
 mocks:
-	mockery -dir ./metricproviders -name Provider -output ./providers/mocks
+	mockery -dir ./metricproviders -name Provider -output ./metricproviders/mocks
 
 .PHONY: manifests
 manifests:

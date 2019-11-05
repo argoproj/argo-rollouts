@@ -83,7 +83,7 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
-					options.LabelSelector = jobprovider.AnalysisRunLabelKey
+					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
 			cm := controller.NewManager(kubeClient, rolloutClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
