@@ -39,7 +39,7 @@ func generateAnalysisTemplates(names ...string) []v1alpha1.AnalysisTemplate {
 func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, spec *v1alpha1.AnalysisTemplateSpec) *v1alpha1.AnalysisRun {
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    fmt.Sprintf("%s-%s-", ex.Name, name),
+			Name:            fmt.Sprintf("%s-%s", ex.Name, name),
 			Namespace:       ex.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
@@ -151,6 +151,34 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "intentional error")
 }
 
+// TestAnalysisRunCreateCollisionSemanticallyEqual verifies can claim an existing analysis run if it
+// is semantically equal.
+func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, nil)
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0], ar)
+	defer f.Close()
+
+	f.expectCreateAnalysisRunAction(ar) // fails do to AlreadyExists
+	f.expectGetAnalysisRunAction(ar)    // verifies it is semantically equal
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisStatusPending, patchedEx.Status.AnalysisRuns[0].Status)
+}
+
 func TestAnalysisRunSuccessful(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
@@ -164,7 +192,6 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar.Name = ar.GenerateName + "abc123"
 	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusSuccessful,
 	}
@@ -204,9 +231,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	rs := templateToRS(e, templates[0], 0)
 	rs.Spec.Replicas = new(int32)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar1.Name = ar1.GenerateName + "abc123"
 	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar2.Name = ar2.GenerateName + "abc123"
 
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		{
@@ -298,9 +323,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar1.Name = ar1.GenerateName + "abc123"
 	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar2.Name = ar2.GenerateName + "abc123"
 
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
@@ -386,7 +409,6 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	rs := templateToRS(e, templates[0], 0)
 	rs.Spec.Replicas = new(int32)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
-	ar.Name = ar.GenerateName + "abc123"
 	ar.Status = v1alpha1.AnalysisRunStatus{
 		Status: v1alpha1.AnalysisStatusRunning,
 	}

@@ -52,7 +52,6 @@ const (
 				"observedGeneration": ""
 			}
 	}`
-	MockGeneratedNameSuffix = "abc123"
 )
 
 type fixture struct {

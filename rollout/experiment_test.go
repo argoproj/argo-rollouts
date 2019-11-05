@@ -192,7 +192,6 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -317,7 +316,6 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 	extraExp := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -372,7 +370,6 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	now := metav1.Now()
 	ex.Status.AvailableAt = &now
-	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -502,7 +499,6 @@ func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Name = fmt.Sprintf("%s-%s", ex.GenerateName, MockGeneratedNameSuffix)
 	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
 	r2.Status.Canary.CurrentExperiment = ex.Name
 	exWithNoMatchingPodHash := ex.DeepCopy()

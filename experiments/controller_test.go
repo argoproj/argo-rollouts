@@ -517,6 +517,12 @@ func (f *fixture) expectCreateAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
 	return len
 }
 
+func (f *fixture) expectGetAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r.Name))
+	return len
+}
+
 func (f *fixture) expectPatchAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
 	len := len(f.actions)
 	f.actions = append(f.actions, core.NewPatchAction(schema.GroupVersionResource{Resource: "analysisruns"}, r.Namespace, r.Name, types.MergePatchType, nil))
