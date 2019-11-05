@@ -89,35 +89,6 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 	f.runExpectError(getKey(e, t), true)
 }
 
-func TestAdoptRS(t *testing.T) {
-	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
-	e.Status.Status = v1alpha1.AnalysisStatusPending
-
-	rs := templateToRS(e, templates[0], 0)
-	rs.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
-
-	f := newFixture(t, e, rs)
-	defer f.Close()
-
-	f.expectGetExperimentAction(e)
-	f.expectPatchReplicaSetAction(rs)
-	patchIndex := f.expectPatchExperimentAction(e)
-	f.run(getKey(e, t))
-
-	patch := f.getPatchedExperiment(patchIndex)
-	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
-	}
-	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
-
-	expectedPatch := calculatePatch(e, `{
-		"status":{
-		}
-	}`, templateStatus, cond)
-	assert.Equal(t, expectedPatch, patch)
-}
-
 func TestNameCollision(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
@@ -157,15 +128,15 @@ func TestNameCollision(t *testing.T) {
 	}
 }
 
-// TestNameCollisionWithEquivalentPodTemplateAndControllerUID verifies we consider the labels of the
-// replicaset when encountering name collisions
+// TestNameCollisionWithEquivalentPodTemplateAndControllerUID verifies we consider the annotations
+//  of the replicaset when encountering name collisions
 func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
 	e.Status.Status = v1alpha1.AnalysisStatusPending
 
 	rs := templateToRS(e, templates[0], 0)
-	rs.ObjectMeta.Labels[ExperimentTemplateNameLabelKey] = "something-different" // change this to something different
+	rs.ObjectMeta.Annotations[ExperimentTemplateNameAnnotationKey] = "something-different" // change this to something different
 
 	f := newFixture(t, e, rs)
 	defer f.Close()

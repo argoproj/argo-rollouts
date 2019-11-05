@@ -220,8 +220,10 @@ func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryC
 			return nil, err
 		}
 		existingEqual := experimentutil.IsSemanticallyEqual(newEx.Spec, existingEx.Spec)
-		roCtx.log.Infof("Encountered collision of existing experiment %s (status: %s, equal: %v)", existingEx.Name, existingEx.Status.Status, existingEqual)
-		if !existingEx.Status.Status.Completed() && existingEqual {
+		controllerRef := metav1.GetControllerOf(existingEx)
+		controllerUIDEqual := controllerRef != nil && controllerRef.UID == roCtx.Rollout().UID
+		roCtx.log.Infof("Encountered collision of existing experiment %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingEx.Name, existingEx.Status.Status, existingEqual, controllerUIDEqual)
+		if !existingEx.Status.Status.Completed() && existingEqual && controllerUIDEqual {
 			// If we get here, the existing experiment has been determined to be our experiment and
 			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil

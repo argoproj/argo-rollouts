@@ -233,7 +233,7 @@ func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, avail
 			Name:            fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, podHash),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
-			Labels:          newReplicaSetLabels(ex.Name, template.Name),
+			Annotations:     newReplicaSetAnnotations(ex.Name, template.Name),
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
 		Spec: appsv1.ReplicaSetSpec{
