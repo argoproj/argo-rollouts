@@ -1,8 +1,12 @@
 # This example demonstrates a Rollout which begins an an experiment at a specified step.
-# The rollout willl not proceed to the next step until the experiment is completed and successful.
+# The rollout will not proceed to the next step until the experiment is completed and successful.
 # In this example, the experiment itself starts its own AnalysisRun which is tied to the experiment.
 # This is useful for when analysis should be done only during the experimentation phase, but not
 # during the regular update of the rollout.
+#
+# Prerequisites:
+# * kubectl apply -f analysis-templates.yaml
+#
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -38,29 +42,3 @@ spec:
           analyses:
           - name: random-fail
             templateName: random-fail
-
----
-# This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
-# When the number of accumulated failures exceeds maxFailures, it will cause the analysis run to
-# fail, and subsequently cause the rollout to abort.
-kind: AnalysisTemplate
-apiVersion: argoproj.io/v1alpha1
-metadata:
-  name: random-fail
-spec:
-  metrics:
-  - name: random-fail
-    interval: 5
-    maxFailures: 1
-    provider:
-      job:
-        spec:
-          template:
-            spec:
-              containers:
-              - name: sleep
-                image: alpine:3.8
-                command: [sh, -c]
-                args: [FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP]
-              restartPolicy: Never
-          backoffLimit: 0

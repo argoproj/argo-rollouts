@@ -337,31 +337,16 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	newStatus.Message = run.Status.Message
 }
 
-// createAnalysisRun creates the analysis run. If an existing runs exists with same name, and is
-// semantically equal, returns the existing one, otherwise errors
+// createAnalysisRun creates the analysis run. If an existing runs exists with same name, is
+// semantically equal, and is not complete, returns the existing one, otherwise creates a new
+// run with a collision counter increase.
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	run, err := ec.newAnalysisRun(analysis, analysis.Arguments)
 	if err != nil {
 		return nil, err
 	}
-	newRun, createErr := analysisRunIf.Create(run)
-	if createErr != nil {
-		if !k8serrors.IsAlreadyExists(createErr) {
-			return nil, createErr
-		}
-		existingRun, err := analysisRunIf.Get(run.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		controllerRef := metav1.GetControllerOf(existingRun)
-		if ec.ex.UID == controllerRef.UID && analysisutil.IsSemanticallyEqual(run.Spec, existingRun.Spec) {
-			ec.log.Infof("Claimed existing analysisrun %s", existingRun.Name)
-			return existingRun, nil
-		}
-		return nil, createErr
-	}
-	return newRun, nil
+	return analysisutil.CreateWithCollisionCounter(ec.log, analysisRunIf, *run)
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {

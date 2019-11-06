@@ -145,35 +145,8 @@ func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnaly
 	if err != nil {
 		return nil, err
 	}
-	collisionCount := 1
-	baseName := ar.Name
-	for {
-		newAR, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Create(ar)
-		if err == nil {
-			ar = newAR
-			break
-		}
-		if !k8serrors.IsAlreadyExists(err) {
-			return nil, err
-		}
-		existingAR, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Get(ar.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		existingEqual := analysisutil.IsSemanticallyEqual(ar.Spec, existingAR.Spec)
-		controllerRef := metav1.GetControllerOf(existingAR)
-		controllerUIDEqual := controllerRef != nil && controllerRef.UID == roCtx.Rollout().UID
-		roCtx.log.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingAR.Name, existingAR.Status.Status, existingEqual, controllerUIDEqual)
-		if !existingAR.Status.Status.Completed() && existingEqual && controllerUIDEqual {
-			// If we get here, the existing AR has been determined to be our analysis run and we
-			// likely reconciled the rollout with a stale cache (quite common).
-			ar = existingAR
-			break
-		}
-		ar.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
-		collisionCount++
-	}
-	return ar, nil
+	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(roCtx.Rollout().Namespace)
+	return analysisutil.CreateWithCollisionCounter(roCtx.Log(), analysisRunIf, *ar)
 }
 
 func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) (*v1alpha1.AnalysisRun, error) {

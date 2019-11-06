@@ -22,9 +22,9 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 )
 
-// RolloutViewController is a mini controller which allows printing of live updates to rollouts
+// viewController is a mini controller which allows printing of live updates to rollouts
 // Allows subscribers to receive updates about
-type RolloutViewController struct {
+type viewController struct {
 	name      string
 	namespace string
 
@@ -39,18 +39,55 @@ type RolloutViewController struct {
 
 	cacheSyncs []cache.InformerSynced
 
-	workqueue       workqueue.RateLimitingInterface
-	callbacks       []RolloutInfoCallback
-	prevRolloutInfo info.RolloutInfo
+	workqueue workqueue.RateLimitingInterface
+	prevObj   interface{}
+	getObj    func() (interface{}, error)
+	callbacks []func(interface{})
+}
+
+type RolloutViewController struct {
+	*viewController
+}
+
+type ExperimentViewController struct {
+	*viewController
 }
 
 type RolloutInfoCallback func(*info.RolloutInfo)
 
-func NewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
+type ExperimentInfoCallback func(*info.ExperimentInfo)
+
+func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
+	vc := newViewController(namespace, name, kubeClient, rolloutClient)
+	vc.cacheSyncs = append(
+		vc.cacheSyncs,
+		vc.rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced,
+	)
+	rvc := RolloutViewController{
+		viewController: vc,
+	}
+	vc.getObj = func() (interface{}, error) {
+		return rvc.GetRolloutInfo()
+	}
+	return &rvc
+}
+
+func NewExperimentViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *ExperimentViewController {
+	vc := newViewController(namespace, name, kubeClient, rolloutClient)
+	evc := ExperimentViewController{
+		viewController: vc,
+	}
+	vc.getObj = func() (interface{}, error) {
+		return evc.GetExperimentInfo()
+	}
+	return &evc
+}
+
+func newViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *viewController {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, 0, kubeinformers.WithNamespace(namespace))
 	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(rolloutClient, 0, rolloutinformers.WithNamespace(namespace))
 
-	controller := RolloutViewController{
+	controller := viewController{
 		name:                    name,
 		namespace:               namespace,
 		kubeInformerFactory:     kubeInformerFactory,
@@ -66,7 +103,6 @@ func NewController(namespace string, name string, kubeClient kubernetes.Interfac
 	controller.cacheSyncs = append(controller.cacheSyncs,
 		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
 		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
-		rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced,
 		rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Informer().HasSynced,
 		rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Informer().HasSynced,
 	)
@@ -93,13 +129,13 @@ func NewController(namespace string, name string, kubeClient kubernetes.Interfac
 	return &controller
 }
 
-func (c *RolloutViewController) Start(ctx context.Context) {
+func (c *viewController) Start(ctx context.Context) {
 	c.kubeInformerFactory.Start(ctx.Done())
 	c.rolloutsInformerFactory.Start(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), c.cacheSyncs...)
 }
 
-func (c *RolloutViewController) Run(ctx context.Context) error {
+func (c *viewController) Run(ctx context.Context) error {
 	go wait.Until(func() {
 		for c.processNextWorkItem() {
 		}
@@ -108,23 +144,23 @@ func (c *RolloutViewController) Run(ctx context.Context) error {
 	return nil
 }
 
-func (c *RolloutViewController) processNextWorkItem() bool {
+func (c *viewController) processNextWorkItem() bool {
 	obj, shutdown := c.workqueue.Get()
 	if shutdown {
 		return false
 	}
 	defer c.workqueue.Done(obj)
 
-	newRolloutInfo, err := c.GetRolloutInfo()
+	newObj, err := c.getObj()
 	if err != nil {
 		log.Warn(err.Error())
 		return true
 	}
-	if !reflect.DeepEqual(c.prevRolloutInfo, *newRolloutInfo) {
+	if !reflect.DeepEqual(c.prevObj, newObj) {
 		for _, cb := range c.callbacks {
-			cb(newRolloutInfo)
+			cb(newObj)
 		}
-		c.prevRolloutInfo = *newRolloutInfo
+		c.prevObj = newObj
 	}
 	return true
 }
@@ -160,5 +196,36 @@ func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
 }
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
-	c.callbacks = append(c.callbacks, callback)
+	cb := func(i interface{}) {
+		callback(i.(*info.RolloutInfo))
+	}
+	c.callbacks = append(c.callbacks, cb)
+}
+
+func (c *ExperimentViewController) GetExperimentInfo() (*info.ExperimentInfo, error) {
+	exp, err := c.experimentLister.Get(c.name)
+	if err != nil {
+		return nil, err
+	}
+	allReplicaSets, err := c.replicaSetLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	allPods, err := c.podLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	allAnalysisRuns, err := c.analysisRunLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	expInfo := info.NewExperimentInfo(exp, allReplicaSets, allAnalysisRuns, allPods)
+	return expInfo, nil
+}
+
+func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
+	cb := func(i interface{}) {
+		callback(i.(*info.ExperimentInfo))
+	}
+	c.callbacks = append(c.callbacks, cb)
 }

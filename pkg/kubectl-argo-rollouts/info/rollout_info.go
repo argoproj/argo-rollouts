@@ -9,13 +9,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 type RolloutInfo struct {
 	Metadata
-	Namespace string
 
 	Status       string
 	Icon         string
@@ -46,10 +46,10 @@ func NewRolloutInfo(
 	roInfo := RolloutInfo{
 		Metadata: Metadata{
 			Name:              ro.Name,
+			Namespace:         ro.Namespace,
 			UID:               ro.UID,
 			CreationTimestamp: ro.CreationTimestamp,
 		},
-		Namespace: ro.Namespace,
 	}
 	roInfo.ReplicaSets = getReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
 	roInfo.Experiments = getExperimentInfo(ro, allExperiments, allReplicaSets, allARs, allPods)
@@ -94,7 +94,8 @@ func RolloutStatusString(ro *v1alpha1.Rollout) string {
 		if cond.Type == v1alpha1.InvalidSpec {
 			return string(cond.Type)
 		}
-		if cond.Type == v1alpha1.RolloutProgressing && cond.Reason == "ProgressDeadlineExceeded" {
+		switch cond.Reason {
+		case conditions.RolloutAbortedReason, conditions.TimedOutReason:
 			return "Degraded"
 		}
 	}

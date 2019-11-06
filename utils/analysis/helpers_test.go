@@ -1,12 +1,16 @@
 package analysis
 
 import (
+	"errors"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -218,4 +222,86 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	assert.True(t, IsSemanticallyEqual(*left, *right))
 	right.AnalysisSpec.Metrics[0].Name = "foo"
 	assert.False(t, IsSemanticallyEqual(*left, *right))
+}
+
+func TestCreateWithCollisionCounterNoControlller(t *testing.T) {
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+	client := fake.NewSimpleClientset(&run)
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	logCtx := log.NewEntry(log.New())
+	_, err := CreateWithCollisionCounter(logCtx, runIf, run)
+	assert.EqualError(t, err, "Supplied run does not have an owner reference")
+}
+
+func TestCreateWithCollisionCounterError(t *testing.T) {
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID:        types.UID("fake-uid"),
+					Controller: pointer.BoolPtr(true),
+				},
+			},
+		},
+	}
+	client := fake.NewSimpleClientset(&run)
+	client.PrependReactor("create", "analysisruns", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("intentional error")
+	})
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	logCtx := log.NewEntry(log.New())
+	_, err := CreateWithCollisionCounter(logCtx, runIf, run)
+	assert.EqualError(t, err, "intentional error")
+}
+
+func TestCreateWithCollisionCounterStillRunning(t *testing.T) {
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID:        types.UID("fake-uid"),
+					Controller: pointer.BoolPtr(true),
+				},
+			},
+		},
+	}
+	client := fake.NewSimpleClientset(&run)
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	logCtx := log.NewEntry(log.New())
+	createdRun, err := CreateWithCollisionCounter(logCtx, runIf, run)
+	assert.NoError(t, err)
+	assert.Equal(t, run.Name, createdRun.Name)
+}
+
+func TestCreateWithCollisionCounter(t *testing.T) {
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID:        types.UID("fake-uid"),
+					Controller: pointer.BoolPtr(true),
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Status: v1alpha1.AnalysisStatusFailed,
+		},
+	}
+	client := fake.NewSimpleClientset(&run)
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	logCtx := log.NewEntry(log.New())
+	createdRun, err := CreateWithCollisionCounter(logCtx, runIf, run)
+	assert.NoError(t, err)
+	assert.Equal(t, run.Name+".1", createdRun.Name)
 }

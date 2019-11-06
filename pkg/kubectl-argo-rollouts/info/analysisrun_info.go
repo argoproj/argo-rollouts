@@ -28,6 +28,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 		arInfo := AnalysisRunInfo{
 			Metadata: Metadata{
 				Name:              run.Name,
+				Namespace:         run.Namespace,
 				CreationTimestamp: run.CreationTimestamp,
 				UID:               run.UID,
 			},

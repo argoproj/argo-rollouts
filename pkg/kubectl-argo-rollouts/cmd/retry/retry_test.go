@@ -26,10 +26,40 @@ func TestRetryCmdUsage(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
 	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "retry ROLLOUT")
+	assert.Contains(t, stderr, "retry <rolllout|experiment> RESOURCE")
 }
 
-func TestRetryCmd(t *testing.T) {
+func TestRetryRolloutCmdUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdRetryRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.Error(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "Usage:")
+	assert.Contains(t, stderr, "rollout ROLLOUT")
+}
+
+func TestRetryExperimentCmdUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdRetryExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.Error(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "Usage:")
+	assert.Contains(t, stderr, "experiment EXPERIMENT")
+}
+
+func TestRetryRolloutCmd(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
@@ -39,34 +69,34 @@ func TestRetryCmd(t *testing.T) {
 
 	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
 	defer tf.Cleanup()
+	retried := false
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.ReactionChain = nil
-	fakeClient.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == retryPatch {
-				ro.Status.Abort = true
+			if string(patchAction.GetPatch()) == retryRolloutPatch {
+				retried = true
 			}
 		}
 		return true, &ro, nil
 	})
 
-	cmd := NewCmdRetry(o)
+	cmd := NewCmdRetryRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "-n", "test"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
-	assert.True(t, ro.Status.Abort)
+	assert.True(t, retried)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, stdout, "rollout 'guestbook' retried\n")
 	assert.Empty(t, stderr)
 }
 
-func TestRetryCmdError(t *testing.T) {
+func TestRetryRolloutCmdError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
 	defer tf.Cleanup()
-	cmd := NewCmdRetry(o)
+	cmd := NewCmdRetryRollout(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
 	err := cmd.Execute()
@@ -75,4 +105,52 @@ func TestRetryCmdError(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
 	assert.Equal(t, "Error: rollouts.argoproj.io \"doesnotexist\" not found\n", stderr)
+}
+
+func TestRetryExperimentCmd(t *testing.T) {
+	ro := v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: "test",
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	retried := false
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			if string(patchAction.GetPatch()) == retryExperimentPatch {
+				retried = true
+			}
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdRetryExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "-n", "test"})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+
+	assert.True(t, retried)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "experiment 'guestbook' retried\n")
+	assert.Empty(t, stderr)
+}
+
+func TestRetryExperimentCmdError(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
+	defer tf.Cleanup()
+	cmd := NewCmdRetryExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
+	err := cmd.Execute()
+	assert.Error(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: experiments.argoproj.io \"doesnotexist\" not found\n", stderr)
 }

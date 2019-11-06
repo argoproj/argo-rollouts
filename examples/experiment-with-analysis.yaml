@@ -1,0 +1,43 @@
+# This example demonstrates an experiment which starts two ReplicaSets with different images, and
+# additionally starts an AnalysisRun in the background
+#
+# Prerequisites:
+# * kubectl apply -f analysis-templates.yaml
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-analysis
+spec:
+  templates:
+  - name: purple
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:purple
+          imagePullPolicy: Always
+  - name: orange
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:orange
+          imagePullPolicy: Always
+  analyses:
+  - name: random-fail
+    templateName: random-fail
+  - name: pass
+    templateName: pass

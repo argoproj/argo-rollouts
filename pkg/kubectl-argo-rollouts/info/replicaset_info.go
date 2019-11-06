@@ -35,6 +35,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		rsInfo := ReplicaSetInfo{
 			Metadata: Metadata{
 				Name:              rs.Name,
+				Namespace:         rs.Namespace,
 				CreationTimestamp: rs.CreationTimestamp,
 				UID:               rs.UID,
 			},
