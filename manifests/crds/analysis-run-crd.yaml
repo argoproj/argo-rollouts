@@ -3,6 +3,11 @@ kind: CustomResourceDefinition
 metadata:
   name: analysisruns.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: AnalysisRun status
+    name: Status
+    type: string
   group: argoproj.io
   names:
     kind: AnalysisRun
@@ -10,6 +15,7 @@ spec:
     plural: analysisruns
     singular: analysisrun
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -2525,10 +2531,6 @@ spec:
                 - name
                 - value
                 type: object
-              type: array
-            replicaSets:
-              items:
-                type: string
               type: array
             terminate:
               type: boolean

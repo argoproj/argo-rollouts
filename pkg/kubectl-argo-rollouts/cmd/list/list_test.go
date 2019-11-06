@@ -77,10 +77,10 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 	}
 }
 
-func TestListNoResources(t *testing.T) {
+func TestListRolloutsNoResources(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
-	cmd := NewCmdList(o)
+	cmd := NewCmdListRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
@@ -96,7 +96,7 @@ func TestListCanaryRollout(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(ro)
 	o.RESTClientGetter = tf.WithNamespace("test")
 	defer tf.Cleanup()
-	cmd := NewCmdList(o)
+	cmd := NewCmdListRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
@@ -116,7 +116,7 @@ func TestListBlueGreenResource(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(ro)
 	o.RESTClientGetter = tf.WithNamespace("test")
 	defer tf.Cleanup()
-	cmd := NewCmdList(o)
+	cmd := NewCmdListRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
@@ -136,7 +136,7 @@ func TestListNamespaceAndTimestamp(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(ro)
 	o.RESTClientGetter = tf.WithNamespace("test")
 	defer tf.Cleanup()
-	cmd := NewCmdList(o)
+	cmd := NewCmdListRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"--all-namespaces", "--timestamps"})
 
@@ -165,7 +165,7 @@ func TestListWithWatch(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(can1, bg)
 	o.RESTClientGetter = tf.WithNamespace("test")
 	defer tf.Cleanup()
-	cmd := NewCmdList(o)
+	cmd := NewCmdListRollouts(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
@@ -203,4 +203,62 @@ can-guestbook  Canary     Progressing   1/3   10          1/4    5        3     
 	assert.Equal(t, expectedOut, stdout)
 
 	assert.Contains(t, stderr, "intentional error")
+}
+
+func newExperiment() *v1alpha1.Experiment {
+	aWeekAgo := metav1.NewTime(time.Now().Add(-7 * 24 * time.Hour).Truncate(time.Second))
+	anHourAgo := metav1.NewTime(time.Now().Add(-1 * time.Hour).Truncate(time.Second))
+	return &v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "my-experiment",
+			Namespace:         "test",
+			CreationTimestamp: aWeekAgo,
+		},
+		Spec: v1alpha1.ExperimentSpec{
+			Duration: pointer.Int32Ptr(10800),
+		},
+		Status: v1alpha1.ExperimentStatus{
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+			AvailableAt: &anHourAgo,
+		},
+	}
+}
+
+func TestListExperimentsNoResources(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdListExperiments(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "No resources found.\n", stderr)
+}
+
+func TestListExperiments(t *testing.T) {
+	exp1 := newExperiment()
+	exp2 := newExperiment()
+	exp2.Name = "my-experiment2"
+	exp2.Namespace = "my-other-namespace"
+	exp2.Spec.Duration = nil
+	tf, o := options.NewFakeArgoRolloutsOptions(exp1, exp2)
+	o.RESTClientGetter = tf.WithNamespace("test")
+	defer tf.Cleanup()
+	cmd := NewCmdListExperiments(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--all-namespaces"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	expectedOut := strings.TrimPrefix(`
+NAMESPACE           NAME            STATUS   DURATION  REMAINING  AGE
+test                my-experiment   Running  3h        119m       7d 
+my-other-namespace  my-experiment2  Running  -         -          7d 
+`, "\n")
+	assert.Equal(t, expectedOut, stdout)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -31,8 +32,8 @@ type rolloutInfo struct {
 	available    int32
 }
 
-// rolloutInfoKey is used as a map key to get a rolloutInfo by namespace/name
-type rolloutInfoKey struct {
+// infoKey is used as a map key to get an object by namespace/name
+type infoKey struct {
 	ns string
 	n  string
 }
@@ -62,7 +63,7 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		ri.strategy = "BlueGreen"
 	}
-	ri.status = rolloutStatus(&ro)
+	ri.status = info.RolloutStatusString(&ro)
 
 	ri.desired = 1
 	if ro.Spec.Replicas != nil {
@@ -74,8 +75,8 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 	return ri
 }
 
-func (ri *rolloutInfo) key() rolloutInfoKey {
-	return rolloutInfoKey{
+func (ri *rolloutInfo) key() infoKey {
+	return infoKey{
 		ns: ri.namespace,
 		n:  ri.name,
 	}
@@ -94,45 +95,4 @@ func (ri *rolloutInfo) String(timestamp, namespace bool) string {
 		args = append([]interface{}{timestampStr}, args...)
 	}
 	return fmt.Sprintf(fmtString, args...)
-}
-
-// rolloutStatus returns a status string to print in the STATUS column
-func rolloutStatus(ro *v1alpha1.Rollout) string {
-	for _, condition := range ro.Status.Conditions {
-		if condition.Type == v1alpha1.InvalidSpec {
-			return string(condition.Type)
-		}
-		if condition.Type == v1alpha1.RolloutProgressing && condition.Reason == "ProgressDeadlineExceeded" {
-			return "Degraded"
-		}
-	}
-	if ro.Spec.Paused {
-		return "Paused"
-	}
-	if ro.Status.UpdatedReplicas < ro.Status.Replicas {
-		// more replicas need to be updated
-		return "Progressing"
-	}
-	if ro.Status.Replicas > ro.Status.UpdatedReplicas {
-		// old replicas are pending termination
-		return "Progressing"
-	}
-	if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
-		// updated replicas are still becoming available
-		return "Progressing"
-	}
-	if ro.Spec.Strategy.BlueGreen != nil {
-		if ro.Status.BlueGreen.ActiveSelector != "" && ro.Status.BlueGreen.ActiveSelector == ro.Status.CurrentPodHash {
-			return "Healthy"
-		}
-		// service cutover pending
-		return "Progressing"
-	} else if ro.Spec.Strategy.Canary != nil {
-		if ro.Status.Canary.StableRS != "" && ro.Status.Canary.StableRS == ro.Status.CurrentPodHash {
-			return "Healthy"
-		}
-		// Waiting for rollout to finish steps
-		return "Progressing"
-	}
-	return "Unknown"
 }

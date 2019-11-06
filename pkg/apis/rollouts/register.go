@@ -19,17 +19,15 @@ package rollouts
 const (
 	Group string = "argoproj.io"
 
-	RolloutKind      string = "Rollout"
-	RolloutSingular  string = "rollout"
-	RolloutPlural    string = "rollouts"
-	RolloutShortName string = "ro"
-	RolloutFullName  string = RolloutPlural + "." + Group
+	RolloutKind     string = "Rollout"
+	RolloutSingular string = "rollout"
+	RolloutPlural   string = "rollouts"
+	RolloutFullName string = RolloutPlural + "." + Group
 
-	ExperimentKind      string = "Experiment"
-	ExperimentSingular  string = "experiment"
-	ExperimentPlural    string = "experiments"
-	ExperimentShortName string = "ex"
-	ExperimentFullName  string = ExperimentPlural + "." + Group
+	ExperimentKind     string = "Experiment"
+	ExperimentSingular string = "experiment"
+	ExperimentPlural   string = "experiments"
+	ExperimentFullName string = ExperimentPlural + "." + Group
 
 	AnalysisTemplateKind     string = "AnalysisTemplate"
 	AnalysisTemplateSingular string = "analysistemplate"
