@@ -117,11 +117,6 @@ func (in *AnalysisRunSpec) DeepCopyInto(out *AnalysisRunSpec) {
 		*out = make([]Argument, len(*in))
 		copy(*out, *in)
 	}
-	if in.ReplicaSets != nil {
-		in, out := &in.ReplicaSets, &out.ReplicaSets
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 

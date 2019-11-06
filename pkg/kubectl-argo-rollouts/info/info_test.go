@@ -6,9 +6,69 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 )
+
+func newCanaryRollout() *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "can-guestbook",
+			Namespace: "test",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: pointer.Int32Ptr(5),
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: pointer.Int32Ptr(10),
+						},
+						{
+							Pause: &v1alpha1.RolloutPause{
+								Duration: pointer.Int32Ptr(60),
+							},
+						},
+						{
+							SetWeight: pointer.Int32Ptr(20),
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex:  pointer.Int32Ptr(1),
+			Replicas:          4,
+			ReadyReplicas:     1,
+			UpdatedReplicas:   3,
+			AvailableReplicas: 2,
+		},
+	}
+}
+
+func newBlueGreenRollout() *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bg-guestbook",
+			Namespace: "test",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: pointer.Int32Ptr(5),
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex:  pointer.Int32Ptr(1),
+			Replicas:          4,
+			ReadyReplicas:     1,
+			UpdatedReplicas:   3,
+			AvailableReplicas: 2,
+		},
+	}
+}
 
 func TestAge(t *testing.T) {
 	m := Metadata{
@@ -89,4 +149,103 @@ func TestExperimentInfo(t *testing.T) {
 			Image: "argoproj/rollouts-demo:yellow",
 		},
 	})
+}
+
+func TestRolloutStatusDegraded(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
+		Type:   v1alpha1.RolloutProgressing,
+		Reason: "ProgressDeadlineExceeded",
+	})
+	assert.Equal(t, "Degraded", RolloutStatusString(ro))
+}
+
+func TestRolloutStatusInvalidSpec(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
+		Type: v1alpha1.InvalidSpec,
+	})
+	assert.Equal(t, string(v1alpha1.InvalidSpec), RolloutStatusString(ro))
+}
+
+func TestRolloutStatusPaused(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Spec.Paused = true
+	assert.Equal(t, "Paused", RolloutStatusString(ro))
+}
+
+func TestRolloutStatusProgressing(t *testing.T) {
+	{
+		ro := newCanaryRollout()
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.UpdatedReplicas = 1
+		ro.Status.Replicas = 2
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.UpdatedReplicas = 2
+		ro.Status.Replicas = 1
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.AvailableReplicas = 1
+		ro.Status.UpdatedReplicas = 2
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.AvailableReplicas = 1
+		ro.Status.UpdatedReplicas = 2
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.Canary.StableRS = ""
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.Canary.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "def5678"
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.BlueGreen.ActiveSelector = ""
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
+		ro.Status.BlueGreen.ActiveSelector = "abc1234"
+		ro.Status.CurrentPodHash = "def5678"
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+}
+
+func TestRolloutStatusHealthy(t *testing.T) {
+	{
+		ro := newCanaryRollout()
+		ro.Status.Replicas = 1
+		ro.Status.UpdatedReplicas = 1
+		ro.Status.AvailableReplicas = 1
+		ro.Status.ReadyReplicas = 1
+		ro.Status.Canary.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "abc1234"
+		assert.Equal(t, "Healthy", RolloutStatusString(ro))
+	}
+	{
+		ro := newBlueGreenRollout()
+		ro.Status.Replicas = 1
+		ro.Status.UpdatedReplicas = 1
+		ro.Status.AvailableReplicas = 1
+		ro.Status.ReadyReplicas = 1
+		ro.Status.BlueGreen.ActiveSelector = "abc1234"
+		ro.Status.CurrentPodHash = "abc1234"
+		assert.Equal(t, "Healthy", RolloutStatusString(ro))
+	}
 }

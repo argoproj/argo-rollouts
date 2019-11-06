@@ -3,13 +3,21 @@ kind: CustomResourceDefinition
 metadata:
   name: experiments.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: Experiment status
+    name: Status
+    type: string
   group: argoproj.io
   names:
     kind: Experiment
     listKind: ExperimentList
     plural: experiments
+    shortNames:
+    - exp
     singular: experiment
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       properties:

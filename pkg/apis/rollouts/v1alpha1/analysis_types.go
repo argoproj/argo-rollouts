@@ -130,6 +130,8 @@ type JobMetric struct {
 // AnalysisRun is an instantiation of an AnalysisTemplate
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=analysisruns
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="AnalysisRun status"
 type AnalysisRun struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -151,8 +153,6 @@ type AnalysisRunSpec struct {
 	AnalysisSpec AnalysisTemplateSpec `json:"analysisSpec"`
 	// Arguments hold the arguments to the run to be used by metric providers
 	Arguments []Argument `json:"arguments,omitempty"`
-	// ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis
-	ReplicaSets []string `json:"replicaSets,omitempty"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
 }

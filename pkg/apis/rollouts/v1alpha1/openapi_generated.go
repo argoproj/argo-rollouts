@@ -224,20 +224,6 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 							},
 						},
 					},
-					"replicaSets": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaSets identifies the ReplicaSets in which to monitor to decide when to begin analysis",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
 					"terminate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)",
