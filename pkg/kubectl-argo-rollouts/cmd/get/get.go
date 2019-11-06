@@ -9,24 +9,32 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
 var (
 	colorMapping = map[string]int{
+		// Colors for icons
 		info.IconWaiting:     FgYellow,
-		info.IconProgressing: FgBlue,
+		info.IconProgressing: FgHiBlue,
 		info.IconWarning:     FgRed,
 		info.IconUnknown:     FgYellow,
 		info.IconOK:          FgGreen,
 		info.IconBad:         FgRed,
-		info.IconPaused:      FgWhite,
+		//info.IconPaused:      FgWhite,
 		//info.IconNeutral:     FgWhite, // (foreground is better than white)
+
+		// Colors for canary/stable/preview tags
 		info.InfoTagCanary:  FgYellow,
 		info.InfoTagStable:  FgGreen,
 		info.InfoTagActive:  FgGreen,
-		info.InfoTagPreview: FgBlue,
+		info.InfoTagPreview: FgHiBlue,
+
+		// Colors for highlighting experiment/analysisruns
+		string(v1alpha1.AnalysisStatusPending): FgHiBlue,
+		string(v1alpha1.AnalysisStatusRunning): FgHiBlue,
 	}
 )
 
@@ -54,6 +62,7 @@ const (
 	FgCyan    = 36
 	FgWhite   = 37
 	FgDefault = 39
+	FgHiBlue  = 94
 )
 
 type GetOptions struct {
@@ -72,7 +81,7 @@ func NewCmdGet(o *options.ArgoRolloutsOptions) *cobra.Command {
   # Get a rollout
   %[1]s get rollout ROLLOUT
   # Get an experiment
-  %[1]s get experiment ROLLOUT
+  %[1]s get experiment EXPERIMENT
 `),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -107,6 +116,15 @@ func (o *GetOptions) colorize(s string) string {
 	return o.ansiFormat(s, color)
 }
 
+// colorizeStatus adds ansii color codes to the string based on supplied status string
+func (o *GetOptions) colorizeStatus(s string, status string) string {
+	if o.noColor {
+		return s
+	}
+	color := colorMapping[status]
+	return o.ansiFormat(s, color)
+}
+
 // ansiFormat wraps ANSI escape codes to a string to format the string to a desired color.
 // NOTE: we still apply formatting even if there is no color formatting desired.
 // The purpose of doing this is because when we apply ANSI color escape sequences to our
@@ -124,4 +142,18 @@ func (o *GetOptions) ansiFormat(s string, codes ...int) string {
 	}
 	sequence := strings.Join(codeStrs, ";")
 	return fmt.Sprintf("%s[%sm%s%s[%dm", escape, sequence, s, escape, noFormat)
+}
+
+// returns an appropriate tree prefix characters depending on whether or not the element is the
+// last element of a list
+func getPrefixes(isLast bool, subPrefix string) (string, string) {
+	var childPrefix, childSubpfx string
+	if !isLast {
+		childPrefix = subPrefix + "├──"
+		childSubpfx = subPrefix + "│  "
+	} else {
+		childPrefix = subPrefix + "└──"
+		childSubpfx = subPrefix + "   "
+	}
+	return childPrefix, childSubpfx
 }

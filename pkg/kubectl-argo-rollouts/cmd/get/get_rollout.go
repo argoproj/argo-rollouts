@@ -10,7 +10,6 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -135,14 +134,7 @@ func (o *GetOptions) PrintRolloutTree(roInfo *info.RolloutInfo) {
 	revisions := roInfo.Revisions()
 	for i, rev := range revisions {
 		isLast := i == len(revisions)-1
-		var prefix, subpfx string
-		if !isLast {
-			prefix = "├──"
-			subpfx = "│  "
-		} else {
-			prefix = "└──"
-			subpfx = "   "
-		}
+		prefix, subpfx := getPrefixes(isLast, "")
 		o.PrintRevision(w, roInfo, rev, prefix, subpfx)
 	}
 	_ = w.Flush()
@@ -157,31 +149,20 @@ func (o *GetOptions) PrintRevision(w io.Writer, roInfo *info.RolloutInfo, revisi
 	total := len(replicaSets) + len(experiments) + len(analysisRuns)
 	curr := 0
 
-	getPrefixes := func() (string, string) {
-		isLast := curr == total-1
-		curr++
-		var childPrefix, childSubpfx string
-		if !isLast {
-			childPrefix = subpfx + "├──"
-			childSubpfx = subpfx + "│  "
-		} else {
-			childPrefix = subpfx + "└──"
-			childSubpfx = subpfx + "   "
-		}
-		return childPrefix, childSubpfx
-	}
-
 	for _, rsInfo := range replicaSets {
-		childPrefix, childSubpfx := getPrefixes()
+		childPrefix, childSubpfx := getPrefixes(curr == total-1, subpfx)
 		o.PrintReplicaSetInfo(w, rsInfo, childPrefix, childSubpfx)
+		curr++
 	}
 	for _, expInfo := range experiments {
-		childPrefix, childSubpfx := getPrefixes()
+		childPrefix, childSubpfx := getPrefixes(curr == total-1, subpfx)
 		o.PrintExperimentInfo(w, expInfo, childPrefix, childSubpfx)
+		curr++
 	}
 	for _, arInfo := range analysisRuns {
-		childPrefix, childSubpfx := getPrefixes()
+		childPrefix, childSubpfx := getPrefixes(curr == total-1, subpfx)
 		o.PrintAnalysisRunInfo(w, arInfo, childPrefix, childSubpfx)
+		curr++
 	}
 }
 
@@ -190,27 +171,22 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 	name := rsInfo.Name
 	if rsInfo.Stable {
 		infoCols = append(infoCols, o.colorize(info.InfoTagStable))
-		name = o.ansiFormat(name, FgGreen)
+		name = o.colorizeStatus(name, info.InfoTagStable)
 	} else if rsInfo.Canary {
 		infoCols = append(infoCols, o.colorize(info.InfoTagCanary))
-		name = o.ansiFormat(name, FgYellow)
+		name = o.colorizeStatus(name, info.InfoTagCanary)
 	} else if rsInfo.Active {
 		infoCols = append(infoCols, o.colorize(info.InfoTagActive))
-		name = o.ansiFormat(name, FgGreen)
+		name = o.colorizeStatus(name, info.InfoTagActive)
 	} else if rsInfo.Preview {
 		infoCols = append(infoCols, o.colorize(info.InfoTagPreview))
-		name = o.ansiFormat(name, FgBlue)
+		name = o.colorizeStatus(name, info.InfoTagPreview)
 	}
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, rsInfo.Age(), strings.Join(infoCols, ","))
 	for i, podInfo := range rsInfo.Pods {
 		fmt.Fprintf(w, subpfx)
 		isLast := i == len(rsInfo.Pods)-1
-		var podPrefix string
-		if !isLast {
-			podPrefix = "├──"
-		} else {
-			podPrefix = "└──"
-		}
+		podPrefix, _ := getPrefixes(isLast, "")
 		podInfoCol := []string{fmt.Sprintf("ready:%s", podInfo.Ready)}
 		if podInfo.Restarts > 0 {
 			podInfoCol = append(podInfoCol, fmt.Sprintf("restarts:%d", podInfo.Restarts))
@@ -220,11 +196,7 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 }
 
 func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunInfo, prefix string, subpfx string) {
-	name := arInfo.Name
-	switch arInfo.Status {
-	case string(v1alpha1.AnalysisStatusRunning), string(v1alpha1.AnalysisStatusPending):
-		name = o.ansiFormat(name, FgBlue)
-	}
+	name := o.colorizeStatus(arInfo.Name, arInfo.Status)
 	infoCols := []string{}
 	if arInfo.Successful > 0 {
 		infoCols = append(infoCols, fmt.Sprintf("%s %d", o.colorize(info.IconOK), arInfo.Successful))

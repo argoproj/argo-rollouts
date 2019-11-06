@@ -21,7 +21,7 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Short: "Retry a rollout or experiment",
 		Example: o.Example(`
   # Retry an aborted rollout
-  %[1]s get rollout ROLLOUT
+  %[1]s retry rollout ROLLOUT
   # Retry a failed experiment
   %[1]s retry experiment EXPERIMENT
 `),

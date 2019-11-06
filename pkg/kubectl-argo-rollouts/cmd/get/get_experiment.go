@@ -113,38 +113,21 @@ func (o *GetOptions) PrintExperimentTree(exInfo *info.ExperimentInfo) {
 }
 
 func (o *GetOptions) PrintExperimentInfo(w io.Writer, expInfo info.ExperimentInfo, prefix string, subpfx string) {
-	name := expInfo.Name
+	name := o.colorizeStatus(expInfo.Name, expInfo.Status)
 	infoCols := []string{}
 	total := len(expInfo.ReplicaSets) + len(expInfo.AnalysisRuns)
 	curr := 0
-	if expInfo.Status == "Running" {
-		name = o.ansiFormat(name, FgBlue)
-	}
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconExperiment, name, "Experiment", o.colorize(expInfo.Icon), expInfo.Status, expInfo.Age(), strings.Join(infoCols, ","))
 
 	for _, rsInfo := range expInfo.ReplicaSets {
-		isLast := curr == total-1
-		curr++
-		var childPrefix, childSubpfx string
-		if !isLast {
-			childPrefix = subpfx + "├──"
-			childSubpfx = subpfx + "│  "
-		} else {
-			childPrefix = subpfx + "└──"
-			childSubpfx = subpfx + "   "
-		}
+		childPrefix, childSubpfx := getPrefixes(curr == total-1, subpfx)
 		o.PrintReplicaSetInfo(w, rsInfo, childPrefix, childSubpfx)
+		curr++
 	}
 	for _, arInfo := range expInfo.AnalysisRuns {
 		fmt.Fprintf(w, subpfx)
-		isLast := curr == total-1
-		curr++
-		var arPrefix string
-		if !isLast {
-			arPrefix = "├──"
-		} else {
-			arPrefix = "└──"
-		}
+		arPrefix, _ := getPrefixes(curr == total-1, "")
 		o.PrintAnalysisRunInfo(w, arInfo, arPrefix, "")
+		curr++
 	}
 }
