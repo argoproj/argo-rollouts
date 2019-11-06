@@ -85,16 +85,36 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1alpha1.AnalysisStatus {
-	successCondition, err := evaluate.EvalCondition(result, metric.SuccessCondition)
-	if err != nil {
-		p.logCtx.Warning(err.Error())
-		return v1alpha1.AnalysisStatusError
+	successCondition := false
+	failCondition := false
+	var err error
+
+	if metric.SuccessCondition != "" {
+		successCondition, err = evaluate.EvalCondition(result, metric.SuccessCondition)
+		if err != nil {
+			p.logCtx.Warning(err.Error())
+			return v1alpha1.AnalysisStatusError
+		}
+	}
+	if metric.FailureCondition != "" {
+		failCondition, err = evaluate.EvalCondition(result, metric.FailureCondition)
+		if err != nil {
+			return v1alpha1.AnalysisStatusError
+		}
 	}
 
-	failCondition, err := evaluate.EvalCondition(result, metric.FailureCondition)
-	if err != nil {
-		return v1alpha1.AnalysisStatusError
+	switch {
+	case metric.SuccessCondition == "" && metric.FailureCondition == "":
+		//Always return success unless there is an error
+		return v1alpha1.AnalysisStatusSuccessful
+	case metric.SuccessCondition != "" && metric.FailureCondition == "":
+		// Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true
+		failCondition = !successCondition
+	case metric.SuccessCondition == "" && metric.FailureCondition != "":
+		// Without a success condition, a measurement is considered a successful if the measurement's failure condition is not true
+		successCondition = !failCondition
 	}
+
 	if failCondition {
 		return v1alpha1.AnalysisStatusFailed
 	}
