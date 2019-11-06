@@ -197,6 +197,36 @@ func TestEvaluateResultInconclusive(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisStatusInconclusive, status)
 }
 
+func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
+	p := Provider{}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "",
+		FailureCondition: "false",
+	}
+	status := p.evaluateResult(true, metric)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+}
+
+func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
+	p := Provider{}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "false",
+		FailureCondition: "",
+	}
+	status := p.evaluateResult(true, metric)
+	assert.Equal(t, v1alpha1.AnalysisStatusFailed, status)
+}
+
+func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
+	p := Provider{}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "",
+		FailureCondition: "",
+	}
+	status := p.evaluateResult(true, metric)
+	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+}
+
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 	logCtx := log.WithField("test", "test")
 	p := Provider{
