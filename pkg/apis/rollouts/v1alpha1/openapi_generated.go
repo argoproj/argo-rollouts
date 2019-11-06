@@ -260,16 +260,16 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunStatus is the status for a AnalysisRun resource",
 				Properties: map[string]spec.Schema{
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of the analysis run",
+							Description: "Phase is the status of the analysis run",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Message is a message explaining current statuss",
+							Description: "Message is a message explaining current status",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -288,7 +288,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 						},
 					},
 				},
-				Required: []string{"status"},
+				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
@@ -763,9 +763,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 							Format:      "",
 						},
 					},
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of the AnalysisRun",
+							Description: "Phase is the status of the AnalysisRun",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -778,7 +778,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 						},
 					},
 				},
-				Required: []string{"name", "analysisRun", "status"},
+				Required: []string{"name", "analysisRun", "phase"},
 			},
 		},
 		Dependencies: []string{},
@@ -841,7 +841,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status of the condition, one of True, False, Unknown.",
+							Description: "Phase of the condition, one of True, False, Unknown.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -995,9 +995,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentStatus is the status for a Experiment resource",
 				Properties: map[string]spec.Schema{
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of the experiment. Takes into consideration ReplicaSet degredations and AnalysisRun statuses",
+							Description: "Phase is the status of the experiment. Takes into consideration ReplicaSet degradations and AnalysisRun statuses",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1093,9 +1093,9 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 			SchemaProps: spec.SchemaProps{
 				Description: "Measurement is a point in time result value of a single metric, and the time it was measured",
 				Properties: map[string]spec.Schema{
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of this single measurement",
+							Description: "Phase is the status of this single measurement",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1147,7 +1147,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 						},
 					},
 				},
-				Required: []string{"status"},
+				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
@@ -1278,9 +1278,9 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the overall aggregate status of the metric",
+							Description: "Phase is the overall aggregate status of the metric",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1348,7 +1348,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"name", "status"},
+				Required: []string{"name", "phase"},
 			},
 		},
 		Dependencies: []string{
@@ -1551,7 +1551,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status of the condition, one of True, False, Unknown.",
+							Description: "Phase of the condition, one of True, False, Unknown.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2091,7 +2091,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status is the status of the ReplicaSet associated with the template",
+							Description: "Phase is the status of the ReplicaSet associated with the template",
 							Type:        []string{"string"},
 							Format:      "",
 						},

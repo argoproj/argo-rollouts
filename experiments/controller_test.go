@@ -164,7 +164,7 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int
 			Duration:  duration,
 		},
 		Status: v1alpha1.ExperimentStatus{
-			Status: v1alpha1.AnalysisStatusPending,
+			Phase: v1alpha1.AnalysisPhasePending,
 		},
 	}
 	if duration != nil {
@@ -630,7 +630,7 @@ const (
 	NoChange availableAtResults = "NoChange"
 )
 
-func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisStatus, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
+func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisPhase, availableAt availableAtResults, templateStatuses []v1alpha1.TemplateStatus, conditions []v1alpha1.ExperimentCondition) {
 	e := v1alpha1.Experiment{}
 	err := json.Unmarshal([]byte(patch), &e)
 	if err != nil {
@@ -644,7 +644,7 @@ func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisStatu
 	} else if availableAt == NoChange {
 		assert.Nil(t, actualStatus.AvailableAt)
 	}
-	assert.Equal(t, statusCode, e.Status.Status)
+	assert.Equal(t, statusCode, e.Status.Phase)
 	assert.Len(t, actualStatus.TemplateStatuses, len(templateStatuses))
 	for i := range templateStatuses {
 		assert.Contains(t, actualStatus.TemplateStatuses, templateStatuses[i])

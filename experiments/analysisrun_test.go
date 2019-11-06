@@ -81,7 +81,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
@@ -94,7 +94,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	f.run(getKey(e, t))
 
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-	assert.Equal(t, v1alpha1.AnalysisStatusPending, patchedEx.Status.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
 // TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availablility)
@@ -116,7 +116,7 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 	f.run(getKey(e, t))
 
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, patchedEx.Status.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, patchedEx.Status.AnalysisRuns[0].Phase)
 	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "not found")
 }
 
@@ -131,7 +131,7 @@ func TestAnalysisRunCreateError(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
@@ -147,7 +147,7 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, patchedEx.Status.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, patchedEx.Status.AnalysisRuns[0].Phase)
 	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "intentional error")
 }
 
@@ -163,7 +163,7 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
@@ -176,7 +176,7 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-	assert.Equal(t, v1alpha1.AnalysisStatusPending, patchedEx.Status.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
 func TestAnalysisRunSuccessful(t *testing.T) {
@@ -188,17 +188,17 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 			TemplateName: "success-rate",
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusSuccessful,
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
 			Name:        e.Spec.Analyses[0].Name,
-			Status:      v1alpha1.AnalysisStatusRunning,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
 			AnalysisRun: ar.Name,
 		},
 	}
@@ -209,7 +209,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, patchedEx.Status.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
 func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
@@ -225,7 +225,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 			TemplateName: "latency",
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = pointer.Int32Ptr(60)
 	e.Status.AvailableAt = secondsAgo(61)
 	rs := templateToRS(e, templates[0], 0)
@@ -252,49 +252,49 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		first    v1alpha1.AnalysisStatus
-		second   v1alpha1.AnalysisStatus
-		expected v1alpha1.AnalysisStatus
+		first    v1alpha1.AnalysisPhase
+		second   v1alpha1.AnalysisPhase
+		expected v1alpha1.AnalysisPhase
 	}{
 		{
 			name:     "all successful",
-			first:    v1alpha1.AnalysisStatusSuccessful,
-			second:   v1alpha1.AnalysisStatusSuccessful,
-			expected: v1alpha1.AnalysisStatusSuccessful,
+			first:    v1alpha1.AnalysisPhaseSuccessful,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
+			expected: v1alpha1.AnalysisPhaseSuccessful,
 		},
 		{
 			name:     "failed,successful",
-			first:    v1alpha1.AnalysisStatusFailed,
-			second:   v1alpha1.AnalysisStatusSuccessful,
-			expected: v1alpha1.AnalysisStatusFailed,
+			first:    v1alpha1.AnalysisPhaseFailed,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
+			expected: v1alpha1.AnalysisPhaseFailed,
 		},
 		{
 			name:     "successful,failed",
-			first:    v1alpha1.AnalysisStatusSuccessful,
-			second:   v1alpha1.AnalysisStatusFailed,
-			expected: v1alpha1.AnalysisStatusFailed,
+			first:    v1alpha1.AnalysisPhaseSuccessful,
+			second:   v1alpha1.AnalysisPhaseFailed,
+			expected: v1alpha1.AnalysisPhaseFailed,
 		},
 		{
 			name:     "running,successful",
-			first:    v1alpha1.AnalysisStatusRunning,
-			second:   v1alpha1.AnalysisStatusSuccessful,
-			expected: v1alpha1.AnalysisStatusRunning,
+			first:    v1alpha1.AnalysisPhaseRunning,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
+			expected: v1alpha1.AnalysisPhaseRunning,
 		},
 	}
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			log.Info(test.name)
-			ar1.Status.Status = test.first
-			e.Status.AnalysisRuns[0].Status = test.first
-			ar2.Status.Status = test.second
-			e.Status.AnalysisRuns[1].Status = test.second
+			ar1.Status.Phase = test.first
+			e.Status.AnalysisRuns[0].Phase = test.first
+			ar2.Status.Phase = test.second
+			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
-			if test.expected != v1alpha1.AnalysisStatusRunning {
+			if test.expected != v1alpha1.AnalysisPhaseRunning {
 				patchIdx := f.expectPatchExperimentAction(e)
 				f.run(getKey(e, t))
 				patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-				assert.Equal(t, test.expected, patchedEx.Status.Status)
+				assert.Equal(t, test.expected, patchedEx.Status.Phase)
 			} else {
 				f.run(getKey(e, t))
 			}
@@ -318,7 +318,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 			TemplateName: "latency",
 		},
 	}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = pointer.Int32Ptr(300)
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
@@ -341,32 +341,32 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		first    v1alpha1.AnalysisStatus
-		second   v1alpha1.AnalysisStatus
-		expected v1alpha1.AnalysisStatus
+		first    v1alpha1.AnalysisPhase
+		second   v1alpha1.AnalysisPhase
+		expected v1alpha1.AnalysisPhase
 	}{
 		{
 			name:     "all successful",
-			first:    v1alpha1.AnalysisStatusSuccessful,
-			second:   v1alpha1.AnalysisStatusSuccessful,
+			first:    v1alpha1.AnalysisPhaseSuccessful,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
 			expected: "", // empty string means patch did not update the experiment status
 		},
 		{
 			name:     "failed,successful",
-			first:    v1alpha1.AnalysisStatusFailed,
-			second:   v1alpha1.AnalysisStatusSuccessful,
-			expected: v1alpha1.AnalysisStatusFailed,
+			first:    v1alpha1.AnalysisPhaseFailed,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
+			expected: v1alpha1.AnalysisPhaseFailed,
 		},
 		{
 			name:     "successful,failed",
-			first:    v1alpha1.AnalysisStatusSuccessful,
-			second:   v1alpha1.AnalysisStatusFailed,
-			expected: v1alpha1.AnalysisStatusFailed,
+			first:    v1alpha1.AnalysisPhaseSuccessful,
+			second:   v1alpha1.AnalysisPhaseFailed,
+			expected: v1alpha1.AnalysisPhaseFailed,
 		},
 		{
 			name:     "running,successful",
-			first:    v1alpha1.AnalysisStatusRunning,
-			second:   v1alpha1.AnalysisStatusSuccessful,
+			first:    v1alpha1.AnalysisPhaseRunning,
+			second:   v1alpha1.AnalysisPhaseSuccessful,
 			expected: "", // empty string means patch did not update the experiment status
 		},
 	}
@@ -374,19 +374,19 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			log.Info(test.name)
-			ar1.Status.Status = test.first
-			e.Status.AnalysisRuns[0].Status = test.first
-			ar2.Status.Status = test.second
-			e.Status.AnalysisRuns[1].Status = test.second
+			ar1.Status.Phase = test.first
+			e.Status.AnalysisRuns[0].Phase = test.first
+			ar2.Status.Phase = test.second
+			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
 
-			if test.expected == v1alpha1.AnalysisStatusFailed {
+			if test.expected == v1alpha1.AnalysisPhaseFailed {
 				f.expectUpdateReplicaSetAction(rs) // scale down to 0
 			}
 			patchIdx := f.expectPatchExperimentAction(e)
 			f.run(getKey(e, t))
 			patchedEx := f.getPatchedExperimentAsObj(patchIdx)
-			assert.Equal(t, test.expected, patchedEx.Status.Status)
+			assert.Equal(t, test.expected, patchedEx.Status.Phase)
 
 			f.Close()
 		})
@@ -404,18 +404,18 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 		},
 	}
 	e.Spec.Terminate = true
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 0)
 	rs.Spec.Replicas = new(int32)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusRunning,
+		Phase: v1alpha1.AnalysisPhaseRunning,
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
 			Name:        e.Spec.Analyses[0].Name,
-			Status:      v1alpha1.AnalysisStatusRunning,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
 			AnalysisRun: ar.Name,
 		},
 	}

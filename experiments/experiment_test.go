@@ -76,7 +76,7 @@ func TestSetExperimentToPending(t *testing.T) {
 	}
 	expectedPatch := calculatePatch(e, `{
 		"status":{
-			"status": "Pending"
+			"phase": "Pending"
 		}
 	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
@@ -86,7 +86,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil)
 	e.Status.AvailableAt = now()
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
@@ -113,13 +113,13 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 
 	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, expPatchObj.Status.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
 }
 
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, nil)
-	e.Status.Status = v1alpha1.AnalysisStatusPending
+	e.Status.Phase = v1alpha1.AnalysisPhasePending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now()),
@@ -140,7 +140,7 @@ func TestSetAvailableAt(t *testing.T) {
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
-	validatePatch(t, patch, v1alpha1.AnalysisStatusRunning, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
+	validatePatch(t, patch, v1alpha1.AnalysisPhaseRunning, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
 }
 
 func TestNoPatch(t *testing.T) {
@@ -156,7 +156,7 @@ func TestNoPatch(t *testing.T) {
 	}}
 
 	e.Status.AvailableAt = now()
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
@@ -176,7 +176,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 
 	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
@@ -198,7 +198,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	cond := newCondition(conditions.ExperimentCompleteReason, e)
 	expectedPatch := calculatePatch(e, `{
 		"status":{
-			"status": "Successful"
+			"phase": "Successful"
 		}
 	}`, templateStatuses, cond)
 	assert.Equal(t, expectedPatch, patch)
@@ -226,7 +226,7 @@ func TestDontRequeueWithoutDuration(t *testing.T) {
 	}
 	newStatus := exCtx.reconcile()
 	assert.False(t, enqueueCalled)
-	assert.Equal(t, v1alpha1.AnalysisStatusRunning, newStatus.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newStatus.Phase)
 }
 
 // TestRequeueAfterDuration verifies we requeue after an appropriate status.availableAt + spec.duration
@@ -300,5 +300,5 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	})
 	newStatus := exCtx.reconcile()
 	assert.Equal(t, newStatus.TemplateStatuses[1].Status, v1alpha1.TemplateStatusError)
-	assert.Equal(t, newStatus.Status, v1alpha1.AnalysisStatusError)
+	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
 }

@@ -258,17 +258,17 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	// 1. update the runStatus
 	// 2. log a message and emit an event on status changess
 	defer func() {
-		if prevStatus.Status != newStatus.Status {
-			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Status, newStatus.Status)
+		if prevStatus.Phase != newStatus.Phase {
+			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Phase, newStatus.Phase)
 			if newStatus.Message != "" {
 				msg = msg + ": " + newStatus.Message
 			}
 			ec.log.Info(msg)
-			switch newStatus.Status {
-			case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
-				ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(newStatus.Status), msg)
+			switch newStatus.Phase {
+			case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
+				ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(newStatus.Phase), msg)
 			default:
-				ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(newStatus.Status), msg)
+				ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(newStatus.Phase), msg)
 			}
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
@@ -278,7 +278,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 		// If we are not not available yet, don't start any runs
 		if err := ec.verifyAnalysisTemplate(analysis); err != nil {
 			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
-			newStatus.Status = v1alpha1.AnalysisStatusError
+			newStatus.Phase = v1alpha1.AnalysisPhaseError
 			newStatus.Message = msg
 			logCtx.Warn(msg)
 		}
@@ -294,11 +294,11 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 		run, err := ec.createAnalysisRun(analysis)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
-			newStatus.Status = v1alpha1.AnalysisStatusError
+			newStatus.Phase = v1alpha1.AnalysisPhaseError
 			newStatus.Message = msg
 			logCtx.Warn(msg)
 		} else {
-			newStatus.Status = v1alpha1.AnalysisStatusPending
+			newStatus.Phase = v1alpha1.AnalysisPhasePending
 			newStatus.AnalysisRun = run.Name
 			logCtx.Infof("Created %s", run.Name)
 		}
@@ -306,34 +306,34 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	}
 
 	// If we get here, analysis run has been previously created and we are just checking its status
-	if prevStatus.Status.Completed() {
+	if prevStatus.Phase.Completed() {
 		// runStatus is already completed. nothing to do
 		return
 	}
 
 	run, err := ec.analysisRunLister.AnalysisRuns(ec.ex.Namespace).Get(prevStatus.AnalysisRun)
 	if err != nil {
-		newStatus.Status = v1alpha1.AnalysisStatusError
+		newStatus.Phase = v1alpha1.AnalysisPhaseError
 		newStatus.Message = err.Error()
 		return
 	}
 
 	if ec.isTerminating {
-		if !run.Status.Status.Completed() && !run.Spec.Terminate {
+		if !run.Status.Phase.Completed() && !run.Spec.Terminate {
 			msg := fmt.Sprintf("Terminating %s (%s)", analysis.Name, run.Name)
 			logCtx.Warnf(msg)
 			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, "Terminate", msg)
 			analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 			err := analysisutil.TerminateRun(analysisRunIf, run.Name)
 			if err != nil {
-				newStatus.Status = v1alpha1.AnalysisStatusError
+				newStatus.Phase = v1alpha1.AnalysisPhaseError
 				newStatus.Message = err.Error()
 			}
 		}
 		return
 	}
 
-	newStatus.Status = run.Status.Status
+	newStatus.Phase = run.Status.Phase
 	newStatus.Message = run.Status.Message
 }
 
@@ -351,52 +351,52 @@ func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnaly
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	prevStatus := ec.newStatus.DeepCopy()
-	switch ec.newStatus.Status {
+	switch ec.newStatus.Phase {
 	case "":
-		ec.newStatus.Status = v1alpha1.AnalysisStatusPending
-	case v1alpha1.AnalysisStatusPending, v1alpha1.AnalysisStatusRunning:
+		ec.newStatus.Phase = v1alpha1.AnalysisPhasePending
+	case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning:
 		templateStatus, templateMessage := ec.assessTemplates()
 		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
-		if templateStatus == v1alpha1.AnalysisStatusRunning && ec.newStatus.AvailableAt == nil {
+		if templateStatus == v1alpha1.AnalysisPhaseRunning && ec.newStatus.AvailableAt == nil {
 			now := metav1.Now()
 			ec.newStatus.AvailableAt = &now
 			ec.log.Infof("Marked AvailableAt: %v", now)
 		}
 		if templateStatus.Completed() {
-			if templateStatus == v1alpha1.AnalysisStatusSuccessful {
+			if templateStatus == v1alpha1.AnalysisPhaseSuccessful {
 				// If the templates have completed successfully (e.g. it ran without degrading for
 				// the entire duration), then the status of the Experiment is deferred to the status
 				// the analyses results.
-				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
 			} else {
 				// Otherwise, use the Failed/Error template status as the Experiment status
-				ec.newStatus.Status = templateStatus
+				ec.newStatus.Phase = templateStatus
 				ec.newStatus.Message = templateMessage
 			}
 		} else {
-			if analysesStatus.Completed() && analysesStatus != v1alpha1.AnalysisStatusSuccessful {
+			if analysesStatus.Completed() && analysesStatus != v1alpha1.AnalysisPhaseSuccessful {
 				// The templates are still Running, but analysis failed, errored or was inconclusive
 				// We will now fail the experiment.
-				ec.newStatus.Status = analysesStatus
+				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
 			} else {
 				// The templates are still Running/Progressing, and the analysis are either still
 				// Running/Pending/Successful.
-				ec.newStatus.Status = templateStatus
+				ec.newStatus.Phase = templateStatus
 				ec.newStatus.Message = templateMessage
 			}
 		}
 	}
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
-	if prevStatus.Status != ec.newStatus.Status {
-		msg := fmt.Sprintf("Experiment transitioned from %s -> %s", prevStatus.Status, ec.newStatus.Status)
+	if prevStatus.Phase != ec.newStatus.Phase {
+		msg := fmt.Sprintf("Experiment transitioned from %s -> %s", prevStatus.Phase, ec.newStatus.Phase)
 		ec.log.Info(msg)
-		switch ec.newStatus.Status {
-		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive:
-			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(ec.newStatus.Status), msg)
+		switch ec.newStatus.Phase {
+		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
+			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(ec.newStatus.Phase), msg)
 		default:
-			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(ec.newStatus.Status), msg)
+			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(ec.newStatus.Phase), msg)
 		}
 	}
 	return ec.newStatus
@@ -404,7 +404,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 
 // assessTemplates examines at all the template statuses, and returns the worst of them to be
 // considered as the experiment status, along with the message
-func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisStatus, string) {
+func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisPhase, string) {
 	worstStatus := v1alpha1.TemplateStatusSuccessful
 	message := ""
 	for _, template := range ec.ex.Spec.Templates {
@@ -420,34 +420,34 @@ func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisStatus, string)
 	}
 	switch worstStatus {
 	case v1alpha1.TemplateStatusProgressing:
-		return v1alpha1.AnalysisStatusPending, message
+		return v1alpha1.AnalysisPhasePending, message
 	case v1alpha1.TemplateStatusFailed:
-		return v1alpha1.AnalysisStatusFailed, message
+		return v1alpha1.AnalysisPhaseFailed, message
 	case v1alpha1.TemplateStatusError:
-		return v1alpha1.AnalysisStatusError, message
+		return v1alpha1.AnalysisPhaseError, message
 	case v1alpha1.TemplateStatusSuccessful:
-		return v1alpha1.AnalysisStatusSuccessful, message
+		return v1alpha1.AnalysisPhaseSuccessful, message
 	}
-	return v1alpha1.AnalysisStatusRunning, message
+	return v1alpha1.AnalysisPhaseRunning, message
 }
 
 // assessTemplates examines all the analysisrun statuses, and returns the worst of the statuses.
 // This status will be under consideration as the experiment status (dependant on other factors).
 // Any Failed, Error, Inconclusive runs will cause the Experiment to complete prematurely. If there
-// are no analyses, will return AnalysisStatusSuccessful.
-func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisStatus, string) {
-	worstStatus := v1alpha1.AnalysisStatusSuccessful
+// are no analyses, will return AnalysisPhaseSuccessful.
+func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, string) {
+	worstStatus := v1alpha1.AnalysisPhaseSuccessful
 	message := ""
 	for _, a := range ec.ex.Spec.Analyses {
 		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
-		if analysisutil.IsWorse(worstStatus, as.Status) {
-			worstStatus = as.Status
+		if analysisutil.IsWorse(worstStatus, as.Phase) {
+			worstStatus = as.Phase
 			message = as.Message
 		}
 	}
-	if worstStatus == v1alpha1.AnalysisStatusPending {
+	if worstStatus == v1alpha1.AnalysisPhasePending {
 		// since this will be used as experiment status, we should return Running instead of Pending
-		worstStatus = v1alpha1.AnalysisStatusRunning
+		worstStatus = v1alpha1.AnalysisPhaseRunning
 	}
 	return worstStatus, message
 }

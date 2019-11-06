@@ -15,18 +15,18 @@ import (
 )
 
 // analysisStatusOrder is a list of completed analysis sorted in best to worst condition
-var analysisStatusOrder = []v1alpha1.AnalysisStatus{
-	v1alpha1.AnalysisStatusSuccessful,
-	v1alpha1.AnalysisStatusRunning,
-	v1alpha1.AnalysisStatusPending,
-	v1alpha1.AnalysisStatusInconclusive,
-	v1alpha1.AnalysisStatusError,
-	v1alpha1.AnalysisStatusFailed,
+var analysisStatusOrder = []v1alpha1.AnalysisPhase{
+	v1alpha1.AnalysisPhaseSuccessful,
+	v1alpha1.AnalysisPhaseRunning,
+	v1alpha1.AnalysisPhasePending,
+	v1alpha1.AnalysisPhaseInconclusive,
+	v1alpha1.AnalysisPhaseError,
+	v1alpha1.AnalysisPhaseFailed,
 }
 
 // IsWorse returns whether or not the new health status code is a worser condition than the current.
 // Both statuses must be already completed
-func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
+func IsWorse(current, new v1alpha1.AnalysisPhase) bool {
 	currentIndex := 0
 	newIndex := 0
 	for i, code := range analysisStatusOrder {
@@ -41,7 +41,7 @@ func IsWorse(current, new v1alpha1.AnalysisStatus) bool {
 }
 
 // Worst returns the worst of the two statuses
-func Worst(left, right v1alpha1.AnalysisStatus) v1alpha1.AnalysisStatus {
+func Worst(left, right v1alpha1.AnalysisPhase) v1alpha1.AnalysisPhase {
 	if IsWorse(left, right) {
 		return right
 	}
@@ -56,8 +56,8 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 		return true
 	}
 	for _, res := range run.Status.MetricResults {
-		switch res.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+		switch res.Phase {
+		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
 			return true
 		}
 	}
@@ -88,7 +88,7 @@ func SetResult(run *v1alpha1.AnalysisRun, result v1alpha1.MetricResult) {
 // MetricCompleted returns whether or not a metric was completed or not
 func MetricCompleted(run *v1alpha1.AnalysisRun, metricName string) bool {
 	if result := GetResult(run, metricName); result != nil {
-		return result.Status.Completed()
+		return result.Phase.Completed()
 	}
 	return false
 }
@@ -148,8 +148,8 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 		existingEqual := IsSemanticallyEqual(run.Spec, existingRun.Spec)
 		controllerRef := metav1.GetControllerOf(existingRun)
 		controllerUIDEqual := controllerRef != nil && controllerRef.UID == newControllerRef.UID
-		logCtx.Infof("Encountered collision of existing analysisrun %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingRun.Name, existingRun.Status.Status, existingEqual, controllerUIDEqual)
-		if !existingRun.Status.Status.Completed() && existingEqual && controllerUIDEqual {
+		logCtx.Infof("Encountered collision of existing analysisrun %s (phase: %s, equal: %v, controllerUIDEqual: %v)", existingRun.Name, existingRun.Status.Phase, existingEqual, controllerUIDEqual)
+		if !existingRun.Status.Phase.Completed() && existingEqual && controllerUIDEqual {
 			// If we get here, the existing run has been determined to be our analysis run and we
 			// likely reconciled the rollout with a stale cache (quite common).
 			return existingRun, nil

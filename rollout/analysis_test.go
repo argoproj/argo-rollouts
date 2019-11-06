@@ -136,7 +136,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
-	ar.Status.Status = v1alpha1.AnalysisStatusFailed
+	ar.Status.Phase = v1alpha1.AnalysisPhaseFailed
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisRunLister = append(f.analysisRunLister, ar)
@@ -490,7 +490,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	arWithDiffPodHash.Name = "older-analysis-run"
 	arWithDiffPodHash.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "abc123"
 	arWithDiffPodHash.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusSuccessful,
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
 	}
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
@@ -586,7 +586,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusSuccessful,
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -638,7 +638,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 		TemplateName: at.Name,
 	}
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusInconclusive,
+		Phase: v1alpha1.AnalysisPhaseInconclusive,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -692,7 +692,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusInconclusive,
+		Phase: v1alpha1.AnalysisPhaseInconclusive,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -746,9 +746,9 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusError,
+		Phase: v1alpha1.AnalysisPhaseError,
 		MetricResults: []v1alpha1.MetricResult{{
-			Status: v1alpha1.AnalysisStatusError,
+			Phase: v1alpha1.AnalysisPhaseError,
 		}},
 	}
 
@@ -801,9 +801,9 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Status: v1alpha1.AnalysisStatusError,
+		Phase: v1alpha1.AnalysisPhaseError,
 		MetricResults: []v1alpha1.MetricResult{{
-			Status: v1alpha1.AnalysisStatusError,
+			Phase: v1alpha1.AnalysisPhaseError,
 		}},
 	}
 

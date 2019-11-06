@@ -19,10 +19,10 @@ func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasFinished(e))
 
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	assert.False(t, HasFinished(e))
 
-	e.Status.Status = v1alpha1.AnalysisStatusSuccessful
+	e.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	assert.True(t, HasFinished(e))
 }
 
@@ -33,10 +33,10 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 	}
 	assert.Equal(t, int32(1), CalculateTemplateReplicasCount(e, template))
 
-	e.Status.Status = v1alpha1.AnalysisStatusSuccessful
+	e.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
 
-	e.Status.Status = v1alpha1.AnalysisStatusRunning
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, v1alpha1.TemplateStatus{
 		Name:   "template",
 		Status: v1alpha1.TemplateStatusFailed,
@@ -159,7 +159,7 @@ func TestIsTeriminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
 			Status: v1alpha1.ExperimentStatus{
-				Status: v1alpha1.AnalysisStatusFailed,
+				Phase: v1alpha1.AnalysisPhaseFailed,
 			},
 		}
 		assert.True(t, IsTerminating(e))
@@ -167,7 +167,7 @@ func TestIsTeriminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
 			Status: v1alpha1.ExperimentStatus{
-				Status: v1alpha1.AnalysisStatusRunning,
+				Phase: v1alpha1.AnalysisPhaseRunning,
 				TemplateStatuses: []v1alpha1.TemplateStatus{
 					{
 						Status: v1alpha1.TemplateStatusFailed,
@@ -180,10 +180,10 @@ func TestIsTeriminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
 			Status: v1alpha1.ExperimentStatus{
-				Status: v1alpha1.AnalysisStatusRunning,
+				Phase: v1alpha1.AnalysisPhaseRunning,
 				AnalysisRuns: []v1alpha1.ExperimentAnalysisRunStatus{
 					{
-						Status: v1alpha1.AnalysisStatusFailed,
+						Phase: v1alpha1.AnalysisPhaseFailed,
 					},
 				},
 			},
@@ -200,11 +200,11 @@ func TestIsTeriminating(t *testing.T) {
 func TestGetAnalysisRunStatus(t *testing.T) {
 	e := &v1alpha1.Experiment{
 		Status: v1alpha1.ExperimentStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			AnalysisRuns: []v1alpha1.ExperimentAnalysisRunStatus{
 				{
-					Name:   "foo",
-					Status: v1alpha1.AnalysisStatusFailed,
+					Name:  "foo",
+					Phase: v1alpha1.AnalysisPhaseFailed,
 				},
 			},
 		},
@@ -216,7 +216,7 @@ func TestGetAnalysisRunStatus(t *testing.T) {
 func TestGetTemplateStatus(t *testing.T) {
 	e := &v1alpha1.Experiment{
 		Status: v1alpha1.ExperimentStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			TemplateStatuses: []v1alpha1.TemplateStatus{
 				{
 					Name:   "foo",
@@ -259,10 +259,10 @@ func TestSetAnalysisStatus(t *testing.T) {
 	}
 	SetAnalysisRunStatus(es, barStatus)
 	assert.Equal(t, barStatus, es.AnalysisRuns[1])
-	fooStatus.Status = v1alpha1.AnalysisStatusFailed
+	fooStatus.Phase = v1alpha1.AnalysisPhaseFailed
 	SetAnalysisRunStatus(es, fooStatus)
 	assert.Len(t, es.AnalysisRuns, 2)
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, es.AnalysisRuns[0].Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, es.AnalysisRuns[0].Phase)
 }
 
 func TestTemplateIsWorse(t *testing.T) {

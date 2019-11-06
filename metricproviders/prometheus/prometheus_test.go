@@ -48,7 +48,7 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 }
 
 func TestRunWithQueryError(t *testing.T) {
@@ -73,7 +73,7 @@ func TestRunWithQueryError(t *testing.T) {
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
 func TestRunWithBuildQueryError(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRunWithBuildQueryError(t *testing.T) {
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
 func TestRunWithEvaluationError(t *testing.T) {
@@ -118,7 +118,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
 func TestResume(t *testing.T) {
@@ -138,7 +138,7 @@ func TestResume(t *testing.T) {
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
-		Status:    v1alpha1.AnalysisStatusInconclusive,
+		Phase:     v1alpha1.AnalysisPhaseInconclusive,
 	}
 	measurement := p.Resume(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
@@ -152,7 +152,7 @@ func TestTerminate(t *testing.T) {
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
-		Status:    v1alpha1.AnalysisStatusRunning,
+		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
 	measurement := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
@@ -173,7 +173,7 @@ func TestEvaluateResultWithSuccess(t *testing.T) {
 		FailureCondition: "false",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 }
 
 func TestEvaluateResultWithFailure(t *testing.T) {
@@ -183,7 +183,7 @@ func TestEvaluateResultWithFailure(t *testing.T) {
 		FailureCondition: "true",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 
 }
 
@@ -194,7 +194,7 @@ func TestEvaluateResultInconclusive(t *testing.T) {
 		FailureCondition: "false",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusInconclusive, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
 }
 
 func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
@@ -204,7 +204,7 @@ func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
 		FailureCondition: "false",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 }
 
 func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
@@ -214,7 +214,7 @@ func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
 		FailureCondition: "",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 }
 
 func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
@@ -224,7 +224,7 @@ func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
 		FailureCondition: "",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 }
 
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
@@ -237,7 +237,7 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 		FailureCondition: "true",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
 
 }
 
@@ -251,7 +251,7 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 		FailureCondition: "a == true",
 	}
 	status := p.evaluateResult(true, metric)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
 
 }
 
@@ -272,7 +272,7 @@ func TestProcessScalarResponse(t *testing.T) {
 
 	value, status, err := p.processResponse(metric, response)
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "10", value)
 
 }
@@ -299,7 +299,7 @@ func TestProcessVectorResponse(t *testing.T) {
 	}
 	value, status, err := p.processResponse(metric, response)
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "[10,11]", value)
 
 }
@@ -316,7 +316,7 @@ func TestProcessInvalidResponse(t *testing.T) {
 
 	value, status, err := p.processResponse(metric, nil)
 	assert.NotNil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
 	assert.Equal(t, "", value)
 
 }

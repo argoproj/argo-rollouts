@@ -124,10 +124,10 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		}
 		return currentAr, err
 	}
-	switch currentAr.Status.Status {
-	case v1alpha1.AnalysisStatusInconclusive:
+	switch currentAr.Status.Phase {
+	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
-	case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 		roCtx.PauseContext().AddAbort()
 	}
 	return currentAr, nil
@@ -174,10 +174,10 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 		return currentAr, err
 	}
 
-	switch currentAr.Status.Status {
-	case v1alpha1.AnalysisStatusInconclusive:
+	switch currentAr.Status.Phase {
+	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
-	case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 		roCtx.PauseContext().AddAbort()
 	}
 
@@ -188,7 +188,7 @@ func (c *RolloutController) cancelAnalysisRuns(roCtx *canaryContext, analysisRun
 	logctx := roCtx.Log()
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
-		isNotCompleted := ar == nil || !ar.Status.Status.Completed()
+		isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
 		if ar != nil && !ar.Spec.Terminate && isNotCompleted {
 			logctx.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun))

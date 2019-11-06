@@ -2502,12 +2502,12 @@ spec:
                     type: string
                   name:
                     type: string
-                  status:
+                  phase:
                     type: string
                 required:
                 - analysisRun
                 - name
-                - status
+                - phase
                 type: object
               type: array
             availableAt:
@@ -2541,7 +2541,7 @@ spec:
               type: array
             message:
               type: string
-            status:
+            phase:
               type: string
             templateStatuses:
               items:

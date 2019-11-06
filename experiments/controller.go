@@ -305,7 +305,7 @@ func (c *ExperimentController) enqueueIfCompleted(obj interface{}) {
 	if !ok {
 		return
 	}
-	if run.Status.Status.Completed() {
+	if run.Status.Phase.Completed() {
 		controllerutil.EnqueueParentObject(run, register.ExperimentKind, c.enqueueExperiment)
 	}
 }

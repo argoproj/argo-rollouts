@@ -179,13 +179,13 @@ func (cCtx *canaryContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
 	cCtx.currentArs = ars
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(ars)
 	if currBackgroundAr != nil && !cCtx.PauseContext().IsAborted() {
-		if !currBackgroundAr.Status.Status.Completed() {
+		if !currBackgroundAr.Status.Phase.Completed() {
 			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
 	}
 	currStepAr := analysisutil.GetCurrentStepAnalysisRun(ars)
 	if currStepAr != nil && !cCtx.PauseContext().IsAborted() {
-		if !currStepAr.Status.Status.Completed() {
+		if !currStepAr.Status.Phase.Completed() {
 			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
 		}
 	}

@@ -160,7 +160,7 @@ func NewRolloutController(
 		UpdateFunc: func(old, new interface{}) {
 			newAR := new.(*v1alpha1.AnalysisRun)
 			oldAR := old.(*v1alpha1.AnalysisRun)
-			if newAR.Status.Status == oldAR.Status.Status {
+			if newAR.Status.Phase == oldAR.Status.Phase {
 				// Only enqueue rollout if the status changed
 				return
 			}
@@ -192,7 +192,7 @@ func (c *RolloutController) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Rollout resource
+// converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
 func (c *RolloutController) syncHandler(key string) error {
 	startTime := time.Now()

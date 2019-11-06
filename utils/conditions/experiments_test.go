@@ -123,7 +123,7 @@ func TestSetExperimentCondition(t *testing.T) {
 			expectedStatus: &v1alpha1.ExperimentStatus{Conditions: []v1alpha1.ExperimentCondition{condAvailableExperiment()}},
 		},
 		{
-			name: "Status change",
+			name: "Phase change",
 			status: &v1alpha1.ExperimentStatus{Conditions: []v1alpha1.ExperimentCondition{
 				{
 					Type:           v1alpha1.ExperimentRunning,

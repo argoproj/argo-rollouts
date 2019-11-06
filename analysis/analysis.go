@@ -40,7 +40,7 @@ type metricTask struct {
 }
 
 func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
-	if origRun.Status.Status.Completed() {
+	if origRun.Status.Phase.Completed() {
 		return origRun
 	}
 	log := logutil.WithAnalysisRun(origRun)
@@ -52,9 +52,9 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
 			log.Warn(message)
-			run.Status.Status = v1alpha1.AnalysisStatusError
+			run.Status.Phase = v1alpha1.AnalysisPhaseError
 			run.Status.Message = message
-			c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Status)
+			c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
 			return run
 		}
 	}
@@ -63,18 +63,18 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	c.runMeasurements(run, tasks)
 
 	newStatus := c.asssessRunStatus(run)
-	if newStatus != run.Status.Status {
-		message := fmt.Sprintf("analysis transitioned from %s -> %s", run.Status.Status, newStatus)
+	if newStatus != run.Status.Phase {
+		message := fmt.Sprintf("analysis transitioned from %s -> %s", run.Status.Phase, newStatus)
 		if newStatus.Completed() {
 			switch newStatus {
-			case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+			case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 				c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", newStatus)
 			default:
 				c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "analysis completed %s", newStatus)
 			}
 		}
 		log.Info(message)
-		run.Status.Status = newStatus
+		run.Status.Phase = newStatus
 	}
 
 	err := c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
@@ -174,8 +174,8 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
-					Name:   t.metric.Name,
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  t.metric.Name,
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				}
 			}
 
@@ -188,7 +188,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 					startedAt := metav1.Now()
 					newMeasurement.StartedAt = &startedAt
 				}
-				newMeasurement.Status = v1alpha1.AnalysisStatusError
+				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
 				newMeasurement.Message = err.Error()
 			} else {
 				if t.incompleteMeasurement == nil {
@@ -198,7 +198,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 					if terminating {
 						log.Infof("terminating in-progress measurement")
 						newMeasurement = provider.Terminate(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
-						if newMeasurement.Status == v1alpha1.AnalysisStatusSuccessful {
+						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
 							newMeasurement.Message = "metric terminated"
 						}
 					} else {
@@ -207,26 +207,26 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				}
 			}
 
-			if newMeasurement.Status.Completed() {
-				log.Infof("measurement completed %s", newMeasurement.Status)
+			if newMeasurement.Phase.Completed() {
+				log.Infof("measurement completed %s", newMeasurement.Phase)
 				if newMeasurement.FinishedAt == nil {
 					finishedAt := metav1.Now()
 					newMeasurement.FinishedAt = &finishedAt
 				}
-				switch newMeasurement.Status {
-				case v1alpha1.AnalysisStatusSuccessful:
+				switch newMeasurement.Phase {
+				case v1alpha1.AnalysisPhaseSuccessful:
 					metricResult.Successful++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
-				case v1alpha1.AnalysisStatusFailed:
+				case v1alpha1.AnalysisPhaseFailed:
 					metricResult.Failed++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
-				case v1alpha1.AnalysisStatusInconclusive:
+				case v1alpha1.AnalysisPhaseInconclusive:
 					metricResult.Inconclusive++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
-				case v1alpha1.AnalysisStatusError:
+				case v1alpha1.AnalysisPhaseError:
 					metricResult.Error++
 					metricResult.ConsecutiveError++
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
@@ -250,21 +250,21 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 // asssessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisStatus {
-	var worstStatus v1alpha1.AnalysisStatus
+func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha1.AnalysisPhase {
+	var worstStatus v1alpha1.AnalysisPhase
 	terminating := analysisutil.IsTerminating(run)
 	everythingCompleted := true
 
-	// Iterate all metrics and update MetricResult.Status fields based on lastest measurement(s)
+	// Iterate all metrics and update MetricResult.Phase fields based on lastest measurement(s)
 	for _, metric := range run.Spec.AnalysisSpec.Metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 			metricStatus := assessMetricStatus(metric, *result, terminating)
-			if result.Status != metricStatus {
-				log.Infof("metric transitioned from %s -> %s", result.Status, metricStatus)
+			if result.Phase != metricStatus {
+				log.Infof("metric transitioned from %s -> %s", result.Phase, metricStatus)
 				if metricStatus.Completed() {
 					switch metricStatus {
-					case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+					case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 						c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "metric '%s' completed %s", metric.Name, metricStatus)
 					default:
 						c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "metric '%s' completed %s", metric.Name, metricStatus)
@@ -273,7 +273,7 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 				if lastMeasurement := analysisutil.LastMeasurement(run, metric.Name); lastMeasurement != nil {
 					result.Message = lastMeasurement.Message
 				}
-				result.Status = metricStatus
+				result.Phase = metricStatus
 				analysisutil.SetResult(run, *result)
 			}
 			if !metricStatus.Completed() {
@@ -292,7 +292,7 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 		}
 	}
 	if !everythingCompleted || worstStatus == "" {
-		return v1alpha1.AnalysisStatusRunning
+		return v1alpha1.AnalysisPhaseRunning
 	}
 	return worstStatus
 }
@@ -301,54 +301,54 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 // * current/latest measurement status
 // * parameters given by the metric (maxFailures, count, etc...)
 // * whether or not we are terminating (e.g. due to failing run, or termination request)
-func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisStatus {
-	if result.Status.Completed() {
-		return result.Status
+func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
+	if result.Phase.Completed() {
+		return result.Phase
 	}
 	log := log.WithField("metric", metric.Name)
 	if len(result.Measurements) == 0 {
 		if terminating {
 			// we have yet to take a single measurement, but have already been instructed to stop
-			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisStatusSuccessful)
-			return v1alpha1.AnalysisStatusSuccessful
+			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+			return v1alpha1.AnalysisPhaseSuccessful
 		}
-		return v1alpha1.AnalysisStatusPending
+		return v1alpha1.AnalysisPhasePending
 	}
 	lastMeasurement := result.Measurements[len(result.Measurements)-1]
-	if !lastMeasurement.Status.Completed() {
+	if !lastMeasurement.Phase.Completed() {
 		// we still have a in-flight measurement
-		return v1alpha1.AnalysisStatusRunning
+		return v1alpha1.AnalysisPhaseRunning
 	}
 	if result.Failed > metric.MaxFailures {
-		log.Infof("metric assessed %s: failed (%d) > maxFailures (%d)", v1alpha1.AnalysisStatusFailed, result.Failed, metric.MaxFailures)
-		return v1alpha1.AnalysisStatusFailed
+		log.Infof("metric assessed %s: failed (%d) > maxFailures (%d)", v1alpha1.AnalysisPhaseFailed, result.Failed, metric.MaxFailures)
+		return v1alpha1.AnalysisPhaseFailed
 	}
 	if result.Inconclusive > metric.MaxInconclusive {
-		log.Infof("metric assessed %s: inconclusive (%d) > maxInconclusive (%d)", v1alpha1.AnalysisStatusInconclusive, result.Inconclusive, metric.MaxInconclusive)
-		return v1alpha1.AnalysisStatusInconclusive
+		log.Infof("metric assessed %s: inconclusive (%d) > maxInconclusive (%d)", v1alpha1.AnalysisPhaseInconclusive, result.Inconclusive, metric.MaxInconclusive)
+		return v1alpha1.AnalysisPhaseInconclusive
 	}
 	maxConsecutiveErrors := DefaultMaxConsecutiveErrors
 	if metric.MaxConsecutiveErrors != nil {
 		maxConsecutiveErrors = *metric.MaxConsecutiveErrors
 	}
 	if result.ConsecutiveError > maxConsecutiveErrors {
-		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisStatusError, result.ConsecutiveError, maxConsecutiveErrors)
-		return v1alpha1.AnalysisStatusError
+		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisPhaseError, result.ConsecutiveError, maxConsecutiveErrors)
+		return v1alpha1.AnalysisPhaseError
 	}
 	// If a count was specified, and we reached that count, then metric is considered Successful.
 	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
 	// taken into consideration above, and we do not want to fail if failures < maxFailures.
 	effectiveCount := metric.EffectiveCount()
 	if effectiveCount != nil && result.Count >= *effectiveCount {
-		log.Infof("metric assessed %s: count (%d) reached", v1alpha1.AnalysisStatusSuccessful, *effectiveCount)
-		return v1alpha1.AnalysisStatusSuccessful
+		log.Infof("metric assessed %s: count (%d) reached", v1alpha1.AnalysisPhaseSuccessful, *effectiveCount)
+		return v1alpha1.AnalysisPhaseSuccessful
 	}
 	// if we get here, this metric runs indefinitely
 	if terminating {
-		log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisStatusSuccessful)
-		return v1alpha1.AnalysisStatusSuccessful
+		log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+		return v1alpha1.AnalysisPhaseSuccessful
 	}
-	return v1alpha1.AnalysisStatusRunning
+	return v1alpha1.AnalysisPhaseRunning
 }
 
 // calculateNextReconcileTime calculates the next time that this AnalysisRun should be reconciled,
@@ -385,7 +385,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		var interval int32
 		if metric.Interval != nil {
 			interval = *metric.Interval
-		} else if lastMeasurement.Status == v1alpha1.AnalysisStatusError {
+		} else if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
 		} else {
 			// if we get here, an interval was not set (meaning reoccurrence was not desired), and

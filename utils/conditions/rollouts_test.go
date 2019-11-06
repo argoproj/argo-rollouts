@@ -116,7 +116,7 @@ func TestSetCondition(t *testing.T) {
 			expectedStatus: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{condAvailable()}},
 		},
 		{
-			name: "Status change",
+			name: "Phase change",
 			status: &v1alpha1.RolloutStatus{Conditions: []v1alpha1.RolloutCondition{
 				{
 					Type:           v1alpha1.RolloutAvailable,

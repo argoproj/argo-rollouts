@@ -172,10 +172,10 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	}
 
 	if currentEx != nil {
-		switch currentEx.Status.Status {
-		case v1alpha1.AnalysisStatusInconclusive:
+		switch currentEx.Status.Phase {
+		case v1alpha1.AnalysisPhaseInconclusive:
 			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
-		case v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed:
+		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 			roCtx.PauseContext().AddAbort()
 		}
 	}
@@ -222,8 +222,8 @@ func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryC
 		existingEqual := experimentutil.IsSemanticallyEqual(newEx.Spec, existingEx.Spec)
 		controllerRef := metav1.GetControllerOf(existingEx)
 		controllerUIDEqual := controllerRef != nil && controllerRef.UID == roCtx.Rollout().UID
-		roCtx.log.Infof("Encountered collision of existing experiment %s (status: %s, equal: %v, controllerUIDEqual: %v)", existingEx.Name, existingEx.Status.Status, existingEqual, controllerUIDEqual)
-		if !existingEx.Status.Status.Completed() && existingEqual && controllerUIDEqual {
+		roCtx.log.Infof("Encountered collision of existing experiment %s (phase: %s, equal: %v, controllerUIDEqual: %v)", existingEx.Name, existingEx.Status.Phase, existingEqual, controllerUIDEqual)
+		if !existingEx.Status.Phase.Completed() && existingEqual && controllerUIDEqual {
 			// If we get here, the existing experiment has been determined to be our experiment and
 			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil

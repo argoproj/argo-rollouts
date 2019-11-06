@@ -17,57 +17,57 @@ import (
 )
 
 func TestIsWorst(t *testing.T) {
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusSuccessful))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusInconclusive))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusError))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusFailed))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseSuccessful))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseInconclusive))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseError))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseFailed))
 
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusSuccessful))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusInconclusive))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusError))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusInconclusive, v1alpha1.AnalysisStatusFailed))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseSuccessful))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseInconclusive))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseError))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseFailed))
 
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusError))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusSuccessful))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive))
-	assert.True(t, IsWorse(v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusFailed))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseError))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseSuccessful))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive))
+	assert.True(t, IsWorse(v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed))
 
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusSuccessful))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusInconclusive))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError))
-	assert.False(t, IsWorse(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusFailed))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseSuccessful))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError))
+	assert.False(t, IsWorse(v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseFailed))
 }
 
 func TestWorst(t *testing.T) {
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, Worst(v1alpha1.AnalysisStatusSuccessful, v1alpha1.AnalysisStatusFailed))
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, Worst(v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusSuccessful))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, Worst(v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseFailed))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, Worst(v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseSuccessful))
 }
 
 func TestIsFastFailTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:   "other-metric",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "other-metric",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 				{
-					Name:   "success-rate",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "success-rate",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 			},
 		},
 	}
 	successRate := run.Status.MetricResults[1]
 	assert.False(t, IsTerminating(run))
-	successRate.Status = v1alpha1.AnalysisStatusError
+	successRate.Phase = v1alpha1.AnalysisPhaseError
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
-	successRate.Status = v1alpha1.AnalysisStatusFailed
+	successRate.Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
-	successRate.Status = v1alpha1.AnalysisStatusInconclusive
+	successRate.Phase = v1alpha1.AnalysisPhaseInconclusive
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
 	run.Status.MetricResults = nil
@@ -79,11 +79,11 @@ func TestIsFastFailTerminating(t *testing.T) {
 func TestGetResult(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:   "success-rate",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "success-rate",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 			},
 		},
@@ -97,13 +97,13 @@ func TestSetResult(t *testing.T) {
 		Status: v1alpha1.AnalysisRunStatus{},
 	}
 	res := v1alpha1.MetricResult{
-		Name:   "success-rate",
-		Status: v1alpha1.AnalysisStatusRunning,
+		Name:  "success-rate",
+		Phase: v1alpha1.AnalysisPhaseRunning,
 	}
 
 	SetResult(run, res)
 	assert.Equal(t, res, run.Status.MetricResults[0])
-	res.Status = v1alpha1.AnalysisStatusFailed
+	res.Phase = v1alpha1.AnalysisPhaseFailed
 	SetResult(run, res)
 	assert.Equal(t, res, run.Status.MetricResults[0])
 }
@@ -111,11 +111,11 @@ func TestSetResult(t *testing.T) {
 func TestMetricCompleted(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:   "success-rate",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "success-rate",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 			},
 		},
@@ -124,28 +124,28 @@ func TestMetricCompleted(t *testing.T) {
 	assert.False(t, MetricCompleted(run, "success-rate"))
 
 	run.Status.MetricResults[0] = v1alpha1.MetricResult{
-		Name:   "success-rate",
-		Status: v1alpha1.AnalysisStatusError,
+		Name:  "success-rate",
+		Phase: v1alpha1.AnalysisPhaseError,
 	}
 	assert.True(t, MetricCompleted(run, "success-rate"))
 }
 
 func TestLastMeasurement(t *testing.T) {
 	m1 := v1alpha1.Measurement{
-		Status: v1alpha1.AnalysisStatusSuccessful,
-		Value:  "99",
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+		Value: "99",
 	}
 	m2 := v1alpha1.Measurement{
-		Status: v1alpha1.AnalysisStatusSuccessful,
-		Value:  "98",
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+		Value: "98",
 	}
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
 					Name:         "success-rate",
-					Status:       v1alpha1.AnalysisStatusRunning,
+					Phase:        v1alpha1.AnalysisPhaseRunning,
 					Measurements: []v1alpha1.Measurement{m1, m2},
 				},
 			},
@@ -162,15 +162,15 @@ func TestLastMeasurement(t *testing.T) {
 func TestIsTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusRunning,
+			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:   "other-metric",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "other-metric",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 				{
-					Name:   "success-rate",
-					Status: v1alpha1.AnalysisStatusRunning,
+					Name:  "success-rate",
+					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 			},
 		},
@@ -180,7 +180,7 @@ func TestIsTerminating(t *testing.T) {
 	assert.True(t, IsTerminating(run))
 	run.Spec.Terminate = false
 	successRate := run.Status.MetricResults[1]
-	successRate.Status = v1alpha1.AnalysisStatusError
+	successRate.Phase = v1alpha1.AnalysisPhaseError
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
 }
@@ -295,7 +295,7 @@ func TestCreateWithCollisionCounter(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
-			Status: v1alpha1.AnalysisStatusFailed,
+			Phase: v1alpha1.AnalysisPhaseFailed,
 		},
 	}
 	client := fake.NewSimpleClientset(&run)

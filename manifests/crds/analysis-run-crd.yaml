@@ -2569,38 +2569,38 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        phase:
+                          type: string
                         resumeAt:
                           format: date-time
                           type: string
                         startedAt:
                           format: date-time
                           type: string
-                        status:
-                          type: string
                         value:
                           type: string
                       required:
-                      - status
+                      - phase
                       type: object
                     type: array
                   message:
                     type: string
                   name:
                     type: string
-                  status:
+                  phase:
                     type: string
                   successful:
                     format: int32
                     type: integer
                 required:
                 - name
-                - status
+                - phase
                 type: object
               type: array
-            status:
+            phase:
               type: string
           required:
-          - status
+          - phase
           type: object
       required:
       - spec

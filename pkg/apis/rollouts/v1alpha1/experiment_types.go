@@ -92,7 +92,7 @@ type TemplateStatus struct {
 	// newest ReplicaSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty"`
-	// Status is the status of the ReplicaSet associated with the template
+	// Phase is the status of the ReplicaSet associated with the template
 	Status TemplateStatusCode `json:"status,omitempty"`
 	// Message is a message explaining the current status
 	Message string `json:"message,omitempty"`
@@ -103,9 +103,9 @@ type TemplateStatus struct {
 
 // ExperimentStatus is the status for a Experiment resource
 type ExperimentStatus struct {
-	// Status is the status of the experiment. Takes into consideration ReplicaSet degredations and
+	// Phase is the status of the experiment. Takes into consideration ReplicaSet degradations and
 	// AnalysisRun statuses
-	Status AnalysisStatus `json:"status,omitempty"`
+	Phase AnalysisPhase `json:"phase,omitempty"`
 	// Message is an explanation for the current status
 	// +optional
 	Message string `json:"message,omitempty"`
@@ -152,7 +152,7 @@ const (
 type ExperimentCondition struct {
 	// Type of deployment condition.
 	Type ExperimentConditionType `json:"type"`
-	// Status of the condition, one of True, False, Unknown.
+	// Phase of the condition, one of True, False, Unknown.
 	Status corev1.ConditionStatus `json:"status"`
 	// The last time this condition was updated.
 	LastUpdateTime metav1.Time `json:"lastUpdateTime"`
@@ -189,8 +189,8 @@ type ExperimentAnalysisRunStatus struct {
 	Name string `json:"name"`
 	// AnalysisRun is the name of the AnalysisRun
 	AnalysisRun string `json:"analysisRun"`
-	// Status is the status of the AnalysisRun
-	Status AnalysisStatus `json:"status"`
+	// Phase is the status of the AnalysisRun
+	Phase AnalysisPhase `json:"phase"`
 	// Message is a message explaining the current status
 	Message string `json:"message,omitempty"`
 }
