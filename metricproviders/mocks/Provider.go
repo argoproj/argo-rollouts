@@ -26,26 +26,12 @@ func (_m *Provider) GarbageCollect(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metri
 	return r0
 }
 
-// Resume provides a mock function with given fields: _a0, _a1, _a2, _a3
-func (_m *Provider) Resume(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 []v1alpha1.Argument, _a3 v1alpha1.Measurement) v1alpha1.Measurement {
-	ret := _m.Called(_a0, _a1, _a2, _a3)
-
-	var r0 v1alpha1.Measurement
-	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) v1alpha1.Measurement); ok {
-		r0 = rf(_a0, _a1, _a2, _a3)
-	} else {
-		r0 = ret.Get(0).(v1alpha1.Measurement)
-	}
-
-	return r0
-}
-
-// Run provides a mock function with given fields: _a0, _a1, _a2
-func (_m *Provider) Run(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 []v1alpha1.Argument) v1alpha1.Measurement {
+// Resume provides a mock function with given fields: _a0, _a1, _a2
+func (_m *Provider) Resume(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 v1alpha1.Measurement) v1alpha1.Measurement {
 	ret := _m.Called(_a0, _a1, _a2)
 
 	var r0 v1alpha1.Measurement
-	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument) v1alpha1.Measurement); ok {
+	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement); ok {
 		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Get(0).(v1alpha1.Measurement)
@@ -54,13 +40,27 @@ func (_m *Provider) Run(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 []v1
 	return r0
 }
 
-// Terminate provides a mock function with given fields: _a0, _a1, _a2, _a3
-func (_m *Provider) Terminate(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 []v1alpha1.Argument, _a3 v1alpha1.Measurement) v1alpha1.Measurement {
-	ret := _m.Called(_a0, _a1, _a2, _a3)
+// Run provides a mock function with given fields: _a0, _a1
+func (_m *Provider) Run(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric) v1alpha1.Measurement {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 v1alpha1.Measurement
-	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric, []v1alpha1.Argument, v1alpha1.Measurement) v1alpha1.Measurement); ok {
-		r0 = rf(_a0, _a1, _a2, _a3)
+	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(v1alpha1.Measurement)
+	}
+
+	return r0
+}
+
+// Terminate provides a mock function with given fields: _a0, _a1, _a2
+func (_m *Provider) Terminate(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 v1alpha1.Measurement) v1alpha1.Measurement {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 v1alpha1.Measurement
+	if rf, ok := ret.Get(0).(func(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement); ok {
+		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Get(0).(v1alpha1.Measurement)
 	}

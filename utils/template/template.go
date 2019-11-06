@@ -15,8 +15,8 @@ const (
 	closeBracket = "}}"
 )
 
-// BuildQuery starts in a template and injects the provider args
-func BuildQuery(template string, args []v1alpha1.Argument) (string, error) {
+// ResolveArgs substitute the supplied arguments in the given template
+func ResolveArgs(template string, args []v1alpha1.Argument) (string, error) {
 	t, err := fasttemplate.NewTemplate(template, openBracket, closeBracket)
 	if err != nil {
 		return "", err
@@ -24,7 +24,7 @@ func BuildQuery(template string, args []v1alpha1.Argument) (string, error) {
 	argsMap := make(map[string]string)
 	for i := range args {
 		arg := args[i]
-		argsMap[fmt.Sprintf("input.%s", arg.Name)] = arg.Value
+		argsMap[fmt.Sprintf("inputs.%s", arg.Name)] = arg.Value
 	}
 	var unresolvedErr error
 	s := t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
