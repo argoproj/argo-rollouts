@@ -34,10 +34,10 @@ func NewExperimentInfo(
 			CreationTimestamp: exp.CreationTimestamp,
 			UID:               exp.UID,
 		},
-		Status:  string(exp.Status.Status),
+		Status:  string(exp.Status.Phase),
 		Message: exp.Status.Message,
 	}
-	expInfo.Icon = analysisIcon(exp.Status.Status)
+	expInfo.Icon = analysisIcon(exp.Status.Phase)
 	expInfo.Revision = parseRevision(exp.ObjectMeta.Annotations)
 	expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
 	expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
@@ -112,19 +112,19 @@ func (r *ExperimentInfo) Images() []ImageInfo {
 	return images
 }
 
-func analysisIcon(status v1alpha1.AnalysisStatus) string {
+func analysisIcon(status v1alpha1.AnalysisPhase) string {
 	switch status {
-	case v1alpha1.AnalysisStatusSuccessful:
+	case v1alpha1.AnalysisPhaseSuccessful:
 		return IconOK
-	case v1alpha1.AnalysisStatusInconclusive:
+	case v1alpha1.AnalysisPhaseInconclusive:
 		return IconUnknown
-	case v1alpha1.AnalysisStatusFailed:
+	case v1alpha1.AnalysisPhaseFailed:
 		return IconBad
-	case v1alpha1.AnalysisStatusError:
+	case v1alpha1.AnalysisPhaseError:
 		return IconWarning
-	case v1alpha1.AnalysisStatusRunning:
+	case v1alpha1.AnalysisPhaseRunning:
 		return IconProgressing
-	case v1alpha1.AnalysisStatusPending:
+	case v1alpha1.AnalysisPhasePending:
 		return IconWaiting
 	}
 	return " "

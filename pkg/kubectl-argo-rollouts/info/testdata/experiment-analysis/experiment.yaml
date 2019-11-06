@@ -81,7 +81,7 @@ status:
     reason: NewReplicaSetAvailable
     status: "True"
     type: Progressing
-  status: Running
+  phase: Running
   templateStatuses:
   - availableReplicas: 1
     lastTransitionTime: "2019-10-30T07:28:43Z"

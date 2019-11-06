@@ -54,10 +54,10 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 		ri.setWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(&ro)))
 
 		// TODO(jessesuen) in the future, we want to calculate the actual weight
-		// if ro.Status.AvailableReplicas == 0 {
+		// if ro.Phase.AvailableReplicas == 0 {
 		// 	ri.weight = "0"
 		// } else {
-		// 	ri.weight = fmt.Sprintf("%d", (ro.Status.UpdatedReplicas*100)/ro.Status.AvailableReplicas)
+		// 	ri.weight = fmt.Sprintf("%d", (ro.Phase.UpdatedReplicas*100)/ro.Phase.AvailableReplicas)
 		// }
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		ri.strategy = "BlueGreen"

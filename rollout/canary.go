@@ -234,13 +234,13 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 		return true
 	}
 	experiment := roCtx.CurrentExperiment()
-	if currentStep.Experiment != nil && experiment != nil && experiment.Status.Status.Completed() && experiment.Status.Status == v1alpha1.AnalysisStatusSuccessful {
+	if currentStep.Experiment != nil && experiment != nil && experiment.Status.Phase.Completed() && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
 	currentArs := roCtx.CurrentAnalysisRuns()
 	currentStepAr := analysisutil.GetCurrentStepAnalysisRun(currentArs)
-	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Status.Completed()
-	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Status == v1alpha1.AnalysisStatusSuccessful {
+	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
+	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
 

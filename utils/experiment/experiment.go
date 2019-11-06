@@ -17,7 +17,7 @@ import (
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
 
 func HasFinished(experiment *v1alpha1.Experiment) bool {
-	return experiment.Status.Status.Completed()
+	return experiment.Status.Phase.Completed()
 }
 
 func Terminate(experimentIf rolloutsclient.ExperimentInterface, name string) error {
@@ -41,8 +41,8 @@ func IsTerminating(experiment *v1alpha1.Experiment) bool {
 		}
 	}
 	for _, run := range experiment.Status.AnalysisRuns {
-		switch run.Status {
-		case v1alpha1.AnalysisStatusFailed, v1alpha1.AnalysisStatusError, v1alpha1.AnalysisStatusInconclusive:
+		switch run.Phase {
+		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
 			return true
 		}
 	}

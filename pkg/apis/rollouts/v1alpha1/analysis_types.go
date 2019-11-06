@@ -91,24 +91,23 @@ type MetricProvider struct {
 	Job *JobMetric `json:"job,omitempty"`
 }
 
-// AnalysisStatus is the overall status of an AnalysisRun, MetricResult, or Measurement
-// TODO(jessesuen): rename this to StatusCode since it is used by Experiments too
-type AnalysisStatus string
+// AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
+type AnalysisPhase string
 
-// Possible AnalysisStatus values
+// Possible AnalysisPhase values
 const (
-	AnalysisStatusPending      AnalysisStatus = "Pending"
-	AnalysisStatusRunning      AnalysisStatus = "Running"
-	AnalysisStatusSuccessful   AnalysisStatus = "Successful"
-	AnalysisStatusFailed       AnalysisStatus = "Failed"
-	AnalysisStatusError        AnalysisStatus = "Error"
-	AnalysisStatusInconclusive AnalysisStatus = "Inconclusive"
+	AnalysisPhasePending      AnalysisPhase = "Pending"
+	AnalysisPhaseRunning      AnalysisPhase = "Running"
+	AnalysisPhaseSuccessful   AnalysisPhase = "Successful"
+	AnalysisPhaseFailed       AnalysisPhase = "Failed"
+	AnalysisPhaseError        AnalysisPhase = "Error"
+	AnalysisPhaseInconclusive AnalysisPhase = "Inconclusive"
 )
 
 // Completed returns whether or not the analysis status is considered completed
-func (as AnalysisStatus) Completed() bool {
+func (as AnalysisPhase) Completed() bool {
 	switch as {
-	case AnalysisStatusSuccessful, AnalysisStatusFailed, AnalysisStatusError, AnalysisStatusInconclusive:
+	case AnalysisPhaseSuccessful, AnalysisPhaseFailed, AnalysisPhaseError, AnalysisPhaseInconclusive:
 		return true
 	}
 	return false
@@ -168,9 +167,9 @@ type Argument struct {
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
 type AnalysisRunStatus struct {
-	// Status is the status of the analysis run
-	Status AnalysisStatus `json:"status"`
-	// Message is a message explaining current statuss
+	// Phase is the status of the analysis run
+	Phase AnalysisPhase `json:"phase"`
+	// Message is a message explaining current status
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
 	MetricResults []MetricResult `json:"metricResults,omitempty"`
@@ -181,8 +180,8 @@ type AnalysisRunStatus struct {
 type MetricResult struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
-	// Status is the overall aggregate status of the metric
-	Status AnalysisStatus `json:"status"`
+	// Phase is the overall aggregate status of the metric
+	Phase AnalysisPhase `json:"phase"`
 	// Measurements holds the most recent measurements collected for the metric
 	Measurements []Measurement `json:"measurements,omitempty"`
 	// Message contains a message describing current condition (e.g. error messages)
@@ -205,8 +204,8 @@ type MetricResult struct {
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
 type Measurement struct {
-	// Status is the status of this single measurement
-	Status AnalysisStatus `json:"status"`
+	// Phase is the status of this single measurement
+	Phase AnalysisPhase `json:"phase"`
 	// Message contains a message describing current condition (e.g. error messages)
 	Message string `json:"message,omitempty"`
 	// StartedAt is the timestamp in which this measurement started to be measured

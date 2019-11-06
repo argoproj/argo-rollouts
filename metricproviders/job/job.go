@@ -94,7 +94,7 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, arg
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
-		Status:    v1alpha1.AnalysisStatusRunning,
+		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
 	job := newMetricJob(run, metric)
 	jobIf := p.kubeclientset.BatchV1().Jobs(run.Namespace)
@@ -139,14 +139,14 @@ func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 		switch condition.Type {
 		case batchv1.JobComplete:
 			measurement.FinishedAt = &now
-			measurement.Status = v1alpha1.AnalysisStatusSuccessful
+			measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
 		case batchv1.JobFailed:
 			measurement.FinishedAt = &now
-			measurement.Status = v1alpha1.AnalysisStatusFailed
+			measurement.Phase = v1alpha1.AnalysisPhaseFailed
 		}
 	}
-	if measurement.Status.Completed() {
-		p.logCtx.Infof("job %s/%s completed: %s", job.Namespace, job.Name, measurement.Status)
+	if measurement.Phase.Completed() {
+		p.logCtx.Infof("job %s/%s completed: %s", job.Namespace, job.Name, measurement.Phase)
 	}
 	return measurement
 }
@@ -162,7 +162,7 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	}
 	now := metav1.Now()
 	measurement.FinishedAt = &now
-	measurement.Status = v1alpha1.AnalysisStatusSuccessful
+	measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
 	p.logCtx.Infof("job %s/%s terminated", run.Namespace, jobName)
 	return measurement
 }

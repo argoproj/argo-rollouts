@@ -72,5 +72,5 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 	templateStatuses := []v1alpha1.TemplateStatus{
 		ts,
 	}
-	validatePatch(t, patch, v1alpha1.AnalysisStatusFailed, NoChange, templateStatuses, nil)
+	validatePatch(t, patch, v1alpha1.AnalysisPhaseFailed, NoChange, templateStatuses, nil)
 }

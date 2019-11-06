@@ -90,7 +90,7 @@ func newRunningMeasurement(jobName string) v1alpha1.Measurement {
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
-		Status:    v1alpha1.AnalysisStatusRunning,
+		Phase:     v1alpha1.AnalysisPhaseRunning,
 		Metadata: map[string]string{
 			JobNameKey: jobName,
 		},
@@ -109,7 +109,7 @@ func TestRun(t *testing.T) {
 	metric := run.Spec.AnalysisSpec.Metrics[0]
 	measurement := p.Run(run, metric, nil)
 
-	assert.Equal(t, v1alpha1.AnalysisStatusRunning, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Nil(t, measurement.FinishedAt)
 
@@ -149,7 +149,7 @@ func TestRunCreateFail(t *testing.T) {
 	})
 
 	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0], nil)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.Contains(t, errMsg, measurement.Message)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -163,7 +163,7 @@ func TestRunCreateCollision(t *testing.T) {
 	fakeClient.Tracker().Add(existingJob)
 
 	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0], nil)
-	assert.Equal(t, v1alpha1.AnalysisStatusRunning, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 	assert.Nil(t, measurement.FinishedAt)
 }
 
@@ -173,7 +173,7 @@ func TestResumeCompletedJob(t *testing.T) {
 	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -183,7 +183,7 @@ func TestResumeFailedJob(t *testing.T) {
 	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Equal(t, v1alpha1.AnalysisStatusFailed, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -193,7 +193,7 @@ func TestResumeErrorJob(t *testing.T) {
 	measurement := newRunningMeasurement("job-which-does-not-exist")
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, "job.batch \"job-which-does-not-exist\" not found", measurement.Message)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -204,7 +204,7 @@ func TestResumeMeasurementNoMetadata(t *testing.T) {
 	measurement.Metadata = nil
 	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, "job metadata reference missing", measurement.Message)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 
@@ -219,7 +219,7 @@ func TestTerminateMeasurement(t *testing.T) {
 
 		measurement := newRunningMeasurement(job.Name)
 		measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-		assert.Equal(t, v1alpha1.AnalysisStatusSuccessful, measurement.Status)
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 		assert.NotNil(t, measurement.FinishedAt)
 	}
 }
@@ -237,7 +237,7 @@ func TestTerminateError(t *testing.T) {
 	})
 
 	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.Contains(t, measurement.Message, errMsg)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -249,7 +249,7 @@ func TestTerminateMeasurementNoMetadata(t *testing.T) {
 	measurement.Metadata = nil
 	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], nil, measurement)
 	assert.Equal(t, "job metadata reference missing", measurement.Message)
-	assert.Equal(t, v1alpha1.AnalysisStatusError, measurement.Status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
 

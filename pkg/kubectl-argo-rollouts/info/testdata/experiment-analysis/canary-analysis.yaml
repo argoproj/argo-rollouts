@@ -58,43 +58,43 @@ status:
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rzl6lt
       startedAt: "2019-10-30T07:28:38Z"
-      status: Failed
+      phase: Failed
     - finishedAt: "2019-10-30T07:28:53Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-r8lqpd
       startedAt: "2019-10-30T07:28:50Z"
-      status: Successful
+      phase: Successful
     - finishedAt: "2019-10-30T07:29:05Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rjjsgg
       startedAt: "2019-10-30T07:29:03Z"
-      status: Successful
+      phase: Successful
     - finishedAt: "2019-10-30T07:29:17Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rrnfj5
       startedAt: "2019-10-30T07:29:15Z"
-      status: Failed
+      phase: Failed
     - finishedAt: "2019-10-30T07:29:29Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rx5kqk
       startedAt: "2019-10-30T07:29:27Z"
-      status: Failed
+      phase: Failed
     - finishedAt: "2019-10-30T07:29:41Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rp894b
       startedAt: "2019-10-30T07:29:39Z"
-      status: Successful
+      phase: Successful
     - finishedAt: "2019-10-30T07:29:53Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rmngtj
       startedAt: "2019-10-30T07:29:51Z"
-      status: Failed
+      phase: Failed
     - finishedAt: "2019-10-30T16:13:40Z"
       metadata:
         job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rsxm69
       startedAt: "2019-10-30T16:13:38Z"
-      status: Successful
+      phase: Successful
     name: random-fail
-    status: Inconclusive
+    phase: Inconclusive
     successful: 4
-  status: Inconclusive
+  phase: Inconclusive

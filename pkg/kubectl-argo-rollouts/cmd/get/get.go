@@ -33,8 +33,8 @@ var (
 		info.InfoTagPreview: FgHiBlue,
 
 		// Colors for highlighting experiment/analysisruns
-		string(v1alpha1.AnalysisStatusPending): FgHiBlue,
-		string(v1alpha1.AnalysisStatusRunning): FgHiBlue,
+		string(v1alpha1.AnalysisPhasePending): FgHiBlue,
+		string(v1alpha1.AnalysisPhaseRunning): FgHiBlue,
 	}
 )
 

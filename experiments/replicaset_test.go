@@ -92,7 +92,7 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 func TestNameCollision(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
-	e.Status.Status = v1alpha1.AnalysisStatusPending
+	e.Status.Phase = v1alpha1.AnalysisPhasePending
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,7 +133,7 @@ func TestNameCollision(t *testing.T) {
 func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, nil)
-	e.Status.Status = v1alpha1.AnalysisStatusPending
+	e.Status.Phase = v1alpha1.AnalysisPhasePending
 
 	rs := templateToRS(e, templates[0], 0)
 	rs.ObjectMeta.Annotations[ExperimentTemplateNameAnnotationKey] = "something-different" // change this to something different

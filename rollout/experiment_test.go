@@ -94,7 +94,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Status.Status = v1alpha1.AnalysisStatusFailed
+	ex.Status.Phase = v1alpha1.AnalysisPhaseFailed
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	f.experimentLister = append(f.experimentLister, ex)
@@ -146,7 +146,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Status.Status = v1alpha1.AnalysisStatusRunning
+	ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	f.experimentLister = append(f.experimentLister, ex)
@@ -229,7 +229,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
-	ex.Status.Status = v1alpha1.AnalysisStatusFailed
+	ex.Status.Phase = v1alpha1.AnalysisPhaseFailed
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -271,7 +271,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs2, rs1)
-	ex.Status.Status = v1alpha1.AnalysisStatusInconclusive
+	ex.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -326,7 +326,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 			Labels:          map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash},
 		},
 		Status: v1alpha1.ExperimentStatus{
-			Status: v1alpha1.AnalysisStatusPending,
+			Phase: v1alpha1.AnalysisPhasePending,
 		},
 	}
 
@@ -367,7 +367,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
+	ex.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	now := metav1.Now()
 	ex.Status.AvailableAt = &now
 	r2.Status.Canary.CurrentExperiment = ex.Name
@@ -499,7 +499,7 @@ func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
-	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
+	ex.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	r2.Status.Canary.CurrentExperiment = ex.Name
 	exWithNoMatchingPodHash := ex.DeepCopy()
 	exWithNoMatchingPodHash.UID = uuid.NewUUID()
@@ -546,7 +546,7 @@ func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
 	rs3 := newReplicaSetWithStatus(r3, 0, 0)
 
 	ex, _ := GetExperimentFromTemplate(r3, rs2, rs1)
-	ex.Status.Status = v1alpha1.AnalysisStatusSuccessful
+	ex.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -590,7 +590,7 @@ func TestCancelExperimentWhenAborted(t *testing.T) {
 
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 	ex.Name = "test"
-	ex.Status.Status = v1alpha1.AnalysisStatusRunning
+	ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	r2.Status.Abort = true
