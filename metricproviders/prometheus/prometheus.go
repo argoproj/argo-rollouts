@@ -3,6 +3,7 @@ package prometheus
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -132,15 +133,18 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 	case *model.Scalar:
 		valueStr := value.Value.String()
 		result := float64(value.Value)
+		if math.IsNaN(result) {
+			return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+		}
 		newStatus := p.evaluateResult(result, metric)
 		return valueStr, newStatus, nil
 	case model.Vector:
-		result := make([]float64, 0, len(value))
+		results := make([]float64, 0, len(value))
 		valueStr := "["
 		for _, s := range value {
 			if s != nil {
 				valueStr = valueStr + s.Value.String() + ","
-				result = append(result, float64(s.Value))
+				results = append(results, float64(s.Value))
 			}
 		}
 		// if we appended to the string, we should remove the last comma on the string
@@ -148,7 +152,12 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 			valueStr = valueStr[:len(valueStr)-1]
 		}
 		valueStr = valueStr + "]"
-		newStatus := p.evaluateResult(result, metric)
+		for _, result := range results {
+			if math.IsNaN(result) {
+				return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+			}
+		}
+		newStatus := p.evaluateResult(results, metric)
 		return valueStr, newStatus, nil
 	//TODO(dthomson) add other response types
 	default:
