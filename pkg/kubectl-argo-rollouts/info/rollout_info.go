@@ -106,10 +106,6 @@ func RolloutStatusString(ro *v1alpha1.Rollout) string {
 		// more replicas need to be updated
 		return "Progressing"
 	}
-	if ro.Status.Replicas > ro.Status.UpdatedReplicas {
-		// old replicas are pending termination
-		return "Progressing"
-	}
 	if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
 		// updated replicas are still becoming available
 		return "Progressing"
@@ -121,6 +117,10 @@ func RolloutStatusString(ro *v1alpha1.Rollout) string {
 		// service cutover pending
 		return "Progressing"
 	} else if ro.Spec.Strategy.Canary != nil {
+		if ro.Status.Replicas > ro.Status.UpdatedReplicas {
+			// old replicas are pending termination
+			return "Progressing"
+		}
 		if ro.Status.Canary.StableRS != "" && ro.Status.Canary.StableRS == ro.Status.CurrentPodHash {
 			return "Healthy"
 		}
