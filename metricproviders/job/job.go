@@ -1,6 +1,7 @@
 package job
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -71,7 +73,21 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 	return int(res.Count + res.Error + 1)
 }
 
-func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) *batchv1.Job {
+func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.Job, error) {
+	specBytes, err := json.Marshal(metric.Provider.Job.Spec)
+	if err != nil {
+		return nil, err
+	}
+	newSpecStr, err := templateutil.ResolveArgs(string(specBytes), run.Spec.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	var newSpec batchv1.JobSpec
+	err = json.Unmarshal([]byte(newSpecStr), &newSpec)
+	if err != nil {
+		return nil, err
+	}
+
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            newJobName(run, metric),
@@ -85,18 +101,22 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) *batchv1.Jo
 				AnalysisRunUIDLabelKey: string(run.UID),
 			},
 		},
-		Spec: metric.Provider.Job.Spec,
+		Spec: newSpec,
 	}
-	return &job
+	return &job, nil
 }
 
-func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) v1alpha1.Measurement {
+func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
-	job := newMetricJob(run, metric)
+	job, err := newMetricJob(run, metric)
+	if err != nil {
+		p.logCtx.Errorf("job initialization failed: %v", err)
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
 	jobIf := p.kubeclientset.BatchV1().Jobs(run.Namespace)
 	createdJob, createErr := jobIf.Create(job)
 	if createErr != nil {
@@ -125,7 +145,7 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, arg
 	return measurement
 }
 
-func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
+func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	jobName, err := getJobName(measurement)
 	now := metav1.Now()
 	if err != nil {
@@ -151,7 +171,7 @@ func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 	return measurement
 }
 
-func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
+func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	jobName, err := getJobName(measurement)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)

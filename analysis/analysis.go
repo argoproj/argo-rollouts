@@ -192,17 +192,17 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				newMeasurement.Message = err.Error()
 			} else {
 				if t.incompleteMeasurement == nil {
-					newMeasurement = provider.Run(run, t.metric, run.Spec.Arguments)
+					newMeasurement = provider.Run(run, t.metric)
 				} else {
 					// metric is incomplete. either terminate or resume it
 					if terminating {
 						log.Infof("terminating in-progress measurement")
-						newMeasurement = provider.Terminate(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+						newMeasurement = provider.Terminate(run, t.metric, *t.incompleteMeasurement)
 						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
 							newMeasurement.Message = "metric terminated"
 						}
 					} else {
-						newMeasurement = provider.Resume(run, t.metric, run.Spec.Arguments, *t.incompleteMeasurement)
+						newMeasurement = provider.Resume(run, t.metric, *t.incompleteMeasurement)
 					}
 				}
 			}

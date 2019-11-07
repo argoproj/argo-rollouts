@@ -12,10 +12,10 @@ rules:
   resources:
   - replicasets
   verbs:
-  - watch
+  - create
   - get
   - list
-  - create
+  - watch
   - update
   - patch
   - delete
@@ -24,21 +24,53 @@ rules:
   resources:
   - services
   verbs:
-  - watch
   - get
   - list
+  - watch
   - patch
 - apiGroups:
   - argoproj.io
   resources:
   - rollouts
-  - experiments
   verbs:
   - get
   - list
-  - update
   - watch
+  - update
   - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns
+  - experiments
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
 - apiGroups:
   - ""
   resources:

@@ -13,6 +13,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - get
   - list
@@ -34,6 +36,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - create
   - delete
@@ -60,6 +64,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - create
   - delete

@@ -4,6 +4,11 @@ kind: CustomResourceDefinition
 metadata:
   name: analysisruns.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: AnalysisRun status
+    name: Status
+    type: string
   group: argoproj.io
   names:
     kind: AnalysisRun
@@ -11,6 +16,7 @@ spec:
     plural: analysisruns
     singular: analysisrun
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -2526,10 +2532,6 @@ spec:
                 - name
                 - value
                 type: object
-              type: array
-            replicaSets:
-              items:
-                type: string
               type: array
             terminate:
               type: boolean
@@ -5140,13 +5142,21 @@ kind: CustomResourceDefinition
 metadata:
   name: experiments.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: Experiment status
+    name: Status
+    type: string
   group: argoproj.io
   names:
     kind: Experiment
     listKind: ExperimentList
     plural: experiments
+    shortNames:
+    - exp
     singular: experiment
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -10535,10 +10545,10 @@ rules:
   resources:
   - replicasets
   verbs:
-  - watch
+  - create
   - get
   - list
-  - create
+  - watch
   - update
   - patch
   - delete
@@ -10547,21 +10557,53 @@ rules:
   resources:
   - services
   verbs:
-  - watch
   - get
   - list
+  - watch
   - patch
 - apiGroups:
   - argoproj.io
   resources:
   - rollouts
-  - experiments
   verbs:
   - get
   - list
-  - update
   - watch
+  - update
   - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns
+  - experiments
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -10586,6 +10628,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - create
   - delete
@@ -10611,6 +10655,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - create
   - delete
@@ -10636,6 +10682,8 @@ rules:
   resources:
   - rollouts
   - experiments
+  - analysistemplates
+  - analysisruns
   verbs:
   - get
   - list

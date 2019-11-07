@@ -19,6 +19,10 @@ func newScalar(f float64) model.Value {
 	}
 }
 
+func newAnalysisRun() *v1alpha1.AnalysisRun {
+	return &v1alpha1.AnalysisRun{}
+}
+
 func TestType(t *testing.T) {
 	e := log.Entry{}
 	mock := mockAPI{
@@ -44,7 +48,7 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
-	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -68,7 +72,7 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
-	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -76,7 +80,7 @@ func TestRunWithQueryError(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
-func TestRunWithBuildQueryError(t *testing.T) {
+func TestRunWithResolveArgsError(t *testing.T) {
 	e := log.Entry{}
 	expectedErr := fmt.Errorf("failed to resolve {{inputs.var}}")
 	mock := mockAPI{
@@ -91,7 +95,7 @@ func TestRunWithBuildQueryError(t *testing.T) {
 			},
 		},
 	}
-	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -113,7 +117,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
-	measurement := p.Run(nil, metric, []v1alpha1.Argument{})
+	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "Prometheus metric type not supported", measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
@@ -140,7 +144,7 @@ func TestResume(t *testing.T) {
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseInconclusive,
 	}
-	measurement := p.Resume(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
+	measurement := p.Resume(newAnalysisRun(), metric, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
 }
 
@@ -154,7 +158,7 @@ func TestTerminate(t *testing.T) {
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
-	measurement := p.Terminate(nil, metric, []v1alpha1.Argument{}, previousMeasurement)
+	measurement := p.Terminate(newAnalysisRun(), metric, previousMeasurement)
 	assert.Equal(t, previousMeasurement, measurement)
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	"github.com/argoproj/argo-rollouts/utils/query"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -34,7 +34,7 @@ func (p *Provider) Type() string {
 }
 
 // Run queries prometheus for the metric
-func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument) v1alpha1.Measurement {
+func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
@@ -44,7 +44,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args [
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	query, err := query.BuildQuery(metric.Provider.Prometheus.Query, args)
+	query, err := templateutil.ResolveArgs(metric.Provider.Prometheus.Query, run.Spec.Arguments)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -68,13 +68,13 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args [
 }
 
 // Resume should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
+func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("Prometheus provider should not execute the Resume method")
 	return measurement
 }
 
 // Terminate should not be used the prometheus provider since all the work should occur in the Run method
-func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, args []v1alpha1.Argument, measurement v1alpha1.Measurement) v1alpha1.Measurement {
+func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("Prometheus provider should not execute the Terminate method")
 	return measurement
 }
