@@ -480,6 +480,13 @@ func (c *RolloutController) patchCondition(r *v1alpha1.Rollout, newStatus *v1alp
 	return nil
 }
 
+// isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis step which should
+// not affect the progressDeadlineSeconds
+func isIndefiniteStep(r *v1alpha1.Rollout) bool {
+	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
+	return currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil)
+}
+
 func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
 	r := roCtx.Rollout()
 	allRSs := roCtx.AllRSs()
@@ -530,7 +537,7 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(&newStatus, *condition)
-		case conditions.RolloutTimedOut(r, &newStatus):
+		case !isIndefiniteStep(r) && conditions.RolloutTimedOut(r, &newStatus):
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
 			msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, r.Name)
@@ -612,7 +619,7 @@ func (c *RolloutController) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
 	isPaused := len(r.Status.PauseConditions) > 0 || r.Spec.Paused
-	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || r.Status.Abort {
+	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || r.Status.Abort || isIndefiniteStep(r) {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the

@@ -223,7 +223,7 @@ func extraReplicaAdded(replicas int32, setWeight int32) bool {
 // GetCurrentCanaryStep returns the current canary step. If there are no steps or the rollout
 // has already executed the last step, the func returns nil
 func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int32) {
-	if len(rollout.Spec.Strategy.Canary.Steps) == 0 {
+	if rollout.Spec.Strategy.Canary == nil || len(rollout.Spec.Strategy.Canary.Steps) == 0 {
 		return nil, nil
 	}
 	currentStepIndex := int32(0)

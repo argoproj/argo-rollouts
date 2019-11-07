@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2019-11-07T22:38:19Z"
+  generation: 7
+  labels:
+    rollouts-pod-template-hash: 645d5dbc4c
+  name: canary-demo-645d5dbc4c-2-0
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: canary-demo
+    uid: 42b19359-01af-11ea-b38c-42010aa80083
+  resourceVersion: "33430781"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/experiments/canary-demo-645d5dbc4c-2-0
+  uid: 4bef10a5-01af-11ea-b38c-42010aa80083
+spec:
+  analyses:
+  - name: stress-test
+    templateName: stress-test
+  templates:
+  - name: canary-preview
+    selector:
+      matchLabels:
+        app: rollout-canary-preview
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: rollout-canary-preview
+          rollouts-pod-template-hash: 645d5dbc4c
+      spec:
+        containers:
+        - image: argoproj/rollouts-demo:blue
+          imagePullPolicy: Always
+          name: canary-demo
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+status:
+  analysisRuns:
+  - analysisRun: canary-demo-645d5dbc4c-2-0-stress-test
+    name: stress-test
+    phase: Running
+  availableAt: "2019-11-07T22:38:22Z"
+  conditions:
+  - lastTransitionTime: "2019-11-07T22:38:18Z"
+    lastUpdateTime: "2019-11-07T22:38:22Z"
+    message: Experiment "canary-demo-645d5dbc4c-2-0" is running.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  phase: Running
+  templateStatuses:
+  - availableReplicas: 1
+    lastTransitionTime: "2019-11-07T22:38:22Z"
+    name: canary-preview
+    readyReplicas: 1
+    replicas: 1
+    status: Running
+    updatedReplicas: 1

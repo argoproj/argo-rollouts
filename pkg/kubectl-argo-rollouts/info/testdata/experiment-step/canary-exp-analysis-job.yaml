@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    analysisrun.argoproj.io/metric-name: stress
+    analysisrun.argoproj.io/name: canary-demo-645d5dbc4c-2-0-stress-test
+  creationTimestamp: "2019-11-07T22:38:23Z"
+  labels:
+    analysisrun.argoproj.io/uid: 4e2d824d-01af-11ea-b38c-42010aa80083
+  name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AnalysisRun
+    name: canary-demo-645d5dbc4c-2-0-stress-test
+    uid: 4e2d824d-01af-11ea-b38c-42010aa80083
+  resourceVersion: "33430820"
+  selfLink: /apis/batch/v1/namespaces/jesse-test/jobs/4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+  uid: 4e309601-01af-11ea-b38c-42010aa80083
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  selector:
+    matchLabels:
+      controller-uid: 4e309601-01af-11ea-b38c-42010aa80083
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        controller-uid: 4e309601-01af-11ea-b38c-42010aa80083
+        job-name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+    spec:
+      containers:
+      - command:
+        - wrk
+        - -t12
+        - -c100
+        - -d30s
+        - http://canary-demo-preview/color]
+        image: williamyeh/wrk
+        imagePullPolicy: Always
+        name: stress
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  conditions:
+  - lastProbeTime: "2019-11-07T22:38:27Z"
+    lastTransitionTime: "2019-11-07T22:38:27Z"
+    message: Job has reached the specified backoff limit
+    reason: BackoffLimitExceeded
+    status: "True"
+    type: Failed
+  failed: 1
+  startTime: "2019-11-07T22:38:23Z"
