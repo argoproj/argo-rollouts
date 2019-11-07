@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -220,17 +219,13 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 }
 
 func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, availableReplicas int32) *appsv1.ReplicaSet {
-	newRSTemplate := *template.Template.DeepCopy()
-	podHash := controller.ComputeHash(&newRSTemplate, nil)
-	rsLabels := map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
-	}
+	rsLabels := map[string]string{}
 	for k, v := range template.Selector.MatchLabels {
 		rsLabels[k] = v
 	}
 	rs := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, podHash),
+			Name:            fmt.Sprintf("%s-%s", ex.Name, template.Name),
 			UID:             uuid.NewUUID(),
 			Namespace:       metav1.NamespaceDefault,
 			Annotations:     newReplicaSetAnnotations(ex.Name, template.Name),
@@ -251,7 +246,7 @@ func templateToRS(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, avail
 }
 
 func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) string {
-	return fmt.Sprintf("%s-%s-%s", ex.Name, template.Name, controller.ComputeHash(&template.Template, nil))
+	return fmt.Sprintf("%s-%s", ex.Name, template.Name)
 }
 
 func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition) string {

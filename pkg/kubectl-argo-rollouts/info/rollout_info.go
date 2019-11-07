@@ -150,50 +150,77 @@ func rolloutIcon(status string) string {
 	return " "
 }
 
-// Images returns a list of images that are currently running along with tags on which stack they belong to
+// Images returns a list of images that are currently running along with informational tags about
+// 1. which stack they belong to (canary, stable, active, preview)
+// 2. which experiment template they are part of
 func (r *RolloutInfo) Images() []ImageInfo {
-	uniqueImages := make(map[string]ImageInfo)
-	appendIfMissing := func(condition bool, image string, infoTag string) {
-		if _, ok := uniqueImages[image]; !ok {
-			uniqueImages[image] = ImageInfo{
-				Image: image,
-			}
-		}
-		if condition {
-			doAppend := true
-			for _, existingTag := range uniqueImages[image].Tags {
-				if existingTag == infoTag {
-					doAppend = false
-					break
-				}
-			}
-			if doAppend {
-				newInfo := uniqueImages[image]
-				newInfo.Tags = append(uniqueImages[image].Tags, infoTag)
-				uniqueImages[image] = newInfo
-			}
-		}
-	}
+	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {
 			for _, image := range rsInfo.Images {
-				appendIfMissing(rsInfo.Canary, image, InfoTagCanary)
-				appendIfMissing(rsInfo.Stable, image, InfoTagStable)
-				appendIfMissing(rsInfo.Active, image, InfoTagActive)
-				appendIfMissing(rsInfo.Preview, image, InfoTagPreview)
+				newImage := ImageInfo{
+					Image: image,
+				}
+				if rsInfo.Canary {
+					newImage.Tags = append(newImage.Tags, InfoTagCanary)
+				}
+				if rsInfo.Stable {
+					newImage.Tags = append(newImage.Tags, InfoTagStable)
+				}
+				if rsInfo.Active {
+					newImage.Tags = append(newImage.Tags, InfoTagActive)
+				}
+				if rsInfo.Preview {
+					newImage.Tags = append(newImage.Tags, InfoTagPreview)
+				}
+				images = mergeImageAndTags(newImage, images)
 			}
 		}
 	}
-
-	var images []ImageInfo
-	for _, v := range uniqueImages {
-		images = append(images, v)
+	for _, expInfo := range r.Experiments {
+		for _, expImage := range expInfo.Images() {
+			images = mergeImageAndTags(expImage, images)
+		}
 	}
+	return images
+}
 
+// mergeImageAndTags updates or appends the given image, and merges the tags
+func mergeImageAndTags(image ImageInfo, images []ImageInfo) []ImageInfo {
+	foundIdx := -1
+	for i, img := range images {
+		if img.Image == image.Image {
+			foundIdx = i
+			break
+		}
+	}
+	if foundIdx == -1 {
+		images = append(images, image)
+	} else {
+		existing := images[foundIdx]
+		existing.Tags = mergeTags(image.Tags, existing.Tags)
+		images[foundIdx] = existing
+	}
 	sort.Slice(images[:], func(i, j int) bool {
 		return images[i].Image < images[j].Image
 	})
 	return images
+}
+
+func mergeTags(newTags []string, existingTags []string) []string {
+	newTagMap := make(map[string]bool)
+	for _, tag := range newTags {
+		newTagMap[tag] = true
+	}
+	for _, tag := range existingTags {
+		newTagMap[tag] = true
+	}
+	var tags []string
+	for tag := range newTagMap {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags
 }
 
 func (r *RolloutInfo) Revisions() []int {

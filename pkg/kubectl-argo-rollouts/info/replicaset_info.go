@@ -21,6 +21,7 @@ type ReplicaSetInfo struct {
 	Preview   bool
 	Replicas  int32
 	Available int32
+	Template  string
 	Images    []string
 	Pods      []PodInfo
 }
@@ -45,6 +46,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
 		rsInfo.Revision = parseRevision(rs.ObjectMeta.Annotations)
+		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
 
 		if ro != nil {
 			if ro.Spec.Strategy.Canary != nil && rs.Labels != nil {
