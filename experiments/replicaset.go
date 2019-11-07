@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -26,11 +25,6 @@ const (
 		"templateStatuses" : %s
 	}
 }`
-)
-
-const (
-	ExperimentNameAnnotationKey         = "experiment.argoproj.io/name"
-	ExperimentTemplateNameAnnotationKey = "experiment.argoproj.io/template-name"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
@@ -51,10 +45,10 @@ func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.
 	templateToRS := make(map[string]*appsv1.ReplicaSet)
 	for _, rs := range rsList {
 		controllerRef := metav1.GetControllerOf(rs)
-		if controllerRef == nil || controllerRef.UID != experiment.UID || rs.Annotations == nil || rs.Annotations[ExperimentNameAnnotationKey] != experiment.Name {
+		if controllerRef == nil || controllerRef.UID != experiment.UID || rs.Annotations == nil || rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != experiment.Name {
 			continue
 		}
-		if templateName := rs.Annotations[ExperimentTemplateNameAnnotationKey]; templateName != "" {
+		if templateName := rs.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey]; templateName != "" {
 			if _, ok := templateToRS[templateName]; ok {
 				return nil, fmt.Errorf("multiple ReplicaSets match single experiment template: %s", templateName)
 			}
@@ -155,10 +149,9 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 	// replicasets to templates. We inject the experiment and template name in the replicaset
 	// annotations to ensure uniqueness.
 	replicaSetAnnotations := newReplicaSetAnnotations(experiment.Name, template.Name)
-	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, collisionCount)
 	return appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash),
+			Name:            fmt.Sprintf("%s-%s", experiment.Name, template.Name),
 			Namespace:       experiment.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
 			Annotations:     replicaSetAnnotations,
@@ -183,8 +176,8 @@ func (ec *experimentContext) isReplicaSetSemanticallyEqual(newRS, existingRS *ap
 		controllerRef.UID == ec.ex.UID &&
 		podTemplatesEqual &&
 		existingAnnotations != nil &&
-		existingAnnotations[ExperimentNameAnnotationKey] == newAnnotations[ExperimentNameAnnotationKey] &&
-		existingAnnotations[ExperimentTemplateNameAnnotationKey] == newAnnotations[ExperimentTemplateNameAnnotationKey]
+		existingAnnotations[v1alpha1.ExperimentNameAnnotationKey] == newAnnotations[v1alpha1.ExperimentNameAnnotationKey] &&
+		existingAnnotations[v1alpha1.ExperimentTemplateNameAnnotationKey] == newAnnotations[v1alpha1.ExperimentTemplateNameAnnotationKey]
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
@@ -227,7 +220,7 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 
 func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
-		ExperimentNameAnnotationKey:         experimentName,
-		ExperimentTemplateNameAnnotationKey: templateName,
+		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
+		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,
 	}
 }

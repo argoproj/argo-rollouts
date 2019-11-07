@@ -136,7 +136,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 
 	rs := templateToRS(e, templates[0], 0)
-	rs.ObjectMeta.Annotations[ExperimentTemplateNameAnnotationKey] = "something-different" // change this to something different
+	rs.ObjectMeta.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey] = "something-different" // change this to something different
 
 	f := newFixture(t, e, rs)
 	defer f.Close()

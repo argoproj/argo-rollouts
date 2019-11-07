@@ -1,6 +1,7 @@
 package info
 
 import (
+	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -71,44 +72,20 @@ func getExperimentInfo(
 
 // Images returns a list of images that are currently running along with tags on which stack they belong to
 func (r *ExperimentInfo) Images() []ImageInfo {
-	uniqueImages := make(map[string]ImageInfo)
-	appendIfMissing := func(image string, infoTag string) {
-		if _, ok := uniqueImages[image]; !ok {
-			uniqueImages[image] = ImageInfo{
-				Image: image,
-			}
-		}
-		if infoTag != "" {
-			doAppend := true
-			for _, existingTag := range uniqueImages[image].Tags {
-				if existingTag == infoTag {
-					doAppend = false
-					break
-				}
-			}
-			if doAppend {
-				newInfo := uniqueImages[image]
-				newInfo.Tags = append(uniqueImages[image].Tags, infoTag)
-				uniqueImages[image] = newInfo
-			}
-		}
-	}
+	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {
 			for _, image := range rsInfo.Images {
-				appendIfMissing(image, "")
+				newImage := ImageInfo{
+					Image: image,
+				}
+				if rsInfo.Template != "" {
+					newImage.Tags = append(newImage.Tags, fmt.Sprintf("Σ:%s", rsInfo.Template))
+				}
+				images = mergeImageAndTags(newImage, images)
 			}
 		}
 	}
-
-	var images []ImageInfo
-	for _, v := range uniqueImages {
-		images = append(images, v)
-	}
-
-	sort.Slice(images[:], func(i, j int) bool {
-		return images[i].Image < images[j].Image
-	})
 	return images
 }
 
