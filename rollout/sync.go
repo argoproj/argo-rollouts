@@ -441,6 +441,11 @@ func (c *RolloutController) checkPausedConditions(r *v1alpha1.Rollout) error {
 		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
 	}
 
+	abortCondExists := cond != nil && cond.Reason == conditions.RolloutAbortedReason
+	if !r.Status.Abort && abortCondExists {
+		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutRetryReason, conditions.RolloutRetryMessage)
+	}
+
 	if updatedConditon == nil {
 		return nil
 	}
