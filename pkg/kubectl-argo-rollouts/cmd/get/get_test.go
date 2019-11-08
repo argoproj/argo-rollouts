@@ -260,3 +260,52 @@ NAME                                                                     KIND   
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }
+
+func TestGetRolloutWithExperimentJob(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisJobRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	expectedOut := strings.TrimPrefix(`
+Name:            canary-demo
+Namespace:       jesse-test
+Status:          ◌ Progressing
+Strategy:        Canary
+  Step:          0/1
+  SetWeight:     0
+  ActualWeight:  0
+Images:          argoproj/rollouts-demo:blue (Σ:canary-preview)
+                 argoproj/rollouts-demo:green (stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       0
+  Ready:         5
+  Available:     5
+
+NAME                                                           KIND         STATUS         AGE  INFO
+⟳ canary-demo                                                  Rollout      ◌ Progressing  7d
+├──# revision:2
+│  ├──⧉ canary-demo-645d5dbc4c                                 ReplicaSet   • ScaledDown   7d   canary
+│  └──Σ canary-demo-645d5dbc4c-2-0                             Experiment   ◌ Running      7d
+│     ├──⧉ canary-demo-645d5dbc4c-2-0-canary-preview           ReplicaSet   ✔ Healthy      7d
+│     │  └──□ canary-demo-645d5dbc4c-2-0-canary-preview-zmmvz  Pod          ✔ Running      7d   ready:1/1
+│     └──α canary-demo-645d5dbc4c-2-0-stress-test              AnalysisRun  ◌ Running      7d
+│        └──⊞ 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1    Job          ◌ Running      7d
+└──# revision:1
+   └──⧉ canary-demo-877894d5b                                  ReplicaSet   ✔ Healthy      7d   stable
+      ├──□ canary-demo-877894d5b-n6xqz                         Pod          ✔ Running      7d   ready:1/1
+      ├──□ canary-demo-877894d5b-nlmj9                         Pod          ✔ Running      7d   ready:1/1
+      ├──□ canary-demo-877894d5b-txgs5                         Pod          ✔ Running      7d   ready:1/1
+      ├──□ canary-demo-877894d5b-wfqqr                         Pod          ✔ Running      7d   ready:1/1
+      └──□ canary-demo-877894d5b-zhh6x                         Pod          ✔ Running      7d   ready:1/1
+`, "\n")
+	assertStdout(t, expectedOut, o.IOStreams)
+}

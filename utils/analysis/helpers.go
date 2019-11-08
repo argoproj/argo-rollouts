@@ -141,6 +141,7 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 		if !k8serrors.IsAlreadyExists(err) {
 			return nil, err
 		}
+		// TODO(jessesuen): switch from Get to List so that there's no guessing about which collision counter to use.
 		existingRun, err := analysisRunIf.Get(run.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err

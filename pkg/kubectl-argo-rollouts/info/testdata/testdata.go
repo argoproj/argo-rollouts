@@ -63,6 +63,10 @@ func NewExperimentAnalysisRollout() *RolloutObjects {
 	return discoverObjects(testDir + "/experiment-analysis")
 }
 
+func NewExperimentAnalysisJobRollout() *RolloutObjects {
+	return discoverObjects(testDir + "/experiment-step")
+}
+
 func discoverObjects(path string) *RolloutObjects {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -118,6 +122,11 @@ func discoverObjects(path string) *RolloutObjects {
 				panic(err)
 			}
 			run.CreationTimestamp = aWeekAgo
+			for i, m := range run.Status.MetricResults[0].Measurements {
+				m.StartedAt = &aWeekAgo
+				m.FinishedAt = &aWeekAgo
+				run.Status.MetricResults[0].Measurements[i] = m
+			}
 			objs.AnalysisRuns = append(objs.AnalysisRuns, &run)
 		}
 	}

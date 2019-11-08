@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2019-11-07T22:38:19Z"
+  generateName: canary-demo-645d5dbc4c-2-0-canary-preview-
+  labels:
+    app: rollout-canary-preview
+    rollouts-pod-template-hash: 645d5dbc4c
+  name: canary-demo-645d5dbc4c-2-0-canary-preview-zmmvz
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: canary-demo-645d5dbc4c-2-0-canary-preview
+    uid: 4bf4518c-01af-11ea-b38c-42010aa80083
+  resourceVersion: "33430760"
+  selfLink: /api/v1/namespaces/jesse-test/pods/canary-demo-645d5dbc4c-2-0-canary-preview-zmmvz
+  uid: 4bfe52c5-01af-11ea-b38c-42010aa80083
+spec:
+  containers:
+  - image: argoproj/rollouts-demo:blue
+    imagePullPolicy: Always
+    name: canary-demo
+    ports:
+    - containerPort: 8080
+      name: http
+      protocol: TCP
+    resources:
+      requests:
+        cpu: 5m
+        memory: 32Mi
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-5wzlj
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: gke-argoproj-demo-01-default-pool-848985e7-0l5h
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: default-token-5wzlj
+    secret:
+      defaultMode: 420
+      secretName: default-token-5wzlj
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:19Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:22Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:22Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:19Z"
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: docker://56d95a9a9ba9ab750a94a8c50287d6c8690d6585393a9bcbecc0e46e508b15bd
+    image: argoproj/rollouts-demo:blue
+    imageID: docker-pullable://argoproj/rollouts-demo@sha256:67759c03ff4a0cf5d693b83f3adcd582394aa3ec39815026769294c33f5f1c53
+    lastState: {}
+    name: canary-demo
+    ready: true
+    restartCount: 0
+    state:
+      running:
+        startedAt: "2019-11-07T22:38:22Z"
+  hostIP: 10.168.0.25
+  phase: Running
+  podIP: 10.16.2.193
+  qosClass: Burstable
+  startTime: "2019-11-07T22:38:19Z"
