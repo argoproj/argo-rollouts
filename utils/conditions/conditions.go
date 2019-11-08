@@ -85,6 +85,10 @@ const (
 	RolloutAbortedReason = "RolloutAborted"
 	// RolloutAbortedMessage indicates that the rollout was aborted
 	RolloutAbortedMessage = "Rollout is aborted"
+	// RolloutRetryReason indicates that the rollout is retrying after being aborted
+	RolloutRetryReason = "RolloutRetry"
+	// RolloutRetryMessage indicates that the rollout is retrying after being aborted
+	RolloutRetryMessage = "Retrying Rollout after abort"
 
 	// NewRSAvailableReason is added in a rollout when its newest replica set is made available
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
@@ -402,7 +406,10 @@ func RolloutTimedOut(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	// If it's already set with a TimedOutReason reason, we have already timed out, no need to check
 	// again.
 	condition := GetRolloutCondition(*newStatus, v1alpha1.RolloutProgressing)
-	if condition == nil {
+	// When a rollout is retried, the controller should not evaluate for a timeout based on the
+	// aborted condition because the abort could have happened a while back and the rollout should
+	// not enter degraded as a result of that
+	if condition == nil || condition.Reason == RolloutAbortedReason {
 		return false
 	}
 
