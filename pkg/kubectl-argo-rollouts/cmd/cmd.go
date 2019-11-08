@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/pause"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/resume"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/version"
@@ -20,7 +20,7 @@ const (
   %[1]s pause guestbook
 
   # Resume the guestbook rollout
-  %[1]s resume guestbook
+  %[1]s promote guestbook
 `
 )
 
@@ -38,7 +38,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(get.NewCmdGet(o))
 	cmd.AddCommand(list.NewCmdList(o))
 	cmd.AddCommand(pause.NewCmdPause(o))
-	cmd.AddCommand(resume.NewCmdResume(o))
+	cmd.AddCommand(promote.NewCmdPromote(o))
 	cmd.AddCommand(version.NewCmdVersion(o))
 	cmd.AddCommand(abort.NewCmdAbort(o))
 	cmd.AddCommand(retry.NewCmdRetry(o))
