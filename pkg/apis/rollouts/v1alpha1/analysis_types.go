@@ -87,6 +87,7 @@ func (m *Metric) EffectiveCount() *int32 {
 type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
+	Kayenta *KayentaMetric `json:"kayenta,omitempty"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty"`
 }
@@ -219,4 +220,35 @@ type Measurement struct {
 	Metadata map[string]string `json:"metadata,omitempty"`
 	// ResumeAt is the  timestamp when the analysisRun should try to resume the measurement
 	ResumeAt *metav1.Time `json:"resumeAt,omitempty"`
+}
+
+type KayentaMetric struct {
+
+	Address string `json:"address"`
+
+	Application string `json:"application"`
+
+	CanaryConfigName string `json:"canaryConfigName"`
+
+	Threshold KayentaThreshold `json:"threshold"`
+
+	Scopes  []KayentaScope `json:"scopes"`
+}
+
+type KayentaThreshold struct {
+	Pass int `json:"pass,omitempty"`
+	Marginal int `json:"marginal,omitempty"`
+}
+
+type KayentaScope struct {
+	Name string `json:"name,omitempty"`
+	ControlScope ScopeDetail `json:"controlScope,omitempty"`
+	ExperimentScope ScopeDetail  `json:"experimentScope,omitempty"`
+}
+
+type ScopeDetail struct {
+	Scope string `json:"scope,omitempty"`
+	Step int `json:"step,omitempty"`
+	StartTime string `json:"start,omitempty"`
+	EndTime string `json:"end,omitempty"`
 }
