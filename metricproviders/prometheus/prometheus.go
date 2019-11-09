@@ -45,7 +45,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	query, err := templateutil.ResolveArgs(metric.Provider.Prometheus.Query, run.Spec.Arguments)
+	query, err := templateutil.ResolveArgs(metric.Provider.Prometheus.Query, run.Spec.Args)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}

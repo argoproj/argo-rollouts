@@ -205,15 +205,22 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunSpec is the spec for a AnalysisRun resource",
 				Properties: map[string]spec.Schema{
-					"analysisSpec": {
+					"metrics": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AnalysisSpec holds the AnalysisSpec definition for performing analysis",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
+							Description: "Metrics contains the list of metrics to query as part of an analysis run",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
+									},
+								},
+							},
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments hold the arguments to the run to be used by metric providers",
+							Description: "Args are the list of arguments used in this run",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -232,11 +239,11 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"analysisSpec"},
+				Required: []string{"metrics"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
 	}
 }
 
@@ -386,12 +393,25 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 							},
 						},
 					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the list of arguments to the template",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"metrics"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
 	}
 }
 
@@ -416,7 +436,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) co
 						},
 					},
 				},
-				Required: []string{"name", "value"},
+				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{},
@@ -790,9 +810,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							Format:      "",
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments the arguments that will be added to the AnalysisRuns",
+							Description: "Args are the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1500,9 +1520,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments the arguments that will be added to the AnalysisRuns",
+							Description: "Args the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

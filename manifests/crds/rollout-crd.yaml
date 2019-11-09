@@ -113,7 +113,7 @@ spec:
                   properties:
                     analysis:
                       properties:
-                        arguments:
+                        args:
                           items:
                             properties:
                               name:
@@ -152,7 +152,7 @@ spec:
                         properties:
                           analysis:
                             properties:
-                              arguments:
+                              args:
                                 items:
                                   properties:
                                     name:
@@ -181,7 +181,7 @@ spec:
                               analyses:
                                 items:
                                   properties:
-                                    arguments:
+                                    args:
                                       items:
                                         properties:
                                           name:

@@ -32,7 +32,7 @@ spec:
             analyses:
               items:
                 properties:
-                  arguments:
+                  args:
                     items:
                       properties:
                         name:
@@ -41,7 +41,6 @@ spec:
                           type: string
                       required:
                       - name
-                      - value
                       type: object
                     type: array
                   name:

@@ -44,7 +44,8 @@ func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, spec *v1alpha1.
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: *spec,
+			Metrics: spec.Metrics,
+			Args:    spec.Args,
 		},
 	}
 	return &ar

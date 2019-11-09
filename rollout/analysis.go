@@ -215,6 +215,11 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 		}
 		return nil, err
 	}
+	newArgs, err := analysisutil.MergeArgs(args, template.Spec.Args)
+	if err != nil {
+		return nil, err
+	}
+
 	revision := r.Annotations[annotations.RevisionAnnotation]
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -228,8 +233,8 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: template.Spec,
-			Arguments:    args,
+			Metrics: template.Spec.Metrics,
+			Args:    newArgs,
 		},
 	}
 	return &ar, nil

@@ -22,31 +22,30 @@ metadata:
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/analysisruns/rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
   uid: e50bceec-fae6-11e9-a15b-42010aa80033
 spec:
-  analysisSpec:
-    metrics:
-    - interval: 10
-      maxFailures: 5
-      name: random-fail
-      provider:
-        job:
-          metadata:
-            creationTimestamp: null
-          spec:
-            backoffLimit: 0
-            template:
-              metadata:
-                creationTimestamp: null
-              spec:
-                containers:
-                - args:
-                  - FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP
-                  command:
-                  - sh
-                  - -c
-                  image: alpine:3.8
-                  name: sleep
-                  resources: {}
-                restartPolicy: Never
+  metrics:
+  - interval: 10
+    maxFailures: 5
+    name: random-fail
+    provider:
+      job:
+        metadata:
+          creationTimestamp: null
+        spec:
+          backoffLimit: 0
+          template:
+            metadata:
+              creationTimestamp: null
+            spec:
+              containers:
+              - args:
+                - FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP
+                command:
+                - sh
+                - -c
+                image: alpine:3.8
+                name: sleep
+                resources: {}
+              restartPolicy: Never
 status:
   metricResults:
   - count: 8

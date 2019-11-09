@@ -187,9 +187,9 @@ type ExperimentAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName"`
-	// Arguments the arguments that will be added to the AnalysisRuns
+	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
-	Arguments []Argument `json:"arguments,omitempty"`
+	Args []Argument `json:"args,omitempty"`
 }
 
 type ExperimentAnalysisRunStatus struct {

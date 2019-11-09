@@ -101,7 +101,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
 			Name:         analysis.Name,
 			TemplateName: analysis.TemplateName,
-			Arguments:    args,
+			Args:         args,
 		}
 		experiment.Spec.Analyses = append(experiment.Spec.Analyses, analysisTemplate)
 	}
