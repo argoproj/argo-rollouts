@@ -515,6 +515,14 @@
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:9a1b782e10224f243d627f9dacfd43e69752247f6edf6bfa83c9c773cfd3ff11"
+  name = "github.com/spaceapegames/go-wavefront"
+  packages = ["."]
+  pruneopts = ""
+  revision = "d617b8803739eb11a2e4db6097b51a64a6def5db"
+  version = "v1.6.2"
+
+[[projects]]
   digest = "1:0c63b3c7ad6d825a898f28cb854252a3b29d37700c68a117a977263f5ec94efe"
   name = "github.com/spf13/cobra"
   packages = ["."]
@@ -1326,6 +1334,7 @@
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/prometheus/common/model",
     "github.com/sirupsen/logrus",
+    "github.com/spaceapegames/go-wavefront",
     "github.com/spf13/cobra",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",

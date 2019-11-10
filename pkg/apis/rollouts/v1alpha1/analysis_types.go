@@ -87,6 +87,8 @@ func (m *Metric) EffectiveCount() *int32 {
 type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
+	// Prometheus specifies the prometheus metric to query
+	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty"`
 }
@@ -118,6 +120,14 @@ type PrometheusMetric struct {
 	// Address is the HTTP address and port of the prometheus server
 	Address string `json:"address,omitempty"`
 	// Query is a raw prometheus query to perform
+	Query string `json:"query,omitempty"`
+}
+
+// WavefrontMetric defines the wavefront query to perform canary analysis
+type WavefrontMetric struct {
+	// Address is the HTTP address and port of the wavefront server
+	Address string `json:"address,omitempty"`
+	// Query is a raw wavefront query to perform
 	Query string `json:"query,omitempty"`
 }
 
