@@ -184,9 +184,8 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 	}
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, rsInfo.Age(), strings.Join(infoCols, ","))
 	for i, podInfo := range rsInfo.Pods {
-		fmt.Fprintf(w, subpfx)
 		isLast := i == len(rsInfo.Pods)-1
-		podPrefix, _ := getPrefixes(isLast, "")
+		podPrefix, _ := getPrefixes(isLast, subpfx)
 		podInfoCol := []string{fmt.Sprintf("ready:%s", podInfo.Ready)}
 		if podInfo.Restarts > 0 {
 			podInfoCol = append(podInfoCol, fmt.Sprintf("restarts:%d", podInfo.Restarts))
@@ -211,4 +210,14 @@ func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunIn
 		infoCols = append(infoCols, fmt.Sprintf("%s %d", o.colorize(info.IconWarning), arInfo.Error))
 	}
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconAnalysis, name, "AnalysisRun", o.colorize(arInfo.Icon), arInfo.Status, arInfo.Age(), strings.Join(infoCols, ","))
+	for i, jobInfo := range arInfo.Jobs {
+		isLast := i == len(arInfo.Jobs)-1
+		jobPrefix, jobChildPrefix := getPrefixes(isLast, subpfx)
+		o.PrintJob(w, jobInfo, jobPrefix, jobChildPrefix)
+	}
+}
+
+func (o *GetOptions) PrintJob(w io.Writer, jobInfo info.JobInfo, prefix string, subpfx string) {
+	name := o.colorizeStatus(jobInfo.Name, jobInfo.Status)
+	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconJob, name, "Job", o.colorize(jobInfo.Icon), jobInfo.Status, jobInfo.Age(), "")
 }

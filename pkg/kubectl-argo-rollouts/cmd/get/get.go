@@ -43,6 +43,7 @@ const (
 	IconRevision   = "#"
 	IconReplicaSet = "⧉"
 	IconPod        = "□"
+	IconJob        = "⊞"
 	IconService    = "⑃" // other options: ⋲ ⇶ ⋔ ⤨
 	IconExperiment = "Σ" // other options: ꀀ ⋃ ⨄
 	IconAnalysis   = "α" // other options: ⚯

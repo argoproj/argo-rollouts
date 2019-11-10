@@ -283,6 +283,9 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchFmt := `{
 		"status": {
+			"canary": {
+				"currentExperiment": null
+			},
 			"pauseConditions": [{
 				"reason": "%s",
 				"startTime": "%s"
@@ -295,6 +298,39 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions))
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestRolloutExperimentScaleDownExperimentFromPreviousStep(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{Experiment: &v1alpha1.RolloutExperimentStep{}},
+		{SetWeight: pointer.Int32Ptr(1)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, false)
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	r2.Status.Canary.CurrentExperiment = ex.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.experimentLister = append(f.experimentLister, ex)
+	f.objects = append(f.objects, r2, ex)
+
+	exPatchIndex := f.expectPatchExperimentAction(ex)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	exPatch := f.getPatchedExperiment(exPatchIndex)
+	assert.True(t, exPatch.Spec.Terminate)
 }
 
 func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
