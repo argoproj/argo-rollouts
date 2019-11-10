@@ -1,31 +1,48 @@
 package kayenta
 
 import (
-	//"fmt"
-	//"time"
-
+	"bytes"
+	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
-	"argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	//"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	//"github.com/argoproj/argo-rollouts/utils/evaluate"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
-	//metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	//templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
 	//ProviderType indicates the provider is kayenta
 	ProviderType = "Kayenta"
+	KayentaScoreURL string = "{{inputs.address}}/canary/{{inputs.canaryExecutionId}}"
+
+	JobURL string = "{{inputs.address}}/canary/{{inputs.canaryConfigId}}?application={{inputs.application}}&metricsAccountName={{inputs.metricsAccountName}}&configurationAccountName={{inputs.configurationAccountName}}&storageAccountName={{inputs.storageAccountName}}"
+
+	JobPayloadTemplate string = `
+							{
+								"scopes": {
+										{{inputs.scopes}}
+								},
+                                "thresholds" : {
+                                    "pass": {{inputs.pass}},
+                                    "marginal": {{inputs.marginal}}
+                                }
+                            }`
+
+
 )
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
 	logCtx log.Entry
-	client http.Client
+	client *http.Client
 }
 
 // Type incidates provider is a prometheus provider
@@ -40,36 +57,103 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//How do I guarantee timeout with Kayenta?  Ctx??
+	jobURL := strings.Replace(JobURL, "{{inputs.address}}", metric.Provider.Kayenta.Address, 1)
+	jobURL = strings.Replace(jobURL, "{{inputs.canaryConfigId}}", metric.Provider.Kayenta.CanaryConfigId, 1)
+	jobURL = strings.Replace(jobURL, "{{inputs.application}}", metric.Provider.Kayenta.Application, 1)
+	jobURL = strings.Replace(jobURL, "{{inputs.metricsAccountName}}", metric.Provider.Kayenta.MetricsAccountName, 1)
+	jobURL = strings.Replace(jobURL, "{{inputs.configurationAccountName}}", metric.Provider.Kayenta.ConfigurationAccountName, 1)
+	jobURL = strings.Replace(jobURL, "{{inputs.storageAccountName}}", metric.Provider.Kayenta.StorageAccountName, 1)
 
-	//Create Json
-	//Make HTTP Call
-	//store canaryJobId in measurement.metadata
-	//set resumeAt
-	//return no errors
+	jobPayLoad := strings.Replace(JobPayloadTemplate, "{{inputs.pass}}", strconv.Itoa(metric.Provider.Kayenta.Threshold.Pass), 1)
+	jobPayLoad = strings.Replace(jobPayLoad, "{{inputs.marginal}}", strconv.Itoa(metric.Provider.Kayenta.Threshold.Marginal), 1)
+	var scopes string
+	for i, s := range metric.Provider.Kayenta.Scopes {
+		name := s.Name
+		controlScope, err := json.Marshal(s.ControlScope)
+		if err != nil {
+			return metricutil.MarkMeasurementError(newMeasurement, err)
+		}
+		experimentScope, err := json.Marshal(s.ExperimentScope)
+		if err != nil {
+			return metricutil.MarkMeasurementError(newMeasurement, err)
+		}
+		scopes = "\"" + name +  "\":" + string(controlScope) + "," + string(experimentScope)
+		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
+			scopes = scopes + ","
+		}
 
+	}
 
+	jobPayLoad = strings.Replace(jobPayLoad, "{{inputs.scopes}}", scopes, 1)
 
+	jsonValue, err := templateutil.ResolveArgs(jobPayLoad, run.Spec.Arguments)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
 
-
-	newMeasurement.Value = "" //Job Id
+	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jsonValue)))
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	} else {
+		data, _ := ioutil.ReadAll(response.Body)
+		var dat map[string]interface{}
+		if err := json.Unmarshal(data, &dat); err != nil {
+			return metricutil.MarkMeasurementError(newMeasurement, err)
+		}
+		jobId := dat["canaryExecutionId"]
+		m := make(map[string]string)
+		m["canaryExecutionId"] = fmt.Sprintf("%v", jobId)
+		newMeasurement.Metadata = m
+	}
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
-	finishedTime := metav1.Now()
-	newMeasurement.FinishedAt = &finishedTime
+
+	//newMeasurement.ResumeAt = ?metav1.Time is Immmutable?
+
 	return newMeasurement
 }
 
 // Resume should not be used the prometheus provider since all the work should occur in the Run method
 func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
-	// query kayenta with job id from metadata
-	// if not finishes
-	// set resume at and return early
-	// get score from kayenta response
-	// Compare score to success and failure conditions (evaluateResult method)
-	// set measurement value, finsihed time, status (healthy, inconclusive, or failure)
 
+	scoreURL := strings.Replace(KayentaScoreURL, "{{inputs.address}}", metric.Provider.Kayenta.Address, 1)
+	scoreURL = strings.Replace(scoreURL, "{{inputs.canaryExecutionId}}", measurement.Metadata["canaryExecutionId"], 1)
+
+	response, err := p.client.Get(scoreURL)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	} else {
+		data, _ := ioutil.ReadAll(response.Body)
+		//fmt.Println(string(data))
+		var dat map[string]interface{}
+
+		if err := json.Unmarshal(data, &dat); err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		//result.judgeResult.score.score
+		//TODO:  Use the empty object interface to avoid panic
+		score := dat["result"].(map[string]interface{})["judgeResult"].(map[string]interface{})["score"].(map[string]interface{})["score"]
+		measurement.Value = fmt.Sprintf("%v", score)
+	}
+
+	finishTime := metav1.Now()
+	measurement.FinishedAt = &finishTime
+	score, err := strconv.Atoi(measurement.Value)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+	measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 	return measurement
+}
+
+func evaluateResult(score int, pass int, marginal int) v1alpha1.AnalysisPhase {
+	if score >= pass {
+		return v1alpha1.AnalysisPhaseSuccessful
+	} else if score < pass && score >= marginal {
+		return v1alpha1.AnalysisPhaseInconclusive
+	} else {
+		return v1alpha1.AnalysisPhaseFailed
+	}
 }
 
 // Terminate should not be used the prometheus provider since all the work should occur in the Run method
@@ -84,7 +168,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 
-func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
+func NewKayentaProvider(logCtx log.Entry, client *http.Client) *Provider {
 	return &Provider{
 		logCtx: logCtx,
 		client: client,
@@ -93,9 +177,9 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 
 func NewHttpClient() *http.Client {
 	//TODO:  Should timeout be configurable?
-	c := &http.Client{
+	c := http.Client{
 		Timeout: 15 * time.Second,
 	}
 
-	return c
+	return &c
 }

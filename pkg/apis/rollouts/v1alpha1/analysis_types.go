@@ -228,7 +228,13 @@ type KayentaMetric struct {
 
 	Application string `json:"application"`
 
-	CanaryConfigName string `json:"canaryConfigName"`
+	CanaryConfigName string `json:"canaryConfigName,omitempty"`
+	CanaryConfigId   string `json:"canaryConfigId,omitempty"`
+
+	MetricsAccountName string `json:"metricsAccountName"`
+	ConfigurationAccountName string `json:"canaryConfigId"`
+	StorageAccountName  string `json:"canaryConfigId"`
+
 
 	Threshold KayentaThreshold `json:"threshold"`
 
@@ -248,6 +254,7 @@ type KayentaScope struct {
 
 type ScopeDetail struct {
 	Scope string `json:"scope,omitempty"`
+	Region string `json:"region,omitempty"`
 	Step int `json:"step,omitempty"`
 	StartTime string `json:"start,omitempty"`
 	EndTime string `json:"end,omitempty"`
