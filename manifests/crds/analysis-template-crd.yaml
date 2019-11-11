@@ -2494,6 +2494,90 @@ spec:
                         required:
                         - spec
                         type: object
+                      kayenta:
+                        properties:
+                          address:
+                            type: string
+                          application:
+                            type: string
+                          canaryConfigId:
+                            type: string
+                          canaryConfigName:
+                            type: string
+                          configurationAccountName:
+                            type: string
+                          metricsAccountName:
+                            type: string
+                          scopes:
+                            items:
+                              properties:
+                                controlScope:
+                                  properties:
+                                    end:
+                                      type: string
+                                    region:
+                                      type: string
+                                    scope:
+                                      type: string
+                                    start:
+                                      type: string
+                                    step:
+                                      type: integer
+                                  required:
+                                  - end
+                                  - region
+                                  - scope
+                                  - start
+                                  - step
+                                  type: object
+                                experimentScope:
+                                  properties:
+                                    end:
+                                      type: string
+                                    region:
+                                      type: string
+                                    scope:
+                                      type: string
+                                    start:
+                                      type: string
+                                    step:
+                                      type: integer
+                                  required:
+                                  - end
+                                  - region
+                                  - scope
+                                  - start
+                                  - step
+                                  type: object
+                                name:
+                                  type: string
+                              required:
+                              - controlScope
+                              - experimentScope
+                              - name
+                              type: object
+                            type: array
+                          storageAccountName:
+                            type: string
+                          threshold:
+                            properties:
+                              marginal:
+                                type: integer
+                              pass:
+                                type: integer
+                            required:
+                            - marginal
+                            - pass
+                            type: object
+                        required:
+                        - address
+                        - application
+                        - configurationAccountName
+                        - metricsAccountName
+                        - scopes
+                        - storageAccountName
+                        - threshold
+                        type: object
                       prometheus:
                         properties:
                           address:
