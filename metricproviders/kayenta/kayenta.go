@@ -40,9 +40,9 @@ const (
                                 }
                             }`
 
-	ResumeDelay time.Duration = 15 * time.Second
+	ResumeDelay           time.Duration = 15 * time.Second
 	httpConenectionTimout time.Duration = 15 * time.Second
-	scopeFormat = `"%s":{"controlScope": %s, "experimentScope": %s}`
+	scopeFormat                         = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {

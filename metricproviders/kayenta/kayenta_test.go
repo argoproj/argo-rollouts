@@ -2,12 +2,13 @@ package kayenta
 
 import (
 	"bytes"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -125,10 +126,10 @@ func TestRunSuccessfully(t *testing.T) {
 
 	run := newAnalysisRun()
 	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
-		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
-		{Name:"stable-hash", Value:"xxxx"},
-		{Name:"canary-hash", Value:"yyyy"},
+		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
+		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
+		{Name: "stable-hash", Value: "xxxx"},
+		{Name: "canary-hash", Value: "yyyy"},
 	}
 
 	measurement := p.Run(run, metric)
@@ -183,10 +184,10 @@ func TestRunBadResponse(t *testing.T) {
 
 	run := newAnalysisRun()
 	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
-		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
-		{Name:"stable-hash", Value:"xxxx"},
-		{Name:"canary-hash", Value:"yyyy"},
+		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
+		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
+		{Name: "stable-hash", Value: "xxxx"},
+		{Name: "canary-hash", Value: "yyyy"},
 	}
 
 	measurement := p.Run(run, metric)
@@ -232,10 +233,10 @@ func TestRunEmptyExecutionId(t *testing.T) {
 
 	run := newAnalysisRun()
 	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
-		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
-		{Name:"stable-hash", Value:"xxxx"},
-		{Name:"canary-hash", Value:"yyyy"},
+		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
+		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
+		{Name: "stable-hash", Value: "xxxx"},
+		{Name: "canary-hash", Value: "yyyy"},
 	}
 
 	measurement := p.Run(run, metric)
