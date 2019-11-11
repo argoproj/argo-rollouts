@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/tidwall/gjson"
 
@@ -23,7 +24,7 @@ import (
 
 const (
 	//ProviderType indicates the provider is kayenta
-	ProviderType = "Kayenta"
+	ProviderType           = "Kayenta"
 	KayentaScoreURL string = "{{inputs.address}}/canary/{{inputs.canaryExecutionId}}"
 
 	JobURL string = "{{inputs.address}}/canary/{{inputs.canaryConfigId}}?application={{inputs.application}}&metricsAccountName={{inputs.metricsAccountName}}&configurationAccountName={{inputs.configurationAccountName}}&storageAccountName={{inputs.storageAccountName}}"
@@ -38,8 +39,6 @@ const (
                                     "marginal": {{inputs.marginal}}
                                 }
                             }`
-
-
 )
 
 type Provider struct {
@@ -81,7 +80,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
 		experimentScopeStr := "\"experimentScope\":" + string(experimentScope)
-		scopes = scopes + "\"" + name +  "\":{" + controlScopeStr + "," + experimentScopeStr + "}"
+		scopes = scopes + "\"" + name + "\":{" + controlScopeStr + "," + experimentScopeStr + "}"
 		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
 			scopes = scopes + ","
 		}
@@ -146,13 +145,13 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	} else {
 		data, err := ioutil.ReadAll(response.Body)
-		if  err != nil {
+		if err != nil {
 			return metricutil.MarkMeasurementError(measurement, err)
 		}
 		json := string(data)
 		result := gjson.Get(json, "result.judgeResult.score.score")
 
-		if  len(result.Raw) == 0 || ! isNumeric(result.Raw) {
+		if len(result.Raw) == 0 || !isNumeric(result.Raw) {
 			return metricutil.MarkMeasurementError(measurement, errors.New("Invalid score"))
 		}
 		score := int(result.Num)
@@ -191,7 +190,6 @@ func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
 	return nil
 }
-
 
 func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 	return &Provider{

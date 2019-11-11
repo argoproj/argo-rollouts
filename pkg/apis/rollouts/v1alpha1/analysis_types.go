@@ -87,7 +87,7 @@ func (m *Metric) EffectiveCount() *int32 {
 type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
-	Kayenta *KayentaMetric `json:"kayenta,omitempty"`
+	Kayenta    *KayentaMetric    `json:"kayenta,omitempty"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty"`
 }
@@ -223,7 +223,6 @@ type Measurement struct {
 }
 
 type KayentaMetric struct {
-
 	Address string `json:"address"`
 
 	Application string `json:"application"`
@@ -231,31 +230,30 @@ type KayentaMetric struct {
 	CanaryConfigName string `json:"canaryConfigName,omitempty"`
 	CanaryConfigId   string `json:"canaryConfigId,omitempty"`
 
-	MetricsAccountName string `json:"metricsAccountName"`
+	MetricsAccountName       string `json:"metricsAccountName"`
 	ConfigurationAccountName string `json:"configurationAccountName"`
-	StorageAccountName  string `json:"storageAccountName"`
-
+	StorageAccountName       string `json:"storageAccountName"`
 
 	Threshold KayentaThreshold `json:"threshold"`
 
-	Scopes  []KayentaScope `json:"scopes"`
+	Scopes []KayentaScope `json:"scopes"`
 }
 
 type KayentaThreshold struct {
-	Pass int `json:"pass,omitempty"`
+	Pass     int `json:"pass,omitempty"`
 	Marginal int `json:"marginal,omitempty"`
 }
 
 type KayentaScope struct {
-	Name string `json:"name,omitempty"`
-	ControlScope ScopeDetail `json:"controlScope,omitempty"`
-	ExperimentScope ScopeDetail  `json:"experimentScope,omitempty"`
+	Name            string      `json:"name,omitempty"`
+	ControlScope    ScopeDetail `json:"controlScope,omitempty"`
+	ExperimentScope ScopeDetail `json:"experimentScope,omitempty"`
 }
 
 type ScopeDetail struct {
-	Scope string `json:"scope,omitempty"`
-	Region string `json:"region,omitempty"`
-	Step int `json:"step,omitempty"`
+	Scope     string `json:"scope,omitempty"`
+	Region    string `json:"region,omitempty"`
+	Step      int    `json:"step,omitempty"`
 	StartTime string `json:"start,omitempty"`
-	EndTime string `json:"end,omitempty"`
+	EndTime   string `json:"end,omitempty"`
 }

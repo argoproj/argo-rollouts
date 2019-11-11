@@ -2,12 +2,11 @@ package kayenta
 
 import (
 	"bytes"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
-	log "github.com/sirupsen/logrus"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -49,44 +48,44 @@ spec:
 */
 func buildMetric() v1alpha1.Metric {
 	return v1alpha1.Metric{
-		Name:             "mann-whitney",
+		Name: "mann-whitney",
 		Provider: v1alpha1.MetricProvider{
 			Kayenta: &v1alpha1.KayentaMetric{
-				Address: "https://kayenta.example.oom",
-				Application: "guestbook",
-				CanaryConfigName: "my-test",
-				CanaryConfigId: "11111",
-				MetricsAccountName: "wavefront-prod",
+				Address:                  "https://kayenta.example.oom",
+				Application:              "guestbook",
+				CanaryConfigName:         "my-test",
+				CanaryConfigId:           "11111",
+				MetricsAccountName:       "wavefront-prod",
 				ConfigurationAccountName: "intuit-kayenta",
-				StorageAccountName:  "intuit-kayenta",
+				StorageAccountName:       "intuit-kayenta",
 				Threshold: v1alpha1.KayentaThreshold{
 					Pass:     90,
 					Marginal: 75,
 				},
 				Scopes: []v1alpha1.KayentaScope{
-					v1alpha1.KayentaScope{
-						Name:            "default",
-						ControlScope:    v1alpha1.ScopeDetail{
-							Scope: "app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}",
-							Step: 60,
-							Region: "us-=west-2",
+					{
+						Name: "default",
+						ControlScope: v1alpha1.ScopeDetail{
+							Scope:     "app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}",
+							Step:      60,
+							Region:    "us-=west-2",
 							StartTime: "{{inputs.start-time}}",
-							EndTime: "{{inputs.end-time}}",
+							EndTime:   "{{inputs.end-time}}",
 						},
 						ExperimentScope: v1alpha1.ScopeDetail{
-							Scope: "app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}",
-							Step: 60,
-							Region: "us-=west-2",
+							Scope:     "app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}",
+							Step:      60,
+							Region:    "us-=west-2",
 							StartTime: "{{inputs.start-time}}",
-							EndTime: "{{inputs.end-time}}",
+							EndTime:   "{{inputs.end-time}}",
 						},
 					},
 				},
 			},
 		},
-
 	}
 }
+
 //
 
 func TestRunSuccessfully(t *testing.T) {
@@ -110,13 +109,13 @@ func TestRunSuccessfully(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			// Send response to be tested
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
             }
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
@@ -124,10 +123,10 @@ func TestRunSuccessfully(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"start-time", Value:"2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"end-time", Value:"2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"stable-hash", Value:"xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
 
 	measurement := p.Run(run, metric)
 
@@ -141,10 +140,9 @@ func TestRunSuccessfully(t *testing.T) {
 
 	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
 
-	measurement2  := p.Terminate(run, metric, measurement)
+	measurement2 := p.Terminate(run, metric, measurement)
 	assert.Equal(t, measurement, measurement2)
 }
-
 
 func TestRunBadResponse(t *testing.T) {
 	e := log.Entry{}
@@ -170,10 +168,10 @@ func TestRunBadResponse(t *testing.T) {
 			//Body:       ioutil.NopCloser(bytes.NewBufferString(`
 			//{
 			//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-            //}
+			//}
 			//`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
@@ -181,10 +179,10 @@ func TestRunBadResponse(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"start-time", Value:"2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"end-time", Value:"2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"stable-hash", Value:"xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
 
 	measurement := p.Run(run, metric)
 
@@ -214,13 +212,13 @@ func TestRunEmptyExecutionId(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			// Send response to be tested
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : ""
 			}
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
@@ -228,10 +226,10 @@ func TestRunEmptyExecutionId(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"start-time", Value:"2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"end-time", Value:"2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"stable-hash", Value:"xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
 
 	measurement := p.Run(run, metric)
 
@@ -249,7 +247,7 @@ func TestResumeSuccessfully(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			//result.judgeResult.score.score
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"result" : {
 								"judgeResult": {
@@ -259,12 +257,11 @@ func TestResumeSuccessfully(t *testing.T) {
             }
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
 	p := NewKayentaProvider(e, c)
-
 
 	metric := buildMetric()
 	m := make(map[string]string)
@@ -290,12 +287,11 @@ func TestResumeBadResponse(t *testing.T) {
 		return &http.Response{
 			StatusCode: 500,
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
 	p := NewKayentaProvider(e, c)
-
 
 	metric := buildMetric()
 	m := make(map[string]string)
@@ -319,7 +315,7 @@ func TestResumeInvalidScore(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			//result.judgeResult.score.score
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"result" : {
 								"judgeResult": {
@@ -328,12 +324,11 @@ func TestResumeInvalidScore(t *testing.T) {
 			}
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
 	p := NewKayentaProvider(e, c)
-
 
 	metric := buildMetric()
 	m := make(map[string]string)
@@ -357,7 +352,7 @@ func TestResumeFailure(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			//result.judgeResult.score.score
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"result" : {
 								"judgeResult": {
@@ -367,7 +362,7 @@ func TestResumeFailure(t *testing.T) {
             }
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
@@ -395,7 +390,7 @@ func TestResumeInconclusive(t *testing.T) {
 		return &http.Response{
 			StatusCode: 200,
 			//result.judgeResult.score.score
-			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"result" : {
 								"judgeResult": {
@@ -405,7 +400,7 @@ func TestResumeInconclusive(t *testing.T) {
             }
 			`)),
 			// Must be set to non-nil value or it panics
-			Header:     make(http.Header),
+			Header: make(http.Header),
 		}
 	})
 
@@ -423,6 +418,7 @@ func TestResumeInconclusive(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 
 }
+
 // RoundTripFunc .
 type RoundTripFunc func(req *http.Request) *http.Response
 
