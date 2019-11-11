@@ -132,10 +132,108 @@ func TestRunSuccessfully(t *testing.T) {
 	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
 
 	measurement := p.Run(run, metric)
+
 	assert.NotNil(t, measurement.StartedAt)
-	//assert.NotNil(t, measurement.ResumeAt)
+	assert.NotNil(t, measurement.ResumeAt)
 	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", measurement.Metadata["canaryExecutionId"])
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+
+	assert.Equal(t, "Kayenta", p.Type())
+	assert.IsType(t, http.Client{}, NewHttpClient())
+	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
+}
+
+func TestRunBadResponse(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
+
+		body, _ := ioutil.ReadAll(req.Body)
+		assert.Equal(t, string(body), `
+							{
+								"scopes": {
+										"default":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}
+								},
+                                "thresholds" : {
+                                    "pass": 90,
+                                    "marginal": 75
+                                }
+                            }`)
+
+		return &http.Response{
+			StatusCode: 500,
+			// Send response to be tested
+			//Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			//{
+			//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
+            //}
+			//`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+
+	run := newAnalysisRun()
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"start-time", Value:"2019-03-29T01:08:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"end-time", Value:"2019-03-29T01:38:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"stable-hash", Value:"xxxx"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
+
+	measurement := p.Run(run, metric)
+
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+
+}
+
+func TestRunEmptyExecutionId(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
+
+		body, _ := ioutil.ReadAll(req.Body)
+		assert.Equal(t, string(body), `
+							{
+								"scopes": {
+										"default":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}
+								},
+                                "thresholds" : {
+                                    "pass": 90,
+                                    "marginal": 75
+                                }
+                            }`)
+
+		return &http.Response{
+			StatusCode: 200,
+			// Send response to be tested
+			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"canaryExecutionId" : ""
+			}
+			`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+
+	run := newAnalysisRun()
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"start-time", Value:"2019-03-29T01:08:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"end-time", Value:"2019-03-29T01:38:34Z"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"stable-hash", Value:"xxxx"})
+	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name:"canary-hash", Value:"yyyy"})
+
+	measurement := p.Run(run, metric)
+
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 
 }
 
@@ -163,6 +261,8 @@ func TestResumeSuccessfully(t *testing.T) {
 	})
 
 	p := NewKayentaProvider(e, c)
+
+
 	metric := buildMetric()
 	m := make(map[string]string)
 	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
@@ -171,9 +271,164 @@ func TestResumeSuccessfully(t *testing.T) {
 	}
 
 	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+
 	assert.Equal(t, "100", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+
+}
+
+func TestResumeBadResponse(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 500,
+			//result.judgeResult.score.score
+			//Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			//{
+			//	"result" : {
+			//					"judgeResult": {
+			//						"score": { "score": 100 }
+			//					}
+			//				}
+            //}
+			//`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+
+
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+
+}
+
+func TestResumeInvalidScore(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 200,
+			//result.judgeResult.score.score
+			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"result" : {
+								"judgeResult": {
+									"score": { "score": "x" }
+								}
+							}
+			}
+			`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+
+
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+
+}
+
+func TestResumeFailure(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 200,
+			//result.judgeResult.score.score
+			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"result" : {
+								"judgeResult": {
+									"score": { "score": 60 }
+								}
+							}
+            }
+			`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+	assert.Equal(t, "60", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
+
+}
+
+func TestResumeInconclusive(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 200,
+			//result.judgeResult.score.score
+			Body:       ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"result" : {
+								"judgeResult": {
+									"score": { "score": 80 }
+								}
+							}
+            }
+			`)),
+			// Must be set to non-nil value or it panics
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+	assert.Equal(t, "80", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 
 }
 // RoundTripFunc .
@@ -185,8 +440,8 @@ func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 //NewTestClient returns *http.Client with Transport replaced to avoid making real calls
-func NewTestClient(fn RoundTripFunc) *http.Client {
-	return &http.Client{
+func NewTestClient(fn RoundTripFunc) http.Client {
+	return http.Client{
 		Transport: RoundTripFunc(fn),
 	}
 }

@@ -3,6 +3,7 @@ package kayenta
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -11,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -42,10 +45,10 @@ const (
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
 	logCtx log.Entry
-	client *http.Client
+	client http.Client
 }
 
-// Type incidates provider is a prometheus provider
+// Type incidates provider is a kayenta provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
@@ -92,10 +95,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jsonValue)))
-	if err != nil {
+	if err != nil || response.Body == nil || response.StatusCode > 300 {
+		if err == nil {
+			err := errors.New("Invalid Response")
+			return metricutil.MarkMeasurementError(newMeasurement, err)
+		}
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	} else {
-		data, _ := ioutil.ReadAll(response.Body)
+		data, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return metricutil.MarkMeasurementError(newMeasurement, err)
+		}
 		var dat map[string]interface{}
 		if err := json.Unmarshal(data, &dat); err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
@@ -103,12 +113,19 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		jobId := dat["canaryExecutionId"]
 		m := make(map[string]string)
 		m["canaryExecutionId"] = fmt.Sprintf("%v", jobId)
+		if len(m["canaryExecutionId"]) == 0 {
+
+			return metricutil.MarkMeasurementError(newMeasurement, errors.New("Invalid canaryExecutionId"))
+		}
 		newMeasurement.Metadata = m
 	}
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
 
-	//newMeasurement.ResumeAt = ?metav1.Time is Immmutable?
+	resumeTime := metav1.NewTime(time.Now().Add(15 * time.Second))
+	newMeasurement.ResumeAt = &resumeTime
+	finishTime := metav1.Now()
+	newMeasurement.FinishedAt = &finishTime
 
 	return newMeasurement
 }
@@ -120,29 +137,30 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	scoreURL = strings.Replace(scoreURL, "{{inputs.canaryExecutionId}}", measurement.Metadata["canaryExecutionId"], 1)
 
 	response, err := p.client.Get(scoreURL)
-	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	} else {
-		data, _ := ioutil.ReadAll(response.Body)
-		//fmt.Println(string(data))
-		var dat map[string]interface{}
-
-		if err := json.Unmarshal(data, &dat); err != nil {
+	if err != nil || response.Body == nil || response.StatusCode > 300 {
+		if err == nil {
+			err := errors.New("Invalid Response")
 			return metricutil.MarkMeasurementError(measurement, err)
 		}
-		//result.judgeResult.score.score
-		//TODO:  Use the empty object interface to avoid panic
-		score := dat["result"].(map[string]interface{})["judgeResult"].(map[string]interface{})["score"].(map[string]interface{})["score"]
+		return metricutil.MarkMeasurementError(measurement, err)
+	} else {
+		data, err := ioutil.ReadAll(response.Body)
+		if  err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		json := string(data)
+		result := gjson.Get(json, "result.judgeResult.score.score")
+		score, err := strconv.Atoi(result.Raw)
+		if  err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
 		measurement.Value = fmt.Sprintf("%v", score)
+		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 	}
 
 	finishTime := metav1.Now()
 	measurement.FinishedAt = &finishTime
-	score, err := strconv.Atoi(measurement.Value)
-	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	}
-	measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
+
 	return measurement
 }
 
@@ -168,18 +186,18 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 
-func NewKayentaProvider(logCtx log.Entry, client *http.Client) *Provider {
+func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 	return &Provider{
 		logCtx: logCtx,
 		client: client,
 	}
 }
 
-func NewHttpClient() *http.Client {
+func NewHttpClient() http.Client {
 	//TODO:  Should timeout be configurable?
 	c := http.Client{
 		Timeout: 15 * time.Second,
 	}
 
-	return &c
+	return c
 }
