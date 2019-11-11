@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-
 	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -48,7 +46,7 @@ spec:
           step: 60
           start: "{{inputs.start-time}}"
           end: "{{inputs.end-time}}"
- */
+*/
 func buildMetric() v1alpha1.Metric {
 	return v1alpha1.Metric{
 		Name:             "mann-whitney",
@@ -442,6 +440,6 @@ func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 //NewTestClient returns *http.Client with Transport replaced to avoid making real calls
 func NewTestClient(fn RoundTripFunc) http.Client {
 	return http.Client{
-		Transport: RoundTripFunc(fn),
+		Transport: fn,
 	}
 }

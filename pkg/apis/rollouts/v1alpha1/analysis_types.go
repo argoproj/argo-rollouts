@@ -232,8 +232,8 @@ type KayentaMetric struct {
 	CanaryConfigId   string `json:"canaryConfigId,omitempty"`
 
 	MetricsAccountName string `json:"metricsAccountName"`
-	ConfigurationAccountName string `json:"canaryConfigId"`
-	StorageAccountName  string `json:"canaryConfigId"`
+	ConfigurationAccountName string `json:"configurationAccountName"`
+	StorageAccountName  string `json:"storageAccountName"`
 
 
 	Threshold KayentaThreshold `json:"threshold"`
