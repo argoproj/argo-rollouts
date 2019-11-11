@@ -75,11 +75,13 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
+		controlScopeStr := "\"controlScope\":" + string(controlScope)
 		experimentScope, err := json.Marshal(s.ExperimentScope)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-		scopes = "\"" + name +  "\":" + string(controlScope) + "," + string(experimentScope)
+		experimentScopeStr := "\"experimentScope\":" + string(experimentScope)
+		scopes = scopes + "\"" + name +  "\":{" + controlScopeStr + "," + experimentScopeStr + "}"
 		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
 			scopes = scopes + ","
 		}
@@ -149,10 +151,11 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		}
 		json := string(data)
 		result := gjson.Get(json, "result.judgeResult.score.score")
-		score, err := strconv.Atoi(result.Raw)
-		if  err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
+
+		if  len(result.Raw) == 0 || ! isNumeric(result.Raw) {
+			return metricutil.MarkMeasurementError(measurement, errors.New("Invalid score"))
 		}
+		score := int(result.Num)
 		measurement.Value = fmt.Sprintf("%v", score)
 		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 	}
@@ -161,6 +164,11 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	measurement.FinishedAt = &finishTime
 
 	return measurement
+}
+
+func isNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }
 
 func evaluateResult(score int, pass int, marginal int) v1alpha1.AnalysisPhase {

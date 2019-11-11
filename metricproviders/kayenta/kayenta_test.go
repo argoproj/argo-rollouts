@@ -99,7 +99,7 @@ func TestRunSuccessfully(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}
+										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -156,7 +156,7 @@ func TestRunBadResponse(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}
+										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -203,7 +203,7 @@ func TestRunEmptyExecutionId(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}
+										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -253,7 +253,7 @@ func TestResumeSuccessfully(t *testing.T) {
 			{
 				"result" : {
 								"judgeResult": {
-									"score": { "score": 100 }
+									"score": { "score": 100.0 }
 								}
 							}
             }
@@ -289,16 +289,6 @@ func TestResumeBadResponse(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 500,
-			//result.judgeResult.score.score
-			//Body:       ioutil.NopCloser(bytes.NewBufferString(`
-			//{
-			//	"result" : {
-			//					"judgeResult": {
-			//						"score": { "score": 100 }
-			//					}
-			//				}
-            //}
-			//`)),
 			// Must be set to non-nil value or it panics
 			Header:     make(http.Header),
 		}
@@ -333,7 +323,6 @@ func TestResumeInvalidScore(t *testing.T) {
 			{
 				"result" : {
 								"judgeResult": {
-									"score": { "score": "x" }
 								}
 							}
 			}
@@ -372,7 +361,7 @@ func TestResumeFailure(t *testing.T) {
 			{
 				"result" : {
 								"judgeResult": {
-									"score": { "score": 60 }
+									"score": { "score": 60.0 }
 								}
 							}
             }
@@ -410,7 +399,7 @@ func TestResumeInconclusive(t *testing.T) {
 			{
 				"result" : {
 								"judgeResult": {
-									"score": { "score": 80 }
+									"score": { "score": 80.0}
 								}
 							}
             }
