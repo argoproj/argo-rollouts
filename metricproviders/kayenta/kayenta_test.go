@@ -90,7 +90,7 @@ func buildMetric() v1alpha1.Metric {
 //
 
 func TestRunSuccessfully(t *testing.T) {
-	e := log.Entry{}
+	e := log.NewEntry(log.New())
 	c := NewTestClient(func(req *http.Request) *http.Response {
 
 		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
@@ -120,7 +120,7 @@ func TestRunSuccessfully(t *testing.T) {
 		}
 	})
 
-	p := NewKayentaProvider(e, c)
+	p := NewKayentaProvider(*e, c)
 	metric := buildMetric()
 
 	run := newAnalysisRun()
@@ -138,8 +138,13 @@ func TestRunSuccessfully(t *testing.T) {
 
 	assert.Equal(t, "Kayenta", p.Type())
 	assert.IsType(t, http.Client{}, NewHttpClient())
+
 	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
+
+	measurement2  := p.Terminate(run, metric, measurement)
+	assert.Equal(t, measurement, measurement2)
 }
+
 
 func TestRunBadResponse(t *testing.T) {
 	e := log.Entry{}

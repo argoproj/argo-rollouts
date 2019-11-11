@@ -42,7 +42,6 @@ const (
 
 )
 
-// Provider contains all the required components to run a prometheus query
 type Provider struct {
 	logCtx log.Entry
 	client http.Client
@@ -53,7 +52,7 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
-// Run queries prometheus for the metric
+// Run queries kayentd for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
@@ -130,7 +129,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return newMeasurement
 }
 
-// Resume should not be used the prometheus provider since all the work should occur in the Run method
+// Resume should not be used the kayenta provider since all the work should occur in the Run method
 func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 
 	scoreURL := strings.Replace(KayentaScoreURL, "{{inputs.address}}", metric.Provider.Kayenta.Address, 1)
@@ -174,13 +173,13 @@ func evaluateResult(score int, pass int, marginal int) v1alpha1.AnalysisPhase {
 	}
 }
 
-// Terminate should not be used the prometheus provider since all the work should occur in the Run method
+// Terminate should not be used the kayenta provider since all the work should occur in the Run method
 func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("kayenta provider should not execute the Terminate method")
 	return measurement
 }
 
-// GarbageCollect is a no-op for the prometheus provider
+// GarbageCollect is a no-op for the kayenta provider
 func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
 	return nil
 }
