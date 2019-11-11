@@ -12,8 +12,8 @@ import (
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
 func BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisRun *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
 	arguments := []v1alpha1.Argument{}
-	for i := range rolloutAnalysisRun.Arguments {
-		arg := rolloutAnalysisRun.Arguments[i]
+	for i := range rolloutAnalysisRun.Args {
+		arg := rolloutAnalysisRun.Args[i]
 		value := arg.Value
 		if arg.ValueFrom != nil {
 			switch *arg.ValueFrom.PodTemplateHashValue {
@@ -25,7 +25,7 @@ func BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisRun *v1alpha1.RolloutAna
 		}
 		analysisArg := v1alpha1.Argument{
 			Name:  arg.Name,
-			Value: value,
+			Value: &value,
 		}
 		arguments = append(arguments, analysisArg)
 
@@ -51,13 +51,13 @@ func StepLabels(index int32, podHash string) map[string]string {
 	}
 }
 
-// ValidateAnalysisTemplateSpec validates an analysis template spec
-func ValidateAnalysisTemplateSpec(spec v1alpha1.AnalysisTemplateSpec) error {
-	if len(spec.Metrics) == 0 {
+// ValidateMetrics validates an analysis template spec
+func ValidateMetrics(metrics []v1alpha1.Metric) error {
+	if len(metrics) == 0 {
 		return fmt.Errorf("no metrics specified")
 	}
 	duplicateNames := make(map[string]bool)
-	for i, metric := range spec.Metrics {
+	for i, metric := range metrics {
 		if _, ok := duplicateNames[metric.Name]; ok {
 			return fmt.Errorf("metrics[%d]: duplicate name '%s", i, metric.Name)
 		}

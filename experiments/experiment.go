@@ -342,7 +342,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // run with a collision counter increase.
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
-	run, err := ec.newAnalysisRun(analysis, analysis.Arguments)
+	run, err := ec.newAnalysisRun(analysis, analysis.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -459,6 +459,10 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		return nil, err
 	}
 
+	newArgs, err := analysisutil.MergeArgs(args, template.Spec.Args)
+	if err != nil {
+		return nil, err
+	}
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name),
@@ -466,8 +470,8 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: template.Spec,
-			Arguments:    args,
+			Metrics: template.Spec.Metrics,
+			Args:    newArgs,
 		},
 	}
 	return &ar, nil

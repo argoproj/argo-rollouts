@@ -83,7 +83,7 @@ func TestRunWithQueryError(t *testing.T) {
 
 func TestRunWithResolveArgsError(t *testing.T) {
 	e := log.Entry{}
-	expectedErr := fmt.Errorf("failed to resolve {{inputs.var}}")
+	expectedErr := fmt.Errorf("failed to resolve {{args.var}}")
 	mock := mockAPI{
 		err: expectedErr,
 	}
@@ -92,7 +92,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Query: "test-{{inputs.var}}",
+				Query: "test-{{args.var}}",
 			},
 		},
 	}

@@ -21,6 +21,17 @@ spec:
           type: object
         spec:
           properties:
+            args:
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             metrics:
               items:
                 properties:

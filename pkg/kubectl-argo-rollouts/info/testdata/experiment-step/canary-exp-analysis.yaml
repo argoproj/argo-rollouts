@@ -16,30 +16,29 @@ metadata:
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/analysisruns/canary-demo-645d5dbc4c-2-0-stress-test
   uid: 4e2d824d-01af-11ea-b38c-42010aa80083
 spec:
-  analysisSpec:
-    metrics:
-    - name: stress
-      provider:
-        job:
-          metadata:
-            creationTimestamp: null
-          spec:
-            backoffLimit: 0
-            template:
-              metadata:
-                creationTimestamp: null
-              spec:
-                containers:
-                - command:
-                  - wrk
-                  - -t12
-                  - -c100
-                  - -d30s
-                  - http://canary-demo-preview/color]
-                  image: williamyeh/wrk
-                  name: stress
-                  resources: {}
-                restartPolicy: Never
+  metrics:
+  - name: stress
+    provider:
+      job:
+        metadata:
+          creationTimestamp: null
+        spec:
+          backoffLimit: 0
+          template:
+            metadata:
+              creationTimestamp: null
+            spec:
+              containers:
+              - command:
+                - wrk
+                - -t12
+                - -c100
+                - -d30s
+                - http://canary-demo-preview/color]
+                image: williamyeh/wrk
+                name: stress
+                resources: {}
+              restartPolicy: Never
 status:
   metricResults:
   - measurements:

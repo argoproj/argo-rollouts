@@ -176,20 +176,13 @@ func removeResourceValidation(un *unstructured.Unstructured) {
 		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
 		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
 		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
-	case "AnalysisTemplate":
+	case "AnalysisTemplate", "AnalysisRun":
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
-	case "AnalysisRun":
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.analysisSpec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
