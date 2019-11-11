@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
+	"testing"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -98,7 +99,7 @@ func TestRunSuccessfully(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -123,10 +124,12 @@ func TestRunSuccessfully(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
+	run.Spec.Arguments = []v1alpha1.Argument{
+		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
+		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
+		{Name:"stable-hash", Value:"xxxx"},
+		{Name:"canary-hash", Value:"yyyy"},
+	}
 
 	measurement := p.Run(run, metric)
 
@@ -154,7 +157,7 @@ func TestRunBadResponse(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -179,10 +182,12 @@ func TestRunBadResponse(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
+	run.Spec.Arguments = []v1alpha1.Argument{
+		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
+		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
+		{Name:"stable-hash", Value:"xxxx"},
+		{Name:"canary-hash", Value:"yyyy"},
+	}
 
 	measurement := p.Run(run, metric)
 
@@ -201,7 +206,7 @@ func TestRunEmptyExecutionId(t *testing.T) {
 		assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope":{"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"},"experimentScope":{"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -226,10 +231,12 @@ func TestRunEmptyExecutionId(t *testing.T) {
 	metric := buildMetric()
 
 	run := newAnalysisRun()
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "start-time", Value: "2019-03-29T01:08:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "end-time", Value: "2019-03-29T01:38:34Z"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "stable-hash", Value: "xxxx"})
-	run.Spec.Arguments = append(run.Spec.Arguments, v1alpha1.Argument{Name: "canary-hash", Value: "yyyy"})
+	run.Spec.Arguments = []v1alpha1.Argument{
+		{Name:"start-time", Value:"2019-03-29T01:08:34Z"},
+		{Name:"end-time", Value:"2019-03-29T01:38:34Z"},
+		{Name:"stable-hash", Value:"xxxx"},
+		{Name:"canary-hash", Value:"yyyy"},
+	}
 
 	measurement := p.Run(run, metric)
 

@@ -240,20 +240,20 @@ type KayentaMetric struct {
 }
 
 type KayentaThreshold struct {
-	Pass     int `json:"pass,omitempty"`
-	Marginal int `json:"marginal,omitempty"`
+	Pass     int `json:"pass"`
+	Marginal int `json:"marginal"`
 }
 
 type KayentaScope struct {
-	Name            string      `json:"name,omitempty"`
-	ControlScope    ScopeDetail `json:"controlScope,omitempty"`
-	ExperimentScope ScopeDetail `json:"experimentScope,omitempty"`
+	Name            string      `json:"name"`
+	ControlScope    ScopeDetail `json:"controlScope"`
+	ExperimentScope ScopeDetail `json:"experimentScope"`
 }
 
 type ScopeDetail struct {
-	Scope     string `json:"scope,omitempty"`
-	Region    string `json:"region,omitempty"`
-	Step      int    `json:"step,omitempty"`
-	StartTime string `json:"start,omitempty"`
-	EndTime   string `json:"end,omitempty"`
+	Scope     string `json:"scope"`
+	Region    string `json:"region"`
+	Step      int    `json:"step"`
+	StartTime string `json:"start"`
+	EndTime   string `json:"end"`
 }

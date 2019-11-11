@@ -39,6 +39,10 @@ const (
                                     "marginal": {{inputs.marginal}}
                                 }
                             }`
+
+	ResumeDelay time.Duration = 15 * time.Second
+	httpConenectionTimout time.Duration = 15 * time.Second
+	scopeFormat = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {
@@ -74,13 +78,13 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-		controlScopeStr := "\"controlScope\":" + string(controlScope)
+		//controlScopeStr := "\"controlScope\":" + string(controlScope)
 		experimentScope, err := json.Marshal(s.ExperimentScope)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-		experimentScopeStr := "\"experimentScope\":" + string(experimentScope)
-		scopes = scopes + "\"" + name + "\":{" + controlScopeStr + "," + experimentScopeStr + "}"
+		//experimentScopeStr := "\"experimentScope\":" + string(experimentScope)
+		scopes = scopes + fmt.Sprintf(scopeFormat, name, string(controlScope), string(experimentScope))
 		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
 			scopes = scopes + ","
 		}
@@ -95,10 +99,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jsonValue)))
-	if err != nil || response.Body == nil || response.StatusCode > 300 {
+	if err != nil || response.Body == nil || response.StatusCode != 200 {
 		if err == nil {
-			err := errors.New("Invalid Response")
-			return metricutil.MarkMeasurementError(newMeasurement, err)
+			err = errors.New("Invalid Response")
 		}
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	} else {
@@ -122,7 +125,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
 
-	resumeTime := metav1.NewTime(time.Now().Add(15 * time.Second))
+	resumeTime := metav1.NewTime(time.Now().Add(ResumeDelay))
 	newMeasurement.ResumeAt = &resumeTime
 	finishTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishTime
@@ -137,7 +140,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	scoreURL = strings.Replace(scoreURL, "{{inputs.canaryExecutionId}}", measurement.Metadata["canaryExecutionId"], 1)
 
 	response, err := p.client.Get(scoreURL)
-	if err != nil || response.Body == nil || response.StatusCode > 300 {
+	if err != nil || response.Body == nil || response.StatusCode != 200 {
 		if err == nil {
 			err := errors.New("Invalid Response")
 			return metricutil.MarkMeasurementError(measurement, err)
@@ -201,7 +204,7 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 func NewHttpClient() http.Client {
 	//TODO:  Should timeout be configurable?
 	c := http.Client{
-		Timeout: 15 * time.Second,
+		Timeout: httpConenectionTimout,
 	}
 
 	return c
