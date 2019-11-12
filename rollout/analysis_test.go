@@ -47,7 +47,8 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: at.Spec,
+			Metrics: at.Spec.Metrics,
+			Args:    at.Spec.Args,
 		},
 	}
 }

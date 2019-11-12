@@ -5,6 +5,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Annotations that are labeled into the ReplicaSets that are part of an experiment
+const (
+	ExperimentNameAnnotationKey         = "experiment.argoproj.io/name"
+	ExperimentTemplateNameAnnotationKey = "experiment.argoproj.io/template-name"
+)
+
 // Experiment is a specification for an Experiment resource
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -181,9 +187,9 @@ type ExperimentAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName"`
-	// Arguments the arguments that will be added to the AnalysisRuns
+	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
-	Arguments []Argument `json:"arguments,omitempty"`
+	Args []Argument `json:"args,omitempty"`
 }
 
 type ExperimentAnalysisRunStatus struct {

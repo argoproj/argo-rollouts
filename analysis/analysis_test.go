@@ -29,21 +29,19 @@ func newMeasurement(status v1alpha1.AnalysisPhase) v1alpha1.Measurement {
 func newRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "metric1",
-						Interval: pointer.Int32Ptr(60),
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: pointer.Int32Ptr(60),
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
-					{
-						Name:     "metric2",
-						Interval: pointer.Int32Ptr(60),
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+				},
+				{
+					Name:     "metric2",
+					Interval: pointer.Int32Ptr(60),
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
 				},
 			},
@@ -89,19 +87,17 @@ func newRun() *v1alpha1.AnalysisRun {
 func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 	run := v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "run-forever",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "run-forever",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
-					{
-						Name: "failed-metric",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+				},
+				{
+					Name: "failed-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
 				},
 			},
@@ -155,12 +151,10 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 func TestGenerateMetricTasksInterval(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "success-rate",
-						Interval: pointer.Int32Ptr(60),
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: pointer.Int32Ptr(60),
 				},
 			},
 		},
@@ -201,14 +195,12 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 func TestGenerateMetricTasksFailing(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
-					{
-						Name: "latency",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+				{
+					Name: "latency",
 				},
 			},
 		},
@@ -234,11 +226,9 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -279,11 +269,9 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 func TestGenerateMetricTasksIncomplete(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -319,14 +307,12 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 	nowPlus10 := metav1.NewTime(now.Add(10 * time.Second))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
-					{
-						Name: "success-rate2",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+				{
+					Name: "success-rate2",
 				},
 			},
 		},
@@ -370,11 +356,9 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 func TestGenerateMetricTasksError(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -407,14 +391,12 @@ func TestAssessRunStatus(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "latency",
-					},
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "latency",
+				},
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -463,19 +445,17 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "sleep-infinity",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "sleep-infinity",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
-					{
-						Name: "fail-after-30",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+				},
+				{
+					Name: "fail-after-30",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
 				},
 			},
@@ -649,12 +629,10 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "success-rate",
-						Interval: pointer.Int32Ptr(60),
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: pointer.Int32Ptr(60),
 				},
 			},
 		},
@@ -702,12 +680,10 @@ func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:  "success-rate",
-						Count: 1,
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:  "success-rate",
+					Count: 1,
 				},
 			},
 		},
@@ -738,16 +714,14 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 	nowMinus50 := metav1.NewTime(now.Add(time.Second * -50))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "success-rate",
-						Interval: pointer.Int32Ptr(60),
-					},
-					{
-						Name:     "latency",
-						Interval: pointer.Int32Ptr(60),
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: pointer.Int32Ptr(60),
+				},
+				{
+					Name:     "latency",
+					Interval: pointer.Int32Ptr(60),
 				},
 			},
 		},
@@ -791,12 +765,10 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 	nowPlus10 := metav1.NewTime(now.Add(time.Second * 10))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "success-rate",
-						Interval: pointer.Int32Ptr(60),
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: pointer.Int32Ptr(60),
 				},
 			},
 		},
@@ -826,11 +798,9 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -863,14 +833,12 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name:     "success-rate",
-						Interval: pointer.Int32Ptr(60),
-						Provider: v1alpha1.MetricProvider{
-							Prometheus: &v1alpha1.PrometheusMetric{},
-						},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: pointer.Int32Ptr(60),
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
 				},
 			},
@@ -886,7 +854,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	}
 	{
 		// now set count to one and run should be completed immediately
-		run.Spec.AnalysisSpec.Metrics[0].Count = 1
+		run.Spec.Metrics[0].Count = 1
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
@@ -895,8 +863,8 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	}
 	{
 		// run should complete immediately if both count and interval are omitted
-		run.Spec.AnalysisSpec.Metrics[0].Count = 0
-		run.Spec.AnalysisSpec.Metrics[0].Interval = nil
+		run.Spec.Metrics[0].Count = 0
+		run.Spec.Metrics[0].Interval = nil
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
@@ -911,11 +879,9 @@ func TestReconcileAnalysisRunInvalid(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "success-rate",
-					},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
 				},
 			},
 		},
@@ -956,13 +922,11 @@ func TestReconcileAnalysisRunResumeInProgress(t *testing.T) {
 
 	run := v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "test",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "test",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
 				},
 			},
@@ -1006,13 +970,11 @@ func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
 	for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseError} {
 		run := v1alpha1.AnalysisRun{
 			Spec: v1alpha1.AnalysisRunSpec{
-				AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-					Metrics: []v1alpha1.Metric{
-						{
-							Name: "test",
-							Provider: v1alpha1.MetricProvider{
-								Job: &v1alpha1.JobMetric{},
-							},
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "test",
+						Provider: v1alpha1.MetricProvider{
+							Job: &v1alpha1.JobMetric{},
 						},
 					},
 				},

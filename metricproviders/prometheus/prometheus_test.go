@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/prometheus/common/model"
@@ -82,7 +83,7 @@ func TestRunWithQueryError(t *testing.T) {
 
 func TestRunWithResolveArgsError(t *testing.T) {
 	e := log.Entry{}
-	expectedErr := fmt.Errorf("failed to resolve {{inputs.var}}")
+	expectedErr := fmt.Errorf("failed to resolve {{args.var}}")
 	mock := mockAPI{
 		err: expectedErr,
 	}
@@ -91,7 +92,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Query: "test-{{inputs.var}}",
+				Query: "test-{{args.var}}",
 			},
 		},
 	}
@@ -281,6 +282,28 @@ func TestProcessScalarResponse(t *testing.T) {
 
 }
 
+func TestProcessNaNScalarResponse(t *testing.T) {
+	logCtx := log.WithField("test", "test")
+	p := Provider{
+		logCtx: *logCtx,
+	}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "false",
+	}
+
+	response := &model.Scalar{
+		Value:     model.SampleValue(math.NaN()),
+		Timestamp: model.Time(0),
+	}
+
+	value, status, err := p.processResponse(metric, response)
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
+	assert.Equal(t, "NaN", value)
+
+}
+
 func TestProcessVectorResponse(t *testing.T) {
 	logCtx := log.WithField("test", "test")
 	p := Provider{
@@ -305,6 +328,29 @@ func TestProcessVectorResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "[10,11]", value)
+
+}
+
+func TestProcessNanVectorResponse(t *testing.T) {
+	logCtx := log.WithField("test", "test")
+	p := Provider{
+		logCtx: *logCtx,
+	}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "false",
+	}
+
+	response := model.Vector{
+		{
+			Value:     model.SampleValue(math.NaN()),
+			Timestamp: model.Time(0),
+		},
+	}
+	value, status, err := p.processResponse(metric, response)
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
+	assert.Equal(t, "[NaN]", value)
 
 }
 

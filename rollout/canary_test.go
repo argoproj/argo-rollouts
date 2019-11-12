@@ -191,6 +191,47 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
+func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	r2.Status.Abort = false
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(addPausedConditionPatch)
+	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2)
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"conditions": [%s]
+		}
+	}`, retryCondition)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

@@ -201,6 +201,14 @@ func (cCtx *canaryContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 
 func (cCtx *canaryContext) SetCurrentExperiment(ex *v1alpha1.Experiment) {
 	cCtx.currentEx = ex
+	cCtx.newStatus.Canary.CurrentExperiment = ex.Name
+	for i, otherEx := range cCtx.otherExs {
+		if otherEx.Name == ex.Name {
+			cCtx.log.Infof("Rescued %s from inadvertent termination", ex.Name)
+			cCtx.otherExs = append(cCtx.otherExs[:i], cCtx.otherExs[i+1:]...)
+			break
+		}
+	}
 }
 
 func (cCtx *canaryContext) CurrentExperiment() *v1alpha1.Experiment {

@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  creationTimestamp: "2019-11-07T22:38:23Z"
+  generation: 2
+  name: canary-demo-645d5dbc4c-2-0-stress-test
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Experiment
+    name: canary-demo-645d5dbc4c-2-0
+    uid: 4bef10a5-01af-11ea-b38c-42010aa80083
+  resourceVersion: "33430775"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/analysisruns/canary-demo-645d5dbc4c-2-0-stress-test
+  uid: 4e2d824d-01af-11ea-b38c-42010aa80083
+spec:
+  metrics:
+  - name: stress
+    provider:
+      job:
+        metadata:
+          creationTimestamp: null
+        spec:
+          backoffLimit: 0
+          template:
+            metadata:
+              creationTimestamp: null
+            spec:
+              containers:
+              - command:
+                - wrk
+                - -t12
+                - -c100
+                - -d30s
+                - http://canary-demo-preview/color]
+                image: williamyeh/wrk
+                name: stress
+                resources: {}
+              restartPolicy: Never
+status:
+  metricResults:
+  - measurements:
+    - metadata:
+        job-name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+      phase: Running
+      startedAt: "2019-11-07T22:38:22Z"
+    name: stress
+    phase: Running
+  phase: Running

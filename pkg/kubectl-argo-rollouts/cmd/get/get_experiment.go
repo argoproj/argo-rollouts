@@ -125,9 +125,8 @@ func (o *GetOptions) PrintExperimentInfo(w io.Writer, expInfo info.ExperimentInf
 		curr++
 	}
 	for _, arInfo := range expInfo.AnalysisRuns {
-		fmt.Fprintf(w, subpfx)
-		arPrefix, _ := getPrefixes(curr == total-1, "")
-		o.PrintAnalysisRunInfo(w, arInfo, arPrefix, "")
+		arPrefix, arChildPrefix := getPrefixes(curr == total-1, subpfx)
+		o.PrintAnalysisRunInfo(w, arInfo, arPrefix, arChildPrefix)
 		curr++
 	}
 }

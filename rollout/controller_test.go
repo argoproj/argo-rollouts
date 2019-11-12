@@ -176,6 +176,10 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 			msg = fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, arName, resource.Name)
 			status = corev1.ConditionFalse
 		}
+		if reason == conditions.RolloutRetryReason {
+			msg = conditions.RolloutRetryMessage
+			status = corev1.ConditionUnknown
+		}
 	case *corev1.Service:
 		if reason == conditions.ServiceNotFoundReason {
 			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)

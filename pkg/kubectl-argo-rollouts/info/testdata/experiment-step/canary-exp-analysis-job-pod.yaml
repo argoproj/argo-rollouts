@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2019-11-07T22:38:23Z"
+  generateName: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1-
+  labels:
+    controller-uid: 4e309601-01af-11ea-b38c-42010aa80083
+    job-name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+  name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1-lsrws
+  namespace: jesse-test
+  ownerReferences:
+  - apiVersion: batch/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Job
+    name: 4e2d824d-01af-11ea-b38c-42010aa80083.stress.1
+    uid: 4e309601-01af-11ea-b38c-42010aa80083
+  resourceVersion: "33430818"
+  selfLink: /api/v1/namespaces/jesse-test/pods/4e2d824d-01af-11ea-b38c-42010aa80083.stress.1-lsrws
+  uid: 4e340a3d-01af-11ea-b38c-42010aa80083
+spec:
+  containers:
+  - command:
+    - wrk
+    - -t12
+    - -c100
+    - -d30s
+    - http://canary-demo-preview/color]
+    image: williamyeh/wrk
+    imagePullPolicy: Always
+    name: stress
+    resources: {}
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-5wzlj
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: gke-argoproj-demo-01-default-pool-848985e7-g3kx
+  priority: 0
+  restartPolicy: Never
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: default-token-5wzlj
+    secret:
+      defaultMode: 420
+      secretName: default-token-5wzlj
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:23Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:27Z"
+    message: 'containers with unready status: [stress]'
+    reason: ContainersNotReady
+    status: "False"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:27Z"
+    message: 'containers with unready status: [stress]'
+    reason: ContainersNotReady
+    status: "False"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2019-11-07T22:38:23Z"
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: docker://ea0f9d5abffb5a3d608d45702caed64f11a6864828f4dfb173f31a2a5e19c70e
+    image: williamyeh/wrk:latest
+    imageID: docker-pullable://williamyeh/wrk@sha256:78adc0d9d51a99e6759e702a08d03eaece81c890ffcc9790ef9e5b199d54f091
+    lastState: {}
+    name: stress
+    ready: false
+    restartCount: 0
+    state:
+      terminated:
+        containerID: docker://ea0f9d5abffb5a3d608d45702caed64f11a6864828f4dfb173f31a2a5e19c70e
+        exitCode: 1
+        finishedAt: "2019-11-07T22:38:26Z"
+        reason: Error
+        startedAt: "2019-11-07T22:38:25Z"
+  hostIP: 10.168.0.26
+  phase: Failed
+  podIP: 10.16.3.136
+  qosClass: BestEffort
+  startTime: "2019-11-07T22:38:23Z"

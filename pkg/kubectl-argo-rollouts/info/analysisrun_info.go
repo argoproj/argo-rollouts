@@ -5,7 +5,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/job"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
 type AnalysisRunInfo struct {
@@ -17,6 +19,13 @@ type AnalysisRunInfo struct {
 	Failed       int32
 	Inconclusive int32
 	Error        int32
+	Jobs         []JobInfo
+}
+
+type JobInfo struct {
+	Metadata
+	Status string
+	Icon   string
 }
 
 func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []AnalysisRunInfo {
@@ -39,6 +48,22 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Failed += mr.Failed
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
+			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
+			if lastMeasurement != nil && lastMeasurement.Metadata != nil && lastMeasurement.Phase != v1alpha1.AnalysisPhaseSuccessful {
+				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
+					jobInfo := JobInfo{
+						Metadata: Metadata{
+							Name: jobName,
+						},
+						Icon:   analysisIcon(lastMeasurement.Phase),
+						Status: string(lastMeasurement.Phase),
+					}
+					if lastMeasurement.StartedAt != nil {
+						jobInfo.CreationTimestamp = *lastMeasurement.StartedAt
+					}
+					arInfo.Jobs = append(arInfo.Jobs, jobInfo)
+				}
+			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
 		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)

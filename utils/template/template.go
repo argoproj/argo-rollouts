@@ -24,7 +24,10 @@ func ResolveArgs(template string, args []v1alpha1.Argument) (string, error) {
 	argsMap := make(map[string]string)
 	for i := range args {
 		arg := args[i]
-		argsMap[fmt.Sprintf("inputs.%s", arg.Name)] = arg.Value
+		if arg.Value == nil {
+			return "", fmt.Errorf("argument \"%s\" was not supplied", arg.Name)
+		}
+		argsMap[fmt.Sprintf("args.%s", arg.Name)] = *arg.Value
 	}
 	var unresolvedErr error
 	s := t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {

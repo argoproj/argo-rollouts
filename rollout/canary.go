@@ -252,7 +252,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	allRSs := roCtx.AllRSs()
-	currExp := roCtx.CurrentExperiment()
 
 	newStatus := c.calculateBaseStatus(roCtx)
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
@@ -343,10 +342,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
-	}
-
-	if currExp != nil {
-		newStatus.Canary.CurrentExperiment = currExp.Name
 	}
 
 	newStatus.CurrentStepIndex = currentStepIndex

@@ -101,7 +101,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
 			Name:         analysis.Name,
 			TemplateName: analysis.TemplateName,
-			Arguments:    args,
+			Args:         args,
 		}
 		experiment.Spec.Analyses = append(experiment.Spec.Analyses, analysisTemplate)
 	}
@@ -132,9 +132,9 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()
-	otherExs := roCtx.OtherExperiments()
 
 	if roCtx.PauseContext().IsAborted() {
+		otherExs := roCtx.OtherExperiments()
 		allExs := append(otherExs, roCtx.CurrentExperiment())
 		return c.cancelExperiments(roCtx, allExs)
 	}
@@ -144,50 +144,46 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 	}
 
 	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
-	if step == nil || step.Experiment == nil {
-		return nil
-	}
+
 	currentEx := roCtx.CurrentExperiment()
-	if currentEx == nil {
-		// An new experiment can not be created if the stableRS is not created yet
-		if stableRS == nil {
-			logCtx.Infof("Cannot create experiment until stableRS exists")
-			return nil
+	if step != nil && step.Experiment != nil {
+		if currentEx == nil {
+			// An new experiment can not be created if the stableRS is not created yet
+			if stableRS == nil {
+				logCtx.Infof("Cannot create experiment until stableRS exists")
+				return nil
+			}
+
+			newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
+			if err != nil {
+				return err
+			}
+
+			currentEx, err = c.createExperimentWithCollisionHandling(roCtx, newEx)
+			if err != nil {
+				return err
+			}
+
+			msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
+			logCtx.Info(msg)
+			c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 		}
-
-		newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
-		if err != nil {
-			return err
-		}
-
-		currentEx, err = c.createExperimentWithCollisionHandling(roCtx, newEx)
-		if err != nil {
-			return err
-		}
-
-		msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
-		logCtx.Info(msg)
-		c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
-		roCtx.SetCurrentExperiment(currentEx)
-	}
-
-	if currentEx != nil {
 		switch currentEx.Status.Phase {
 		case v1alpha1.AnalysisPhaseInconclusive:
 			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 			roCtx.PauseContext().AddAbort()
+		case v1alpha1.AnalysisPhaseSuccessful:
+			// Do not set current Experiment after successful experiment
+		default:
+			roCtx.SetCurrentExperiment(currentEx)
 		}
 	}
 
-	for i, otherEx := range otherExs {
-		if otherEx.Name == currentEx.Name {
-			logCtx.Infof("Rescued %s from inadvertent termination", currentEx.Name)
-			otherExs = append(otherExs[:i], otherExs[i+1:]...)
-			break
-		}
+	otherExs := roCtx.OtherExperiments()
+	if currentEx != nil && (step == nil || step.Experiment == nil) {
+		otherExs = append(otherExs, currentEx)
 	}
-
 	err := c.cancelExperiments(roCtx, otherExs)
 	if err != nil {
 		return err

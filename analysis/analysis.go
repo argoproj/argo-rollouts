@@ -48,7 +48,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
-		err := analysisutil.ValidateAnalysisTemplateSpec(run.Spec.AnalysisSpec)
+		err := analysisutil.ValidateMetrics(run.Spec.Metrics)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
 			log.Warn(message)
@@ -103,7 +103,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	log := logutil.WithAnalysisRun(run)
 	var tasks []metricTask
 	terminating := analysisutil.IsTerminating(run)
-	for _, metric := range run.Spec.AnalysisSpec.Metrics {
+	for _, metric := range run.Spec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
 		}
@@ -256,7 +256,7 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 	everythingCompleted := true
 
 	// Iterate all metrics and update MetricResult.Phase fields based on lastest measurement(s)
-	for _, metric := range run.Spec.AnalysisSpec.Metrics {
+	for _, metric := range run.Spec.Metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 			metricStatus := assessMetricStatus(metric, *result, terminating)
@@ -356,7 +356,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 	log := logutil.WithAnalysisRun(run)
 	var reconcileTime *time.Time
-	for _, metric := range run.Spec.AnalysisSpec.Metrics {
+	for _, metric := range run.Spec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			// NOTE: this also covers the case where metric.Count is reached
 			continue
@@ -409,7 +409,7 @@ func (c *AnalysisController) garbageCollectMeasurements(run *v1alpha1.AnalysisRu
 	var errors []error
 
 	metricsByName := make(map[string]v1alpha1.Metric)
-	for _, metric := range run.Spec.AnalysisSpec.Metrics {
+	for _, metric := range run.Spec.Metrics {
 		metricsByName[metric.Name] = metric
 	}
 

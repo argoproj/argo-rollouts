@@ -15,7 +15,7 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 	new := v1alpha1.Latest
 	stable := v1alpha1.Stable
 	rolloutAnalysisStep := &v1alpha1.RolloutAnalysisStep{
-		Arguments: []v1alpha1.AnalysisRunArgument{
+		Args: []v1alpha1.AnalysisRunArgument{
 			{
 				Name:  "hard-coded-value-key",
 				Value: "hard-coded-value",
@@ -47,9 +47,9 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 		},
 	}
 	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
-	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: "hard-coded-value"})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: "abcdef"})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: "123456"})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
 
 }
 
@@ -88,10 +88,10 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= maxFailures")
 		spec.Metrics[0].Count = 0
-		err = ValidateAnalysisTemplateSpec(spec)
+		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	}
 	{
@@ -107,10 +107,10 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= maxInconclusive")
 		spec.Metrics[0].Count = 0
-		err = ValidateAnalysisTemplateSpec(spec)
+		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	}
 	{
@@ -127,14 +127,14 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "no metrics specified")
 	}
 	{
@@ -149,7 +149,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: interval must be specified when count > 1")
 	}
 	{
@@ -169,7 +169,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
 	}
 	{
@@ -184,7 +184,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: maxFailures must be >= 0")
 	}
 	{
@@ -199,7 +199,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: maxInconclusive must be >= 0")
 	}
 	{
@@ -214,7 +214,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: maxConsecutiveErrors must be >= 0")
 	}
 	{
@@ -226,7 +226,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: no provider specified")
 	}
 	{
@@ -241,7 +241,7 @@ func TestValidateMetrics(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateAnalysisTemplateSpec(spec)
+		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
 	}
 }

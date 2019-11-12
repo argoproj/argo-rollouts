@@ -27,6 +27,9 @@ type AnalysisTemplateList struct {
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	Metrics []Metric `json:"metrics"`
+	// Args are the list of arguments to the template
+	// +optional
+	Args []Argument `json:"args,omitempty"`
 }
 
 // Metric defines a metric in which to perform analysis
@@ -150,10 +153,11 @@ type AnalysisRunList struct {
 
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
-	// AnalysisSpec holds the AnalysisSpec definition for performing analysis
-	AnalysisSpec AnalysisTemplateSpec `json:"analysisSpec"`
-	// Arguments hold the arguments to the run to be used by metric providers
-	Arguments []Argument `json:"arguments,omitempty"`
+	// Metrics contains the list of metrics to query as part of an analysis run
+	Metrics []Metric `json:"metrics"`
+	// Args are the list of arguments used in this run
+	// +optional
+	Args []Argument `json:"args,omitempty"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
 }
@@ -163,7 +167,8 @@ type Argument struct {
 	// Name is the name of the argument
 	Name string `json:"name"`
 	// Value is the value of the argument
-	Value string `json:"value"`
+	// +optional
+	Value *string `json:"value,omitempty"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource

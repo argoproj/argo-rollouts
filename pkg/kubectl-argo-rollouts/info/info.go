@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
@@ -62,4 +63,11 @@ func parseRevision(annots map[string]string) int {
 		}
 	}
 	return 0
+}
+
+func parseExperimentTemplateName(annots map[string]string) string {
+	if annots != nil {
+		return annots[v1alpha1.ExperimentTemplateNameAnnotationKey]
+	}
+	return ""
 }
