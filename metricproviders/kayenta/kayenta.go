@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/tidwall/gjson"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -151,26 +151,32 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		if err != nil {
 			return metricutil.MarkMeasurementError(measurement, err)
 		}
-		json := string(data)
-		result := gjson.Get(json, "result.judgeResult.score.score")
 
-		if len(result.Raw) == 0 || !isNumeric(result.Raw) {
-			return metricutil.MarkMeasurementError(measurement, errors.New("Invalid score"))
+		patch := make(map[string]interface{})
+
+		err = json.Unmarshal(data, &patch)
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
 		}
-		score := int(result.Num)
-		measurement.Value = fmt.Sprintf("%v", score)
-		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
+
+		score, ok, err := unstructured.NestedFloat64(patch, "result", "judgeResult", "score", "score")
+
+		if ok {
+			score := int(score)
+			measurement.Value = fmt.Sprintf("%v", score)
+			measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
+		} else {
+			if err == nil {
+				err = errors.New("Missing Score")
+			}
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
 	}
 
 	finishTime := metav1.Now()
 	measurement.FinishedAt = &finishTime
 
 	return measurement
-}
-
-func isNumeric(s string) bool {
-	_, err := strconv.ParseFloat(s, 64)
-	return err == nil
 }
 
 func evaluateResult(score int, pass int, marginal int) v1alpha1.AnalysisPhase {
