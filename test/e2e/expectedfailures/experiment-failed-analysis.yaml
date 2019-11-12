@@ -37,5 +37,4 @@ spec:
         - name: rollouts-demo
           image: argoproj/rollouts-demo:blue
   analyses:
-  - name: bad-job
-    templateName: bad-job
+  - templateName: bad-job

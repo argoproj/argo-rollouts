@@ -183,8 +183,6 @@ type ExperimentList struct {
 }
 
 type ExperimentAnalysisTemplateRef struct {
-	// Name is the name of the analysis
-	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName"`
 	// Args are the arguments that will be added to the AnalysisRuns

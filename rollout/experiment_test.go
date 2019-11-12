@@ -28,7 +28,6 @@ func TestRolloutCreateExperiment(t *testing.T) {
 				Replicas: pointer.Int32Ptr(1),
 			}},
 			Analyses: []v1alpha1.RolloutAnalysisStep{{
-				Name:         "test",
 				TemplateName: at.Name,
 			}},
 		},
@@ -56,7 +55,6 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
-	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {

@@ -244,12 +244,12 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
 func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
-	logCtx := ec.log.WithField("analysis", analysis.Name)
+	logCtx := ec.log.WithField("analysis", analysis.TemplateName)
 	logCtx.Infof("Reconciling analysis")
-	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
+	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.TemplateName)
 	if prevStatus == nil {
 		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
-			Name: analysis.Name,
+			Name: analysis.TemplateName,
 		}
 	}
 	newStatus := prevStatus.DeepCopy()
@@ -259,7 +259,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	// 2. log a message and emit an event on status changess
 	defer func() {
 		if prevStatus.Phase != newStatus.Phase {
-			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Phase, newStatus.Phase)
+			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.TemplateName, prevStatus.Phase, newStatus.Phase)
 			if newStatus.Message != "" {
 				msg = msg + ": " + newStatus.Message
 			}
@@ -277,7 +277,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	if ec.ex.Status.AvailableAt == nil {
 		// If we are not not available yet, don't start any runs
 		if err := ec.verifyAnalysisTemplate(analysis); err != nil {
-			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
+			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.TemplateName, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
 			newStatus.Message = msg
 			logCtx.Warn(msg)
@@ -288,12 +288,12 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	if prevStatus.AnalysisRun == "" {
 		// AnalysisRun needs to be created (unless we are terminating)
 		if ec.isTerminating {
-			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
+			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.TemplateName)
 			return
 		}
 		run, err := ec.createAnalysisRun(analysis)
 		if err != nil {
-			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
+			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.TemplateName, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
 			newStatus.Message = msg
 			logCtx.Warn(msg)
@@ -320,7 +320,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	if ec.isTerminating {
 		if !run.Status.Phase.Completed() && !run.Spec.Terminate {
-			msg := fmt.Sprintf("Terminating %s (%s)", analysis.Name, run.Name)
+			msg := fmt.Sprintf("Terminating %s (%s)", analysis.TemplateName, run.Name)
 			logCtx.Warnf(msg)
 			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, "Terminate", msg)
 			analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
@@ -439,7 +439,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 	worstStatus := v1alpha1.AnalysisPhaseSuccessful
 	message := ""
 	for _, a := range ec.ex.Spec.Analyses {
-		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
+		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.TemplateName)
 		if analysisutil.IsWorse(worstStatus, as.Phase) {
 			worstStatus = as.Phase
 			message = as.Message
@@ -465,7 +465,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 	}
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name),
+			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.TemplateName),
 			Namespace:       ec.ex.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
 		},

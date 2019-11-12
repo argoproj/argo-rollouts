@@ -796,13 +796,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of the analysis",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run",
@@ -824,7 +817,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 						},
 					},
 				},
-				Required: []string{"name", "templateName"},
+				Required: []string{"templateName"},
 			},
 		},
 		Dependencies: []string{
@@ -1506,13 +1499,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutAnalysisStep defines a template that is used to create a analysisRun",
 				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name the name for the analysisRun",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
@@ -1534,7 +1520,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"name", "templateName"},
+				Required: []string{"templateName"},
 			},
 		},
 		Dependencies: []string{
