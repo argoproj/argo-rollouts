@@ -2,7 +2,10 @@ package kayenta
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net/http"
 	"testing"
 
@@ -440,4 +443,25 @@ func NewTestClient(fn RoundTripFunc) http.Client {
 	return http.Client{
 		Transport: fn,
 	}
+}
+
+func TestJsonParsing(t *testing.T) {
+	s := `
+			{
+				"result" : {
+								"judgeResult": {
+									"score": { "score": 100.0 }
+								}
+							}
+            }
+			`
+
+	patch := make(map[string]interface{})
+
+	err := json.Unmarshal([]byte(s), &patch)
+	assert.NoError(t, err)
+
+	score, ok, err := unstructured.NestedSlice(patch, "result", "judgeResult", "score", "score",)
+	assert.True(t, ok)
+	fmt.Println(score)
 }
