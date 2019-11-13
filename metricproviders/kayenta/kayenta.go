@@ -64,7 +64,7 @@ func (p *Provider) Type() string {
 }
 
 func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
-	canaryConfigId := ""
+
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
 
 	response, err := p.client.Get(configIdLookupURL)
@@ -72,7 +72,7 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 		if err == nil {
 			err = errors.New("Invalid Response")
 		}
-		return canaryConfigId, err
+		return "", err
 	}
 
 	data, err := ioutil.ReadAll(response.Body)
@@ -84,20 +84,16 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 
 	err = json.Unmarshal(data, &cc)
 	if err != nil {
-		return canaryConfigId, err
+		return "", err
 	}
 
 	for _, s := range cc {
 		if s.Name == metric.Provider.Kayenta.CanaryConfigName {
-			canaryConfigId = s.Id
-			break
+			return s.Id, nil
 		}
 	}
 
-	if len(canaryConfigId) == 0 {
-		err = errors.New("no matching canary config id")
-	}
-	return canaryConfigId, err
+	return "", err
 }
 
 // Run queries kayentd for the metric

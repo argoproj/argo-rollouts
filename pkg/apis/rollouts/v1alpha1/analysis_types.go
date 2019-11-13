@@ -255,9 +255,9 @@ type KayentaScope struct {
 }
 
 type ScopeDetail struct {
-	Scope     string `json:"scope"`
-	Region    string `json:"region"`
-	Step      int    `json:"step"`
-	StartTime string `json:"start"`
-	EndTime   string `json:"end"`
+	Scope  string `json:"scope"`
+	Region string `json:"region"`
+	Step   int    `json:"step"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
 }
