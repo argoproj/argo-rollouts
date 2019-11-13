@@ -947,9 +947,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 					},
 					"duration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Duration the amount of time for the experiment to run. If not listed, the experiment will run for an indefinite amount of time, stopped either via termination, or a failed analysis run.",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Duration the amount of time for the experiment to run as a duration string (e.g. 30s, 5m, 1h). If omitted, the experiment will run indefinitely, stopped either via termination, or a failed analysis run.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"progressDeadlineSeconds": {
@@ -1169,9 +1169,9 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Interval defines the interval in seconds between each metric analysis If omitted, will perform the metric analysis only once",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement. If omitted, will perform a single measurement",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"count": {
@@ -1604,9 +1604,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 					},
 					"duration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the duration in seconds that the experiment should run for",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"analyses": {

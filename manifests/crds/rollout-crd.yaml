@@ -198,8 +198,7 @@ spec:
                                   type: object
                                 type: array
                               duration:
-                                format: int32
-                                type: integer
+                                type: string
                               templates:
                                 items:
                                   properties:

@@ -151,7 +151,7 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 	}
 }
 
-func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int32) *v1alpha1.Experiment {
+func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration v1alpha1.DurationString) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -166,9 +166,14 @@ func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration *int
 			Phase: v1alpha1.AnalysisPhasePending,
 		},
 	}
-	if duration != nil {
+	if duration != "" {
 		// Ensure that the experiment created is valid by making the ProgressDeadlineSeconds smaller than the duration
-		ex.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(*duration - 1)
+		d, err := duration.Duration()
+		if err != nil {
+			panic(err)
+		}
+		pds := int32(d.Seconds() - 1)
+		ex.Spec.ProgressDeadlineSeconds = &pds
 	}
 	return ex
 }
@@ -607,7 +612,7 @@ func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	e := newExperiment("foo", nil, pointer.Int32Ptr(10))
+	e := newExperiment("foo", nil, "10s")
 	now := metav1.Now()
 	e.DeletionTimestamp = &now
 
@@ -665,7 +670,7 @@ func validatePatch(t *testing.T, patch string, statusCode v1alpha1.AnalysisPhase
 
 func TestAddInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Templates[0].Name = ""
 
 	f := newFixture(t, e)
@@ -686,7 +691,7 @@ func TestAddInvalidSpec(t *testing.T) {
 
 func TestKeepInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
 		Status:  corev1.ConditionTrue,
@@ -704,7 +709,7 @@ func TestKeepInvalidSpec(t *testing.T) {
 
 func TestUpdateInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:    v1alpha1.InvalidExperimentSpec,
@@ -734,7 +739,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 
 func TestRemoveInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:   v1alpha1.InvalidExperimentSpec,

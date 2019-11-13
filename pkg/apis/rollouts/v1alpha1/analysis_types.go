@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,13 +34,20 @@ type AnalysisTemplateSpec struct {
 	Args []Argument `json:"args,omitempty"`
 }
 
+// DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
+type DurationString string
+
+func (d DurationString) Duration() (time.Duration, error) {
+	return time.ParseDuration(string(d))
+}
+
 // Metric defines a metric in which to perform analysis
 type Metric struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
-	// Interval defines the interval in seconds between each metric analysis
-	// If omitted, will perform the metric analysis only once
-	Interval *int32 `json:"interval,omitempty"`
+	// Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement.
+	// If omitted, will perform a single measurement
+	Interval DurationString `json:"interval,omitempty"`
 	// Count is the number of times to run measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
 	// A count > 1 must specify an interval.
@@ -76,7 +85,7 @@ type Metric struct {
 // Otherwise, it is the user specified value
 func (m *Metric) EffectiveCount() *int32 {
 	if m.Count == 0 {
-		if m.Interval == nil {
+		if m.Interval == "" {
 			one := int32(1)
 			return &one
 		}

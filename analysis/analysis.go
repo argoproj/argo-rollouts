@@ -23,7 +23,7 @@ const (
 	DefaultMaxConsecutiveErrors int32 = 4
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
-	DefaultErrorRetryInterval int32 = 10
+	DefaultErrorRetryInterval time.Duration = 10 * time.Second
 )
 
 // Event reasons for analysis events
@@ -107,6 +107,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
 		}
+		logCtx := log.WithField("metric", metric.Name)
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			now := metav1.Now()
@@ -114,7 +115,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 				continue
 			}
 			// last measurement is still in-progress. need to complete it
-			log.WithField("metric", metric.Name).Infof("resuming in-progress measurement")
+			logCtx.Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
 				metric:                metric,
 				incompleteMeasurement: lastMeasurement,
@@ -122,13 +123,13 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			continue
 		}
 		if terminating {
-			log.WithField("metric", metric.Name).Infof("skipping measurement: run is terminating")
+			logCtx.Infof("skipping measurement: run is terminating")
 			continue
 		}
 		if lastMeasurement == nil {
 			// measurement never taken
 			tasks = append(tasks, metricTask{metric: metric})
-			log.WithField("metric", metric.Name).Infof("running initial measurement")
+			logCtx.Infof("running initial measurement")
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
@@ -141,12 +142,17 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		// to decide if it should be taken now. metric.Interval can be null because we may be
 		// retrying a metric due to error.
 		interval := DefaultErrorRetryInterval
-		if metric.Interval != nil {
-			interval = *metric.Interval
+		if metric.Interval != "" {
+			metricInterval, err := metric.Interval.Duration()
+			if err != nil {
+				logCtx.Warnf("failed to parse interval: %v", err)
+				continue
+			}
+			interval = metricInterval
 		}
-		if time.Now().After(lastMeasurement.FinishedAt.Add(time.Duration(interval) * time.Second)) {
+		if time.Now().After(lastMeasurement.FinishedAt.Add(interval)) {
 			tasks = append(tasks, metricTask{metric: metric})
-			log.WithField("metric", metric.Name).Infof("running overdue measurement")
+			logCtx.Infof("running overdue measurement")
 			continue
 		}
 	}
@@ -354,17 +360,17 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 // calculateNextReconcileTime calculates the next time that this AnalysisRun should be reconciled,
 // based on the earliest time of all metrics intervals, counts, and their finishedAt timestamps
 func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
-	log := logutil.WithAnalysisRun(run)
 	var reconcileTime *time.Time
 	for _, metric := range run.Spec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			// NOTE: this also covers the case where metric.Count is reached
 			continue
 		}
+		logCtx := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement == nil {
 			// no measurement was started. we should never get here
-			log.WithField("metric", metric.Name).Warnf("metric never started. not factored into enqueue time")
+			logCtx.Warnf("metric never started. not factored into enqueue time")
 			continue
 		}
 		if lastMeasurement.FinishedAt == nil {
@@ -382,9 +388,14 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// we have reached desired count
 			continue
 		}
-		var interval int32
-		if metric.Interval != nil {
-			interval = *metric.Interval
+		var interval time.Duration
+		if metric.Interval != "" {
+			metricInterval, err := metric.Interval.Duration()
+			if err != nil {
+				logCtx.Warnf("failed to parse interval: %v", err)
+				continue
+			}
+			interval = metricInterval
 		} else if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
 		} else {
@@ -392,11 +403,11 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// there was no error (meaning we don't need to retry). no need to requeue this metric.
 			// NOTE: we shouldn't ever get here since it means we are not doing proper bookkeeping
 			// of count.
-			log.WithField("metric", metric.Name).Warnf("skipping requeue. no interval or error (count: %d, effectiveCount: %d)", metricResult.Count, metric.EffectiveCount())
+			logCtx.Warnf("skipping requeue. no interval or error (count: %d, effectiveCount: %d)", metricResult.Count, metric.EffectiveCount())
 			continue
 		}
 		// Take the earliest time of all metrics
-		metricReconcileTime := lastMeasurement.FinishedAt.Add(time.Duration(interval) * time.Second)
+		metricReconcileTime := lastMeasurement.FinishedAt.Add(interval)
 		if reconcileTime == nil || reconcileTime.After(metricReconcileTime) {
 			reconcileTime = &metricReconcileTime
 		}

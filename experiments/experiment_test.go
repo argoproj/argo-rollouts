@@ -16,7 +16,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -59,7 +58,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 }
 func TestSetExperimentToPending(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status = v1alpha1.ExperimentStatus{}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
@@ -84,7 +83,7 @@ func TestSetExperimentToPending(t *testing.T) {
 
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -118,7 +117,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -145,7 +144,7 @@ func TestSetAvailableAt(t *testing.T) {
 
 func TestNoPatch(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:               v1alpha1.ExperimentProgressing,
 		Reason:             conditions.NewRSAvailableReason,
@@ -172,7 +171,7 @@ func TestNoPatch(t *testing.T) {
 
 func TestSuccessAfterDurationPasses(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, pointer.Int32Ptr(5))
+	e := newExperiment("foo", templates, "5s")
 
 	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
@@ -208,7 +207,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 // spec.duration set, and is running properly, since would cause a hot loop.
 func TestDontRequeueWithoutDuration(t *testing.T) {
 	templates := generateTemplates("bar")
-	ex := newExperiment("foo", templates, nil)
+	ex := newExperiment("foo", templates, "")
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
@@ -232,8 +231,8 @@ func TestDontRequeueWithoutDuration(t *testing.T) {
 // TestRequeueAfterDuration verifies we requeue after an appropriate status.availableAt + spec.duration
 func TestRequeueAfterDuration(t *testing.T) {
 	templates := generateTemplates("bar")
-	ex := newExperiment("foo", templates, nil)
-	ex.Spec.Duration = pointer.Int32Ptr(30)
+	ex := newExperiment("foo", templates, "")
+	ex.Spec.Duration = "30s"
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
@@ -259,7 +258,7 @@ func TestRequeueAfterDuration(t *testing.T) {
 // lastTransitionTime + spec.progressDeadlineSeconds
 func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 	templates := generateTemplates("bar")
-	ex := newExperiment("foo", templates, nil)
+	ex := newExperiment("foo", templates, "")
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
@@ -284,7 +283,7 @@ func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 
 func TestFailReplicaSetCreation(t *testing.T) {
 	templates := generateTemplates("good", "bad")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 
 	exCtx := newTestContext(e)
 

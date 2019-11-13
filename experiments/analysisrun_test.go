@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -55,7 +54,7 @@ func analysisTemplateToRun(name string, ex *v1alpha1.Experiment, spec *v1alpha1.
 func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: aTemplates[0].Name,
@@ -74,7 +73,7 @@ func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: aTemplates[0].Name,
@@ -99,7 +98,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 // TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availablility)
 func TestAnalysisTemplateNotExists(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: "does-not-exist",
@@ -122,7 +121,7 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 func TestAnalysisRunCreateError(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: aTemplates[0].Name,
@@ -153,7 +152,7 @@ func TestAnalysisRunCreateError(t *testing.T) {
 func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: aTemplates[0].Name,
@@ -177,7 +176,7 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 
 func TestAnalysisRunSuccessful(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: "success-rate",
@@ -209,7 +208,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 
 func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: "success-rate",
@@ -219,7 +218,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 		},
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
-	e.Spec.Duration = pointer.Int32Ptr(60)
+	e.Spec.Duration = "60s"
 	e.Status.AvailableAt = secondsAgo(61)
 	rs := templateToRS(e, templates[0], 0)
 	rs.Spec.Replicas = new(int32)
@@ -300,7 +299,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 // prematurely fail
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: "success-rate",
@@ -310,7 +309,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 		},
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
-	e.Spec.Duration = pointer.Int32Ptr(300)
+	e.Spec.Duration = "5m"
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
@@ -387,7 +386,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 // TestTerminateAnalysisRuns verifies we terminate analysis runs when experiment is terminating
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			TemplateName: "success-rate",

@@ -23,7 +23,7 @@ metadata:
   uid: e50bceec-fae6-11e9-a15b-42010aa80033
 spec:
   metrics:
-  - interval: 10
+  - interval: 10s
     maxFailures: 5
     name: random-fail
     provider:

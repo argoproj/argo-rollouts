@@ -150,9 +150,9 @@ type CanaryStrategy struct {
 type RolloutExperimentStep struct {
 	// Templates what templates that should be added to the experiment. Should be non-nil
 	Templates []RolloutExperimentTemplate `json:"templates"`
-	// Duration is the duration in seconds that the experiment should run for
+	// Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for
 	// +optional
-	Duration *int32 `json:"duration,omitempty"`
+	Duration DurationString `json:"duration,omitempty"`
 	// Analyses what analyses to run with the experiment
 	Analyses []RolloutAnalysisStep `json:"analyses,omitempty"`
 }
