@@ -254,7 +254,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	expectedArName := fmt.Sprintf("%s-%s-%s-%s-%s", r2.Name, rs2PodHash, "2", "0", at.Name)
 	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
