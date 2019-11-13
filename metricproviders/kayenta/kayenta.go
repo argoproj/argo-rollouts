@@ -63,7 +63,8 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
-func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (canaryConfigId string, err error) {
+func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) ( string,  error) {
+	canaryConfigId := ""
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
 
 	response, err := p.client.Get(configIdLookupURL)
@@ -72,27 +73,31 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (canaryConfigId stri
 			err = errors.New("Invalid Response")
 		}
 		return canaryConfigId, err
-	} else {
-		data, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			return canaryConfigId, err
-		}
+	}
 
-		var cc []canaryConfig
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
 
-		err = json.Unmarshal(data, &cc)
-		if err != nil {
-			return canaryConfigId, err
-		}
+	var cc []canaryConfig
 
-		for _, s := range cc {
-			if s.Name == metric.Provider.Kayenta.CanaryConfigName {
-				canaryConfigId = s.Id
-				break
-			}
+	err = json.Unmarshal(data, &cc)
+	if err != nil {
+		return canaryConfigId, err
+	}
+
+	for _, s := range cc {
+		if s.Name == metric.Provider.Kayenta.CanaryConfigName {
+			canaryConfigId = s.Id
+			break
 		}
 	}
-	return canaryConfigId, nil
+
+	if len(canaryConfigId) == 0 {
+		err = errors.New("no matching canary config id")
+	}
+	return canaryConfigId, err
 }
 
 // Run queries kayentd for the metric
@@ -121,7 +126,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-		//experimentScopeStr := "\"experimentScope\":" + string(experimentScope)
 		scopes = scopes + fmt.Sprintf(scopeFormat, name, string(controlScope), string(experimentScope))
 		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
 			scopes = scopes + ","
@@ -179,8 +183,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	response, err := p.client.Get(scoreURL)
 	if err != nil || response.Body == nil || response.StatusCode != 200 {
 		if err == nil {
-			err := errors.New("Invalid Response")
-			return metricutil.MarkMeasurementError(measurement, err)
+			err = errors.New("Invalid Response")
 		}
 		return metricutil.MarkMeasurementError(measurement, err)
 	} else {
