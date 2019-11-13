@@ -2517,8 +2517,6 @@ spec:
                             type: string
                           application:
                             type: string
-                          canaryConfigId:
-                            type: string
                           canaryConfigName:
                             type: string
                           configurationAccountName:
@@ -2589,6 +2587,7 @@ spec:
                         required:
                         - address
                         - application
+                        - canaryConfigName
                         - configurationAccountName
                         - metricsAccountName
                         - scopes

@@ -56,7 +56,6 @@ func buildMetric() v1alpha1.Metric {
 				Address:                  "https://kayenta.example.oom",
 				Application:              "guestbook",
 				CanaryConfigName:         "my-test",
-				CanaryConfigId:           "11111",
 				MetricsAccountName:       "wavefront-prod",
 				ConfigurationAccountName: "intuit-kayenta",
 				StorageAccountName:       "intuit-kayenta",
@@ -68,18 +67,18 @@ func buildMetric() v1alpha1.Metric {
 					{
 						Name: "default",
 						ControlScope: v1alpha1.ScopeDetail{
-							Scope:     "app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}",
+							Scope:     "app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}",
 							Step:      60,
 							Region:    "us-=west-2",
-							StartTime: "{{inputs.start-time}}",
-							EndTime:   "{{inputs.end-time}}",
+							StartTime: "{{args.start-time}}",
+							EndTime:   "{{args.end-time}}",
 						},
 						ExperimentScope: v1alpha1.ScopeDetail{
-							Scope:     "app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}",
+							Scope:     "app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}",
 							Step:      60,
 							Region:    "us-=west-2",
-							StartTime: "{{inputs.start-time}}",
-							EndTime:   "{{inputs.end-time}}",
+							StartTime: "{{args.start-time}}",
+							EndTime:   "{{args.end-time}}",
 						},
 					},
 				},
@@ -124,12 +123,16 @@ func TestRunSuccessfully(t *testing.T) {
 	p := NewKayentaProvider(*e, c)
 	metric := buildMetric()
 
+	stableHash := "xxxx"
+	canaryHash := "yyyy"
+	startTime := "2019-03-29T01:08:34Z"
+	endTime := "2019-03-29T01:38:34Z"
 	run := newAnalysisRun()
-	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
-		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
-		{Name: "stable-hash", Value: "xxxx"},
-		{Name: "canary-hash", Value: "yyyy"},
+	run.Spec.Args = []v1alpha1.Argument{
+		{Name: "start-time", Value: &startTime},
+		{Name: "end-time", Value: &endTime},
+		{Name: "stable-hash", Value: &stableHash},
+		{Name: "canary-hash", Value: &canaryHash},
 	}
 
 	measurement := p.Run(run, metric)
@@ -182,12 +185,16 @@ func TestRunBadResponse(t *testing.T) {
 	p := NewKayentaProvider(e, c)
 	metric := buildMetric()
 
+	stableHash := "xxxx"
+	canaryHash := "yyyy"
+	startTime := "2019-03-29T01:08:34Z"
+	endTime := "2019-03-29T01:38:34Z"
 	run := newAnalysisRun()
-	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
-		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
-		{Name: "stable-hash", Value: "xxxx"},
-		{Name: "canary-hash", Value: "yyyy"},
+	run.Spec.Args = []v1alpha1.Argument{
+		{Name: "start-time", Value: &startTime},
+		{Name: "end-time", Value: &endTime},
+		{Name: "stable-hash", Value: &stableHash},
+		{Name: "canary-hash", Value: &canaryHash},
 	}
 
 	measurement := p.Run(run, metric)
@@ -231,12 +238,16 @@ func TestRunEmptyExecutionId(t *testing.T) {
 	p := NewKayentaProvider(e, c)
 	metric := buildMetric()
 
+	stableHash := "xxxx"
+	canaryHash := "yyyy"
+	startTime := "2019-03-29T01:08:34Z"
+	endTime := "2019-03-29T01:38:34Z"
 	run := newAnalysisRun()
-	run.Spec.Arguments = []v1alpha1.Argument{
-		{Name: "start-time", Value: "2019-03-29T01:08:34Z"},
-		{Name: "end-time", Value: "2019-03-29T01:38:34Z"},
-		{Name: "stable-hash", Value: "xxxx"},
-		{Name: "canary-hash", Value: "yyyy"},
+	run.Spec.Args = []v1alpha1.Argument{
+		{Name: "start-time", Value: &startTime},
+		{Name: "end-time", Value: &endTime},
+		{Name: "stable-hash", Value: &stableHash},
+		{Name: "canary-hash", Value: &canaryHash},
 	}
 
 	measurement := p.Run(run, metric)

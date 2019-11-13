@@ -232,8 +232,7 @@ type KayentaMetric struct {
 
 	Application string `json:"application"`
 
-	CanaryConfigName string `json:"canaryConfigName,omitempty"`
-	CanaryConfigId   string `json:"canaryConfigId,omitempty"`
+	CanaryConfigName string `json:"canaryConfigName"`
 
 	MetricsAccountName       string `json:"metricsAccountName"`
 	ConfigurationAccountName string `json:"configurationAccountName"`

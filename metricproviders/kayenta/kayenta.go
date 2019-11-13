@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,25 +22,25 @@ import (
 
 const (
 	//ProviderType indicates the provider is kayenta
-	ProviderType           = "Kayenta"
-	KayentaScoreURL string = "{{inputs.address}}/canary/{{inputs.canaryExecutionId}}"
+	ProviderType   = "Kayenta"
+	scoreURLFormat = `%s/canary/%s`
 
-	JobURL string = "{{inputs.address}}/canary/{{inputs.canaryConfigId}}?application={{inputs.application}}&metricsAccountName={{inputs.metricsAccountName}}&configurationAccountName={{inputs.configurationAccountName}}&storageAccountName={{inputs.storageAccountName}}"
+	jobURLFormat = `%s/canary/%s?application=%s&metricsAccountName=%s&configurationAccountName=%s&storageAccountName=%s`
 
-	JobPayloadTemplate string = `
+	jobPayloadFormat = `
 							{
 								"scopes": {
-										{{inputs.scopes}}
+										%s
 								},
                                 "thresholds" : {
-                                    "pass": {{inputs.pass}},
-                                    "marginal": {{inputs.marginal}}
+                                    "pass": %d,
+                                    "marginal": %d
                                 }
                             }`
 
-	ResumeDelay           time.Duration = 15 * time.Second
-	httpConenectionTimout time.Duration = 15 * time.Second
-	scopeFormat                         = `"%s":{"controlScope": %s, "experimentScope": %s}`
+	resumeDelay          time.Duration = 15 * time.Second
+	httpConnectionTimout time.Duration = 15 * time.Second
+	scopeFormat                        = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {
@@ -55,6 +53,12 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+func getCanaryConfigId(application string) string {
+	//Query the canary id using the application name
+	//Traverse the array with matching name and extract the id
+	return "11111"
+}
+
 // Run queries kayentd for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := metav1.Now()
@@ -62,15 +66,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	jobURL := strings.Replace(JobURL, "{{inputs.address}}", metric.Provider.Kayenta.Address, 1)
-	jobURL = strings.Replace(jobURL, "{{inputs.canaryConfigId}}", metric.Provider.Kayenta.CanaryConfigId, 1)
-	jobURL = strings.Replace(jobURL, "{{inputs.application}}", metric.Provider.Kayenta.Application, 1)
-	jobURL = strings.Replace(jobURL, "{{inputs.metricsAccountName}}", metric.Provider.Kayenta.MetricsAccountName, 1)
-	jobURL = strings.Replace(jobURL, "{{inputs.configurationAccountName}}", metric.Provider.Kayenta.ConfigurationAccountName, 1)
-	jobURL = strings.Replace(jobURL, "{{inputs.storageAccountName}}", metric.Provider.Kayenta.StorageAccountName, 1)
+	canaryConfigId := getCanaryConfigId(metric.Provider.Kayenta.Application)
+	jobURL := fmt.Sprintf(jobURLFormat, metric.Provider.Kayenta.Address, canaryConfigId, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.MetricsAccountName, metric.Provider.Kayenta.ConfigurationAccountName, metric.Provider.Kayenta.StorageAccountName)
 
-	jobPayLoad := strings.Replace(JobPayloadTemplate, "{{inputs.pass}}", strconv.Itoa(metric.Provider.Kayenta.Threshold.Pass), 1)
-	jobPayLoad = strings.Replace(jobPayLoad, "{{inputs.marginal}}", strconv.Itoa(metric.Provider.Kayenta.Threshold.Marginal), 1)
 	var scopes string
 	for i, s := range metric.Provider.Kayenta.Scopes {
 		name := s.Name
@@ -78,7 +76,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-		//controlScopeStr := "\"controlScope\":" + string(controlScope)
+
 		experimentScope, err := json.Marshal(s.ExperimentScope)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
@@ -91,9 +89,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	}
 
-	jobPayLoad = strings.Replace(jobPayLoad, "{{inputs.scopes}}", scopes, 1)
+	jobPayLoad := fmt.Sprintf(jobPayloadFormat, scopes, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 
-	jsonValue, err := templateutil.ResolveArgs(jobPayLoad, run.Spec.Arguments)
+	jsonValue, err := templateutil.ResolveArgs(jobPayLoad, run.Spec.Args)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -125,7 +123,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
 
-	resumeTime := metav1.NewTime(time.Now().Add(ResumeDelay))
+	resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
 	newMeasurement.ResumeAt = &resumeTime
 	finishTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishTime
@@ -136,8 +134,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 // Resume should not be used the kayenta provider since all the work should occur in the Run method
 func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 
-	scoreURL := strings.Replace(KayentaScoreURL, "{{inputs.address}}", metric.Provider.Kayenta.Address, 1)
-	scoreURL = strings.Replace(scoreURL, "{{inputs.canaryExecutionId}}", measurement.Metadata["canaryExecutionId"], 1)
+	scoreURL := fmt.Sprintf(scoreURLFormat, metric.Provider.Kayenta.Address, measurement.Metadata["canaryExecutionId"])
 
 	response, err := p.client.Get(scoreURL)
 	if err != nil || response.Body == nil || response.StatusCode != 200 {
@@ -208,9 +205,9 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 }
 
 func NewHttpClient() http.Client {
-	//TODO:  Should timeout be configurable?
+
 	c := http.Client{
-		Timeout: httpConenectionTimout,
+		Timeout: httpConnectionTimout,
 	}
 
 	return c

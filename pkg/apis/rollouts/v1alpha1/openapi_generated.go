@@ -1120,12 +1120,6 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 							Format: "",
 						},
 					},
-					"canaryConfigId": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"metricsAccountName": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -1162,7 +1156,7 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"address", "application", "metricsAccountName", "configurationAccountName", "storageAccountName", "threshold", "scopes"},
+				Required: []string{"address", "application", "canaryConfigName", "metricsAccountName", "configurationAccountName", "storageAccountName", "threshold", "scopes"},
 			},
 		},
 		Dependencies: []string{
