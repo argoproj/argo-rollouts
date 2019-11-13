@@ -10,7 +10,7 @@ metadata:
 spec:
   metrics:
   - name: pass
-    interval: 5
+    interval: 5s
     maxFailures: 1
     provider:
       job:
@@ -36,7 +36,7 @@ metadata:
 spec:
   metrics:
   - name: random-fail
-    interval: 5
+    interval: 5s
     maxFailures: 1
     provider:
       job:

@@ -119,7 +119,7 @@ func TestValidateMetrics(t *testing.T) {
 				{
 					Name:        "success-rate",
 					Count:       2,
-					Interval:    pointer.Int32Ptr(60),
+					Interval:    "60s",
 					MaxFailures: 2,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
@@ -129,6 +129,23 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:        "success-rate",
+					Count:       2,
+					Interval:    "60s-typo",
+					MaxFailures: 2,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: invalid interval string: time: unknown unit s-typo in duration 60s-typo")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{

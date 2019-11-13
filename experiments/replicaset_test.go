@@ -14,7 +14,7 @@ import (
 
 func TestCreateMultipleRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 
 	f := newFixture(t, e)
 	defer f.Close()
@@ -47,7 +47,7 @@ func TestCreateMultipleRS(t *testing.T) {
 
 func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name:               "bar",
 		LastTransitionTime: now(),
@@ -77,7 +77,7 @@ func TestCreateMissingRS(t *testing.T) {
 
 func TestTemplateHasMultipleRS(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 
 	rs := templateToRS(e, templates[0], 0)
 	rs2 := rs.DeepCopy()
@@ -91,7 +91,7 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 
 func TestNameCollision(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 
 	deploy := &appsv1.Deployment{
@@ -132,7 +132,7 @@ func TestNameCollision(t *testing.T) {
 //  of the replicaset when encountering name collisions
 func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	templates := generateTemplates("bar")
-	e := newExperiment("foo", templates, nil)
+	e := newExperiment("foo", templates, "")
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 
 	rs := templateToRS(e, templates[0], 0)

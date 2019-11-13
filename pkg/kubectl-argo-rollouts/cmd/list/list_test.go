@@ -215,7 +215,7 @@ func newExperiment() *v1alpha1.Experiment {
 			CreationTimestamp: aWeekAgo,
 		},
 		Spec: v1alpha1.ExperimentSpec{
-			Duration: pointer.Int32Ptr(10800),
+			Duration: "3h",
 		},
 		Status: v1alpha1.ExperimentStatus{
 			Phase:       v1alpha1.AnalysisPhaseRunning,
@@ -243,7 +243,7 @@ func TestListExperiments(t *testing.T) {
 	exp2 := newExperiment()
 	exp2.Name = "my-experiment2"
 	exp2.Namespace = "my-other-namespace"
-	exp2.Spec.Duration = nil
+	exp2.Spec.Duration = ""
 	tf, o := options.NewFakeArgoRolloutsOptions(exp1, exp2)
 	o.RESTClientGetter = tf.WithNamespace("test")
 	defer tf.Cleanup()

@@ -79,9 +79,15 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 			return fmt.Errorf("count must be >= maxInconclusive")
 		}
 	}
-	if metric.Count > 1 && metric.Interval == nil {
+	if metric.Count > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
+	if metric.Interval != "" {
+		if _, err := metric.Interval.Duration(); err != nil {
+			return fmt.Errorf("invalid interval string: %v", err)
+		}
+	}
+
 	if metric.MaxFailures < 0 {
 		return fmt.Errorf("maxFailures must be >= 0")
 	}

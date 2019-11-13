@@ -49,8 +49,7 @@ spec:
                   failureCondition:
                     type: string
                   interval:
-                    format: int32
-                    type: integer
+                    type: string
                   maxConsecutiveErrors:
                     format: int32
                     type: integer

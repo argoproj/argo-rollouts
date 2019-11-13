@@ -213,7 +213,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		return nil
 	}
 	var candidateDuration *time.Duration
-	if ex.Status.AvailableAt != nil && ex.Spec.Duration != nil {
+	if ex.Status.AvailableAt != nil && ex.Spec.Duration != "" {
 		// Set candidate duration to status.availableAt + duration
 		passedDuration, timeRemaining := experimentutil.PassedDurations(ex)
 		if !passedDuration {

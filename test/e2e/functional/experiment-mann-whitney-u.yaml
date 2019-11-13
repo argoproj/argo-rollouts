@@ -3,7 +3,7 @@ kind: Experiment
 metadata:
   generateName: experiment-mann-whitney-u-
 spec:
-  duration: 3600
+  duration: 3h
   templates:
   - name: baseline
     spec:

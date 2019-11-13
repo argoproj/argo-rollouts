@@ -3,7 +3,6 @@ package list
 import (
 	"fmt"
 	"text/tabwriter"
-	"time"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,11 +82,13 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 		age := duration.HumanDuration(metav1.Now().Sub(exp.CreationTimestamp.Time))
 		dur := "-"
 		remaining := "-"
-		if exp.Spec.Duration != nil {
-			dur = duration.HumanDuration(time.Second * time.Duration(*exp.Spec.Duration))
-			if !exp.Status.Phase.Completed() && exp.Status.AvailableAt != nil {
-				if _, timeRemaining := experimentutil.PassedDurations(&exp); timeRemaining > 0 {
-					remaining = duration.HumanDuration(timeRemaining)
+		if exp.Spec.Duration != "" {
+			if expDuration, err := exp.Spec.Duration.Duration(); err == nil {
+				dur = duration.HumanDuration(expDuration)
+				if !exp.Status.Phase.Completed() && exp.Status.AvailableAt != nil {
+					if _, timeRemaining := experimentutil.PassedDurations(&exp); timeRemaining > 0 {
+						remaining = duration.HumanDuration(timeRemaining)
+					}
 				}
 			}
 		}

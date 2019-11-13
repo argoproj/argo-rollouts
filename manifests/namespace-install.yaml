@@ -50,8 +50,7 @@ spec:
                   failureCondition:
                     type: string
                   interval:
-                    format: int32
-                    type: integer
+                    type: string
                   maxConsecutiveErrors:
                     format: int32
                     type: integer
@@ -2653,8 +2652,7 @@ spec:
                   failureCondition:
                     type: string
                   interval:
-                    format: int32
-                    type: integer
+                    type: string
                   maxConsecutiveErrors:
                     format: int32
                     type: integer
@@ -5194,8 +5192,7 @@ spec:
                 type: object
               type: array
             duration:
-              format: int32
-              type: integer
+              type: string
             progressDeadlineSeconds:
               format: int32
               type: integer
@@ -7936,8 +7933,7 @@ spec:
                                   type: object
                                 type: array
                               duration:
-                                format: int32
-                                type: integer
+                                type: string
                               templates:
                                 items:
                                   properties:
