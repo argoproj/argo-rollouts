@@ -28,7 +28,6 @@ spec:
       address: https://kayenta.example.com
       application: guestbook
       canaryConfigName: my-test
-      canaryConfigId:   11111
 	  metricsAccountName: wavefront-prod
       configurationAccountName: intuit-kayenta
       storageAccountName:  intuit-kayenta
@@ -55,7 +54,7 @@ func buildMetric() v1alpha1.Metric {
 			Kayenta: &v1alpha1.KayentaMetric{
 				Address:                  "https://kayenta.example.oom",
 				Application:              "guestbook",
-				CanaryConfigName:         "my-test",
+				CanaryConfigName:         "ValidationCanaryConfigTest3",
 				MetricsAccountName:       "wavefront-prod",
 				ConfigurationAccountName: "intuit-kayenta",
 				StorageAccountName:       "intuit-kayenta",
@@ -87,16 +86,59 @@ func buildMetric() v1alpha1.Metric {
 	}
 }
 
-//
+const (
+	configIdLookupResponse = `
+[
+  {
+    "id": "69a6c352-7033-4ca1-858b-02497e5cc672",
+    "name": "ValidationCanaryConfigWF",
+    "updatedTimestamp": 1556747152000,
+    "updatedTimestampIso": "2019-05-01T21:45:52Z",
+    "applications": [
+      "guestbook"
+    ]
+  },
+  {
+    "id": "99d93685-4f70-4e8b-aa6d-6c47bdb4ab94",
+    "name": "ValidationCanaryConfigTest",
+    "updatedTimestamp": 1542305351000,
+    "updatedTimestampIso": "2018-11-15T18:09:11Z",
+    "applications": [
+      "guestbook"
+    ]
+  },
+  {
+    "id": "bf9795c0-170f-403e-bb7f-fef3f9a44d42",
+    "name": "ValidationCanaryConfigTest3",
+    "updatedTimestamp": 1553707842000,
+    "updatedTimestampIso": "2019-03-27T17:30:42Z",
+    "applications": [
+      "guestbook"
+    ]
+  },
+  {
+    "id": "872bb4d3-3309-48e6-9203-2a456a5c2ce7",
+    "name": "ValidationCanaryConfigTest2",
+    "updatedTimestamp": 1542306335000,
+    "updatedTimestampIso": "2018-11-15T18:25:35Z",
+    "applications": [
+      "guestbook"
+    ]
+  }
+]
+`
+	lookupURL = "https://kayenta.example.oom/canaryConfig?application=guestbook&configurationAccountName=intuit-kayenta"
+	jobURL    = "https://kayenta.example.oom/canary/bf9795c0-170f-403e-bb7f-fef3f9a44d42?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta"
+)
 
 func TestRunSuccessfully(t *testing.T) {
 	e := log.NewEntry(log.New())
 	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			assert.Equal(t, req.URL.String(), jobURL)
 
-		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
-
-		body, _ := ioutil.ReadAll(req.Body)
-		assert.Equal(t, string(body), `
+			body, _ := ioutil.ReadAll(req.Body)
+			assert.Equal(t, string(body), `
 							{
 								"scopes": {
 										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
@@ -107,16 +149,28 @@ func TestRunSuccessfully(t *testing.T) {
                                 }
                             }`)
 
-		return &http.Response{
-			StatusCode: 200,
-			// Send response to be tested
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
             }
 			`)),
-			// Must be set to non-nil value or it panics
-			Header: make(http.Header),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
+		} else {
+			url := req.URL.String()
+			assert.Equal(t, url, lookupURL)
+
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
 		}
 	})
 
@@ -154,11 +208,11 @@ func TestRunSuccessfully(t *testing.T) {
 func TestRunBadResponse(t *testing.T) {
 	e := log.Entry{}
 	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			assert.Equal(t, req.URL.String(), jobURL)
 
-		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
-
-		body, _ := ioutil.ReadAll(req.Body)
-		assert.Equal(t, string(body), `
+			body, _ := ioutil.ReadAll(req.Body)
+			assert.Equal(t, string(body), `
 							{
 								"scopes": {
 										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
@@ -169,16 +223,28 @@ func TestRunBadResponse(t *testing.T) {
                                 }
                             }`)
 
-		return &http.Response{
-			StatusCode: 500,
-			// Send response to be tested
-			//Body:       ioutil.NopCloser(bytes.NewBufferString(`
-			//{
-			//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-			//}
-			//`)),
-			// Must be set to non-nil value or it panics
-			Header: make(http.Header),
+			return &http.Response{
+				StatusCode: 500,
+				// Send response to be tested
+				//	Body: ioutil.NopCloser(bytes.NewBufferString(`
+				//{
+				//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
+				//}
+				//`)),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
+		} else {
+			url := req.URL.String()
+			assert.Equal(t, url, lookupURL)
+
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
 		}
 	})
 
@@ -207,11 +273,11 @@ func TestRunBadResponse(t *testing.T) {
 func TestRunEmptyExecutionId(t *testing.T) {
 	e := log.Entry{}
 	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			assert.Equal(t, req.URL.String(), jobURL)
 
-		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/11111?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta")
-
-		body, _ := ioutil.ReadAll(req.Body)
-		assert.Equal(t, string(body), `
+			body, _ := ioutil.ReadAll(req.Body)
+			assert.Equal(t, string(body), `
 							{
 								"scopes": {
 										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
@@ -222,16 +288,28 @@ func TestRunEmptyExecutionId(t *testing.T) {
                                 }
                             }`)
 
-		return &http.Response{
-			StatusCode: 200,
-			// Send response to be tested
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : ""
-			}
+            }
 			`)),
-			// Must be set to non-nil value or it panics
-			Header: make(http.Header),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
+		} else {
+			url := req.URL.String()
+			assert.Equal(t, url, lookupURL)
+
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
 		}
 	})
 

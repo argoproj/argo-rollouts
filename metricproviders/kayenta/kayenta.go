@@ -25,6 +25,8 @@ const (
 	ProviderType   = "Kayenta"
 	scoreURLFormat = `%s/canary/%s`
 
+	configIdLookupURLFormat = `%s/canaryConfig?application=%s&configurationAccountName=%s`
+
 	jobURLFormat = `%s/canary/%s?application=%s&metricsAccountName=%s&configurationAccountName=%s&storageAccountName=%s`
 
 	jobPayloadFormat = `
@@ -48,15 +50,49 @@ type Provider struct {
 	client http.Client
 }
 
+type canaryConfig struct {
+	Id                  string
+	Name                string
+	UpdatedTimestamp    int
+	UpdatedTimestampIso string
+	Applications        []string
+}
+
 // Type incidates provider is a kayenta provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
 
-func getCanaryConfigId(application string) string {
-	//Query the canary id using the application name
-	//Traverse the array with matching name and extract the id
-	return "11111"
+func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (canaryConfigId string, err error) {
+	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
+
+	response, err := p.client.Get(configIdLookupURL)
+	if err != nil || response.Body == nil || response.StatusCode != 200 {
+		if err == nil {
+			err = errors.New("Invalid Response")
+		}
+		return canaryConfigId, err
+	} else {
+		data, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return canaryConfigId, err
+		}
+
+		var cc []canaryConfig
+
+		err = json.Unmarshal(data, &cc)
+		if err != nil {
+			return canaryConfigId, err
+		}
+
+		for _, s := range cc {
+			if s.Name == metric.Provider.Kayenta.CanaryConfigName {
+				canaryConfigId = s.Id
+				break
+			}
+		}
+	}
+	return canaryConfigId, nil
 }
 
 // Run queries kayentd for the metric
@@ -66,7 +102,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	canaryConfigId := getCanaryConfigId(metric.Provider.Kayenta.Application)
+	canaryConfigId, err := getCanaryConfigId(metric, p)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+
 	jobURL := fmt.Sprintf(jobURLFormat, metric.Provider.Kayenta.Address, canaryConfigId, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.MetricsAccountName, metric.Provider.Kayenta.ConfigurationAccountName, metric.Provider.Kayenta.StorageAccountName)
 
 	var scopes string
