@@ -3,7 +3,7 @@ kind: Experiment
 metadata:
   generateName: experiment-basic-
 spec:
-  duration: 30
+  duration: 30s
   templates:
   - name: baseline
     selector:

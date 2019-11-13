@@ -27,7 +27,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 				SpecRef:  v1alpha1.StableSpecRef,
 				Replicas: pointer.Int32Ptr(1),
 			}},
-			Analyses: []v1alpha1.RolloutAnalysisStep{{
+			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
 				Name:         "test",
 				TemplateName: at.Name,
 			}},

@@ -10,10 +10,10 @@ import (
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
-func BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisRun *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
+func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
 	arguments := []v1alpha1.Argument{}
-	for i := range rolloutAnalysisRun.Args {
-		arg := rolloutAnalysisRun.Args[i]
+	for i := range args {
+		arg := args[i]
 		value := arg.Value
 		if arg.ValueFrom != nil {
 			switch *arg.ValueFrom.PodTemplateHashValue {
@@ -72,24 +72,30 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Count > 0 {
-		if metric.Count < metric.MaxFailures {
-			return fmt.Errorf("count must be >= maxFailures")
+		if metric.Count < metric.FailureLimit {
+			return fmt.Errorf("count must be >= failureLimit")
 		}
-		if metric.Count < metric.MaxInconclusive {
-			return fmt.Errorf("count must be >= maxInconclusive")
+		if metric.Count < metric.InconclusiveLimit {
+			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
 	}
-	if metric.Count > 1 && metric.Interval == nil {
+	if metric.Count > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
-	if metric.MaxFailures < 0 {
-		return fmt.Errorf("maxFailures must be >= 0")
+	if metric.Interval != "" {
+		if _, err := metric.Interval.Duration(); err != nil {
+			return fmt.Errorf("invalid interval string: %v", err)
+		}
 	}
-	if metric.MaxInconclusive < 0 {
-		return fmt.Errorf("maxInconclusive must be >= 0")
+
+	if metric.FailureLimit < 0 {
+		return fmt.Errorf("failureLimit must be >= 0")
 	}
-	if metric.MaxConsecutiveErrors != nil && *metric.MaxConsecutiveErrors < 0 {
-		return fmt.Errorf("maxConsecutiveErrors must be >= 0")
+	if metric.InconclusiveLimit < 0 {
+		return fmt.Errorf("inconclusiveLimit must be >= 0")
+	}
+	if metric.ConsecutiveErrorLimit != nil && *metric.ConsecutiveErrorLimit < 0 {
+		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
 	}
 	numProviders := 0
 	if metric.Provider.Prometheus != nil {

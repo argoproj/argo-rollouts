@@ -66,7 +66,6 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
-		Name:         at.Name,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -121,7 +120,6 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
-		Name:         at.Name,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -182,7 +180,6 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
 		TemplateName: at.Name,
-		Name:         at.Name,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -228,7 +225,6 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysisStep{
 			TemplateName: at.Name,
-			Name:         at.Name,
 		},
 	}}
 
@@ -258,7 +254,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	expectedArName := fmt.Sprintf("%s-%s-%s-%s-%s", r2.Name, rs2PodHash, "2", "0", at.Name)
 	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
@@ -279,7 +275,6 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysisStep{
 			TemplateName: "invalid-template-ref",
-			Name:         "invalid-template-ref",
 		},
 	}}
 
@@ -980,7 +975,6 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewRollout(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		Name:         "background",
 		TemplateName: at.Name,
 	}
 	r1.Status.CurrentPodHash = ""

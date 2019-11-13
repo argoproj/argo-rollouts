@@ -35,25 +35,22 @@ spec:
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
-                    format: int32
-                    type: integer
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
+                    type: string
                   name:
                     type: string
                   provider:

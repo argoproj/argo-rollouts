@@ -150,11 +150,20 @@ type CanaryStrategy struct {
 type RolloutExperimentStep struct {
 	// Templates what templates that should be added to the experiment. Should be non-nil
 	Templates []RolloutExperimentTemplate `json:"templates"`
-	// Duration is the duration in seconds that the experiment should run for
+	// Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for
 	// +optional
-	Duration *int32 `json:"duration,omitempty"`
-	// Analyses what analyses to run with the experiment
-	Analyses []RolloutAnalysisStep `json:"analyses,omitempty"`
+	Duration DurationString `json:"duration,omitempty"`
+	// Analyses reference which analysis templates to run with the experiment
+	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty"`
+}
+
+type RolloutExperimentStepAnalysisTemplateRef struct {
+	// Name is a name for this analysis template invocation
+	Name string `json:"name"`
+	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
+	TemplateName string `json:"templateName"`
+	// Args the arguments that will be added to the AnalysisRuns
+	Args []AnalysisRunArgument `json:"args,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -211,8 +220,6 @@ type CanaryStep struct {
 
 // RolloutAnalysisStep defines a template that is used to create a analysisRun
 type RolloutAnalysisStep struct {
-	// Name the name for the analysisRun
-	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
 	// Args the arguments that will be added to the AnalysisRuns

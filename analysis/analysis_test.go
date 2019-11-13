@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -32,14 +31,14 @@ func newRun() *v1alpha1.AnalysisRun {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "metric1",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
 				},
 				{
 					Name:     "metric2",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
@@ -154,7 +153,7 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "success-rate",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 				},
 			},
 		},
@@ -528,11 +527,11 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, true))
 }
-func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
+func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	metric := v1alpha1.Metric{
-		Name:        "success-rate",
-		MaxFailures: 2,
-		Interval:    pointer.Int32Ptr(60),
+		Name:         "success-rate",
+		FailureLimit: 2,
+		Interval:     "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Failed: 3,
@@ -548,16 +547,16 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
-	metric.MaxFailures = 3
+	metric.FailureLimit = 3
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
 
-func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
+func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name:            "success-rate",
-		MaxInconclusive: 2,
-		Interval:        pointer.Int32Ptr(60),
+		Name:              "success-rate",
+		InconclusiveLimit: 2,
+		Interval:          "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Inconclusive: 3,
@@ -573,7 +572,7 @@ func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
-	metric.MaxInconclusive = 3
+	metric.InconclusiveLimit = 3
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
@@ -581,7 +580,7 @@ func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Name:     "success-rate",
-		Interval: pointer.Int32Ptr(60),
+		Interval: "60s",
 	}
 	result := v1alpha1.MetricResult{
 		ConsecutiveError: 5,
@@ -632,7 +631,7 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "success-rate",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 				},
 			},
 		},
@@ -717,11 +716,11 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "success-rate",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 				},
 				{
 					Name:     "latency",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 				},
 			},
 		},
@@ -768,7 +767,7 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "success-rate",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 				},
 			},
 		},
@@ -824,7 +823,7 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 		},
 	}
 	// ensure we requeue at correct interval
-	assert.Equal(t, now.Add(time.Second*time.Duration(DefaultErrorRetryInterval)), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
 }
 
 func TestReconcileAnalysisRunInitial(t *testing.T) {
@@ -836,7 +835,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:     "success-rate",
-					Interval: pointer.Int32Ptr(60),
+					Interval: "60s",
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -864,7 +863,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	{
 		// run should complete immediately if both count and interval are omitted
 		run.Spec.Metrics[0].Count = 0
-		run.Spec.Metrics[0].Interval = nil
+		run.Spec.Metrics[0].Interval = ""
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)

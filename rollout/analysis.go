@@ -2,6 +2,8 @@ package rollout
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -118,7 +120,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.Canary.Analysis, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.Canary.Analysis, nil, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}
@@ -133,15 +135,15 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	return currentAr, nil
 }
 
-func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()
-	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
+	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep.Args, stableRS, newRS)
 	podHash := replicasetutil.GetPodTemplateHash(newRS)
 	if podHash == "" {
 		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
 	}
-	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysisStep, args, podHash, labels)
+	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysisStep, args, podHash, stepIdx, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +169,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		stepLabels := analysisutil.StepLabels(*index, podHash)
-		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, stepLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, index, stepLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
 		}
@@ -205,7 +207,7 @@ func (c *RolloutController) cancelAnalysisRuns(roCtx *canaryContext, analysisRun
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, args []v1alpha1.Argument, podHash string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	r := roCtx.Rollout()
 	logctx := roCtx.Log()
 	template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(rolloutAnalysisStep.TemplateName)
@@ -221,10 +223,15 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 	}
 
 	revision := r.Annotations[annotations.RevisionAnnotation]
+	nameParts := []string{r.Name, podHash, revision}
+	if stepIdx != nil {
+		nameParts = append(nameParts, strconv.Itoa(int(*stepIdx)))
+	}
+	nameParts = append(nameParts, rolloutAnalysisStep.TemplateName)
+
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			// TODO(jessesuen): consider incorporating the step index into the name like we do for experiments
-			Name:      fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, revision, rolloutAnalysisStep.Name),
+			Name:      strings.Join(nameParts, "-"),
 			Namespace: r.Namespace,
 			Labels:    labels,
 			Annotations: map[string]string{

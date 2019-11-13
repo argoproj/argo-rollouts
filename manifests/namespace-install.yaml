@@ -42,25 +42,22 @@ spec:
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
-                    format: int32
-                    type: integer
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
+                    type: string
                   name:
                     type: string
                   provider:
@@ -2728,25 +2725,22 @@ spec:
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
-                    format: int32
-                    type: integer
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
+                    type: string
                   name:
                     type: string
                   provider:
@@ -5363,8 +5357,7 @@ spec:
                 type: object
               type: array
             duration:
-              format: int32
-              type: integer
+              type: string
             progressDeadlineSeconds:
               format: int32
               type: integer
@@ -8036,12 +8029,9 @@ spec:
                             - name
                             type: object
                           type: array
-                        name:
-                          type: string
                         templateName:
                           type: string
                       required:
-                      - name
                       - templateName
                       type: object
                     canaryService:
@@ -8075,12 +8065,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              name:
-                                type: string
                               templateName:
                                 type: string
                             required:
-                            - name
                             - templateName
                             type: object
                           experiment:
@@ -8114,8 +8101,7 @@ spec:
                                   type: object
                                 type: array
                               duration:
-                                format: int32
-                                type: integer
+                                type: string
                               templates:
                                 items:
                                   properties:

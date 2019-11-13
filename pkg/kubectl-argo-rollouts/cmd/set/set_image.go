@@ -82,21 +82,21 @@ func newRolloutSetImage(orig *v1alpha1.Rollout, container string, image string) 
 	ro := orig.DeepCopy()
 	containerFound := false
 	for i, ctr := range ro.Spec.Template.Spec.InitContainers {
-		if ctr.Name == container {
+		if ctr.Name == container || container == "*" {
 			containerFound = true
 			ctr.Image = image
 			ro.Spec.Template.Spec.InitContainers[i] = ctr
 		}
 	}
 	for i, ctr := range ro.Spec.Template.Spec.Containers {
-		if ctr.Name == container {
+		if ctr.Name == container || container == "*" {
 			containerFound = true
 			ctr.Image = image
 			ro.Spec.Template.Spec.Containers[i] = ctr
 		}
 	}
 	for i, ctr := range ro.Spec.Template.Spec.EphemeralContainers {
-		if ctr.Name == container {
+		if ctr.Name == container || container == "*" {
 			containerFound = true
 			ctr.Image = image
 			ro.Spec.Template.Spec.EphemeralContainers[i] = ctr

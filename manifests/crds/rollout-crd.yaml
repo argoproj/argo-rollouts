@@ -129,12 +129,9 @@ spec:
                             - name
                             type: object
                           type: array
-                        name:
-                          type: string
                         templateName:
                           type: string
                       required:
-                      - name
                       - templateName
                       type: object
                     canaryService:
@@ -168,12 +165,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              name:
-                                type: string
                               templateName:
                                 type: string
                             required:
-                            - name
                             - templateName
                             type: object
                           experiment:
@@ -207,8 +201,7 @@ spec:
                                   type: object
                                 type: array
                               duration:
-                                format: int32
-                                type: integer
+                                type: string
                               templates:
                                 items:
                                   properties:
