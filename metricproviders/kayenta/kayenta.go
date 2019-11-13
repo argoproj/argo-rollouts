@@ -63,7 +63,7 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
-func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) ( string,  error) {
+func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 	canaryConfigId := ""
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
 
