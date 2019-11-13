@@ -46,7 +46,7 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123456"},
 		},
 	}
-	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
+	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep.Args, stableRS, newRS)
 	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})

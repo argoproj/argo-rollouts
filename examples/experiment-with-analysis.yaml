@@ -37,5 +37,7 @@ spec:
           image: argoproj/rollouts-demo:orange
           imagePullPolicy: Always
   analyses:
-  - templateName: random-fail
-  - templateName: pass
+  - name: random-fail
+    templateName: random-fail
+  - name: pass
+    templateName: pass

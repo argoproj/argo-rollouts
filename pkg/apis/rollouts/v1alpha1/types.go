@@ -153,8 +153,17 @@ type RolloutExperimentStep struct {
 	// Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for
 	// +optional
 	Duration DurationString `json:"duration,omitempty"`
-	// Analyses what analyses to run with the experiment
-	Analyses []RolloutAnalysisStep `json:"analyses,omitempty"`
+	// Analyses reference which analysis templates to run with the experiment
+	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty"`
+}
+
+type RolloutExperimentStepAnalysisTemplateRef struct {
+	// Name is a name for this analysis template invocation
+	Name string `json:"name"`
+	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
+	TemplateName string `json:"templateName"`
+	// Args the arguments that will be added to the AnalysisRuns
+	Args []AnalysisRunArgument `json:"args,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
