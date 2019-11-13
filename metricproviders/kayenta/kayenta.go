@@ -142,24 +142,24 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 			err = errors.New("Invalid Response")
 		}
 		return metricutil.MarkMeasurementError(newMeasurement, err)
-	} else {
-		data, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			return metricutil.MarkMeasurementError(newMeasurement, err)
-		}
-		var dat map[string]interface{}
-		if err := json.Unmarshal(data, &dat); err != nil {
-			return metricutil.MarkMeasurementError(newMeasurement, err)
-		}
-		jobId := dat["canaryExecutionId"]
-		m := make(map[string]string)
-		m["canaryExecutionId"] = fmt.Sprintf("%v", jobId)
-		if len(m["canaryExecutionId"]) == 0 {
-
-			return metricutil.MarkMeasurementError(newMeasurement, errors.New("Invalid canaryExecutionId"))
-		}
-		newMeasurement.Metadata = m
 	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+	var dat map[string]interface{}
+	if err := json.Unmarshal(data, &dat); err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+	jobId := dat["canaryExecutionId"]
+	m := make(map[string]string)
+	m["canaryExecutionId"] = fmt.Sprintf("%v", jobId)
+	if len(m["canaryExecutionId"]) == 0 {
+
+		return metricutil.MarkMeasurementError(newMeasurement, errors.New("Invalid canaryExecutionId"))
+	}
+	newMeasurement.Metadata = m
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
 
@@ -182,31 +182,31 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 			err = errors.New("Invalid Response")
 		}
 		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	patch := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &patch)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	score, ok, err := unstructured.NestedFloat64(patch, "result", "judgeResult", "score", "score")
+
+	if ok {
+		score := int(score)
+		measurement.Value = fmt.Sprintf("%v", score)
+		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 	} else {
-		data, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
+		if err == nil {
+			err = errors.New("Missing Score")
 		}
-
-		patch := make(map[string]interface{})
-
-		err = json.Unmarshal(data, &patch)
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-
-		score, ok, err := unstructured.NestedFloat64(patch, "result", "judgeResult", "score", "score")
-
-		if ok {
-			score := int(score)
-			measurement.Value = fmt.Sprintf("%v", score)
-			measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
-		} else {
-			if err == nil {
-				err = errors.New("Missing Score")
-			}
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
+		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
 	finishTime := metav1.Now()
