@@ -11,7 +11,7 @@ spec:
   metrics:
   - name: pass
     interval: 5s
-    maxFailures: 1
+    failureLimit: 1
     provider:
       job:
         spec:
@@ -27,7 +27,7 @@ spec:
 
 ---
 # This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
-# When the number of accumulated failures exceeds maxFailures, it will cause the analysis run to
+# When the number of accumulated failures exceeds failureLimit, it will cause the analysis run to
 # fail, and subsequently cause the rollout or experiment to abort.
 kind: AnalysisTemplate
 apiVersion: argoproj.io/v1alpha1
@@ -37,7 +37,7 @@ spec:
   metrics:
   - name: random-fail
     interval: 5s
-    maxFailures: 1
+    failureLimit: 1
     provider:
       job:
         spec:

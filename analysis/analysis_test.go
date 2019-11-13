@@ -527,11 +527,11 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, true))
 }
-func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
+func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	metric := v1alpha1.Metric{
-		Name:        "success-rate",
-		MaxFailures: 2,
-		Interval:    "60s",
+		Name:         "success-rate",
+		FailureLimit: 2,
+		Interval:     "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Failed: 3,
@@ -547,16 +547,16 @@ func TestAssessMetricStatusMaxFailures(t *testing.T) { // max failures
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
-	metric.MaxFailures = 3
+	metric.FailureLimit = 3
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
 
-func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
+func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name:            "success-rate",
-		MaxInconclusive: 2,
-		Interval:        "60s",
+		Name:              "success-rate",
+		InconclusiveLimit: 2,
+		Interval:          "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Inconclusive: 3,
@@ -572,7 +572,7 @@ func TestAssessMetricStatusMaxInconclusive(t *testing.T) {
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
-	metric.MaxInconclusive = 3
+	metric.InconclusiveLimit = 3
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }

@@ -18,9 +18,9 @@ const (
 	// DefaultMeasurementHistoryLimit is the default maximum number of measurements to retain per metric,
 	// before trimming the list.
 	DefaultMeasurementHistoryLimit = 10
-	// DefaultMaxConsecutiveErrors is the default number times a metric can error in sequence before
+	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
 	// erroring the entire metric.
-	DefaultMaxConsecutiveErrors int32 = 4
+	DefaultConsecutiveErrorLimit int32 = 4
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval time.Duration = 10 * time.Second
@@ -305,7 +305,7 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 
 // assessMetricStatus assesses the status of a single metric based on:
 // * current/latest measurement status
-// * parameters given by the metric (maxFailures, count, etc...)
+// * parameters given by the metric (failureLimit, count, etc...)
 // * whether or not we are terminating (e.g. due to failing run, or termination request)
 func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
 	if result.Phase.Completed() {
@@ -325,25 +325,25 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		// we still have a in-flight measurement
 		return v1alpha1.AnalysisPhaseRunning
 	}
-	if result.Failed > metric.MaxFailures {
-		log.Infof("metric assessed %s: failed (%d) > maxFailures (%d)", v1alpha1.AnalysisPhaseFailed, result.Failed, metric.MaxFailures)
+	if result.Failed > metric.FailureLimit {
+		log.Infof("metric assessed %s: failed (%d) > failureLimit (%d)", v1alpha1.AnalysisPhaseFailed, result.Failed, metric.FailureLimit)
 		return v1alpha1.AnalysisPhaseFailed
 	}
-	if result.Inconclusive > metric.MaxInconclusive {
-		log.Infof("metric assessed %s: inconclusive (%d) > maxInconclusive (%d)", v1alpha1.AnalysisPhaseInconclusive, result.Inconclusive, metric.MaxInconclusive)
+	if result.Inconclusive > metric.InconclusiveLimit {
+		log.Infof("metric assessed %s: inconclusive (%d) > inconclusiveLimit (%d)", v1alpha1.AnalysisPhaseInconclusive, result.Inconclusive, metric.InconclusiveLimit)
 		return v1alpha1.AnalysisPhaseInconclusive
 	}
-	maxConsecutiveErrors := DefaultMaxConsecutiveErrors
-	if metric.MaxConsecutiveErrors != nil {
-		maxConsecutiveErrors = *metric.MaxConsecutiveErrors
+	consecutiveErrorLimit := DefaultConsecutiveErrorLimit
+	if metric.ConsecutiveErrorLimit != nil {
+		consecutiveErrorLimit = *metric.ConsecutiveErrorLimit
 	}
-	if result.ConsecutiveError > maxConsecutiveErrors {
-		log.Infof("metric assessed %s: consecutiveErrors (%d) > maxConsecutiveErrors (%d)", v1alpha1.AnalysisPhaseError, result.ConsecutiveError, maxConsecutiveErrors)
+	if result.ConsecutiveError > consecutiveErrorLimit {
+		log.Infof("metric assessed %s: consecutiveErrors (%d) > consecutiveErrorLimit (%d)", v1alpha1.AnalysisPhaseError, result.ConsecutiveError, consecutiveErrorLimit)
 		return v1alpha1.AnalysisPhaseError
 	}
 	// If a count was specified, and we reached that count, then metric is considered Successful.
 	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
-	// taken into consideration above, and we do not want to fail if failures < maxFailures.
+	// taken into consideration above, and we do not want to fail if failures < failureLimit.
 	effectiveCount := metric.EffectiveCount()
 	if effectiveCount != nil && result.Count >= *effectiveCount {
 		log.Infof("metric assessed %s: count (%d) reached", v1alpha1.AnalysisPhaseSuccessful, *effectiveCount)

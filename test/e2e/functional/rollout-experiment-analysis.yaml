@@ -7,7 +7,7 @@ spec:
   metrics:
   - name: random-fail
     interval: 10s
-    maxFailures: 5
+    failureLimit: 5
     provider:
       job:
         spec:

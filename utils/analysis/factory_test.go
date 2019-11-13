@@ -79,9 +79,9 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:        "success-rate",
-					Count:       1,
-					MaxFailures: 2,
+					Name:         "success-rate",
+					Count:        1,
+					FailureLimit: 2,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -89,7 +89,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: count must be >= maxFailures")
+		assert.EqualError(t, err, "metrics[0]: count must be >= failureLimit")
 		spec.Metrics[0].Count = 0
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
@@ -98,9 +98,9 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:            "success-rate",
-					Count:           1,
-					MaxInconclusive: 2,
+					Name:              "success-rate",
+					Count:             1,
+					InconclusiveLimit: 2,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -108,7 +108,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: count must be >= maxInconclusive")
+		assert.EqualError(t, err, "metrics[0]: count must be >= inconclusiveLimit")
 		spec.Metrics[0].Count = 0
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
@@ -117,10 +117,10 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:        "success-rate",
-					Count:       2,
-					Interval:    "60s",
-					MaxFailures: 2,
+					Name:         "success-rate",
+					Count:        2,
+					Interval:     "60s",
+					FailureLimit: 2,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -134,10 +134,10 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:        "success-rate",
-					Count:       2,
-					Interval:    "60s-typo",
-					MaxFailures: 2,
+					Name:         "success-rate",
+					Count:        2,
+					Interval:     "60s-typo",
+					FailureLimit: 2,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -193,8 +193,8 @@ func TestValidateMetrics(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:        "success-rate",
-					MaxFailures: -1,
+					Name:         "success-rate",
+					FailureLimit: -1,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -202,14 +202,14 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: maxFailures must be >= 0")
+		assert.EqualError(t, err, "metrics[0]: failureLimit must be >= 0")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:            "success-rate",
-					MaxInconclusive: -1,
+					Name:              "success-rate",
+					InconclusiveLimit: -1,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -217,14 +217,14 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: maxInconclusive must be >= 0")
+		assert.EqualError(t, err, "metrics[0]: inconclusiveLimit must be >= 0")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:                 "success-rate",
-					MaxConsecutiveErrors: pointer.Int32Ptr(-1),
+					Name:                  "success-rate",
+					ConsecutiveErrorLimit: pointer.Int32Ptr(-1),
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -232,7 +232,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: maxConsecutiveErrors must be >= 0")
+		assert.EqualError(t, err, "metrics[0]: consecutiveErrorLimit must be >= 0")
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{

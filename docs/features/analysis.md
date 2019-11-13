@@ -72,9 +72,9 @@ spec:
   - name: service-name
   metrics:
   - name: success-rate
-    interval: 300 # 5 min
+    interval: 5m
     successCondition: result >= 0.95
-    maxFailures: 3
+    failureLimit: 3
     prometheus:
       address: http://prometheus.example.com:9090
       query: |
@@ -148,7 +148,7 @@ Multiple measurements can be performed over a longer duration period, by specify
   metrics:
   - name: success-rate
     successCondition: result >= 0.95
-    interval: 60
+    interval: 60s
     count: 5
     prometheus:
       address: http://prometheus.example.com:9090
@@ -164,9 +164,9 @@ every 5 minutes, causing the analysis run to fail if 10 or more errors were enco
 ```yaml
   metrics:
   - name: total-errors
-    interval: 300
+    interval: 5m
     failureCondition: result >= 10
-    maxFailures: 3
+    failureLimit: 3
     prometheus:
       address: http://prometheus.example.com:9090
       query: |

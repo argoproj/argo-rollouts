@@ -42,24 +42,22 @@ spec:
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
                     type: string
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
                   name:
                     type: string
                   provider:
@@ -2644,24 +2642,22 @@ spec:
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
                     type: string
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
                   name:
                     type: string
                   provider:

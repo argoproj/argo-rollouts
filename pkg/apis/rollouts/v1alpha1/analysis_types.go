@@ -48,9 +48,9 @@ type Metric struct {
 	// Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement.
 	// If omitted, will perform a single measurement
 	Interval DurationString `json:"interval,omitempty"`
-	// Count is the number of times to run measurement. If both interval and count are omitted,
+	// Count is the number of times to run the measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
-	// A count > 1 must specify an interval.
+	// If count > 1, interval must be specified.
 	Count int32 `json:"count,omitempty"`
 	// SuccessCondition is an expression which determines if a measurement is considered successful
 	// Expression is a goevaluate expression. The keyword `result` is a variable reference to the
@@ -58,23 +58,20 @@ type Metric struct {
 	// Examples:
 	//   result > 10
 	//   (result.requests_made * result.requests_succeeded / 100) >= 90
-	//   result IN (red, yellow)
 	SuccessCondition string `json:"successCondition,omitempty"`
 	// FailureCondition is an expression which determines if a measurement is considered failed
 	// If both success and failure conditions are specified, and the measurement does not fall into
 	// either condition, the measurement is considered Inconclusive
 	FailureCondition string `json:"failureCondition,omitempty"`
-	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
+	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
-	MaxFailures int32 `json:"maxFailures,omitempty"`
-	// MaxInconclusive is the maximum number of times the measurement is allowed to measure
+	FailureLimit int32 `json:"failureLimit,omitempty"`
+	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
-	MaxInconclusive int32 `json:"maxInconclusive,omitempty"`
-	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
+	InconclusiveLimit int32 `json:"inconclusiveLimit,omitempty"`
+	// ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
-	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
-	// FailFast will fail the entire analysis run prematurely
-	FailFast bool `json:"failFast,omitempty"`
+	ConsecutiveErrorLimit *int32 `json:"consecutiveErrorLimit,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
 }

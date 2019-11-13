@@ -1176,14 +1176,14 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"count": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Count is the number of times to run measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. A count > 1 must specify an interval.",
+							Description: "Count is the number of times to run the measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. If count > 1, interval must be specified.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"successCondition": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90\n  result IN (red, yellow)",
+							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1195,32 +1195,25 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
-					"maxFailures": {
+					"failureLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
+							Description: "FailureLimit is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"maxInconclusive": {
+					"inconclusiveLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxInconclusive is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
+							Description: "InconclusiveLimit is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"maxConsecutiveErrors": {
+					"consecutiveErrorLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in succession, before the metric is considered error (default: 4)",
+							Description: "ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in succession, before the metric is considered error (default: 4)",
 							Type:        []string{"integer"},
 							Format:      "int32",
-						},
-					},
-					"failFast": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailFast will fail the entire analysis run prematurely",
-							Type:        []string{"boolean"},
-							Format:      "",
 						},
 					},
 					"provider": {
