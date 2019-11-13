@@ -23,7 +23,8 @@ spec:
       steps:
       - experiment:
           analyses:
-          - templateName: stress-test
+          - name: stress-test
+            templateName: stress-test
           templates:
           - metadata:
               labels:

@@ -10,10 +10,10 @@ import (
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
-func BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisRun *v1alpha1.RolloutAnalysisStep, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
+func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
 	arguments := []v1alpha1.Argument{}
-	for i := range rolloutAnalysisRun.Args {
-		arg := rolloutAnalysisRun.Args[i]
+	for i := range args {
+		arg := args[i]
 		value := arg.Value
 		if arg.ValueFrom != nil {
 			switch *arg.ValueFrom.PodTemplateHashValue {

@@ -17,4 +17,5 @@ spec:
         - name: rollouts-demo
           image: argoproj/rollouts-demo:blue
   analyses:
-  - templateName: does-not-exist
+  - name: does-not-exist
+    templateName: does-not-exist

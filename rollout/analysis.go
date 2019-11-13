@@ -138,7 +138,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()
-	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep, stableRS, newRS)
+	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep.Args, stableRS, newRS)
 	podHash := replicasetutil.GetPodTemplateHash(newRS)
 	if podHash == "" {
 		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
