@@ -19,13 +19,11 @@ spec:
   # success-rate starts at the beginning of the experiment, and is terminated at the end of the
   # experiment. If the analysis run fails/errors before the experiment duration, the experiment is
   # terminated prematurely, and will .
-  - name: success-rate
-    templateName: success-rate
+  - templateName: success-rate
     executionPhase: During
   # mann-whitney runs at the end of the experiment, indicated by the `executionPhase: Post`.
   # 
-  - name: mann-whitney
-    templateName: mann-whitney
+  - templateName: mann-whitney
     executionPhase: Post
 status:
   status: Successful

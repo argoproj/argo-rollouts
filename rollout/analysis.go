@@ -224,7 +224,7 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 	ar := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			// TODO(jessesuen): consider incorporating the step index into the name like we do for experiments
-			Name:      fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, revision, rolloutAnalysisStep.Name),
+			Name:      fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, revision, rolloutAnalysisStep.TemplateName),
 			Namespace: r.Namespace,
 			Labels:    labels,
 			Annotations: map[string]string{

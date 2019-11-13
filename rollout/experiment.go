@@ -99,7 +99,6 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		analysis := step.Analyses[i]
 		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(&analysis, stableRS, newRS)
 		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
-			Name:         analysis.Name,
 			TemplateName: analysis.TemplateName,
 			Args:         args,
 		}

@@ -5187,12 +5187,9 @@ spec:
                       - name
                       type: object
                     type: array
-                  name:
-                    type: string
                   templateName:
                     type: string
                 required:
-                - name
                 - templateName
                 type: object
               type: array
@@ -7870,12 +7867,9 @@ spec:
                             - name
                             type: object
                           type: array
-                        name:
-                          type: string
                         templateName:
                           type: string
                       required:
-                      - name
                       - templateName
                       type: object
                     canaryService:
@@ -7909,12 +7903,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              name:
-                                type: string
                               templateName:
                                 type: string
                             required:
-                            - name
                             - templateName
                             type: object
                           experiment:
@@ -7938,12 +7929,9 @@ spec:
                                         - name
                                         type: object
                                       type: array
-                                    name:
-                                      type: string
                                     templateName:
                                       type: string
                                   required:
-                                  - name
                                   - templateName
                                   type: object
                                 type: array

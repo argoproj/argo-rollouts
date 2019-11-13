@@ -58,7 +58,6 @@ func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: aTemplates[0].Name,
 		},
 	}
@@ -78,7 +77,6 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: aTemplates[0].Name,
 		},
 	}
@@ -104,7 +102,6 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: "does-not-exist",
 		},
 	}
@@ -128,7 +125,6 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: aTemplates[0].Name,
 		},
 	}
@@ -160,7 +156,6 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: aTemplates[0].Name,
 		},
 	}
@@ -185,7 +180,6 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: "success-rate",
 		},
 	}
@@ -198,7 +192,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
-			Name:        e.Spec.Analyses[0].Name,
+			Name:        e.Spec.Analyses[0].TemplateName,
 			Phase:       v1alpha1.AnalysisPhaseRunning,
 			AnalysisRun: ar.Name,
 		},
@@ -218,11 +212,9 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: "success-rate",
 		},
 		{
-			Name:         "latency",
 			TemplateName: "latency",
 		},
 	}
@@ -242,11 +234,11 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
-			Name:        e.Spec.Analyses[0].Name,
+			Name:        e.Spec.Analyses[0].TemplateName,
 			AnalysisRun: ar1.Name,
 		},
 		{
-			Name:        e.Spec.Analyses[1].Name,
+			Name:        e.Spec.Analyses[1].TemplateName,
 			AnalysisRun: ar2.Name,
 		},
 	}
@@ -311,11 +303,9 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: "success-rate",
 		},
 		{
-			Name:         "latency",
 			TemplateName: "latency",
 		},
 	}
@@ -331,11 +321,11 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
-			Name:        e.Spec.Analyses[0].Name,
+			Name:        e.Spec.Analyses[0].TemplateName,
 			AnalysisRun: ar1.Name,
 		},
 		{
-			Name:        e.Spec.Analyses[1].Name,
+			Name:        e.Spec.Analyses[1].TemplateName,
 			AnalysisRun: ar2.Name,
 		},
 	}
@@ -400,7 +390,6 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	e := newExperiment("foo", templates, nil)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
 			TemplateName: "success-rate",
 		},
 	}
@@ -415,7 +404,7 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
-			Name:        e.Spec.Analyses[0].Name,
+			Name:        e.Spec.Analyses[0].TemplateName,
 			Phase:       v1alpha1.AnalysisPhaseRunning,
 			AnalysisRun: ar.Name,
 		},

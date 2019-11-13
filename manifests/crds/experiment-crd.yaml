@@ -43,12 +43,9 @@ spec:
                       - name
                       type: object
                     type: array
-                  name:
-                    type: string
                   templateName:
                     type: string
                 required:
-                - name
                 - templateName
                 type: object
               type: array

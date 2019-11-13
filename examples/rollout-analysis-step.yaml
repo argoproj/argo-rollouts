@@ -33,5 +33,4 @@ spec:
       # AnalysisRun is complete. A failure/error of the analysis will cause the rollout's update to
       # abort, and set the canary weight to zero.
       - analysis:
-          name: random-fail
           templateName: random-fail
