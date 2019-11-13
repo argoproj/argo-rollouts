@@ -86,7 +86,6 @@ func buildMetric() v1alpha1.Metric {
 	}
 }
 
-
 const (
 	configIdLookupResponse = `
 [
@@ -271,7 +270,6 @@ func TestRunMissingArgs(t *testing.T) {
 
 }
 
-
 func TestRunBadJobResponse(t *testing.T) {
 	e := log.Entry{}
 	c := NewTestClient(func(req *http.Request) *http.Response {
@@ -401,7 +399,6 @@ func TestRunBadLookupResponse(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 
 }
-
 
 func TestRunInvalidLookupResponse(t *testing.T) {
 	e := log.Entry{}
