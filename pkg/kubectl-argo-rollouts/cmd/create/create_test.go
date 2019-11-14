@@ -1,0 +1,190 @@
+package create
+
+import (
+	"bytes"
+	"io/ioutil"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
+)
+
+func TestCreateRollout(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreate(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "../../../../examples/rollout-canary.yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	assert.Equal(t, "rollout.argoproj.io/rollout-canary created\n", stdout)
+}
+
+func TestCreateExperiment(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreate(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "../../../../examples/experiment-with-analysis.yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	assert.Equal(t, "experiment.argoproj.io/experiment-with-analysis created\n", stdout)
+}
+
+func TestCreateAnalysisTemplate(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreate(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "testdata/analysis-template.yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	assert.Equal(t, "analysistemplate.argoproj.io/pass created\n", stdout)
+}
+
+func TestCreateAnalysisRun(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreate(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "../../../../test/e2e/functional/analysis-run-job.yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	assert.Equal(t, "analysisrun.argoproj.io/ created\n", stdout)
+}
+
+func TestCreateAnalysisRunUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	err := cmd.Execute()
+	assert.EqualError(t, err, "one of --from or --from-file must be specified")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: one of --from or --from-file must be specified\n", stderr)
+}
+
+func TestCreateAnalysisRunMultipleFromSources(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "--from", "my-template"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "one of --from or --from-file must be specified")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: one of --from or --from-file must be specified\n", stderr)
+}
+
+func TestCreateAnalysisRunUnresolvedArg(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "args.foo was not resolved")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: args.foo was not resolved\n", stderr)
+}
+
+func TestCreateAnalysisRunBadArg(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "-a", "bad-syntax"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "arguments must be in the form NAME=VALUE")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: arguments must be in the form NAME=VALUE\n", stderr)
+}
+
+func TestCreateAnalysisRunDefaultGenerateName(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "-a", "foo=bar"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, "analysisrun.argoproj.io/ created\n", stdout) // note this uses generate name, so name is empty
+	assert.Empty(t, stderr)
+}
+
+func TestCreateAnalysisRunName(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "-a", "foo=bar", "--name", "my-run"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
+	assert.Empty(t, stderr)
+}
+
+func TestCreateJSON(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreate(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "testdata/analysis-template.json"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+	assert.Equal(t, "analysistemplate.argoproj.io/pass created\n", stdout)
+}
+
+func TestCreateAnalysisRunFromClusterTemplate(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	var template v1alpha1.AnalysisTemplate
+	fileBytes, err := ioutil.ReadFile("testdata/analysis-template.yaml")
+	assert.NoError(t, err)
+	err = unmarshal(fileBytes, &template)
+	assert.NoError(t, err)
+	template.Namespace = o.Namespace()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.Tracker().Add(&template)
+
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from", "pass", "-a", "foo=bar", "--name", "my-run"})
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
+	assert.Empty(t, stderr)
+}

@@ -217,34 +217,24 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 		}
 		return nil, err
 	}
-	newArgs, err := analysisutil.MergeArgs(args, template.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-
 	revision := r.Annotations[annotations.RevisionAnnotation]
 	nameParts := []string{r.Name, podHash, revision}
 	if stepIdx != nil {
 		nameParts = append(nameParts, strconv.Itoa(int(*stepIdx)))
 	}
 	nameParts = append(nameParts, rolloutAnalysisStep.TemplateName)
+	name := strings.Join(nameParts, "-")
 
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      strings.Join(nameParts, "-"),
-			Namespace: r.Namespace,
-			Labels:    labels,
-			Annotations: map[string]string{
-				annotations.RevisionAnnotation: revision,
-			},
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			Args:    newArgs,
-		},
+	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", r.Namespace)
+	if err != nil {
+		return nil, err
 	}
-	return &ar, nil
+	run.Labels = labels
+	run.Annotations = map[string]string{
+		annotations.RevisionAnnotation: revision,
+	}
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)}
+	return run, nil
 }
 
 func (c *RolloutController) deleteAnalysisRuns(roCtx rolloutContext, ars []*v1alpha1.AnalysisRun) error {

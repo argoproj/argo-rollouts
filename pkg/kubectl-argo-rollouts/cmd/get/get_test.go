@@ -223,6 +223,7 @@ NAME                                                                           K
 │  │  └──⧉ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699dcf5d     ReplicaSet   ✔ Healthy       7d
 │  │     └──□ rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699vgr24  Pod          ✔ Running       7d   ready:1/1
 │  └──α rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr               AnalysisRun  ? Inconclusive  7d   ✔ 4,✖ 4,? 1,⚠ 1
+│     └──⊞ rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rsxm69     Job          ✔ Successful    7d
 └──# revision:1
    └──⧉ rollout-experiment-analysis-f6db98dff                                  ReplicaSet   ✔ Healthy       7d   stable
       ├──□ rollout-experiment-analysis-f6db98dff-8dmnz                         Pod          ✔ Running       7d   ready:1/1

@@ -458,23 +458,13 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 	if err != nil {
 		return nil, err
 	}
-
-	newArgs, err := analysisutil.MergeArgs(args, template.Spec.Args)
+	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
 	if err != nil {
 		return nil, err
 	}
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name),
-			Namespace:       ec.ex.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			Args:    newArgs,
-		},
-	}
-	return &ar, nil
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+	return run, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists

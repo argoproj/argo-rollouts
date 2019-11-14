@@ -67,8 +67,8 @@ const (
 )
 
 type GetOptions struct {
-	watch   bool
-	noColor bool
+	Watch   bool
+	NoColor bool
 
 	options.ArgoRolloutsOptions
 }
@@ -110,7 +110,7 @@ func (o *GetOptions) Clear() {
 
 // colorize adds ansii color codes to the string based on well known words
 func (o *GetOptions) colorize(s string) string {
-	if o.noColor {
+	if o.NoColor {
 		return s
 	}
 	color := colorMapping[s]
@@ -119,7 +119,7 @@ func (o *GetOptions) colorize(s string) string {
 
 // colorizeStatus adds ansii color codes to the string based on supplied status string
 func (o *GetOptions) colorizeStatus(s string, status string) string {
-	if o.noColor {
+	if o.NoColor {
 		return s
 	}
 	color := colorMapping[status]
@@ -134,7 +134,7 @@ func (o *GetOptions) colorizeStatus(s string, status string) string {
 // color, it provides more consistent string lengths so that tabwriter can calculate
 // widths correctly.
 func (o *GetOptions) ansiFormat(s string, codes ...int) string {
-	if o.noColor || os.Getenv("TERM") == "dumb" || len(codes) == 0 {
+	if o.NoColor || os.Getenv("TERM") == "dumb" || len(codes) == 0 {
 		return s
 	}
 	codeStrs := make([]string, len(codes))
