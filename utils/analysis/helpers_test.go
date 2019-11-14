@@ -388,3 +388,37 @@ func TestMergeArgs(t *testing.T) {
 		assert.Equal(t, "my-value", *args[0].Value)
 	}
 }
+
+func TestNewAnalysisRunFromTemplate(t *testing.T) {
+	template := v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+			},
+			Args: []v1alpha1.Argument{
+				{
+					Name: "my-arg",
+				},
+			},
+		},
+	}
+	args := []v1alpha1.Argument{
+		{
+			Name:  "my-arg",
+			Value: pointer.StringPtr("my-val"),
+		},
+	}
+	run, err := NewAnalysisRunFromTemplate(&template, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	assert.Equal(t, "foo-run", run.Name)
+	assert.Equal(t, "foo-run-generate-", run.GenerateName)
+	assert.Equal(t, "my-ns", run.Namespace)
+	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
+	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
+}
