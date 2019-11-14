@@ -165,8 +165,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
 	newMeasurement.ResumeAt = &resumeTime
-	finishTime := metav1.Now()
-	newMeasurement.FinishedAt = &finishTime
 
 	return newMeasurement
 }
@@ -202,8 +200,6 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 			resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
 			measurement.ResumeAt = &resumeTime
 			measurement.Phase = v1alpha1.AnalysisPhaseRunning
-			finishTime := metav1.Now()
-			measurement.FinishedAt = &finishTime
 
 			return measurement
 		}

@@ -193,6 +193,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 	assert.NotNil(t, measurement.StartedAt)
 	assert.NotNil(t, measurement.ResumeAt)
+	assert.Nil(t, measurement.FinishedAt)
 	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", measurement.Metadata["canaryExecutionId"])
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 
@@ -749,7 +750,7 @@ func TestResumeIncompleteStatus(t *testing.T) {
 
 	measurement = p.Resume(newAnalysisRun(), metric, measurement)
 	assert.NotNil(t, measurement.ResumeAt)
-	assert.NotNil(t, measurement.FinishedAt)
+	assert.Nil(t, measurement.FinishedAt)
 	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", measurement.Metadata["canaryExecutionId"])
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 
