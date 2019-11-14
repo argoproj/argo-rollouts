@@ -599,7 +599,7 @@ func TestResumeBadResponse(t *testing.T) {
 
 }
 
-func TestResumeInvalidScore(t *testing.T) {
+func TestResumeMissingScore(t *testing.T) {
 	e := log.Entry{}
 	c := NewTestClient(func(req *http.Request) *http.Response {
 
@@ -610,6 +610,7 @@ func TestResumeInvalidScore(t *testing.T) {
 			//result.judgeResult.score.score
 			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
+				"complete" : true,
 				"result" : {
 								"judgeResult": {
 								}
