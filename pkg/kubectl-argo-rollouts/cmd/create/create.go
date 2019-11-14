@@ -189,8 +189,9 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 		ArgoRolloutsOptions: *o,
 	}
 	var cmd = &cobra.Command{
-		Use:   "analysisrun",
-		Short: "Create an AnalysisRun from a template",
+		Use:     "analysisrun",
+		Aliases: []string{"ar"},
+		Short:   "Create an AnalysisRun from a template",
 		Example: o.Example(`
   # Create an AnalysisRun from a local template file
   %[1]s create analysisrun --from-file my-analysis-template.yaml
@@ -209,28 +210,13 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if froms != 1 {
 				return fmt.Errorf("one of --from or --from-file must be specified")
 			}
-			templateArgs, err := createOptions.ParseArgs()
+			templateArgs, err := createOptions.ParseArgFlags()
 			if err != nil {
 				return err
 			}
-			ns := o.Namespace()
-			var template *v1alpha1.AnalysisTemplate
-			if createOptions.From != "" {
-				template, err = createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(ns).Get(createOptions.From, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
-			} else {
-				fileBytes, err := ioutil.ReadFile(createOptions.FromFile)
-				if err != nil {
-					return err
-				}
-				var tmpl v1alpha1.AnalysisTemplate
-				err = unmarshal(fileBytes, &tmpl)
-				if err != nil {
-					return err
-				}
-				template = &tmpl
+			template, err := createOptions.getAnalysisTemplate()
+			if err != nil {
+				return err
 			}
 			var name, generateName string
 			if createOptions.Name != "" {
@@ -241,6 +227,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				generateName = template.Name + "-"
 			}
 
+			ns := o.Namespace()
 			run, err := analysisutil.NewAnalysisRunFromTemplate(template, templateArgs, name, generateName, ns)
 			if err != nil {
 				return err
@@ -262,7 +249,24 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (c *CreateAnalysisRunOptions) ParseArgs() ([]v1alpha1.Argument, error) {
+func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemplate, error) {
+	if c.From != "" {
+		return c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(c.Namespace()).Get(c.From, metav1.GetOptions{})
+	} else {
+		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		if err != nil {
+			return nil, err
+		}
+		var tmpl v1alpha1.AnalysisTemplate
+		err = unmarshal(fileBytes, &tmpl)
+		if err != nil {
+			return nil, err
+		}
+		return &tmpl, nil
+	}
+}
+
+func (c *CreateAnalysisRunOptions) ParseArgFlags() ([]v1alpha1.Argument, error) {
 	var args []v1alpha1.Argument
 	for _, argFlag := range c.ArgFlags {
 		argSplit := strings.SplitN(argFlag, "=", 2)
