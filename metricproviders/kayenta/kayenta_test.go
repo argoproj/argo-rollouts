@@ -541,6 +541,7 @@ func TestResumeSuccessfully(t *testing.T) {
 			//result.judgeResult.score.score
 			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
+				"complete" : true,
 				"result" : {
 								"judgeResult": {
 									"score": { "score": 100.0 }
@@ -646,6 +647,7 @@ func TestResumeFailure(t *testing.T) {
 			//result.judgeResult.score.score
 			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
+				"complete" : true,
 				"result" : {
 								"judgeResult": {
 									"score": { "score": 60.0 }
@@ -684,6 +686,7 @@ func TestResumeInconclusive(t *testing.T) {
 			//result.judgeResult.score.score
 			Body: ioutil.NopCloser(bytes.NewBufferString(`
 			{
+				"complete" : true,
 				"result" : {
 								"judgeResult": {
 									"score": { "score": 80.0}
@@ -708,6 +711,82 @@ func TestResumeInconclusive(t *testing.T) {
 	assert.Equal(t, "80", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+
+}
+
+func TestResumeIncompleteStatus(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 200,
+			//result.judgeResult.score.score
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"complete" : false,
+				"result" : {
+								"judgeResult": {
+									"score": { "score": 80.0}
+								}
+							}
+            }
+			`)),
+			// Must be set to non-nil value or it panics
+			Header: make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+	assert.NotNil(t, measurement.ResumeAt)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", measurement.Metadata["canaryExecutionId"])
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+
+}
+
+func TestResumeMissingCompleteStatus(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+
+		assert.Equal(t, req.URL.String(), "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB")
+
+		return &http.Response{
+			StatusCode: 200,
+			//result.judgeResult.score.score
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			{
+				"result" : {
+								"judgeResult": {
+									"score": { "score": 80.0}
+								}
+							}
+            }
+			`)),
+			// Must be set to non-nil value or it panics
+			Header: make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+	m := make(map[string]string)
+	m["canaryExecutionId"] = "01DS50WVHAWSTAQACJKB1VKDQB"
+	measurement := v1alpha1.Measurement{
+		Metadata: m,
+	}
+
+	measurement = p.Resume(newAnalysisRun(), metric, measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 
 }
 

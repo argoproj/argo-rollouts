@@ -196,10 +196,28 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	score, ok, err := unstructured.NestedFloat64(patch, "result", "judgeResult", "score", "score")
+	status, ok, err := unstructured.NestedBool(patch, "complete")
+	if ok {
+		if !status { //resume later since it is incomplete
+			resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
+			measurement.ResumeAt = &resumeTime
+			measurement.Phase = v1alpha1.AnalysisPhaseRunning
+			finishTime := metav1.Now()
+			measurement.FinishedAt = &finishTime
+
+			return measurement
+		}
+	} else {
+		if err == nil {
+			err = errors.New("Missing Complete Status")
+		}
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	result, ok, err := unstructured.NestedFloat64(patch, "result", "judgeResult", "score", "score")
 
 	if ok {
-		score := int(score)
+		score := int(result)
 		measurement.Value = fmt.Sprintf("%v", score)
 		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 	} else {
