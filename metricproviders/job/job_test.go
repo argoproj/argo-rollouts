@@ -169,6 +169,25 @@ func TestJobArgResolution(t *testing.T) {
 	assert.Equal(t, "my-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
 }
 
+func TestJobQuotedArgResolution(t *testing.T) {
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
+	run.Spec.Args = []v1alpha1.Argument{
+		{
+			Name:  "my-arg",
+			Value: pointer.StringPtr("my-\"quoted\"-arg-value"),
+		},
+	}
+
+	measurement := p.Run(run, run.Spec.Metrics[0])
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+	assert.Nil(t, measurement.FinishedAt)
+	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "my-\"quoted\"-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
+}
+
 func TestJobArgFailedResolution(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()

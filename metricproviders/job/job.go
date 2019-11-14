@@ -78,7 +78,7 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.J
 	if err != nil {
 		return nil, err
 	}
-	newSpecStr, err := templateutil.ResolveArgs(string(specBytes), run.Spec.Args)
+	newSpecStr, err := templateutil.ResolveQuotedArgs(string(specBytes), run.Spec.Args)
 	if err != nil {
 		return nil, err
 	}

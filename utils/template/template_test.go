@@ -46,3 +46,22 @@ func TestMissingArgs(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, fmt.Errorf("failed to resolve {{args.var}}"), err)
 }
+
+func TestResolveQuotedArgs(t *testing.T) {
+	args := []v1alpha1.Argument{
+		{
+			Name:  "var",
+			Value: pointer.StringPtr("double quotes\"newline\nand tab\t"),
+		},
+	}
+	{
+		query, err := ResolveQuotedArgs("test-{{args.var}}", args)
+		assert.Nil(t, err)
+		assert.Equal(t, "test-double quotes\\\"newline\\nand tab\\t", query)
+	}
+	{
+		query, err := ResolveArgs("test-{{args.var}}", args)
+		assert.Nil(t, err)
+		assert.Equal(t, "test-double quotes\"newline\nand tab\t", query)
+	}
+}
