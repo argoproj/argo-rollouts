@@ -25,6 +25,7 @@ nav:
     - features/index.md
     - BlueGreen: features/bluegreen.md
     - Canary: features/canary.md
+    - Kubectl Plugin: features/kubectl-plugin.md
     - HPA Support: features/hpa-support.md
     - Kustomize Support: features/kustomize.md
     - Controller Metrics: features/controller-metrics.md
