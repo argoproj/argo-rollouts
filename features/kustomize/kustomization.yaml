@@ -4,17 +4,18 @@ kind: Kustomization
 configurations:
 - rollout-transform.yaml
 
+namePrefix: my-
+
 resources:
-- guestbook.yaml
-- guestbook-svc.yaml
+- rollouts-demo.yaml
 
 configMapGenerator:
-- name: guestbook-cm
+- name: rollouts-demo-cm
   literals:
   - FOO=BAR
 
 secretGenerator:
-- name: guestbook-secret
+- name: rollouts-demo-secret
   literals:
   - password=Pa55w0rd
 
@@ -28,11 +29,11 @@ vars:
 - name: SERVICE_NAME
   objref:
     kind: Service
-    name: guestbook-svc
+    name: rollouts-demo-svc
     apiVersion: v1
   fieldref:
     fieldpath: metadata.name
 
 images:
-- name: gcr.io/heptio-images/ks-guestbook-demo
-  newTag: '0.2'
+- name: argoproj/rollouts-demo
+  newTag: green

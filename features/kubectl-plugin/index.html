@@ -31,18 +31,18 @@
       
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
-      <link rel="shortcut icon" href="../assets/images/favicon.png">
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.4.2">
     
     
       
-        <title>Contributing - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
+        <title>Kubectl Plugin - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/application.30686662.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/application.30686662.css">
       
-        <link rel="stylesheet" href="../assets/stylesheets/application-palette.a8b3c06d.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.a8b3c06d.css">
       
       
         
@@ -51,7 +51,7 @@
       
     
     
-      <script src="../assets/javascripts/modernizr.74668098.js"></script>
+      <script src="../../assets/javascripts/modernizr.74668098.js"></script>
     
     
       
@@ -60,7 +60,7 @@
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
-    <link rel="stylesheet" href="../assets/fonts/material-icons.css">
+    <link rel="stylesheet" href="../../assets/fonts/material-icons.css">
     
     
     
@@ -110,7 +110,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#contributing" tabindex="1" class="md-skip">
+      <a href="#kubectl-plugin" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -119,9 +119,9 @@
   <nav class="md-header-nav md-grid">
     <div class="md-flex">
       <div class="md-flex__cell md-flex__cell--shrink">
-        <a href=".." title="Argo Rollouts - Advanced Kubernetes Deployment Controller" class="md-header-nav__button md-logo">
+        <a href="../.." title="Argo Rollouts - Advanced Kubernetes Deployment Controller" class="md-header-nav__button md-logo">
           
-            <img src="../assets/logo.png" width="24" height="24">
+            <img src="../../assets/logo.png" width="24" height="24">
           
         </a>
       </div>
@@ -136,7 +136,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Contributing
+                Kubectl Plugin
               
             </span>
           
@@ -211,9 +211,9 @@
                   <div class="md-sidebar__inner">
                     <nav class="md-nav md-nav--primary" data-md-level="0">
   <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href=".." title="Argo Rollouts - Advanced Kubernetes Deployment Controller" class="md-nav__button md-logo">
+    <a href="../.." title="Argo Rollouts - Advanced Kubernetes Deployment Controller" class="md-nav__button md-logo">
       
-        <img src="../assets/logo.png" width="48" height="48">
+        <img src="../../assets/logo.png" width="48" height="48">
       
     </a>
     Argo Rollouts - Advanced Kubernetes Deployment Controller
@@ -247,7 +247,7 @@
 
 
   <li class="md-nav__item">
-    <a href=".." title="Overview" class="md-nav__link">
+    <a href="../.." title="Overview" class="md-nav__link">
       Overview
     </a>
   </li>
@@ -259,7 +259,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../deployment-concepts/" title="Concepts" class="md-nav__link">
+    <a href="../../deployment-concepts/" title="Concepts" class="md-nav__link">
       Concepts
     </a>
   </li>
@@ -271,7 +271,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../getting-started/" title="Getting Started" class="md-nav__link">
+    <a href="../../getting-started/" title="Getting Started" class="md-nav__link">
       Getting Started
     </a>
   </li>
@@ -281,10 +281,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
       Features
@@ -302,7 +304,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/" title="Overview" class="md-nav__link">
+    <a href="../" title="Overview" class="md-nav__link">
       Overview
     </a>
   </li>
@@ -314,7 +316,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/bluegreen/" title="BlueGreen" class="md-nav__link">
+    <a href="../bluegreen/" title="BlueGreen" class="md-nav__link">
       BlueGreen
     </a>
   </li>
@@ -326,7 +328,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/canary/" title="Canary" class="md-nav__link">
+    <a href="../canary/" title="Canary" class="md-nav__link">
       Canary
     </a>
   </li>
@@ -336,11 +338,83 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../features/kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Kubectl Plugin
+      </label>
+    
+    <a href="./" title="Kubectl Plugin" class="md-nav__link md-nav__link--active">
       Kubectl Plugin
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    Installation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual" class="md-nav__link">
+    Manual
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#krew" class="md-nav__link">
+    Krew
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualizing-rollouts-and-experiments" class="md-nav__link">
+    Visualizing Rollouts and Experiments
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -350,7 +424,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/hpa-support/" title="HPA Support" class="md-nav__link">
+    <a href="../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
   </li>
@@ -362,7 +436,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/kustomize/" title="Kustomize Support" class="md-nav__link">
+    <a href="../kustomize/" title="Kustomize Support" class="md-nav__link">
       Kustomize Support
     </a>
   </li>
@@ -374,7 +448,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/controller-metrics/" title="Controller Metrics" class="md-nav__link">
+    <a href="../controller-metrics/" title="Controller Metrics" class="md-nav__link">
       Controller Metrics
     </a>
   </li>
@@ -391,7 +465,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/experiment/" title="Experiments" class="md-nav__link">
+    <a href="../experiment/" title="Experiments" class="md-nav__link">
       Experiments
     </a>
   </li>
@@ -403,7 +477,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/analysis/" title="Analysis" class="md-nav__link">
+    <a href="../analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
   </li>
@@ -413,91 +487,11 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Contributing
-      </label>
-    
-    <a href="./" title="Contributing" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../../CONTRIBUTING/" title="Contributing" class="md-nav__link">
       Contributing
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#before-you-start" class="md-nav__link">
-    Before You Start
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pre-requisites" class="md-nav__link">
-    Pre-requisites
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#building" class="md-nav__link">
-    Building
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-tests" class="md-nav__link">
-    Running Tests
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-locally" class="md-nav__link">
-    Running Locally
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-local-containers" class="md-nav__link">
-    Running Local Containers
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation-changes" class="md-nav__link">
-    Documentation Changes
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
     
@@ -558,50 +552,42 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#before-you-start" class="md-nav__link">
-    Before You Start
+  <a href="#installation" class="md-nav__link">
+    Installation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual" class="md-nav__link">
+    Manual
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#krew" class="md-nav__link">
+    Krew
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#pre-requisites" class="md-nav__link">
-    Pre-requisites
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#building" class="md-nav__link">
-    Building
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-tests" class="md-nav__link">
-    Running Tests
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-locally" class="md-nav__link">
-    Running Locally
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-local-containers" class="md-nav__link">
-    Running Local Containers
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation-changes" class="md-nav__link">
-    Documentation Changes
+  <a href="#visualizing-rollouts-and-experiments" class="md-nav__link">
+    Visualizing Rollouts and Experiments
   </a>
   
 </li>
@@ -622,108 +608,89 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/CONTRIBUTING.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/kubectl-plugin.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h1>
-<h2 id="before-you-start">Before You Start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts is written in Golang. If you do not have a good grounding in Go, try out <a href="https://tour.golang.org/">the tutorial</a>.</p>
-<h2 id="pre-requisites">Pre-requisites<a class="headerlink" href="#pre-requisites" title="Permanent link">&para;</a></h2>
-<p>Install:</p>
-<ul>
-<li><a href="https://docs.docker.com/install/#supported-platforms">docker</a></li>
-<li><a href="https://golang.org/">golang</a></li>
-<li><a href="https://github.com/golang/dep">dep</a></li>
-<li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></li>
-<li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
-<li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
-</ul>
-<p>Argo Rollout additionally uses
-* <code>controller-gen</code> binary in order to auto-generate the crd manifest
-* <code>golangci-lint</code> to lint the project.
-* <code>mockery</code> to generate mock objects.</p>
-<p>Run the following commands to install them:</p>
-<div class="codehilite"><pre><span></span>go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-go get -u github.com/vektra/mockery/.../
+                <h1 id="kubectl-plugin">Kubectl Plugin<a class="headerlink" href="#kubectl-plugin" title="Permanent link">&para;</a></h1>
+<p>Kubectl plugins are a way to extend the kubectl command to provide additional behavior. Generally, they are used to add new functionality to kubectl and automate scriptable workflows against a cluster. The official documentation on them is <a href="https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/">here</a>.</p>
+<p>Argo Rollouts offers a Kubectl plugin to enrich the experience with Rollouts, Experiments, and Analysis from the command line. It offers the ability to visualize the Argo Rollouts resources and run routine operations like promote or retry on those resources from the command.</p>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<h3 id="manual">Manual<a class="headerlink" href="#manual" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Install Argo Rollouts Kubectl plugin with curl.</li>
+</ol>
+<div class="codehilite"><pre><span></span>curl -LO https://github.com/argoproj/argo-rollouts/releases/download/v0.6.0/kubectl-argo-rollouts-darwin-amd64
 </pre></div>
 
 
-<p>Brew users can quickly install the lot:</p>
-<div class="codehilite"><pre><span></span>brew install go dep kubectl kustomize
+<p>Note: For Linux dist, replace <code>darwin</code> with <code>linux</code></p>
+<ol>
+<li>Make the kubectl-argo-rollouts binary executable.</li>
+</ol>
+<div class="codehilite"><pre><span></span><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="p">.</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span><span class="o">-</span><span class="n">darwin</span><span class="o">-</span><span class="n">amd64</span>
 </pre></div>
 
 
-<p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
-<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
-<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
+<ol>
+<li>Move the binary into your PATH.</li>
+</ol>
+<div class="codehilite"><pre><span></span><span class="n">sudo</span> <span class="n">mv</span> <span class="p">.</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span><span class="o">-</span><span class="n">darwin</span><span class="o">-</span><span class="n">amd64</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="k">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span>
 </pre></div>
 
 
-<p>Checkout the code:</p>
-<div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-rollouts
-<span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
+<p>Test to ensure the version you installed is up-to-date:</p>
+<div class="codehilite"><pre><span></span><span class="n">kubectl</span> <span class="n">argo</span> <span class="n">rollouts</span> <span class="k">version</span>
 </pre></div>
 
 
-<h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
-<p>Ensure dependencies are up to date first:</p>
-<div class="codehilite"><pre><span></span>dep ensure -v
-</pre></div>
-
-
-<p>The <code>make controller</code> command will build the controller.</p>
-<ul>
-<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</li>
-</ul>
-<h2 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h2>
-<p>To run unit tests:</p>
-<div class="codehilite"><pre><span></span>make <span class="nb">test</span>
-</pre></div>
-
-
-<h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
-<p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
-<div class="codehilite"><pre><span></span><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
-make controller
-./dist/rollout-controller
-</pre></div>
-
-
-<h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
-<p>You may need to run containers locally, so here's how:</p>
-<p>Create login to Docker Hub, then login.</p>
-<div class="codehilite"><pre><span></span>docker login
-</pre></div>
-
-
-<p>Add your username as the environment variable, e.g. to your <code>~/.bash_profile</code>:</p>
-<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj
-</pre></div>
-
-
-<p>Build the images:</p>
-<div class="codehilite"><pre><span></span><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
-</pre></div>
-
-
-<p>Update the manifests:</p>
-<div class="codehilite"><pre><span></span>make manifests
-</pre></div>
-
-
-<p>Install the manifests:</p>
-<div class="codehilite"><pre><span></span>kubectl -n argo-rollouts apply -f manifests/install.yaml
-</pre></div>
-
-
-<h2 id="documentation-changes">Documentation Changes<a class="headerlink" href="#documentation-changes" title="Permanent link">&para;</a></h2>
-<p>If you need to run the mkdocs server, you will need to do the following:</p>
-<ul>
-<li>Follow the instruction guide to install <a href="https://www.mkdocs.org/#installation">mkDocs</a></li>
-<li>Install the <code>material</code> theme with the <a href="https://squidfunk.github.io/mkdocs-material/#quick-start">following guide</a></li>
-</ul>
-<p>Afterwards, you can run <code>mkdocs serve</code> and access your documentation at <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
+<h3 id="krew">Krew<a class="headerlink" href="#krew" title="Permanent link">&para;</a></h3>
+<p>Currently not supported, but there are plans to make the Argo Rollouts kubectl a part of <a href="https://github.com/kubernetes-sigs/krew">Krew</a>. Please follow this <a href="https://github.com/argoproj/argo-rollouts/issues/294">issue</a> for the most up-to-date information.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>The best way to get information on the available Argo Rollouts kubectl plugin commands is by run <code>kubectl argo rollouts</code>. The plugin lists all the available commands that the tool can execute along with a description of each commend. All the plugin's commands interact with the Kubernetes API server and use KubeConfig credentials for authentication. Since the plugin leverages the KubeConfig of the user running the command, the plugin has the permissions of those configs. </p>
+<p>Similar to kubectl, the plugin uses many of the same flags as the kubectl. For example, the <code>kubectl argo rollouts get canary-demo -w</code> command starts a watch on the <code>canary-demo</code> rollout object similar to how the <code>kubectl get deployment canary-demo -w</code> command starts a watch on a deployment.</p>
+<h2 id="visualizing-rollouts-and-experiments">Visualizing Rollouts and Experiments<a class="headerlink" href="#visualizing-rollouts-and-experiments" title="Permanent link">&para;</a></h2>
+<p>In addition to encapsulating many routine commands, the Argo Rollouts kubectl plugin supports visualizing rollouts and experiments with the get command. The get command provides a clean representation of either the rollouts or the experiments running in a cluster. It returns a bunch of metadata on a resource and a tree view of the child resources created by the parent. As an example, here is a rollout retrieved with a get command:</p>
+<p><img alt="alt text" src="kubectl-get-rollout.png" /></p>
+<p>Here is a table to explain some of the icons on the tree view:</p>
+<table>
+<thead>
+<tr>
+<th align="center">Icon</th>
+<th align="center">Kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">⟳</td>
+<td align="center">Rollout</td>
+</tr>
+<tr>
+<td align="center">Σ</td>
+<td align="center">Experiment</td>
+</tr>
+<tr>
+<td align="center">α</td>
+<td align="center">AnalysisRun</td>
+</tr>
+<tr>
+<td align="center">#</td>
+<td align="center">Revision</td>
+</tr>
+<tr>
+<td align="center">⧉</td>
+<td align="center">ReplicaSet</td>
+</tr>
+<tr>
+<td align="center">□</td>
+<td align="center">Pod</td>
+</tr>
+<tr>
+<td align="center">⊞</td>
+<td align="center">Job</td>
+</tr>
+</tbody>
+</table>
+<p>If the get command includes the watch flag (<code>-w</code> or <code>--watch</code>), the terminal updates as the rollouts or experiment progress highlighting the progress.</p>
                 
                   
                 
@@ -744,7 +711,7 @@ make controller
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../features/analysis/" title="Analysis" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../canary/" title="Canary" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -753,11 +720,25 @@ make controller
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Analysis
+                Canary
               </span>
             </div>
           </a>
         
+        
+          <a href="../hpa-support/" title="HPA Support" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                HPA Support
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
         
       </nav>
     </div>
@@ -779,9 +760,9 @@ make controller
       
     </div>
     
-      <script src="../assets/javascripts/application.c648116f.js"></script>
+      <script src="../../assets/javascripts/application.c648116f.js"></script>
       
-      <script>app.initialize({version:"1.0.4",url:{base:".."}})</script>
+      <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       
     
   </body>

@@ -36,7 +36,7 @@
     
     
       
-        <title>Canary Analysis & Progressive Delivery - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
+        <title>Analysis - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
       
     
     
@@ -136,7 +136,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Canary Analysis & Progressive Delivery
+                Analysis
               
             </span>
           
@@ -282,27 +282,15 @@
       
 
 
-  <li class="md-nav__item">
-    <a href="../../experiments/" title="Experiments" class="md-nav__link">
-      Experiments
-    </a>
-  </li>
-
-    
-      
-      
-      
-
-
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
     
-    <label class="md-nav__link" for="nav-5">
+    <label class="md-nav__link" for="nav-4">
       Features
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
-      <label class="md-nav__title" for="nav-5">
+      <label class="md-nav__title" for="nav-4">
         Features
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -350,6 +338,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
+      Kubectl Plugin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -382,6 +382,39 @@
         
       </ul>
     </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../experiment/" title="Experiments" class="md-nav__link">
+      Experiments
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Analysis" class="md-nav__link md-nav__link--active">
+      Analysis
+    </a>
+    
   </li>
 
     
@@ -464,10 +497,6 @@
                 
                 
                 <h1 id="canary-analysis-progressive-delivery">Canary Analysis &amp; Progressive Delivery<a class="headerlink" href="#canary-analysis-progressive-delivery" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>NOTE: this is the API spec for Rollouts (v0.6) to perform canary analysis and progressive
-delivery during a rollout and is subject to change</p>
-</blockquote>
 <p>Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.</p>
@@ -548,9 +577,9 @@ canary steps, the rollout is considered successful and the analysis run is stopp
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
   <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">300</span> <span class="c1"># 5 min</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
     <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
-    <span class="nt">maxFailures</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
     <span class="nt">prometheus</span><span class="p">:</span>
       <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
       <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -617,7 +646,7 @@ no interval is specified, the analysis will perform a single measurement and com
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
     <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
-    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60s</span>
     <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
     <span class="nt">prometheus</span><span class="p">:</span>
       <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
@@ -631,9 +660,9 @@ fail. The following example continually polls a prometheus server to get the tot
 every 5 minutes, causing the analysis run to fail if 10 or more errors were encountered.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">total-errors</span>
-    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">300</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
     <span class="nt">failureCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 10</span>
-    <span class="nt">maxFailures</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
     <span class="nt">prometheus</span><span class="p">:</span>
       <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
       <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -845,7 +874,7 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 </pre></div>
 
 
-<h2 id="webhook-metrics">Webhook Metrics<a class="headerlink" href="#webhook-metrics" title="Permanent link">&para;</a></h2>
+<h2 id="webhook-metrics-not-implemented-issue">Webhook Metrics (Not implemented: <a href="https://github.com/argoproj/argo-rollouts/issues/177">issue</a>)<a class="headerlink" href="#webhook-metrics-not-implemented-issue" title="Permanent link">&para;</a></h2>
 <p>Aside from the built-in metric types such as prometheus, kayenta, A webhook can be used to call out to some external service to obtain the measurement. This example
 makes a HTTP request to some URL. The webhook response should return a JSON return value. In this
 example, the measurement is successful if the result's <code>my-metric</code> field was in the set [A, B, C]. </p>
@@ -871,6 +900,41 @@ example, the measurement is successful if the result's <code>my-metric</code> fi
       
         
 <footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../experiment/" title="Experiments" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Experiments
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../../CONTRIBUTING/" title="Contributing" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Contributing
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
