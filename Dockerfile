@@ -59,7 +59,7 @@ RUN cd ${GOPATH}/src/dummy && \
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 COPY . .
-ARG MAKE_TARGET="controller"
+ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
 
