@@ -20,7 +20,6 @@ nav:
   - Overview: index.md
   - Concepts: deployment-concepts.md
   - Getting Started: getting-started.md
-  - Experiments: experiments/index.md
   - Features:
     - features/index.md
     - BlueGreen: features/bluegreen.md
@@ -29,6 +28,8 @@ nav:
     - HPA Support: features/hpa-support.md
     - Kustomize Support: features/kustomize.md
     - Controller Metrics: features/controller-metrics.md
+  - Experiments: features/experiment.md
+  - Analysis: features/analysis.md
   - Contributing: CONTRIBUTING.md
   - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones

@@ -1,8 +1,5 @@
 # Canary Analysis & Progressive Delivery
 
-> NOTE: this is the API spec for Rollouts (v0.6) to perform canary analysis and progressive
-delivery during a rollout and is subject to change
-
 Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.
@@ -398,7 +395,7 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
           restartPolicy: Never
 ```
 
-## Webhook Metrics
+## Webhook Metrics (Not implemented: [issue](https://github.com/argoproj/argo-rollouts/issues/177))
 
 Aside from the built-in metric types such as prometheus, kayenta, A webhook can be used to call out to some external service to obtain the measurement. This example
 makes a HTTP request to some URL. The webhook response should return a JSON return value. In this
