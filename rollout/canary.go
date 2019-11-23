@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -252,6 +253,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	allRSs := roCtx.AllRSs()
+	stableRS := roCtx.StableRS()
 
 	newStatus := c.calculateBaseStatus(roCtx)
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
@@ -279,8 +281,8 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
-	if r.Status.Canary.StableRS == "" {
-		msg := "Setting StableRS to CurrentPodHash as it is empty beforehand"
+	if r.Status.Canary.StableRS == "" || stableRS == nil {
+		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s, StableRS exists: %v", r.Status.Canary.StableRS, stableRS != nil)
 		logCtx.Info(msg)
 		newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		if stepCount > 0 {
