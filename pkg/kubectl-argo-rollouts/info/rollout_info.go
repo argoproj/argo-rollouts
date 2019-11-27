@@ -67,7 +67,7 @@ func NewRolloutInfo(
 		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 		if currentStep == nil {
 			roInfo.ActualWeight = "100"
-		} else {
+		} else if ro.Status.AvailableReplicas > 0 {
 			for _, rs := range roInfo.ReplicaSets {
 				if rs.Canary {
 					roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*100)/ro.Status.AvailableReplicas)
