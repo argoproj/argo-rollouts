@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -21,6 +22,9 @@ import (
 const (
 	//ProviderType indicates the provider is prometheus
 	ProviderType = "Prometheus"
+
+	// PrometheusWarningKey key for measurement metadata when prometheus returns a warning
+	PrometheusWarningKey = "prometheus-warning"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -50,7 +54,16 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	response, err := p.api.Query(ctx, query, time.Now())
+	response, warnings, err := p.api.Query(ctx, query, time.Now())
+	if len(warnings) > 0 {
+		combinedWarnings := strings.Join([]string(warnings), ",")
+		p.logCtx.Warnf("Prometheus Query returned warnings '%s'", combinedWarnings)
+		if newMeasurement.Metadata == nil {
+			newMeasurement.Metadata = map[string]string{}
+		}
+		newMeasurement.Metadata[PrometheusWarningKey] = combinedWarnings
+	}
+
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}

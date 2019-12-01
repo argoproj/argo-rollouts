@@ -22,15 +22,20 @@ type AnalysisTemplate struct {
 type AnalysisTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []AnalysisTemplate `json:"items"`
+	// +listType=set
+	Items []AnalysisTemplate `json:"items"`
 }
 
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
+	// +listType=map
+	// +listMapKey=name
 	Metrics []Metric `json:"metrics"`
 	// Args are the list of arguments to the template
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Args []Argument `json:"args,omitempty"`
 }
 
@@ -154,15 +159,20 @@ type AnalysisRun struct {
 type AnalysisRunList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []AnalysisRun `json:"items"`
+	// +listType=atomic
+	Items []AnalysisRun `json:"items"`
 }
 
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
+	// +listType=map
+	// +listMapKey=name
 	Metrics []Metric `json:"metrics"`
 	// Args are the list of arguments used in this run
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Args []Argument `json:"args,omitempty"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
@@ -184,6 +194,8 @@ type AnalysisRunStatus struct {
 	// Message is a message explaining current status
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
+	// +listType=map
+	// +listMapKey=name
 	MetricResults []MetricResult `json:"metricResults,omitempty"`
 }
 
@@ -195,6 +207,7 @@ type MetricResult struct {
 	// Phase is the overall aggregate status of the metric
 	Phase AnalysisPhase `json:"phase"`
 	// Measurements holds the most recent measurements collected for the metric
+	// +listType=atomic
 	Measurements []Measurement `json:"measurements,omitempty"`
 	// Message contains a message describing current condition (e.g. error messages)
 	Message string `json:"message,omitempty"`
@@ -245,7 +258,8 @@ type KayentaMetric struct {
 	StorageAccountName       string `json:"storageAccountName"`
 
 	Threshold KayentaThreshold `json:"threshold"`
-
+	// +listType=map
+	// +listMapKey=name
 	Scopes []KayentaScope `json:"scopes"`
 }
 

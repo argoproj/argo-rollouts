@@ -116,6 +116,7 @@ type CanaryStrategy struct {
 	CanaryService string `json:"canaryService,omitempty"`
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
+	// +listType=atomic
 	Steps []CanaryStep `json:"steps,omitempty"`
 	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
@@ -149,11 +150,13 @@ type CanaryStrategy struct {
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
 type RolloutExperimentStep struct {
 	// Templates what templates that should be added to the experiment. Should be non-nil
+	// +listType=atomic
 	Templates []RolloutExperimentTemplate `json:"templates"`
 	// Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for
 	// +optional
 	Duration DurationString `json:"duration,omitempty"`
 	// Analyses reference which analysis templates to run with the experiment
+	// +listType=atomic
 	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty"`
 }
 
@@ -162,7 +165,9 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
-	// Args the arguments that will be added to the AnalysisRuns
+	// Args the arguments that will be added to the
+	// +listType=map
+	// +listMapKey=name
 	Args []AnalysisRunArgument `json:"args,omitempty"`
 }
 
@@ -223,6 +228,8 @@ type RolloutAnalysisStep struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
 	// Args the arguments that will be added to the AnalysisRuns
+	// +listType=map
+	// +listMapKey=name
 	Args []AnalysisRunArgument `json:"args,omitempty"`
 }
 
@@ -295,6 +302,8 @@ type RolloutStatus struct {
 	// Abort cancel the current rollout progression
 	Abort bool `json:"abort,omitempty"`
 	// PauseConditions indicates why the rollout is currently paused
+	// +listType=map
+	// +listMapKey=reason
 	PauseConditions []PauseCondition `json:"pauseConditions,omitempty"`
 	//ControllerPause indicates the controller has paused the rollout
 	ControllerPause bool `json:"controllerPause,omitempty"`
@@ -334,6 +343,8 @@ type RolloutStatus struct {
 	ObservedGeneration string `json:"observedGeneration,omitempty"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []RolloutCondition `json:"conditions,omitempty"`
 	// Canary describes the state of the canary rollout
 	// +optional
@@ -428,5 +439,6 @@ type RolloutList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
+	// +listType=set
 	Items []Rollout `json:"items"`
 }

@@ -56,6 +56,31 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 }
 
+func TestRunWithWarnings(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{
+		value:    newScalar(10),
+		warnings: []string{"a", "b"},
+	}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "a,b", measurement.Metadata[PrometheusWarningKey])
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
 func TestRunWithQueryError(t *testing.T) {
 	e := log.Entry{}
 	expectedErr := fmt.Errorf("bad big bug :(")
