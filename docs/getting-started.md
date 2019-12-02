@@ -79,15 +79,21 @@ Once the patch is applied, you can watch the new replicaset came up as healthy b
 ```bash 
 $ kubectl get replicaset -w -o wide
 ```
-Once that replicaset is healthy, the rollout will enter a paused state by setting the `spec.paused` field to true, and setting the `.status.pauseStartedTime` to the current time.
+Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to `.status.pauseConditions`. The pause condition contains a reason and a pause start time.
 
-## Unpausing the rollout
-The rollout can be unpaused by running `kubectl edit rollout example-rollout` and setting the `spec.paused` field to `false` or the following
+## Promoting the rollout
+The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automiated tool) removes the pause conditon.
+
+Argo Rollouts has a [kubectl plugin](features/kubectl-plugin.md) to help automate operations like promoting a rollout through a step. The installation instructions are [here](features/kubectl-plugin.md#installation).
+
+Once the plugin is installed, the user can run the following command to promote the rollout through the pause step:
+
 ```bash
-$ kubectl patch rollout example-rollout --type merge -p '{"spec": {"paused": false}}'
+kubectl argo rollouts promote example-rollout
+
 ```
 
-At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat this behavior if the Pod Spec Template is changed again.
+At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat these steps when the Pod Spec Template is changed again.
 
 ## Going forward
 Check out the [features page](features/index.md) for more configuration options for a rollout.
