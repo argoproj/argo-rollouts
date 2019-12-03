@@ -97,6 +97,7 @@ type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 	Kayenta    *KayentaMetric    `json:"kayenta,omitempty"`
+	WebMetric  *WebMetricMetric  `json:"webmetric,omitempty"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty"`
 }
@@ -266,4 +267,17 @@ type ScopeDetail struct {
 	Step   int    `json:"step"`
 	Start  string `json:"start"`
 	End    string `json:"end"`
+}
+
+// I don't like this repetition, but it fits the pattern...
+type WebMetricMetric struct {
+	Url      string            `json:"url"`
+	Headers  []WebMetricHeader `json:"headers,omitempty"`
+	Timeout  int               `json:"timeout,omitempty"`
+	JsonPath string            `json:"jsonPath"`
+}
+
+type WebMetricHeader struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
