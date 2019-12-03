@@ -241,8 +241,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			return err
 		}
 
-		stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, rsList)
-		roCtx := newCanaryCtx(r, newRS, stableRS, oldRSs, exList, arList)
+		roCtx := newCanaryCtx(r, newRS, oldRSs, exList, arList)
 
 		if isScaling {
 			if _, err := c.reconcileCanaryReplicaSets(roCtx); err != nil {

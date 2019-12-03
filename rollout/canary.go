@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,8 +35,7 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 		if err != nil {
 			return err
 		}
-		stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
-		roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs, exList, arList)
+		roCtx := newCanaryCtx(rollout, newRS, previousRSs, exList, arList)
 		return c.syncRolloutStatusCanary(roCtx)
 	}
 
@@ -43,13 +43,12 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	if err != nil {
 		return err
 	}
-	stableRS, oldRSs := replicasetutil.GetStableRS(rollout, newRS, previousRSs)
 
-	roCtx := newCanaryCtx(rollout, newRS, stableRS, oldRSs, exList, arList)
+	roCtx := newCanaryCtx(rollout, newRS, previousRSs, exList, arList)
 	logCtx := roCtx.Log()
 
 	logCtx.Info("Cleaning up old replicasets, experiments, and analysis runs")
-	if err := c.cleanupRollouts(oldRSs, roCtx); err != nil {
+	if err := c.cleanupRollouts(roCtx.OlderRSs(), roCtx); err != nil {
 		return err
 	}
 
@@ -251,6 +250,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
 	allRSs := roCtx.AllRSs()
 
 	newStatus := c.calculateBaseStatus(roCtx)
@@ -279,8 +279,8 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 
-	if r.Status.Canary.StableRS == "" {
-		msg := "Setting StableRS to CurrentPodHash as it is empty beforehand"
+	if stableRS == nil {
+		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s", newStatus.CurrentPodHash)
 		logCtx.Info(msg)
 		newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		if stepCount > 0 {
