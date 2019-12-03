@@ -77,18 +77,6 @@ func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, 
 	}
 	roCtx.Log().Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
 	allRSs := roCtx.AllRSs()
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-		if *(newRS.Spec.Replicas) == rolloutReplicas {
-			// Scaling not required.
-			return false, nil
-		}
-		if *(newRS.Spec.Replicas) > rolloutReplicas {
-			// Scale down.
-			scaled, _, err := c.scaleReplicaSetAndRecordEvent(newRS, rolloutReplicas, rollout)
-			return scaled, err
-		}
-	}
 	newReplicasCount, err := replicasetutil.NewRSNewReplicas(rollout, allRSs, newRS)
 	if err != nil {
 		return false, err
