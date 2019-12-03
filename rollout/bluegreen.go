@@ -262,15 +262,23 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1.ReplicaSet) bool {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
-	if r.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount {
-		return true
-	} else if reconcileBlueGreenTemplateChange(roCtx) {
-		return false
-	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
+
+	if reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
 		return false
 	}
-	return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+
+	if newRS == nil || activeRS == nil || activeRS.Name == newRS.Name {
+		return false
+	}
+
+	// Once the ScaleUpPreviewCheckPoint is set to true, the rollout should keep that value until
+	// the newRS becomes the new activeRS or there is a template change.
+	if r.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+		return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	}
+
+	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
+	return newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount
 }
 
 // Should run only on scaling events and not during the normal rollout process.
@@ -299,18 +307,6 @@ func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *app
 	if activeRS != nil {
 		if *(activeRS.Spec.Replicas) != rolloutReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)
-			return err
-		}
-	}
-
-	previewRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRS, rollout.Status.BlueGreen.PreviewSelector)
-	if previewRS != nil {
-		previewReplicas := rolloutReplicas
-		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-			previewReplicas = *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount
-		}
-		if *(previewRS.Spec.Replicas) != previewReplicas {
-			_, _, err := c.scaleReplicaSetAndRecordEvent(previewRS, previewReplicas, rollout)
 			return err
 		}
 	}

@@ -742,6 +742,105 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
+	t.Run("TrueAfterMeetingMinAvailable", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		rs1 := newReplicaSetWithStatus(r1, 5, 5)
+		r2 := bumpVersion(r1)
+
+		rs2 := newReplicaSetWithStatus(r2, 3, 3)
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 3, 3, 8, 5, false, true)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc)
+
+		patchIndex := f.expectPatchRolloutAction(r1)
+		f.run(getKey(r2, t))
+		patch := f.getPatchedRollout(patchIndex)
+
+		assert.Contains(t, patch, `"scaleUpPreviewCheckPoint":true`)
+
+	})
+	t.Run("FalseAfterActiveServiceSwitch", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		rs1 := newReplicaSetWithStatus(r1, 5, 5)
+		now := metav1.Now().Add(10 * time.Second)
+		rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = now.UTC().Format(time.RFC3339)
+		r2 := bumpVersion(r1)
+
+		rs2 := newReplicaSetWithStatus(r2, 5, 5)
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
+		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc)
+
+		f.expectPatchReplicaSetAction(rs1)
+		patchIndex := f.expectPatchRolloutAction(r1)
+
+		f.run(getKey(r2, t))
+		patch := f.getPatchedRollout(patchIndex)
+		assert.Contains(t, patch, `"scaleUpPreviewCheckPoint":null`)
+	})
+	t.Run("TrueWhenScalingUpPreview", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+		rs1 := newReplicaSetWithStatus(r1, 5, 5)
+		r2 := bumpVersion(r1)
+
+		rs2 := newReplicaSetWithStatus(r2, 3, 3)
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
+		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, activeSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc)
+
+		f.expectUpdateReplicaSetAction(rs1)
+		f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+	})
+}
+
 func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
