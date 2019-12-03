@@ -62,14 +62,14 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 
 	// Handle case with no steps
 	r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	roCtx := newCanaryCtx(r, nil, nil, nil, nil, nil)
+	roCtx := newCanaryCtx(r, nil, nil, nil, nil)
 	stepResult := controller.reconcileCanaryPause(roCtx)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
 
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
-	roCtx2 := newCanaryCtx(r2, nil, nil, nil, nil, nil)
+	roCtx2 := newCanaryCtx(r2, nil, nil, nil, nil)
 	stepResult = controller.reconcileCanaryPause(roCtx2)
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
@@ -1118,7 +1118,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 2, 1, 2, true)
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
 	r1.Status.ObservedGeneration = conditions.ComputeGenerationHash(r1.Spec)
 	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
