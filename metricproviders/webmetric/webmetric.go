@@ -59,7 +59,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	log.Infof("URL: %v", request.URL)
 
 	for _, header := range metric.Provider.WebMetric.Headers {
 		request.Header.Set(header.Key, header.Value)
@@ -70,8 +69,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil || response.StatusCode != http.StatusOK {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-
-	fmt.Printf("received response: %v", response)
 
 	value, status, err := p.parseResponse(metric, response)
 	if err != nil || response.StatusCode != http.StatusOK {
@@ -109,7 +106,6 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not convert response to a number: %s", err)
 	}
-	log.Infof("got value: %v", out)
 	status := p.evaluateResponse(metric, outAsFloat)
 	return out, status, nil
 }
