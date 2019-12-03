@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"k8s.io/client-go/util/jsonpath"
@@ -58,6 +59,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+	log.Infof("URL: %v", request.URL)
 
 	for _, header := range metric.Provider.WebMetric.Headers {
 		request.Header.Set(header.Key, header.Value)
@@ -69,17 +71,27 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	// Parse Response
+	fmt.Printf("received response: %v", response)
+
+	value, status, err := p.parseResponse(metric, response)
+	if err != nil || response.StatusCode != http.StatusOK {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	measurement.Value = value
+	measurement.Phase = status
+	finishedTime := metav1.Now()
+	measurement.FinishedAt = &finishedTime
 
 	return measurement
 }
 
-func (p *Provider) parseResponse(metric v1alpha1.Metric, response http.Response) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 	var data interface{}
 
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
 
 	err = json.Unmarshal(bodyBytes, &data)
@@ -90,15 +102,19 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response http.Response)
 	buf := new(bytes.Buffer)
 	err = p.jsonParser.Execute(buf, data)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %s", err)
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not find JSONPath in body: %s", err)
 	}
-
 	out := buf.String()
-	status := p.evaluateResponse(metric, out)
+	outAsFloat, err := strconv.ParseFloat(buf.String(), 64)
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not convert response to a number: %s", err)
+	}
+	log.Infof("got value: %v", out)
+	status := p.evaluateResponse(metric, outAsFloat)
 	return out, status, nil
 }
 
-func (p *Provider) evaluateResponse(metric v1alpha1.Metric, result string) v1alpha1.AnalysisPhase {
+func (p *Provider) evaluateResponse(metric v1alpha1.Metric, result float64) v1alpha1.AnalysisPhase {
 	successCondition := false
 	failCondition := false
 	var err error
