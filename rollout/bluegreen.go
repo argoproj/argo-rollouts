@@ -232,7 +232,9 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
-		return c.persistRolloutStatus(roCtx, &newStatus)
+		if err := c.persistRolloutStatus(roCtx, &newStatus); err != nil {
+			return err
+		}
 	}
 
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
