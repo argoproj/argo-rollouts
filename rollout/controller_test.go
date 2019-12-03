@@ -1049,8 +1049,6 @@ requests:
 
 		_ = f.expectUpdateRolloutAction(r)
 		f.expectPatchRolloutAction(r)
-		f.expectPatchRolloutAction(r)
-
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
 		f.run(getKey(r, t))
