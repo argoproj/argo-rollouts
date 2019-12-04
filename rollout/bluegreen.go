@@ -231,7 +231,6 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	if replicasetutil.CheckPodSpecChange(r, newRS) {
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
-		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 	}
 
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
