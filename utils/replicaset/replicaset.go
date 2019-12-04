@@ -271,7 +271,7 @@ func checkStepHashChange(rollout *v1alpha1.Rollout) bool {
 
 // checkPodSpecChange indicates if the rollout spec has changed indicating that the rollout needs to reset the
 // currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
-func checkPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func CheckPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
@@ -292,7 +292,7 @@ func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaS
 	if checkStepHashChange(rollout) {
 		return true
 	}
-	if checkPodSpecChange(rollout, newRS) {
+	if CheckPodSpecChange(rollout, newRS) {
 		return true
 	}
 	return false

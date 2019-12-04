@@ -622,12 +622,12 @@ func TestMaxUnavailable(t *testing.T) {
 func TestCheckPodSpecChange(t *testing.T) {
 	ro := generateRollout("ngnix")
 	rs := generateRS(ro)
-	assert.False(t, checkPodSpecChange(&ro, &rs))
+	assert.False(t, CheckPodSpecChange(&ro, &rs))
 	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
-	assert.False(t, checkPodSpecChange(&ro, &rs))
+	assert.False(t, CheckPodSpecChange(&ro, &rs))
 
 	ro.Status.CurrentPodHash = "different-hash"
-	assert.True(t, checkPodSpecChange(&ro, &rs))
+	assert.True(t, CheckPodSpecChange(&ro, &rs))
 }
 
 func TestCheckStepHashChange(t *testing.T) {
