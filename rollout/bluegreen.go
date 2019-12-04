@@ -144,6 +144,10 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	}
 
 	newRS := roCtx.NewRS()
+	if newRS == nil {
+		return false
+	}
+
 	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
@@ -223,6 +227,12 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	oldRSs := roCtx.OlderRSs()
 	allRSs := roCtx.AllRSs()
 	newStatus := c.calculateBaseStatus(roCtx)
+
+	if replicasetutil.CheckPodSpecChange(r, newRS) {
+		roCtx.PauseContext().ClearPauseConditions()
+		roCtx.PauseContext().RemoveAbort()
+	}
+
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
@@ -233,6 +243,7 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	if !ok {
 		activeSelector = ""
 	}
+
 	newStatus.BlueGreen.ActiveSelector = activeSelector
 	if newStatus.BlueGreen.ActiveSelector != r.Status.BlueGreen.ActiveSelector {
 		previousActiveRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.BlueGreen.ActiveSelector)
