@@ -261,6 +261,9 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 	if rollout.Status.Canary.StableRS == "" {
 		return nil, rslist
 	}
+	if newRS != nil && newRS.Labels != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
+		return newRS, rslist
+	}
 	olderRSs := []*appsv1.ReplicaSet{}
 	var stableRS *appsv1.ReplicaSet
 	for i := range rslist {
