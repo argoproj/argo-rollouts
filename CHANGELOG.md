@@ -1,4 +1,18 @@
 # Changelog
+# v0.6.1
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.1/manifests/install.yaml
+
+# Changes since v0.6.0
+## Bug Fixes
+
+- Create one background analysis per revision (#309)
+- Fix Infinite loop with PreviewReplicaCount set (#308)
+- Fix a delete by zero in get command (#310)
+- Set StableRS hash to current if replicaset does not actually exist (#320) 
+- Bluegreen: allow preview service/replica sets to be replaced and fix sg fault in syncReplicasOnly (#314)
+
 # v0.6.0
 ## Quick Start
 ```
