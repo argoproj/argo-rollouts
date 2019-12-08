@@ -32,7 +32,7 @@ spec:
             analyses:
               items:
                 properties:
-                  arguments:
+                  args:
                     items:
                       properties:
                         name:
@@ -41,7 +41,6 @@ spec:
                           type: string
                       required:
                       - name
-                      - value
                       type: object
                     type: array
                   name:
@@ -54,8 +53,7 @@ spec:
                 type: object
               type: array
             duration:
-              format: int32
-              type: integer
+              type: string
             progressDeadlineSeconds:
               format: int32
               type: integer

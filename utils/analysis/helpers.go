@@ -124,6 +124,33 @@ func IsSemanticallyEqual(left, right v1alpha1.AnalysisRunSpec) bool {
 	return string(leftBytes) == string(rightBytes)
 }
 
+func findArg(name string, args []v1alpha1.Argument) int {
+	for i, arg := range args {
+		if arg.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// MergeArgs merges two lists of arguments, the incoming and the templates. If there are any
+// unresolved arguments that have no value, raises an error.
+func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argument, error) {
+	newArgs := append(templateArgs[:0:0], templateArgs...)
+	for _, arg := range incomingArgs {
+		i := findArg(arg.Name, newArgs)
+		if i >= 0 && arg.Value != nil {
+			newArgs[i].Value = arg.Value
+		}
+	}
+	for _, arg := range newArgs {
+		if arg.Value == nil {
+			return nil, fmt.Errorf("args.%s was not resolved", arg.Name)
+		}
+	}
+	return newArgs, nil
+}
+
 // CreateWithCollisionCounter attempts to create the given analysisrun and if an AlreadyExists error
 // is encountered, and the existing run is semantically equal and running, returns the exiting run.
 func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
@@ -158,4 +185,23 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 		run.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
 		collisionCount++
 	}
+}
+
+func NewAnalysisRunFromTemplate(template *v1alpha1.AnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
+	newArgs, err := MergeArgs(args, template.Spec.Args)
+	if err != nil {
+		return nil, err
+	}
+	ar := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:         name,
+			GenerateName: generateName,
+			Namespace:    namespace,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: template.Spec.Metrics,
+			Args:    newArgs,
+		},
+	}
+	return &ar, nil
 }

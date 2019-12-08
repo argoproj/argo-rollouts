@@ -44,7 +44,7 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 	)
 	var cmd = &cobra.Command{
 		Use:          "promote ROLLOUT",
-		Short:        "promote a rollout",
+		Short:        "Promote a rollout",
 		Example:      o.Example(example),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {

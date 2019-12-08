@@ -1,8 +1,5 @@
 # Canary Analysis & Progressive Delivery
 
-> NOTE: this is the API spec for Rollouts (v0.6) to perform canary analysis and progressive
-delivery during a rollout and is subject to change
-
 Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.
@@ -72,9 +69,9 @@ spec:
   - name: service-name
   metrics:
   - name: success-rate
-    interval: 300 # 5 min
+    interval: 5m
     successCondition: result >= 0.95
-    maxFailures: 3
+    failureLimit: 3
     prometheus:
       address: http://prometheus.example.com:9090
       query: |
@@ -148,7 +145,7 @@ Multiple measurements can be performed over a longer duration period, by specify
   metrics:
   - name: success-rate
     successCondition: result >= 0.95
-    interval: 60
+    interval: 60s
     count: 5
     prometheus:
       address: http://prometheus.example.com:9090
@@ -164,9 +161,9 @@ every 5 minutes, causing the analysis run to fail if 10 or more errors were enco
 ```yaml
   metrics:
   - name: total-errors
-    interval: 300
+    interval: 5m
     failureCondition: result >= 10
-    maxFailures: 3
+    failureLimit: 3
     prometheus:
       address: http://prometheus.example.com:9090
       query: |
@@ -398,7 +395,7 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
           restartPolicy: Never
 ```
 
-## Webhook Metrics
+## Webhook Metrics (Not implemented: [issue](https://github.com/argoproj/argo-rollouts/issues/177))
 
 Aside from the built-in metric types such as prometheus, kayenta, A webhook can be used to call out to some external service to obtain the measurement. This example
 makes a HTTP request to some URL. The webhook response should return a JSON return value. In this

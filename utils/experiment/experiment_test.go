@@ -54,7 +54,11 @@ func TestPassedDurations(t *testing.T) {
 	passedDuration, _ := PassedDurations(e)
 	assert.False(t, passedDuration)
 
-	e.Spec.Duration = pointer.Int32Ptr(1)
+	e.Spec.Duration = "1s-typo"
+	passedDuration, _ = PassedDurations(e)
+	assert.False(t, passedDuration)
+
+	e.Spec.Duration = "1s"
 	passedDuration, _ = PassedDurations(e)
 	assert.False(t, passedDuration)
 

@@ -144,6 +144,10 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	}
 
 	newRS := roCtx.NewRS()
+	if newRS == nil {
+		return false
+	}
+
 	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
@@ -223,6 +227,12 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	oldRSs := roCtx.OlderRSs()
 	allRSs := roCtx.AllRSs()
 	newStatus := c.calculateBaseStatus(roCtx)
+
+	if replicasetutil.CheckPodSpecChange(r, newRS) {
+		roCtx.PauseContext().ClearPauseConditions()
+		roCtx.PauseContext().RemoveAbort()
+	}
+
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
@@ -233,6 +243,7 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	if !ok {
 		activeSelector = ""
 	}
+
 	newStatus.BlueGreen.ActiveSelector = activeSelector
 	if newStatus.BlueGreen.ActiveSelector != r.Status.BlueGreen.ActiveSelector {
 		previousActiveRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.BlueGreen.ActiveSelector)
@@ -262,15 +273,23 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1.ReplicaSet) bool {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
-	if r.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount {
-		return true
-	} else if reconcileBlueGreenTemplateChange(roCtx) {
-		return false
-	} else if newRS != nil && activeRS != nil && activeRS.Name == newRS.Name {
+
+	if reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
 		return false
 	}
-	return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+
+	if newRS == nil || activeRS == nil || activeRS.Name == newRS.Name {
+		return false
+	}
+
+	// Once the ScaleUpPreviewCheckPoint is set to true, the rollout should keep that value until
+	// the newRS becomes the new activeRS or there is a template change.
+	if r.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+		return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	}
+
+	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
+	return newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount
 }
 
 // Should run only on scaling events and not during the normal rollout process.
@@ -299,18 +318,6 @@ func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *app
 	if activeRS != nil {
 		if *(activeRS.Spec.Replicas) != rolloutReplicas {
 			_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, rolloutReplicas, rollout)
-			return err
-		}
-	}
-
-	previewRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRS, rollout.Status.BlueGreen.PreviewSelector)
-	if previewRS != nil {
-		previewReplicas := rolloutReplicas
-		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-			previewReplicas = *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount
-		}
-		if *(previewRS.Spec.Replicas) != previewReplicas {
-			_, _, err := c.scaleReplicaSetAndRecordEvent(previewRS, previewReplicas, rollout)
 			return err
 		}
 	}

@@ -3,9 +3,8 @@ apiVersion: argoproj.io/v1alpha1
 metadata:
   generateName: analysis-run-prometheus-bad-server-
 spec:
-  analysisSpec:
-    metrics:
-    - name: success-rate
-      provider:
-        prometheus:
-          address: http://prometheus-operator-prometheus.prometheus-operator:9090
+  metrics:
+  - name: success-rate
+    provider:
+      prometheus:
+        address: http://prometheus-operator-prometheus.prometheus-operator:9090

@@ -21,28 +21,36 @@ spec:
           type: object
         spec:
           properties:
+            args:
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             metrics:
               items:
                 properties:
+                  consecutiveErrorLimit:
+                    format: int32
+                    type: integer
                   count:
                     format: int32
                     type: integer
-                  failFast:
-                    type: boolean
                   failureCondition:
                     type: string
+                  failureLimit:
+                    format: int32
+                    type: integer
+                  inconclusiveLimit:
+                    format: int32
+                    type: integer
                   interval:
-                    format: int32
-                    type: integer
-                  maxConsecutiveErrors:
-                    format: int32
-                    type: integer
-                  maxFailures:
-                    format: int32
-                    type: integer
-                  maxInconclusive:
-                    format: int32
-                    type: integer
+                    type: string
                   name:
                     type: string
                   provider:
@@ -2493,6 +2501,89 @@ spec:
                             type: object
                         required:
                         - spec
+                        type: object
+                      kayenta:
+                        properties:
+                          address:
+                            type: string
+                          application:
+                            type: string
+                          canaryConfigName:
+                            type: string
+                          configurationAccountName:
+                            type: string
+                          metricsAccountName:
+                            type: string
+                          scopes:
+                            items:
+                              properties:
+                                controlScope:
+                                  properties:
+                                    end:
+                                      type: string
+                                    region:
+                                      type: string
+                                    scope:
+                                      type: string
+                                    start:
+                                      type: string
+                                    step:
+                                      type: integer
+                                  required:
+                                  - end
+                                  - region
+                                  - scope
+                                  - start
+                                  - step
+                                  type: object
+                                experimentScope:
+                                  properties:
+                                    end:
+                                      type: string
+                                    region:
+                                      type: string
+                                    scope:
+                                      type: string
+                                    start:
+                                      type: string
+                                    step:
+                                      type: integer
+                                  required:
+                                  - end
+                                  - region
+                                  - scope
+                                  - start
+                                  - step
+                                  type: object
+                                name:
+                                  type: string
+                              required:
+                              - controlScope
+                              - experimentScope
+                              - name
+                              type: object
+                            type: array
+                          storageAccountName:
+                            type: string
+                          threshold:
+                            properties:
+                              marginal:
+                                type: integer
+                              pass:
+                                type: integer
+                            required:
+                            - marginal
+                            - pass
+                            type: object
+                        required:
+                        - address
+                        - application
+                        - canaryConfigName
+                        - configurationAccountName
+                        - metricsAccountName
+                        - scopes
+                        - storageAccountName
+                        - threshold
                         type: object
                       prometheus:
                         properties:

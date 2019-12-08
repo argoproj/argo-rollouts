@@ -3,7 +3,7 @@ kind: Experiment
 metadata:
   generateName: experiment-same-template-
 spec:
-  duration: 30
+  duration: 30s
   progressDeadlineSeconds: 30
   templates:
   - name: first

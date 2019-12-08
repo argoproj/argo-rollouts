@@ -28,10 +28,10 @@ type Experiment struct {
 type ExperimentSpec struct {
 	// Templates are a list of PodSpecs that define the ReplicaSets that should be run during an experiment.
 	Templates []TemplateSpec `json:"templates"`
-	// Duration the amount of time for the experiment to run. If not listed, the experiment will run for an
-	// indefinite amount of time, stopped either via termination, or a failed analysis run.
+	// Duration the amount of time for the experiment to run as a duration string (e.g. 30s, 5m, 1h).
+	// If omitted, the experiment will run indefinitely, stopped either via termination, or a failed analysis run.
 	// +optional
-	Duration *int32 `json:"duration,omitempty"`
+	Duration DurationString `json:"duration,omitempty"`
 	// ProgressDeadlineSeconds The maximum time in seconds for a experiment to
 	// make progress before it is considered to be failed. Argo Rollouts will
 	// continue to process failed experiments and a condition with a
@@ -187,9 +187,9 @@ type ExperimentAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName"`
-	// Arguments the arguments that will be added to the AnalysisRuns
+	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
-	Arguments []Argument `json:"arguments,omitempty"`
+	Args []Argument `json:"args,omitempty"`
 }
 
 type ExperimentAnalysisRunStatus struct {

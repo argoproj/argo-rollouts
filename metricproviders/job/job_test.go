@@ -18,6 +18,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -47,21 +48,19 @@ func newRunWithJobMetric() *v1alpha1.AnalysisRun {
 			Namespace: "dummynamespace",
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "dummymetric",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{
-								Spec: batchv1.JobSpec{
-									Template: corev1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers: []corev1.Container{
-												{
-													Name: "dummy",
-													Command: []string{
-														"dosomthing",
-													},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "dummymetric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{
+							Spec: batchv1.JobSpec{
+								Template: corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										Containers: []corev1.Container{
+											{
+												Name: "dummy",
+												Command: []string{
+													"dosomthing",
 												},
 											},
 										},
@@ -84,7 +83,7 @@ func newJob(run *v1alpha1.AnalysisRun, jobType batchv1.JobConditionType) *batchv
 			Namespace: "dummynamespace",
 			Annotations: map[string]string{
 				AnalysisRunNameAnnotationKey:   run.Name,
-				AnalysisRunMetricAnnotationKey: run.Spec.AnalysisSpec.Metrics[0].Name,
+				AnalysisRunMetricAnnotationKey: run.Spec.Metrics[0].Name,
 			},
 			Labels: map[string]string{
 				AnalysisRunUIDLabelKey: string(run.UID),
@@ -120,7 +119,7 @@ func TestType(t *testing.T) {
 func TestRun(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
-	metric := run.Spec.AnalysisSpec.Metrics[0]
+	metric := run.Spec.Metrics[0]
 	measurement := p.Run(run, metric)
 
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
@@ -154,15 +153,15 @@ func TestRun(t *testing.T) {
 func TestJobArgResolution(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
-	run.Spec.AnalysisSpec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{inputs.my-arg}}"}
-	run.Spec.Arguments = []v1alpha1.Argument{
+	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
+	run.Spec.Args = []v1alpha1.Argument{
 		{
 			Name:  "my-arg",
-			Value: "my-arg-value",
+			Value: pointer.StringPtr("my-arg-value"),
 		},
 	}
 
-	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0])
+	measurement := p.Run(run, run.Spec.Metrics[0])
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 	assert.Nil(t, measurement.FinishedAt)
 	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
@@ -170,18 +169,37 @@ func TestJobArgResolution(t *testing.T) {
 	assert.Equal(t, "my-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
 }
 
-func TestJobArgFailedResolution(t *testing.T) {
+func TestJobQuotedArgResolution(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
-	run.Spec.AnalysisSpec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{inputs.my-arg}}"}
-	run.Spec.Arguments = []v1alpha1.Argument{
+	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
+	run.Spec.Args = []v1alpha1.Argument{
 		{
-			Name:  "my-arg-typo",
-			Value: "my-arg-value",
+			Name:  "my-arg",
+			Value: pointer.StringPtr("my-\"quoted\"-arg-value"),
 		},
 	}
 
-	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0])
+	measurement := p.Run(run, run.Spec.Metrics[0])
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+	assert.Nil(t, measurement.FinishedAt)
+	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "my-\"quoted\"-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
+}
+
+func TestJobArgFailedResolution(t *testing.T) {
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
+	run.Spec.Args = []v1alpha1.Argument{
+		{
+			Name:  "my-arg-typo",
+			Value: pointer.StringPtr("my-arg-value"),
+		},
+	}
+
+	measurement := p.Run(run, run.Spec.Metrics[0])
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
@@ -200,7 +218,7 @@ func TestRunCreateFail(t *testing.T) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 
-	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0])
+	measurement := p.Run(run, run.Spec.Metrics[0])
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.Contains(t, errMsg, measurement.Message)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -210,12 +228,12 @@ func TestRunCreateCollision(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 
-	existingJob, err := newMetricJob(run, run.Spec.AnalysisSpec.Metrics[0])
+	existingJob, err := newMetricJob(run, run.Spec.Metrics[0])
 	assert.NoError(t, err)
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.Tracker().Add(existingJob)
 
-	measurement := p.Run(run, run.Spec.AnalysisSpec.Metrics[0])
+	measurement := p.Run(run, run.Spec.Metrics[0])
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
 	assert.Nil(t, measurement.FinishedAt)
 }
@@ -225,7 +243,7 @@ func TestResumeCompletedJob(t *testing.T) {
 	job := newJob(run, batchv1.JobComplete)
 	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
-	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -235,7 +253,7 @@ func TestResumeFailedJob(t *testing.T) {
 	job := newJob(run, batchv1.JobFailed)
 	p := newTestJobProvider(job)
 	measurement := newRunningMeasurement(job.Name)
-	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
 }
@@ -244,7 +262,7 @@ func TestResumeErrorJob(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement("job-which-does-not-exist")
-	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, "job.batch \"job-which-does-not-exist\" not found", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -255,7 +273,7 @@ func TestResumeMeasurementNoMetadata(t *testing.T) {
 	run := newRunWithJobMetric()
 	measurement := newRunningMeasurement("")
 	measurement.Metadata = nil
-	measurement = p.Resume(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, "job metadata reference missing", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -271,7 +289,7 @@ func TestTerminateMeasurement(t *testing.T) {
 	for _, p := range []*JobProvider{providerWithJob, providerWithoutJob} {
 
 		measurement := newRunningMeasurement(job.Name)
-		measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+		measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 		assert.NotNil(t, measurement.FinishedAt)
 	}
@@ -289,7 +307,7 @@ func TestTerminateError(t *testing.T) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
 
-	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.Contains(t, measurement.Message, errMsg)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -300,7 +318,7 @@ func TestTerminateMeasurementNoMetadata(t *testing.T) {
 	p := newTestJobProvider()
 	measurement := newRunningMeasurement("")
 	measurement.Metadata = nil
-	measurement = p.Terminate(run, run.Spec.AnalysisSpec.Metrics[0], measurement)
+	measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)
 	assert.Equal(t, "job metadata reference missing", measurement.Message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -310,7 +328,7 @@ func TestGarbageCollect(t *testing.T) {
 	run := newRunWithJobMetric()
 	run.Status.MetricResults = []v1alpha1.MetricResult{
 		{
-			Name: run.Spec.AnalysisSpec.Metrics[0].Name,
+			Name: run.Spec.Metrics[0].Name,
 		},
 	}
 	now := time.Now()
@@ -322,7 +340,7 @@ func TestGarbageCollect(t *testing.T) {
 		objs = append(objs, job)
 	}
 	p := newTestJobProvider(objs...)
-	err := p.GarbageCollect(run, run.Spec.AnalysisSpec.Metrics[0], 10)
+	err := p.GarbageCollect(run, run.Spec.Metrics[0], 10)
 	assert.NoError(t, err)
 	allJobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
 	assert.NoError(t, err)

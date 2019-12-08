@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,18 +29,28 @@ type AnalysisTemplateList struct {
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	Metrics []Metric `json:"metrics"`
+	// Args are the list of arguments to the template
+	// +optional
+	Args []Argument `json:"args,omitempty"`
+}
+
+// DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
+type DurationString string
+
+func (d DurationString) Duration() (time.Duration, error) {
+	return time.ParseDuration(string(d))
 }
 
 // Metric defines a metric in which to perform analysis
 type Metric struct {
 	// Name is the name of the metric
 	Name string `json:"name"`
-	// Interval defines the interval in seconds between each metric analysis
-	// If omitted, will perform the metric analysis only once
-	Interval *int32 `json:"interval,omitempty"`
-	// Count is the number of times to run measurement. If both interval and count are omitted,
+	// Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement.
+	// If omitted, will perform a single measurement
+	Interval DurationString `json:"interval,omitempty"`
+	// Count is the number of times to run the measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
-	// A count > 1 must specify an interval.
+	// If count > 1, interval must be specified.
 	Count int32 `json:"count,omitempty"`
 	// SuccessCondition is an expression which determines if a measurement is considered successful
 	// Expression is a goevaluate expression. The keyword `result` is a variable reference to the
@@ -46,23 +58,20 @@ type Metric struct {
 	// Examples:
 	//   result > 10
 	//   (result.requests_made * result.requests_succeeded / 100) >= 90
-	//   result IN (red, yellow)
 	SuccessCondition string `json:"successCondition,omitempty"`
 	// FailureCondition is an expression which determines if a measurement is considered failed
 	// If both success and failure conditions are specified, and the measurement does not fall into
 	// either condition, the measurement is considered Inconclusive
 	FailureCondition string `json:"failureCondition,omitempty"`
-	// MaxFailures is the maximum number of times the measurement is allowed to fail, before the
+	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
-	MaxFailures int32 `json:"maxFailures,omitempty"`
-	// MaxInconclusive is the maximum number of times the measurement is allowed to measure
+	FailureLimit int32 `json:"failureLimit,omitempty"`
+	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
-	MaxInconclusive int32 `json:"maxInconclusive,omitempty"`
-	// MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in
+	InconclusiveLimit int32 `json:"inconclusiveLimit,omitempty"`
+	// ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
-	MaxConsecutiveErrors *int32 `json:"maxConsecutiveErrors,omitempty"`
-	// FailFast will fail the entire analysis run prematurely
-	FailFast bool `json:"failFast,omitempty"`
+	ConsecutiveErrorLimit *int32 `json:"consecutiveErrorLimit,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
 }
@@ -73,7 +82,7 @@ type Metric struct {
 // Otherwise, it is the user specified value
 func (m *Metric) EffectiveCount() *int32 {
 	if m.Count == 0 {
-		if m.Interval == nil {
+		if m.Interval == "" {
 			one := int32(1)
 			return &one
 		}
@@ -87,6 +96,7 @@ func (m *Metric) EffectiveCount() *int32 {
 type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
+	Kayenta    *KayentaMetric    `json:"kayenta,omitempty"`
 	// Wavefront specifies the wavefront metric to query
 	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
 	// Job specifies the job metric run
@@ -159,10 +169,11 @@ type AnalysisRunList struct {
 
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
-	// AnalysisSpec holds the AnalysisSpec definition for performing analysis
-	AnalysisSpec AnalysisTemplateSpec `json:"analysisSpec"`
-	// Arguments hold the arguments to the run to be used by metric providers
-	Arguments []Argument `json:"arguments,omitempty"`
+	// Metrics contains the list of metrics to query as part of an analysis run
+	Metrics []Metric `json:"metrics"`
+	// Args are the list of arguments used in this run
+	// +optional
+	Args []Argument `json:"args,omitempty"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
 }
@@ -172,7 +183,8 @@ type Argument struct {
 	// Name is the name of the argument
 	Name string `json:"name"`
 	// Value is the value of the argument
-	Value string `json:"value"`
+	// +optional
+	Value *string `json:"value,omitempty"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -229,4 +241,39 @@ type Measurement struct {
 	Metadata map[string]string `json:"metadata,omitempty"`
 	// ResumeAt is the  timestamp when the analysisRun should try to resume the measurement
 	ResumeAt *metav1.Time `json:"resumeAt,omitempty"`
+}
+
+type KayentaMetric struct {
+	Address string `json:"address"`
+
+	Application string `json:"application"`
+
+	CanaryConfigName string `json:"canaryConfigName"`
+
+	MetricsAccountName       string `json:"metricsAccountName"`
+	ConfigurationAccountName string `json:"configurationAccountName"`
+	StorageAccountName       string `json:"storageAccountName"`
+
+	Threshold KayentaThreshold `json:"threshold"`
+
+	Scopes []KayentaScope `json:"scopes"`
+}
+
+type KayentaThreshold struct {
+	Pass     int `json:"pass"`
+	Marginal int `json:"marginal"`
+}
+
+type KayentaScope struct {
+	Name            string      `json:"name"`
+	ControlScope    ScopeDetail `json:"controlScope"`
+	ExperimentScope ScopeDetail `json:"experimentScope"`
+}
+
+type ScopeDetail struct {
+	Scope  string `json:"scope"`
+	Region string `json:"region"`
+	Step   int    `json:"step"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
 }

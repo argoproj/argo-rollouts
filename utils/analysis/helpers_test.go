@@ -210,17 +210,15 @@ func TestTerminateRun(t *testing.T) {
 
 func TestIsSemanticallyEqual(t *testing.T) {
 	left := &v1alpha1.AnalysisRunSpec{
-		AnalysisSpec: v1alpha1.AnalysisTemplateSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
+		Metrics: []v1alpha1.Metric{
+			{
+				Name: "success-rate",
 			},
 		},
 	}
 	right := left.DeepCopy()
 	assert.True(t, IsSemanticallyEqual(*left, *right))
-	right.AnalysisSpec.Metrics[0].Name = "foo"
+	right.Metrics[0].Name = "foo"
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 
@@ -304,4 +302,123 @@ func TestCreateWithCollisionCounter(t *testing.T) {
 	createdRun, err := CreateWithCollisionCounter(logCtx, runIf, run)
 	assert.NoError(t, err)
 	assert.Equal(t, run.Name+".1", createdRun.Name)
+}
+
+func TestMergeArgs(t *testing.T) {
+	{
+		// nil list
+		args, err := MergeArgs(nil, nil)
+		assert.NoError(t, err)
+		assert.Nil(t, args)
+	}
+	{
+		// empty list
+		args, err := MergeArgs(nil, []v1alpha1.Argument{})
+		assert.NoError(t, err)
+		assert.Equal(t, []v1alpha1.Argument{}, args)
+	}
+	{
+		// use defaults
+		args, err := MergeArgs(
+			nil, []v1alpha1.Argument{
+				{
+					Name:  "foo",
+					Value: pointer.StringPtr("bar"),
+				},
+			})
+		assert.NoError(t, err)
+		assert.Len(t, args, 1)
+		assert.Equal(t, "foo", args[0].Name)
+		assert.Equal(t, "bar", *args[0].Value)
+	}
+	{
+		// overwrite defaults
+		args, err := MergeArgs(
+			[]v1alpha1.Argument{
+				{
+					Name:  "foo",
+					Value: pointer.StringPtr("overwrite"),
+				},
+			}, []v1alpha1.Argument{
+				{
+					Name:  "foo",
+					Value: pointer.StringPtr("bar"),
+				},
+			})
+		assert.NoError(t, err)
+		assert.Len(t, args, 1)
+		assert.Equal(t, "foo", args[0].Name)
+		assert.Equal(t, "overwrite", *args[0].Value)
+	}
+	{
+		// not resolved
+		args, err := MergeArgs(
+			[]v1alpha1.Argument{
+				{
+					Name: "foo",
+				},
+			}, []v1alpha1.Argument{
+				{
+					Name: "foo",
+				},
+			})
+		assert.EqualError(t, err, "args.foo was not resolved")
+		assert.Nil(t, args)
+	}
+	{
+		// extra arg
+		args, err := MergeArgs(
+			[]v1alpha1.Argument{
+				{
+					Name:  "foo",
+					Value: pointer.StringPtr("my-value"),
+				},
+				{
+					Name:  "extra-arg",
+					Value: pointer.StringPtr("extra-value"),
+				},
+			}, []v1alpha1.Argument{
+				{
+					Name: "foo",
+				},
+			})
+		assert.NoError(t, err)
+		assert.Len(t, args, 1)
+		assert.Equal(t, "foo", args[0].Name)
+		assert.Equal(t, "my-value", *args[0].Value)
+	}
+}
+
+func TestNewAnalysisRunFromTemplate(t *testing.T) {
+	template := v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+			},
+			Args: []v1alpha1.Argument{
+				{
+					Name: "my-arg",
+				},
+			},
+		},
+	}
+	args := []v1alpha1.Argument{
+		{
+			Name:  "my-arg",
+			Value: pointer.StringPtr("my-val"),
+		},
+	}
+	run, err := NewAnalysisRunFromTemplate(&template, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	assert.Equal(t, "foo-run", run.Name)
+	assert.Equal(t, "foo-run-generate-", run.GenerateName)
+	assert.Equal(t, "my-ns", run.Namespace)
+	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
+	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
 }

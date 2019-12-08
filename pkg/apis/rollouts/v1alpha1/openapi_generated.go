@@ -29,48 +29,53 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                   schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":           schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":               schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":               schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus":             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate":              schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":          schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":          schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                      schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":             schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":               schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":             schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":                  schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":                    schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy":                schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment":                    schema_pkg_apis_rollouts_v1alpha1_Experiment(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus":   schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef": schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition":           schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":              schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                     schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                   schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                        schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":                schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                  schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":           schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":              schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                       schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep":           schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":              schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":         schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":     schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                   schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                  schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                   schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                 schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":               schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                  schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                              schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":                      schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":                          schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":                          schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate":                         schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                     schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                     schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                                 schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                        schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":                          schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":                        schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":                             schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":                               schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy":                           schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment":                               schema_pkg_apis_rollouts_v1alpha1_Experiment(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus":              schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef":            schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition":                      schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                         schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                            schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                             schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold":                         schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                              schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                   schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":                           schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                             schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                           schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                      schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                         schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                  schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep":                      schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                         schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                    schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef": schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                              schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                             schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                              schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                            schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                          schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                              schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                             schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                           schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
 	}
 }
 
@@ -205,15 +210,22 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunSpec is the spec for a AnalysisRun resource",
 				Properties: map[string]spec.Schema{
-					"analysisSpec": {
+					"metrics": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AnalysisSpec holds the AnalysisSpec definition for performing analysis",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
+							Description: "Metrics contains the list of metrics to query as part of an analysis run",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
+									},
+								},
+							},
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments hold the arguments to the run to be used by metric providers",
+							Description: "Args are the list of arguments used in this run",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -232,11 +244,11 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"analysisSpec"},
+				Required: []string{"metrics"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
 	}
 }
 
@@ -386,12 +398,25 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 							},
 						},
 					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the list of arguments to the template",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"metrics"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
 	}
 }
 
@@ -416,7 +441,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) co
 						},
 					},
 				},
-				Required: []string{"name", "value"},
+				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{},
@@ -790,9 +815,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							Format:      "",
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments the arguments that will be added to the AnalysisRuns",
+							Description: "Args are the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -934,9 +959,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 					},
 					"duration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Duration the amount of time for the experiment to run. If not listed, the experiment will run for an indefinite amount of time, stopped either via termination, or a failed analysis run.",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Duration the amount of time for the experiment to run as a duration string (e.g. 30s, 5m, 1h). If omitted, the experiment will run indefinitely, stopped either via termination, or a failed analysis run.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"progressDeadlineSeconds": {
@@ -1073,6 +1098,128 @@ func schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref common.ReferenceCallback) c
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Properties: map[string]spec.Schema{
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"application": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"canaryConfigName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"metricsAccountName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"configurationAccountName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"storageAccountName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"threshold": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold"),
+						},
+					},
+					"scopes": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"address", "application", "canaryConfigName", "metricsAccountName", "configurationAccountName", "storageAccountName", "threshold", "scopes"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"controlScope": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
+						},
+					},
+					"experimentScope": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
+						},
+					},
+				},
+				Required: []string{"name", "controlScope", "experimentScope"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Properties: map[string]spec.Schema{
+					"pass": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"marginal": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
+				Required: []string{"pass", "marginal"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1156,21 +1303,21 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Interval defines the interval in seconds between each metric analysis If omitted, will perform the metric analysis only once",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement. If omitted, will perform a single measurement",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"count": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Count is the number of times to run measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. A count > 1 must specify an interval.",
+							Description: "Count is the number of times to run the measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. If count > 1, interval must be specified.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"successCondition": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90\n  result IN (red, yellow)",
+							Description: "SuccessCondition is an expression which determines if a measurement is considered successful Expression is a goevaluate expression. The keyword `result` is a variable reference to the value of measurement. Results can be both structured data or primitive. Examples:\n  result > 10\n  (result.requests_made * result.requests_succeeded / 100) >= 90",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1182,32 +1329,25 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
-					"maxFailures": {
+					"failureLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxFailures is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
+							Description: "FailureLimit is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"maxInconclusive": {
+					"inconclusiveLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxInconclusive is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
+							Description: "InconclusiveLimit is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"maxConsecutiveErrors": {
+					"consecutiveErrorLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxConsecutiveErrors is the maximum number of times the measurement is allowed to error in succession, before the metric is considered error (default: 4)",
+							Description: "ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in succession, before the metric is considered error (default: 4)",
 							Type:        []string{"integer"},
 							Format:      "int32",
-						},
-					},
-					"failFast": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailFast will fail the entire analysis run prematurely",
-							Type:        []string{"boolean"},
-							Format:      "",
 						},
 					},
 					"provider": {
@@ -1237,6 +1377,11 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"),
 						},
 					},
+					"kayenta": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric"),
+						},
+					},
 					"job": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Job specifies the job metric run",
@@ -1247,7 +1392,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric"},
 	}
 }
 
@@ -1486,13 +1631,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutAnalysisStep defines a template that is used to create a analysisRun",
 				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name the name for the analysisRun",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
@@ -1500,9 +1638,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"arguments": {
+					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Arguments the arguments that will be added to the AnalysisRuns",
+							Description: "Args the arguments that will be added to the AnalysisRuns",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1514,7 +1652,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"name", "templateName"},
+				Required: []string{"templateName"},
 			},
 		},
 		Dependencies: []string{
@@ -1598,19 +1736,19 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 					},
 					"duration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the duration in seconds that the experiment should run for",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Description: "Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"analyses": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Analyses what analyses to run with the experiment",
+							Description: "Analyses reference which analysis templates to run with the experiment",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep"),
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef"),
 									},
 								},
 							},
@@ -1621,7 +1759,48 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a name for this analysis template invocation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"templateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Args the arguments that will be added to the AnalysisRuns",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "templateName"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"},
 	}
 }
 
@@ -1977,6 +2156,49 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Properties: map[string]spec.Schema{
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"step": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"start": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"end": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"scope", "region", "step", "start", "end"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 

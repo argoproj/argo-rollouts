@@ -213,7 +213,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		return nil
 	}
 	var candidateDuration *time.Duration
-	if ex.Status.AvailableAt != nil && ex.Spec.Duration != nil {
+	if ex.Status.AvailableAt != nil && ex.Spec.Duration != "" {
 		// Set candidate duration to status.availableAt + duration
 		passedDuration, timeRemaining := experimentutil.PassedDurations(ex)
 		if !passedDuration {
@@ -342,7 +342,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // run with a collision counter increase.
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
-	run, err := ec.newAnalysisRun(analysis, analysis.Arguments)
+	run, err := ec.newAnalysisRun(analysis, analysis.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -458,19 +458,13 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 	if err != nil {
 		return nil, err
 	}
-
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name),
-			Namespace:       ec.ex.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)},
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			AnalysisSpec: template.Spec,
-			Arguments:    args,
-		},
+	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
+	if err != nil {
+		return nil, err
 	}
-	return &ar, nil
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+	return run, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists

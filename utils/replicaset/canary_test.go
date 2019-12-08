@@ -388,6 +388,36 @@ func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 }
 
+func TestGetStableRS(t *testing.T) {
+	rs := func(podHash string) appsv1.ReplicaSet {
+		return appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: podHash,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+				},
+			},
+		}
+	}
+
+	rollout := &v1alpha1.Rollout{}
+	rs1 := rs("1")
+	rs2 := rs("2")
+	rs3 := rs("3")
+	noStable, rsList := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
+	assert.Nil(t, noStable)
+	assert.Len(t, rsList, 2)
+
+	rollout.Status.Canary.StableRS = "1"
+	sameAsNewRS, rsList := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
+	assert.Equal(t, *sameAsNewRS, rs1)
+	assert.Len(t, rsList, 2)
+
+	stableInOtherRSs, rsList := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs1, &rs2, &rs3})
+	assert.Equal(t, *stableInOtherRSs, rs1)
+	assert.Len(t, rsList, 1)
+
+}
 func TestGetCurrentCanaryStep(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
 	rollout.Spec.Strategy.Canary.Steps = nil
@@ -434,7 +464,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 					Steps: []v1alpha1.CanaryStep{
 						{
 							Experiment: &v1alpha1.RolloutExperimentStep{
-								Duration: pointer.Int32Ptr(1),
+								Duration: "1s",
 							},
 						}, {
 							Pause: &v1alpha1.RolloutPause{},
@@ -447,12 +477,12 @@ func TestGetCurrentExperiment(t *testing.T) {
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(0)
 
 	e := GetCurrentExperimentStep(rollout)
-	assert.Equal(t, pointer.Int32Ptr(1), e.Duration)
+	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
 
 	e = GetCurrentExperimentStep(rollout)
-	assert.Equal(t, pointer.Int32Ptr(1), e.Duration)
+	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(2)
 

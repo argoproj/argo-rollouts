@@ -85,7 +85,7 @@ func discoverObjects(path string) *RolloutObjects {
 		switch typeMeta.Kind {
 		case "Rollout":
 			var ro v1alpha1.Rollout
-			err = yaml.UnmarshalStrict(yamlBytes, &ro)
+			err = yaml.UnmarshalStrict(yamlBytes, &ro, yaml.DisallowUnknownFields)
 			if err != nil {
 				panic(err)
 			}
@@ -93,7 +93,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Rollouts = append(objs.Rollouts, &ro)
 		case "ReplicaSet":
 			var rs appsv1.ReplicaSet
-			err = yaml.UnmarshalStrict(yamlBytes, &rs)
+			err = yaml.UnmarshalStrict(yamlBytes, &rs, yaml.DisallowUnknownFields)
 			if err != nil {
 				panic(err)
 			}
@@ -101,7 +101,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.ReplicaSets = append(objs.ReplicaSets, &rs)
 		case "Pod":
 			var pod corev1.Pod
-			err = yaml.UnmarshalStrict(yamlBytes, &pod)
+			err = yaml.UnmarshalStrict(yamlBytes, &pod, yaml.DisallowUnknownFields)
 			if err != nil {
 				panic(err)
 			}
@@ -109,7 +109,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Pods = append(objs.Pods, &pod)
 		case "Experiment":
 			var exp v1alpha1.Experiment
-			err = yaml.UnmarshalStrict(yamlBytes, &exp)
+			err = yaml.UnmarshalStrict(yamlBytes, &exp, yaml.DisallowUnknownFields)
 			if err != nil {
 				panic(err)
 			}
@@ -117,7 +117,7 @@ func discoverObjects(path string) *RolloutObjects {
 			objs.Experiments = append(objs.Experiments, &exp)
 		case "AnalysisRun":
 			var run v1alpha1.AnalysisRun
-			err = yaml.UnmarshalStrict(yamlBytes, &run)
+			err = yaml.UnmarshalStrict(yamlBytes, &run, yaml.DisallowUnknownFields)
 			if err != nil {
 				panic(err)
 			}

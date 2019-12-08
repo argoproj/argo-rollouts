@@ -26,7 +26,7 @@ func TestRetryCmdUsage(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
 	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "retry <rolllout|experiment> RESOURCE")
+	assert.Contains(t, stderr, "retry <rollout|experiment> RESOURCE")
 }
 
 func TestRetryRolloutCmdUsage(t *testing.T) {

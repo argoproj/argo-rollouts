@@ -49,7 +49,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
 			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
-			if lastMeasurement != nil && lastMeasurement.Metadata != nil && lastMeasurement.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
 				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
 					jobInfo := JobInfo{
 						Metadata: Metadata{

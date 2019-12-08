@@ -17,7 +17,7 @@ const (
 // NewCmdRetry returns a new instance of an `argo rollouts retry` command
 func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "retry <rolllout|experiment> RESOURCE",
+		Use:   "retry <rollout|experiment> RESOURCE",
 		Short: "Retry a rollout or experiment",
 		Example: o.Example(`
   # Retry an aborted rollout

@@ -3,12 +3,15 @@ package metricproviders
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/job"
 	"github.com/argoproj/argo-rollouts/metricproviders/prometheus"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -44,6 +47,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		return prometheus.NewPrometheusProvider(api, logCtx), nil
 	} else if metric.Provider.Job != nil {
 		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
+	} else if metric.Provider.Kayenta != nil {
+		c := kayenta.NewHttpClient()
+		return kayenta.NewKayentaProvider(logCtx, c), nil
 	}
 	return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 }

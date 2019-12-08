@@ -9,6 +9,7 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 type rolloutContext interface {
@@ -119,11 +120,9 @@ func (bgCtx *blueGreenContext) NewStatus() v1alpha1.RolloutStatus {
 	return bgCtx.newStatus
 }
 
-func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
-	allRSs := append(olderRSs, newRS)
-	if stableRS != nil {
-		allRSs = append(allRSs, stableRS)
-	}
+func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, otherRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
+	allRSs := append(otherRSs, newRS)
+	stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, otherRSs)
 
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 	currentEx := experimentutil.GetCurrentExperiment(r, exList)
@@ -134,7 +133,7 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv
 		log:      logCtx,
 		newRS:    newRS,
 		stableRS: stableRS,
-		olderRSs: olderRSs,
+		olderRSs: oldRSs,
 		allRSs:   allRSs,
 
 		currentArs: currentArs,
@@ -179,7 +178,8 @@ func (cCtx *canaryContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
 	cCtx.currentArs = ars
 	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(ars)
 	if currBackgroundAr != nil && !cCtx.PauseContext().IsAborted() {
-		if !currBackgroundAr.Status.Phase.Completed() {
+		switch currBackgroundAr.Status.Phase {
+		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
 			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
 	}
