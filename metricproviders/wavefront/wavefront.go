@@ -1,6 +1,7 @@
 package wavefront
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -133,7 +134,13 @@ func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1
 }
 
 func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_api.QueryResponse) (string, v1alpha1.AnalysisPhase, error) {
-return "",v1alpha1.AnalysisPhaseFailed, nil
+	if len(response.TimeSeries) == 1 {
+		series := response.TimeSeries[0]
+		result := series.DataPoints[0][1]
+		newStatus := p.evaluateResult(result, metric)
+		return fmt.Sprintf("%f", result) , newStatus, nil
+	}
+	return "",v1alpha1.AnalysisPhaseFailed, nil
 }
 
 // NewWavefrontProvider Creates a new Wavefront client
