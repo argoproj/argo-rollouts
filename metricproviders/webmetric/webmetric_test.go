@@ -11,51 +11,177 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRunSuccess(t *testing.T) {
-	input := `
-	{
-		"key": [
-			{
-				"key2": {
-					"value": 1
-				}
-			}
-		]
-	}`
-
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Header().Set("Content-Type", "application/json")
-		io.WriteString(rw, input)
-	}))
-	// Close the server when test finishes
-	defer server.Close()
-
-	e := log.Entry{}
-
-	metric := v1alpha1.Metric{
-		Name:             "foo",
-		SuccessCondition: "result > 0",
-		FailureCondition: "result <= 0",
-		Provider: v1alpha1.MetricProvider{
-			Web: &v1alpha1.WebMetric{
-				URL:      server.URL,
-				JSONPath: "{$.key[0].key2.value}",
+func TestRunSuite(t *testing.T) {
+	// Test Cases
+	var tests = []struct {
+		webServerResponse string
+		metric            v1alpha1.Metric
+		expectedValue     string
+		expectedPhase     v1alpha1.AnalysisPhase
+	}{
+		// When_numberReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerResponse: `{"key": [{"key2": {"value": 1}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
 			},
+			expectedValue: "1",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_numberReturnedInJson_And_DoesNotMatcheConditions_Then_Failure
+		{
+
+			webServerResponse: `{"key": [{"key2": {"value": 0}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "0",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_floatReturnedInJson_And_MatchesConditions_Then_Success
+		{
+			webServerResponse: `{"key": [{"key2": {"value": 1.1}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "1.1",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_floatReturnedInJson_And_DoesNotMatchConditions_Then_Failure
+		{
+			webServerResponse: `{"key": [{"key2": {"value": -1.1}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "-1.1",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_stringReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "false",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "true",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_stringReturnedInJson_And_DoesNotMatchConditions_Then_Fail
+		{
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "true",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
 	}
 
-	jp, err := NewWebMetricJsonParser(metric)
-	assert.NoError(t, err)
+	// Run
 
-	p := NewWebMetricProvider(e, server.Client(), jp)
+	for _, test := range tests {
+		// Server setup with response
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.Header().Set("Content-Type", "application/json")
+			io.WriteString(rw, test.webServerResponse)
+		}))
+		defer server.Close()
 
-	measurement := p.Run(newAnalysisRun(), metric)
-	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, "1", measurement.Value)
-	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+		// Need to set this dynamically...
+		test.metric.Provider.Web.URL = server.URL
+
+		logCtx := log.WithField("test", "test")
+
+		jsonparser, err := NewWebMetricJsonParser(test.metric)
+		assert.NoError(t, err)
+		provider := NewWebMetricProvider(*logCtx, server.Client(), jsonparser)
+
+		// Get our result
+		measurement := provider.Run(newAnalysisRun(), test.metric)
+
+		// Common Asserts
+		assert.NotNil(t, measurement)
+		assert.Equal(t, string(test.expectedPhase), string(measurement.Phase))
+
+		// Phase specific cases
+		switch test.expectedPhase {
+		case v1alpha1.AnalysisPhaseSuccessful:
+			assert.NotNil(t, measurement.StartedAt)
+			assert.Equal(t, test.expectedValue, measurement.Value)
+			assert.NotNil(t, measurement.FinishedAt)
+		case v1alpha1.AnalysisPhaseFailed:
+			assert.NotNil(t, measurement.StartedAt)
+			assert.Equal(t, test.expectedValue, measurement.Value)
+			assert.NotNil(t, measurement.FinishedAt)
+		}
+
+	}
 }
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
+}
+
+func TestParsePrimitiveSuite(t *testing.T) {
+	var tests = []struct {
+		in  string
+		out interface{}
+	}{
+		{"1", int64(1)},
+		{"true", true},
+		{"1.1", float64(1.1)},
+		{"String", "String"},
+	}
+
+	for _, test := range tests {
+		result := parsePrimitiveFromString(test.in)
+		assert.Equal(t, test.out, result)
+	}
 }

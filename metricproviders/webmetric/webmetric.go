@@ -100,15 +100,15 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not find JSONPath in body: %s", err)
 	}
 	out := buf.String()
-	outAsFloat, err := strconv.ParseFloat(buf.String(), 64)
-	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not convert response to a number: %s", err)
-	}
-	status := p.evaluateResponse(metric, outAsFloat)
+
+	// Try to get the right primitive
+	outInterface := parsePrimitiveFromString(out)
+
+	status := p.evaluateResponse(metric, outInterface)
 	return out, status, nil
 }
 
-func (p *Provider) evaluateResponse(metric v1alpha1.Metric, result float64) v1alpha1.AnalysisPhase {
+func (p *Provider) evaluateResponse(metric v1alpha1.Metric, result interface{}) v1alpha1.AnalysisPhase {
 	successCondition := false
 	failCondition := false
 	var err error
@@ -200,4 +200,30 @@ func NewWebMetricProvider(logCtx log.Entry, client *http.Client, jsonParser *jso
 		client:     client,
 		jsonParser: jsonParser,
 	}
+}
+
+func parsePrimitiveFromString(in string) interface{} {
+	// Chain ordering as follows:
+	// int -> float -> bool -> string
+
+	// 64 bit Int conversion
+	inAsInt, err := strconv.ParseInt(in, 10, 64)
+	if err == nil {
+		return inAsInt
+	}
+
+	// Float conversion
+	inAsFloat, err := strconv.ParseFloat(in, 64)
+	if err == nil {
+		return inAsFloat
+	}
+
+	// Bool conversion
+	inAsBool, err := strconv.ParseBool(in)
+	if err == nil {
+		return inAsBool
+	}
+
+	// Else
+	return in
 }
