@@ -37,9 +37,9 @@ func TestRunSuccess(t *testing.T) {
 		SuccessCondition: "result > 0",
 		FailureCondition: "result <= 0",
 		Provider: v1alpha1.MetricProvider{
-			WebMetric: &v1alpha1.WebMetricMetric{
-				Url:      server.URL,
-				JsonPath: "{$.key[0].key2.value}",
+			Web: &v1alpha1.WebMetric{
+				URL:      server.URL,
+				JSONPath: "{$.key[0].key2.value}",
 			},
 		},
 	}

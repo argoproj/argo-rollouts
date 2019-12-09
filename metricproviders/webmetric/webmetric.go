@@ -10,14 +10,12 @@ import (
 	"strconv"
 	"time"
 
-	"k8s.io/client-go/util/jsonpath"
-
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/jsonpath"
 )
 
 const (
@@ -52,21 +50,21 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	// Create request
 	request := &http.Request{
-		Method: "GET",
+		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
 	}
 
-	request.URL, err = url.Parse(metric.Provider.WebMetric.Url)
+	request.URL, err = url.Parse(metric.Provider.Web.URL)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	for _, header := range metric.Provider.WebMetric.Headers {
+	for _, header := range metric.Provider.Web.Headers {
 		request.Header.Set(header.Key, header.Value)
 	}
 
 	// Send Request
 	response, err := p.client.Do(request)
-	if err != nil || response.StatusCode != http.StatusOK {
+	if err != nil || response.StatusCode < 200 || response.StatusCode >= 300 {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
@@ -175,11 +173,13 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
 		timeout time.Duration
 	)
 
-	if metric.Provider.WebMetric.Timeout <= 0 {
+	// Using a default timeout of 10 seconds
+	if metric.Provider.Web.Timeout <= 0 {
 		timeout = time.Duration(10) * time.Second
 	} else {
-		timeout = time.Duration(metric.Provider.WebMetric.Timeout) * time.Second
+		timeout = time.Duration(metric.Provider.Web.Timeout) * time.Second
 	}
+
 	c := &http.Client{
 		Timeout: timeout,
 	}
@@ -189,7 +189,7 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
 func NewWebMetricJsonParser(metric v1alpha1.Metric) (*jsonpath.JSONPath, error) {
 	jsonParser := jsonpath.New("metrics")
 
-	err := jsonParser.Parse(metric.Provider.WebMetric.JsonPath)
+	err := jsonParser.Parse(metric.Provider.Web.JSONPath)
 
 	return jsonParser, err
 }
