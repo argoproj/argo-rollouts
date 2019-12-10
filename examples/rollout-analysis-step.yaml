@@ -29,7 +29,7 @@ spec:
       steps:
       - setWeight: 25
       # An AnalysisTemplate is referenced at the second step, which starts an AnalysisRun after
-      # the setWeight step. The rolllout will not progress to the following step until the
+      # the setWeight step. The rollout will not progress to the following step until the
       # AnalysisRun is complete. A failure/error of the analysis will cause the rollout's update to
       # abort, and set the canary weight to zero.
       - analysis:
