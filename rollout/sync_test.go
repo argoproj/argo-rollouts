@@ -239,6 +239,17 @@ func TestCleanupRollouts(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
 
+	newRS := func(name string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              name,
+				CreationTimestamp: before,
+			},
+			Spec:   appsv1.ReplicaSetSpec{Replicas: int32Ptr(0)},
+			Status: appsv1.ReplicaSetStatus{Replicas: int32(0)},
+		}
+	}
+
 	tests := []struct {
 		name                 string
 		revisionHistoryLimit *int32
@@ -248,12 +259,20 @@ func TestCleanupRollouts(t *testing.T) {
 		{
 			name:                 "No Revision History Limit",
 			revisionHistoryLimit: nil,
-			replicaSets: []*appsv1.ReplicaSet{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:              "foo",
-					CreationTimestamp: now,
-				},
-			}},
+			replicaSets: []*appsv1.ReplicaSet{
+				newRS("foo1"),
+				newRS("foo2"),
+				newRS("foo3"),
+				newRS("foo4"),
+				newRS("foo5"),
+				newRS("foo6"),
+				newRS("foo7"),
+				newRS("foo8"),
+				newRS("foo9"),
+				newRS("foo10"),
+				newRS("foo11"),
+			},
+			expectedDeleted: map[string]bool{"foo1": true},
 		},
 		{
 			name:                 "Avoid deleting RS with deletion timestamp",
@@ -271,6 +290,36 @@ func TestCleanupRollouts(t *testing.T) {
 		// },
 		{
 			name:                 "Delete extra replicasets",
+			revisionHistoryLimit: int32Ptr(1),
+			replicaSets: []*appsv1.ReplicaSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "foo",
+						CreationTimestamp: before,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(0),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(0),
+					},
+				}, {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "bar",
+						CreationTimestamp: now,
+					},
+					Spec: appsv1.ReplicaSetSpec{
+						Replicas: int32Ptr(1),
+					},
+					Status: appsv1.ReplicaSetStatus{
+						Replicas: int32(1),
+					},
+				},
+			},
+			expectedDeleted: map[string]bool{"foo": true},
+		},
+		{
+			name:                 "Dont delete scaled replicasets",
 			revisionHistoryLimit: int32Ptr(1),
 			replicaSets: []*appsv1.ReplicaSet{
 				{
@@ -297,7 +346,7 @@ func TestCleanupRollouts(t *testing.T) {
 					},
 				},
 			},
-			expectedDeleted: map[string]bool{"foo": true},
+			expectedDeleted: map[string]bool{},
 		},
 		{
 			name: "Do not delete any replicasets",
@@ -344,6 +393,7 @@ func TestCleanupRollouts(t *testing.T) {
 			err := c.cleanupRollouts(test.replicaSets, roCtx)
 			assert.Nil(t, err)
 
+			assert.Equal(t, len(test.expectedDeleted), len(k8sfake.Actions()))
 			for _, action := range k8sfake.Actions() {
 				rsName := action.(testclient.DeleteAction).GetName()
 				assert.True(t, test.expectedDeleted[rsName])
