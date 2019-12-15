@@ -22,11 +22,6 @@ RUN curl -O https://download.docker.com/linux/static/stable/x86_64/docker-${DOCK
   mv docker/docker /usr/local/bin/docker && \
   rm -rf ./docker
 
-# Install dep
-ENV DEP_VERSION=0.5.0
-RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -O /usr/local/bin/dep && \
-    chmod +x /usr/local/bin/dep
-
 # Install golangci-lint
 RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
     chmod +x ./golangci-lint.sh && \
@@ -42,20 +37,8 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.12.6 as argo-rollouts-build
+FROM golang:1.13.1 as argo-rollouts-build
 
-COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
-
-
-# A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
-# to install all the packages of our dep lock file
-COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
-COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
-
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
 
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
