@@ -25,7 +25,7 @@ spec:
         arguments:
           parameters:
           - name: cmd
-            value: "dep ensure && make lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
+            value: "make lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
 
   - name: ci-builder
     inputs:
