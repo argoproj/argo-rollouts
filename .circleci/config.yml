@@ -22,8 +22,6 @@ jobs:
       - run: go get github.com/jstemmer/go-junit-report
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run:
-          command: dep ensure
-      - run:
           name: Run tests
           command: |
             set -x
