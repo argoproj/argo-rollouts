@@ -417,6 +417,18 @@
 
 
   <li class="md-nav__item">
+    <a href="features/traffic-management/" title="Traffic Management" class="md-nav__link">
+      Traffic Management
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="features/kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
       Kubectl Plugin
     </a>
@@ -625,7 +637,7 @@
                 
                 <h1 id="argo-rollouts-advanced-kubernetes-deployment-controller">Argo Rollouts - Advanced Kubernetes Deployment Controller<a class="headerlink" href="#argo-rollouts-advanced-kubernetes-deployment-controller" title="Permanent link">&para;</a></h1>
 <h2 id="what-is-argo-rollouts">What is Argo Rollouts?<a class="headerlink" href="#what-is-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts introduces a new custom resource called a Rollout to provide additional deployment strategies such as Blue Green and Canary to Kubernetes. The Rollout custom resource provides feature parity with the deployment resource with additional deployment strategies. Check out the <a href="#deployment-concepts">Deployment Concepts</a> for more information on the various deployment strategies.</p>
+<p>Argo Rollouts introduces a new custom resource called a Rollout to provide additional deployment strategies such as Blue Green and Canary to Kubernetes. The Rollout custom resource provides feature parity with the deployment resource with additional deployment strategies. Check out the <a href="deployment-concepts/">Deployment Concepts</a> for more information on the various deployment strategies.</p>
 <h2 id="why-argo-rollouts">Why Argo Rollouts?<a class="headerlink" href="#why-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>Deployments resources offer two strategies to deploy changes: <code>RollingUpdate</code> and <code>Recreate</code>. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller. In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable, GitOps-friendly options.</p>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
