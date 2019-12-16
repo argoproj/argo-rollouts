@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -56,13 +57,22 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 			return nil
 		}
 		namespace, name, err := cache.SplitMetaNamespaceKey(key)
+		logCtx := log.WithField(objType, name).WithField(logutil.NamespaceKey, namespace)
 		if err != nil {
 			return err
 		}
-
+		runSyncHandler := func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+					err = fmt.Errorf("Recovered from Panic")
+				}
+			}()
+			return syncHandler(key)
+		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
-		if err := syncHandler(key); err != nil {
+		if err := runSyncHandler(); err != nil {
 			metricsServer.IncError(namespace, name)
 			// Put the item back on the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
@@ -71,7 +81,7 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		workqueue.Forget(obj)
-		log.WithField(objType, name).WithField(logutil.NamespaceKey, namespace).Info("Successfully synced")
+		logCtx.Info("Successfully synced")
 		return nil
 	}(obj)
 
