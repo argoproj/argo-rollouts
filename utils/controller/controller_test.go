@@ -20,6 +20,16 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+func TestProcessNextWorkItemHandlePanic(t *testing.T) {
+	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q.Add("valid/key")
+	metricServer := metrics.NewMetricsServer("localhost:8080", nil)
+	syncHandler := func(key string) error {
+		panic("Bad big panic :(")
+	}
+	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, metricServer))
+}
+
 func TestProcessNextWorkItemShutDownQueue(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	syncHandler := func(key string) error {

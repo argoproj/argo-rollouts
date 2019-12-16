@@ -182,7 +182,10 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		c.recorder.Event(rollout, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
 		newStatus := rollout.Status.DeepCopy()
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
-		err := c.patchCondition(rollout, newStatus, cond)
+		patchErr := c.patchCondition(rollout, newStatus, cond)
+		if patchErr != nil {
+			logCtx.Warnf("Error Patching Rollout: %s", patchErr.Error())
+		}
 		return nil, err
 	}
 
