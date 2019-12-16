@@ -1,4 +1,16 @@
 # Changelog
+
+# v0.6.2
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.2/manifests/install.yaml
+
+## Bug Fixes
+
+* omitted revisionHistoryLimit was not defaulting to 10 (#330)
+* Fix panic if rollout cannot create a new RS (#328)
+* Enable controller to handle panics with crashing (#328)
+
 # v0.6.1
 ## Quick Start
 kubectl create namespace argo-rollouts
