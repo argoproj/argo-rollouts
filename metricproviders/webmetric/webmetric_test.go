@@ -14,6 +14,7 @@ import (
 func TestRunSuite(t *testing.T) {
 	// Test Cases
 	var tests = []struct {
+		webServerStatus   int
 		webServerResponse string
 		metric            v1alpha1.Metric
 		expectedValue     string
@@ -21,6 +22,7 @@ func TestRunSuite(t *testing.T) {
 	}{
 		// When_numberReturnedInJson_And_MatchesConditions_Then_Succeed
 		{
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": 1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -38,7 +40,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When_numberReturnedInJson_And_DoesNotMatcheConditions_Then_Failure
 		{
-
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": 0}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -56,6 +58,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When_floatReturnedInJson_And_MatchesConditions_Then_Success
 		{
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": 1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -73,6 +76,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When_floatReturnedInJson_And_DoesNotMatchConditions_Then_Failure
 		{
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": -1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -90,6 +94,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When_stringReturnedInJson_And_MatchesConditions_Then_Succeed
 		{
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -107,6 +112,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When_stringReturnedInJson_And_DoesNotMatchConditions_Then_Fail
 		{
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -122,6 +128,24 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "true",
 			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
+		// When_non200_Then_Fail
+		{
+			webServerStatus:   300,
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "true",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
 	}
 
 	// Run
@@ -129,8 +153,12 @@ func TestRunSuite(t *testing.T) {
 	for _, test := range tests {
 		// Server setup with response
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			rw.Header().Set("Content-Type", "application/json")
-			io.WriteString(rw, test.webServerResponse)
+			if test.webServerStatus < 200 || test.webServerStatus >= 300 {
+				http.Error(rw, http.StatusText(test.webServerStatus), test.webServerStatus)
+			} else {
+				rw.Header().Set("Content-Type", "application/json")
+				io.WriteString(rw, test.webServerResponse)
+			}
 		}))
 		defer server.Close()
 
