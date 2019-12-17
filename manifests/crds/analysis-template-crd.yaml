@@ -2640,7 +2640,7 @@ spec:
                             type: array
                           jsonPath:
                             type: string
-                          timeout:
+                          timeoutSeconds:
                             type: integer
                           url:
                             type: string

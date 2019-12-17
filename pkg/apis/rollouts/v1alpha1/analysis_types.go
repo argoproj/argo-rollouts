@@ -270,10 +270,10 @@ type ScopeDetail struct {
 }
 
 type WebMetric struct {
-	URL      string            `json:"url"`
-	Headers  []WebMetricHeader `json:"headers,omitempty"`
-	Timeout  int               `json:"timeout,omitempty"`
-	JSONPath string            `json:"jsonPath"`
+	URL            string            `json:"url"`
+	Headers        []WebMetricHeader `json:"headers,omitempty"`
+	TimeoutSeconds int               `json:"timeoutSeconds,omitempty"`
+	JSONPath       string            `json:"jsonPath"`
 }
 
 type WebMetricHeader struct {

@@ -37,10 +37,6 @@ func (p *Provider) Type() string {
 }
 
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	var (
-		err error
-	)
-
 	startTime := metav1.Now()
 
 	// Measurement to pass back
@@ -53,10 +49,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
 	}
 
-	request.URL, err = url.Parse(metric.Provider.Web.URL)
+	url, err := url.Parse(metric.Provider.Web.URL)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+	request.URL = url
 
 	for _, header := range metric.Provider.Web.Headers {
 		request.Header.Set(header.Key, header.Value)
@@ -64,12 +61,14 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	// Send Request
 	response, err := p.client.Do(request)
-	if err != nil || response.StatusCode < 200 || response.StatusCode >= 300 {
+	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
+	} else if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("received non 2xx response code: %v", response.StatusCode))
 	}
 
 	value, status, err := p.parseResponse(metric, response)
-	if err != nil || response.StatusCode != http.StatusOK {
+	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
@@ -169,15 +168,13 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
-	var (
-		timeout time.Duration
-	)
+	var timeout time.Duration
 
 	// Using a default timeout of 10 seconds
-	if metric.Provider.Web.Timeout <= 0 {
+	if metric.Provider.Web.TimeoutSeconds <= 0 {
 		timeout = time.Duration(10) * time.Second
 	} else {
-		timeout = time.Duration(metric.Provider.Web.Timeout) * time.Second
+		timeout = time.Duration(metric.Provider.Web.TimeoutSeconds) * time.Second
 	}
 
 	c := &http.Client{
