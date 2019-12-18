@@ -33,7 +33,7 @@ func TestRunSuite(t *testing.T) {
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
 						JSONPath: "{$.key[0].key2.value}",
-						Headers:  []v1alpha1.WebMetricHeader{v1alpha1.WebMetricHeader{Key: "key", Value: "value"}},
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
 					},
 				},
 			},
