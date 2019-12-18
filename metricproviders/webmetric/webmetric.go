@@ -55,6 +55,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 	request.URL = url
 
+	request.Header = make(http.Header)
 	for _, header := range metric.Provider.Web.Headers {
 		request.Header.Set(header.Key, header.Value)
 	}

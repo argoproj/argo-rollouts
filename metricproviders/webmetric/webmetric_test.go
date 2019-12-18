@@ -32,6 +32,7 @@ func TestRunSuite(t *testing.T) {
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
 						JSONPath: "{$.key[0].key2.value}",
+						Headers:  []v1alpha1.WebMetricHeader{v1alpha1.WebMetricHeader{Key: "key", Value: "value"}},
 					},
 				},
 			},
@@ -146,6 +147,24 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "true",
 			expectedPhase: v1alpha1.AnalysisPhaseError,
 		},
+		// When_non200_Then_Fail
+		{
+			webServerStatus:   300,
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						URL:      "bad://url.com",
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "true",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
 	}
 
 	// Run
@@ -162,8 +181,10 @@ func TestRunSuite(t *testing.T) {
 		}))
 		defer server.Close()
 
-		// Need to set this dynamically...
-		test.metric.Provider.Web.URL = server.URL
+		// Need to set this dynamically if not present...
+		if test.metric.Provider.Web.URL == "" {
+			test.metric.Provider.Web.URL = server.URL
+		}
 
 		logCtx := log.WithField("test", "test")
 
