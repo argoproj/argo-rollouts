@@ -81,7 +81,6 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		workqueue.Forget(obj)
-		logCtx.Info("Successfully synced")
 		return nil
 	}(obj)
 
