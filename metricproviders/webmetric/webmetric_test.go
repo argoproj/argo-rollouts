@@ -14,11 +14,12 @@ import (
 func TestRunSuite(t *testing.T) {
 	// Test Cases
 	var tests = []struct {
-		webServerStatus   int
-		webServerResponse string
-		metric            v1alpha1.Metric
-		expectedValue     string
-		expectedPhase     v1alpha1.AnalysisPhase
+		webServerStatus      int
+		webServerResponse    string
+		metric               v1alpha1.Metric
+		expectedValue        string
+		expectedPhase        v1alpha1.AnalysisPhase
+		expectedErrorMessage string
 	}{
 		// When_numberReturnedInJson_And_MatchesConditions_Then_Succeed
 		{
@@ -129,7 +130,7 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "true",
 			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
-		// When_non200_Then_Fail
+		// When_non200_Then_Error
 		{
 			webServerStatus:   300,
 			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
@@ -147,9 +148,9 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "true",
 			expectedPhase: v1alpha1.AnalysisPhaseError,
 		},
-		// When_non200_Then_Fail
+		// When_BadURL_Then_Fail
 		{
-			webServerStatus:   300,
+			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
@@ -162,8 +163,63 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedValue: "true",
-			expectedPhase: v1alpha1.AnalysisPhaseError,
+			expectedValue:        "true",
+			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage: "unsupported protocol scheme",
+		},
+		// When_200Response_And_EmptyBody_Then_Error
+		{
+			webServerStatus:   200,
+			webServerResponse: ``,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue:        "true",
+			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage: "Could not parse JSON body",
+		},
+		// When_200Response_And_InvalidBody_Then_Error
+		{
+			webServerStatus:   200,
+			webServerResponse: `test: notJson`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue:        "true",
+			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage: "Could not parse JSON body",
+		},
+		// When_200Response_And_JsonPathHasNoMatch_Then_Error
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						JSONPath: "{$.key[0].key2.novalue}",
+					},
+				},
+			},
+			expectedValue:        "true",
+			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage: "Could not find JSONPath in body",
 		},
 	}
 
@@ -176,7 +232,9 @@ func TestRunSuite(t *testing.T) {
 				http.Error(rw, http.StatusText(test.webServerStatus), test.webServerStatus)
 			} else {
 				rw.Header().Set("Content-Type", "application/json")
-				io.WriteString(rw, test.webServerResponse)
+				if test.webServerResponse != "" {
+					io.WriteString(rw, test.webServerResponse)
+				}
 			}
 		}))
 		defer server.Close()
@@ -209,6 +267,8 @@ func TestRunSuite(t *testing.T) {
 			assert.NotNil(t, measurement.StartedAt)
 			assert.Equal(t, test.expectedValue, measurement.Value)
 			assert.NotNil(t, measurement.FinishedAt)
+		case v1alpha1.AnalysisPhaseError:
+			assert.Contains(t, measurement.Message, test.expectedErrorMessage)
 		}
 
 	}
