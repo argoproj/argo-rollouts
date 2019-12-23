@@ -124,6 +124,9 @@ type CanaryStrategy struct {
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty"`
+	// Networking hosts all the different networking tools supported to enable more fine-grained traffic shaping
+	Networking *RolloutNetworking `json:"networking,omitempty"`
+
 	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
 	// Absolute number is calculated from percentage by rounding down.
@@ -151,6 +154,26 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
 	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
+}
+
+// RolloutNetworking hosts all the different networking tools supported to enable more fine-grained traffic shaping
+type RolloutNetworking struct {
+	// Istio holds Istio specific configuration to route traffic
+	Istio *IstioNetworking `json:"istio,omitempty"`
+}
+
+// IstioNetworking configuration for Istio service mesh to enable fine grain configuration
+type IstioNetworking struct {
+	// VirtualService reference to a Virtual Service that modified to shape traffic
+	VirtualService IstioVirtualService `json:"virtualService"`
+}
+
+// IstioVirtualService holds information on the virtual service the rollout needs to modify
+type IstioVirtualService struct {
+	// Name holds the name of the VirtualService
+	Name string `json:"name"`
+	// Routes list of routes within VirtualService to edit
+	Routes []string `json:"routes"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step

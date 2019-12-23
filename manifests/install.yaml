@@ -8058,6 +8058,26 @@ spec:
                       anyOf:
                       - type: string
                       - type: integer
+                    networking:
+                      properties:
+                        istio:
+                          properties:
+                            virtualService:
+                              properties:
+                                name:
+                                  type: string
+                                routes:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - name
+                              - routes
+                              type: object
+                          required:
+                          - virtualService
+                          type: object
+                      type: object
                     stableService:
                       type: string
                     steps:
