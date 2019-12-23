@@ -22,7 +22,7 @@ spec:
     canary:
       canaryService: canary-service # required
       stableService: stable-service  # required
-      networking:
+      trafficRouting:
         nginx:
            primaryIngress: primary-ingress  # required
            annotationPrefix: example.nginx.com/ # optional
