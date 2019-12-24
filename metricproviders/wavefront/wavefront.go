@@ -1,13 +1,18 @@
 package wavefront
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	wavefront_api "github.com/spaceapegames/go-wavefront"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
@@ -22,7 +27,7 @@ const (
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
-	api    wavefront_api.Client
+	apiClient    *wavefront_api.Client
 	logCtx log.Entry
 }
 
@@ -42,7 +47,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	//ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	//defer cancel()
 
-	query, err := templateutil.ResolveArgs(metric.Provider.Wavefront.Query, run.Spec.Arguments)
+	query, err := templateutil.ResolveArgs(metric.Provider.Wavefront.Query, run.Spec.Args)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -56,7 +61,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		SummarizationStrategy: "MIN",
 		ListMode: true,
 	}
-	response, err := p.api.NewQuery(&queryParams).Execute()
+
+	response, err := p.apiClient.NewQuery(&queryParams).Execute()
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -137,6 +143,8 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
 		result := series.DataPoints[0][1]
+		fmt.Printf("wavefront result %f", result)
+		p.logCtx.Infof("wavefront result %f", result)
 		newStatus := p.evaluateResult(result, metric)
 		return fmt.Sprintf("%f", result) , newStatus, nil
 	}
@@ -144,21 +152,47 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 }
 
 // NewWavefrontProvider Creates a new Wavefront client
-func NewWavefrontProvider(api wavefront_api.Client, logCtx log.Entry) *Provider {
+func NewWavefrontProvider(apiClient *wavefront_api.Client, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
-		api:    api,
+		apiClient: apiClient,
 	}
 }
 
-// NewPrometheusAPI generates a Wavefront API client from the metric configuration
-func NewWavefrontAPI(metric v1alpha1.Metric) (*wavefront_api.Client, error) {
-	client, err := wavefront_api.NewClient(&wavefront_api.Config{
-		Address: "mon.wavefront.com",
-		Token:   "",
-	},)
+// NewWavefrontAPI generates a Wavefront API client from the metric configuration
+func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (*wavefront_api.Client, error) {
+	ns := Namespace()
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get("wavefront-api-tokens", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return client, nil
+	var wf_client *wavefront_api.Client
+	for source, token := range secret.Data {
+		if source == metric.Provider.Wavefront.Address {
+			wf_client, _ = wavefront_api.NewClient(&wavefront_api.Config{
+				Address: source,
+				Token:  string(token[:]),
+			})
+		}
+	}
+	if wf_client != nil {
+		return wf_client, nil
+	} else {
+		return nil, errors.New("API token not found")
+	}
+}
+
+func Namespace() string {
+	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
+	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
+	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
+		return ns
+	}
+	// Fall back to the namespace associated with the service account token, if available
+	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+			return ns
+		}
+	}
+	return "argo-rollouts"
 }

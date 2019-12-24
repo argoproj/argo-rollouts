@@ -2,6 +2,7 @@ package metricproviders
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 
@@ -50,6 +51,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 	} else if metric.Provider.Kayenta != nil {
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
+	} else if metric.Provider.Wavefront != nil {
+		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+		return wavefront.NewWavefrontProvider(client, logCtx), nil
 	}
 	return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 }
