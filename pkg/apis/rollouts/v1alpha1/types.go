@@ -114,6 +114,9 @@ type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
 	// +optional
 	CanaryService string `json:"canaryService,omitempty"`
+	// StableService holds the name of a service which selects pods with stable version and don't select any pods with canary version.
+	// +optional
+	StableService string `json:"stableService,omitempty"`
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty"`
