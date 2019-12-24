@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -140,15 +141,37 @@ func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1
 }
 
 func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_api.QueryResponse) (string, v1alpha1.AnalysisPhase, error) {
+
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
 		result := series.DataPoints[0][1]
-		fmt.Printf("wavefront result %f", result)
-		p.logCtx.Infof("wavefront result %f", result)
 		newStatus := p.evaluateResult(result, metric)
 		return fmt.Sprintf("%f", result) , newStatus, nil
+
+	} else if len(response.TimeSeries) > 1 {
+		results := make([]float64, 0, len(response.TimeSeries))
+		valueStr := "["
+		for _, series := range response.TimeSeries {
+			value :=  series.DataPoints[0][1]
+			valueStr = valueStr + fmt.Sprintf("%f", value) + ","
+			results = append(results, value)
+		}
+		// if we appended to the string, we should remove the last comma on the string
+		if len(valueStr) > 1 {
+			valueStr = valueStr[:len(valueStr)-1]
+		}
+		valueStr = valueStr + "]"
+		for _, result := range results {
+			if math.IsNaN(result) {
+				return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+			}
+		}
+		newStatus := p.evaluateResult(results, metric)
+		return valueStr, newStatus, nil
+
+	} else {
+		return "",v1alpha1.AnalysisPhaseFailed, nil
 	}
-	return "",v1alpha1.AnalysisPhaseFailed, nil
 }
 
 // NewWavefrontProvider Creates a new Wavefront client
