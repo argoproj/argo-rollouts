@@ -1012,6 +1012,57 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
 }
 
+func TestCanaryRolloutWithStableService(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	stableSvc := newService("stable", 80, nil)
+	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rs := newReplicaSetWithStatus(rollout, 0, 0)
+	rollout.Spec.Strategy.Canary.StableService = stableSvc.Name
+	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.kubeobjects = append(f.kubeobjects, stableSvc, rs)
+	f.serviceLister = append(f.serviceLister, stableSvc)
+
+	_ = f.expectPatchServiceAction(stableSvc, rollout.Status.CurrentPodHash)
+	_ = f.expectPatchRolloutAction(rollout)
+	f.run(getKey(rollout, t))
+}
+
+func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rs := newReplicaSetWithStatus(rollout, 0, 0)
+	rollout.Spec.Strategy.Canary.StableService = "invalid-stable"
+	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.kubeobjects = append(f.kubeobjects, rs)
+
+	patchIndex := f.expectPatchRolloutAction(rollout)
+	f.runExpectError(getKey(rollout, t), true)
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 1)
+
+	condition, ok := c[0].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
+}
+
 func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
