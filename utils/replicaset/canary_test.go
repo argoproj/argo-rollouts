@@ -376,6 +376,16 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	}
 }
 
+func TestCalculateReplicaCountsForCanaryNetworking(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable")
+	rollout.Spec.Strategy.Canary.Networking = &v1alpha1.RolloutNetworking{}
+	stableRS := newRS("stable", 10, 10)
+	newRS := newRS("canary", 0, 0)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(1), newRSReplicaCount)
+	assert.Equal(t, int32(10), stableRSReplicaCount)
+}
+
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
 	newRS := newRS("stable", 9, 9)
