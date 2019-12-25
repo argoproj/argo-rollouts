@@ -24,6 +24,7 @@ import (
 const (
 	//ProviderType indicates the provider is wavefront
 	ProviderType = "Wavefront"
+	//k8s secret that has wavefront api tokens
 	WavefrontTokensSecretName = "wavefront-api-tokens"
 )
 
@@ -75,11 +76,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	queryParams := &wavefront_api.QueryParams {
 		QueryString: query,
 		StartTime:  strconv.FormatInt(time.Now().Unix() * 1000, 10),
-		Granularity: "s",
 		MaxPoints: "1",
+		Granularity: "s",
 		SeriesOutsideTimeWindow: false,
-		SummarizationStrategy: "MIN",
-		ListMode: true,
 	}
 
 	response, err := p.api.NewQuery(queryParams).Execute()
@@ -92,7 +91,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	}
 	newMeasurement.Value = newValue
-
 	newMeasurement.Phase = newStatus
 	finishedTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishedTime
@@ -178,7 +176,6 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 			valueStr = valueStr + fmt.Sprintf("%.2f", value) + ","
 			results = append(results, value)
 		}
-		// if we appended to the string, we should remove the last comma on the string
 		if len(valueStr) > 1 {
 			valueStr = valueStr[:len(valueStr)-1]
 		}
