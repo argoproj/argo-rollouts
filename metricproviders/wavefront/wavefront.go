@@ -24,17 +24,40 @@ import (
 const (
 	//ProviderType indicates the provider is wavefront
 	ProviderType = "Wavefront"
+	WavefrontTokensSecretName = "wavefront-api-tokens"
 )
 
-// Provider contains all the required components to run a prometheus query
 type Provider struct {
-	apiClient    *wavefront_api.Client
+	api    WavefrontClientAPI
 	logCtx log.Entry
 }
 
-// Type incidates provider is a prometheus provider
 func (p *Provider) Type() string {
 	return ProviderType
+}
+
+type WavefrontClientAPI interface {
+	NewQuery(params *wavefront_api.QueryParams) WavefrontQueryAPI
+}
+
+type WavefrontClient struct {
+	*wavefront_api.Client
+}
+
+func (wc *WavefrontClient) NewQuery(params *wavefront_api.QueryParams) WavefrontQueryAPI {
+	return &WavefrontQuery{Query: wc.Client.NewQuery(params)}
+}
+
+type WavefrontQueryAPI interface {
+	Execute() (*wavefront_api.QueryResponse, error)
+}
+
+type WavefrontQuery struct {
+	*wavefront_api.Query
+}
+
+func (wq *WavefrontQuery) Execute() (*wavefront_api.QueryResponse, error) {
+	return wq.Query.Execute()
 }
 
 // Run queries with wavefront provider for the metric
@@ -44,16 +67,12 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configuriable
-	//ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	//defer cancel()
-
 	query, err := templateutil.ResolveArgs(metric.Provider.Wavefront.Query, run.Spec.Args)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	queryParams := wavefront_api.QueryParams {
+	queryParams := &wavefront_api.QueryParams {
 		QueryString: query,
 		StartTime:  strconv.FormatInt(time.Now().Unix() * 1000, 10),
 		Granularity: "s",
@@ -63,7 +82,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		ListMode: true,
 	}
 
-	response, err := p.apiClient.NewQuery(&queryParams).Execute()
+	response, err := p.api.NewQuery(queryParams).Execute()
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -145,15 +164,18 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
 		result := series.DataPoints[0][1]
+		if math.IsNaN(result) {
+			return  fmt.Sprintf("%.2f", result), v1alpha1.AnalysisPhaseInconclusive, nil
+		}
 		newStatus := p.evaluateResult(result, metric)
-		return fmt.Sprintf("%f", result) , newStatus, nil
+		return fmt.Sprintf("%.2f", result) , newStatus, nil
 
 	} else if len(response.TimeSeries) > 1 {
 		results := make([]float64, 0, len(response.TimeSeries))
 		valueStr := "["
 		for _, series := range response.TimeSeries {
 			value :=  series.DataPoints[0][1]
-			valueStr = valueStr + fmt.Sprintf("%f", value) + ","
+			valueStr = valueStr + fmt.Sprintf("%.2f", value) + ","
 			results = append(results, value)
 		}
 		// if we appended to the string, we should remove the last comma on the string
@@ -175,17 +197,17 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 }
 
 // NewWavefrontProvider Creates a new Wavefront client
-func NewWavefrontProvider(apiClient *wavefront_api.Client, logCtx log.Entry) *Provider {
+func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
-		apiClient: apiClient,
+		api: api,
 	}
 }
 
 // NewWavefrontAPI generates a Wavefront API client from the metric configuration
-func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (*wavefront_api.Client, error) {
+func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (WavefrontClientAPI, error) {
 	ns := Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get("wavefront-api-tokens", metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(WavefrontTokensSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +221,7 @@ func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface)
 		}
 	}
 	if wf_client != nil {
-		return wf_client, nil
+		return &WavefrontClient{Client: wf_client}, nil
 	} else {
 		return nil, errors.New("API token not found")
 	}
