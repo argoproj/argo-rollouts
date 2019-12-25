@@ -73,11 +73,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	queryParams := &wavefront_api.QueryParams {
-		QueryString: query,
-		StartTime:  strconv.FormatInt(time.Now().Unix() * 1000, 10),
-		MaxPoints: "1",
-		Granularity: "s",
+	queryParams := &wavefront_api.QueryParams{
+		QueryString:             query,
+		StartTime:               strconv.FormatInt(time.Now().Unix()*1000, 10),
+		MaxPoints:               "1",
+		Granularity:             "s",
 		SeriesOutsideTimeWindow: false,
 	}
 
@@ -163,16 +163,16 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 		series := response.TimeSeries[0]
 		result := series.DataPoints[0][1]
 		if math.IsNaN(result) {
-			return  fmt.Sprintf("%.2f", result), v1alpha1.AnalysisPhaseInconclusive, nil
+			return fmt.Sprintf("%.2f", result), v1alpha1.AnalysisPhaseInconclusive, nil
 		}
 		newStatus := p.evaluateResult(result, metric)
-		return fmt.Sprintf("%.2f", result) , newStatus, nil
+		return fmt.Sprintf("%.2f", result), newStatus, nil
 
 	} else if len(response.TimeSeries) > 1 {
 		results := make([]float64, 0, len(response.TimeSeries))
 		valueStr := "["
 		for _, series := range response.TimeSeries {
-			value :=  series.DataPoints[0][1]
+			value := series.DataPoints[0][1]
 			valueStr = valueStr + fmt.Sprintf("%.2f", value) + ","
 			results = append(results, value)
 		}
@@ -189,7 +189,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 		return valueStr, newStatus, nil
 
 	} else {
-		return "",v1alpha1.AnalysisPhaseFailed, nil
+		return "", v1alpha1.AnalysisPhaseFailed, nil
 	}
 }
 
@@ -197,7 +197,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
-		api: api,
+		api:    api,
 	}
 }
 
@@ -213,7 +213,7 @@ func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface)
 		if source == metric.Provider.Wavefront.Address {
 			wf_client, _ = wavefront_api.NewClient(&wavefront_api.Config{
 				Address: source,
-				Token:  string(token[:]),
+				Token:   string(token[:]),
 			})
 		}
 	}

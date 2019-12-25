@@ -6,22 +6,22 @@ import (
 
 type mockAPI struct {
 	response *wavefront_api.QueryResponse
-	err error
+	err      error
 }
 
 type mockQuery struct {
 	response *wavefront_api.QueryResponse
-	err   error
+	err      error
 }
 
 func (m mockAPI) NewQuery(queryParams *wavefront_api.QueryParams) WavefrontQueryAPI {
 	return mockQuery{
 		response: m.response,
-		err: m.err,
+		err:      m.err,
 	}
 }
 
-func (q mockQuery) Execute() (*wavefront_api.QueryResponse, error){
+func (q mockQuery) Execute() (*wavefront_api.QueryResponse, error) {
 	if q.err != nil {
 		return nil, q.err
 	}

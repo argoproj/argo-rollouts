@@ -2,6 +2,9 @@ package wavefront
 
 import (
 	"fmt"
+	"math"
+	"testing"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	wavefront_api "github.com/spaceapegames/go-wavefront"
@@ -11,10 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-	"math"
-	"testing"
 )
-
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
@@ -24,13 +24,13 @@ func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mockSeries := wavefront_api.TimeSeries{
 		DataPoints: []wavefront_api.DataPoint{
-			[]float64{12000,10},
+			[]float64{12000, 10},
 		},
 	}
 	mock := mockAPI{
 		response: &wavefront_api.QueryResponse{
 			TimeSeries: []wavefront_api.TimeSeries{mockSeries},
-		},}
+		}}
 
 	p := NewWavefrontProvider(&mock, e)
 	metric := v1alpha1.Metric{
@@ -114,16 +114,16 @@ func TestProcessMutipleTimeseriesResponse(t *testing.T) {
 
 	mockSeries1 := wavefront_api.TimeSeries{
 		DataPoints: []wavefront_api.DataPoint{
-			[]float64{12000,10},
+			[]float64{12000, 10},
 		},
 	}
 	mockSeries2 := wavefront_api.TimeSeries{
 		DataPoints: []wavefront_api.DataPoint{
-			[]float64{12000,11},
+			[]float64{12000, 11},
 		},
 	}
 	response := &wavefront_api.QueryResponse{
-		TimeSeries: []wavefront_api.TimeSeries{mockSeries1,mockSeries2},
+		TimeSeries: []wavefront_api.TimeSeries{mockSeries1, mockSeries2},
 	}
 	value, status, err := p.processResponse(metric, response)
 	assert.Nil(t, err)
