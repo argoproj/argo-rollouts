@@ -182,7 +182,10 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		c.recorder.Event(rollout, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
 		newStatus := rollout.Status.DeepCopy()
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
-		err := c.patchCondition(rollout, newStatus, cond)
+		patchErr := c.patchCondition(rollout, newStatus, cond)
+		if patchErr != nil {
+			logCtx.Warnf("Error Patching Rollout: %s", patchErr.Error())
+		}
 		return nil, err
 	}
 
@@ -369,9 +372,7 @@ func (c *RolloutController) calculateBaseStatus(roCtx rolloutContext) v1alpha1.R
 func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) error {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
-	if !conditions.HasRevisionHistoryLimit(rollout) {
-		return nil
-	}
+	revHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 
 	// Avoid deleting replica set with deletion timestamp set
 	aliveFilter := func(rs *appsv1.ReplicaSet) bool {
@@ -379,7 +380,7 @@ func (c *RolloutController) cleanupRollouts(oldRSs []*appsv1.ReplicaSet, roCtx r
 	}
 	cleanableRSes := controller.FilterReplicaSets(oldRSs, aliveFilter)
 
-	diff := int32(len(cleanableRSes)) - *rollout.Spec.RevisionHistoryLimit
+	diff := int32(len(cleanableRSes)) - revHistoryLimit
 	if diff <= 0 {
 		return nil
 	}
