@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -72,6 +73,8 @@ func newCommand() *cobra.Command {
 			checkError(err)
 			rolloutClient, err := clientset.NewForConfig(config)
 			checkError(err)
+			dynamicClient, err := dynamic.NewForConfig(config)
+			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -91,7 +94,7 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
-			cm := controller.NewManager(kubeClient, rolloutClient,
+			cm := controller.NewManager(kubeClient, rolloutClient, dynamicClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				jobInformerFactory.Batch().V1().Jobs(),

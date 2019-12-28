@@ -19,15 +19,17 @@ const (
 	NamespaceKey = "namespace"
 )
 
-// WithRollout returns a logging context with the rollout field set
+// WithRollout returns a logging context for Rollouts
 func WithRollout(rollout *v1alpha1.Rollout) *log.Entry {
 	return log.WithField(RolloutKey, rollout.Name).WithField(NamespaceKey, rollout.Namespace)
 }
 
+// WithExperiment returns a logging context for Experiments
 func WithExperiment(experiment *v1alpha1.Experiment) *log.Entry {
 	return log.WithField(ExperimentKey, experiment.Name).WithField(NamespaceKey, experiment.Namespace)
 }
 
+// WithAnalysisRun returns a logging context for AnalysisRun
 func WithAnalysisRun(ar *v1alpha1.AnalysisRun) *log.Entry {
 	return log.WithField(AnalysisRunKey, ar.Name).WithField(NamespaceKey, ar.Namespace)
 }

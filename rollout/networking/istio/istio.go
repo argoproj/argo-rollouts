@@ -5,23 +5,29 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
+const networkingType = "Istio"
+
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		rollout:       r,
 		log:           logutil.WithRollout(r),
 		desiredWeight: desiredWeight,
 
-		client: client,
+		client:   client,
+		recorder: recorder,
 	}
 }
 
@@ -31,6 +37,7 @@ type Reconciler struct {
 	log           *logrus.Entry
 	desiredWeight int32
 	client        dynamic.Interface
+	recorder      record.EventRecorder
 }
 
 type virtualServicePatch struct {
@@ -133,6 +140,11 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured) (*u
 	return newObj, len(patches) > 0, err
 }
 
+// Type indicates this reconciler is an Istio reconciler
+func (r *Reconciler) Type() string {
+	return networkingType
+}
+
 // Reconcile modifies Istio resources to reach desired state
 func (r *Reconciler) Reconcile() error {
 	vsvcName := r.rollout.Spec.Strategy.Canary.Networking.Istio.VirtualService.Name
@@ -142,6 +154,10 @@ func (r *Reconciler) Reconcile() error {
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
 	vsvc, err := client.Get(vsvcName, metav1.GetOptions{})
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			msg := fmt.Sprintf("Virtual Service `%s` not found", vsvcName)
+			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "VirtualServiceNotFound", msg)
+		}
 		return err
 	}
 	modifiedVsvc, modifed, err := r.reconcileVirtualService(vsvc)
@@ -151,6 +167,9 @@ func (r *Reconciler) Reconcile() error {
 	if !modifed {
 		return nil
 	}
+	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, r.desiredWeight)
+	r.log.Info(msg)
+	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(modifiedVsvc, metav1.UpdateOptions{})
 	return err
 }

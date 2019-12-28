@@ -56,6 +56,10 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 		return err
 	}
 
+	if err := c.reconcileNetworking(roCtx); err != nil {
+		return err
+	}
+
 	logCtx.Info("Reconciling Experiment step")
 	err = c.reconcileExperiments(roCtx)
 	if err != nil {
