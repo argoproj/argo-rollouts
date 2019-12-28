@@ -23,10 +23,35 @@ func (c *RolloutController) NewNetworkingReconciler(roCtx rolloutContext, desire
 	return nil
 }
 
-func (c *RolloutController) reconcileNetworking(roCtx rolloutContext) error {
+func (c *RolloutController) reconcileNetworking(roCtx *canaryContext) error {
 	//TODO(dthomson) base setWeight on previous value if not at desired
-	desiredWeight := replicasetutil.GetCurrentSetWeight(roCtx.Rollout())
-	reconciler := c.NewNetworkingReconciler(roCtx, desiredWeight)
+	rollout := roCtx.Rollout()
+	if rollout.Spec.Strategy.Canary.Networking == nil {
+		return nil
+	}
+	newRS := roCtx.NewRS()
+	stableRS := roCtx.StableRS()
+	olderRS := roCtx.OlderRSs()
+
+	atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, olderRS)
+	_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+	desiredWeight := int32(0)
+	if !atDesiredReplicaCount {
+		//Use the previous weight since the new RS is not ready for neww weight
+		for i := *index - 1; i >= 0; i-- {
+			step := rollout.Spec.Strategy.Canary.Steps[i]
+			if step.SetWeight != nil {
+				desiredWeight = *step.SetWeight
+				break
+			}
+		}
+		// This if statement prevents the desiredWeight being set to 100
+		// when the rollout has progressed through all the steps. The rollout
+		// should send all traffic to the stable service by using a weight of 0
+	} else if *index != int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+		desiredWeight = replicasetutil.GetCurrentSetWeight(rollout)
+	}
+	reconciler := c.newNetworkingReconciler(roCtx, desiredWeight)
 	if reconciler == nil {
 		return nil
 	}
