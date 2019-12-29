@@ -46,7 +46,8 @@ type RolloutController struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with networking resources
-	dynamicclientset dynamic.Interface
+	dynamicclientset    dynamic.Interface
+	defaultIstioVersion string
 
 	replicaSetLister       appslisters.ReplicaSetLister
 	replicaSetSynced       cache.InformerSynced
@@ -92,7 +93,8 @@ func NewRolloutController(
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	serviceWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
-	recorder record.EventRecorder) *RolloutController {
+	recorder record.EventRecorder,
+	defaultIstioVersion string) *RolloutController {
 
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: kubeclientset,
@@ -103,6 +105,7 @@ func NewRolloutController(
 		kubeclientset:          kubeclientset,
 		argoprojclientset:      argoprojclientset,
 		dynamicclientset:       dynamicclientset,
+		defaultIstioVersion:    defaultIstioVersion,
 		replicaSetControl:      replicaSetControl,
 		replicaSetLister:       replicaSetInformer.Lister(),
 		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,

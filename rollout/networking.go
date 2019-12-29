@@ -18,7 +18,7 @@ func (c *RolloutController) NewNetworkingReconciler(roCtx rolloutContext, desire
 		return nil
 	}
 	if rollout.Spec.Strategy.Canary.Networking.Istio != nil {
-		return istio.NewReconciler(rollout, desiredWeight, c.dynamicclientset, c.recorder)
+		return istio.NewReconciler(rollout, desiredWeight, c.dynamicclientset, c.recorder, c.defaultIstioVersion)
 	}
 	return nil
 }

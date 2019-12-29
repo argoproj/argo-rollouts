@@ -121,7 +121,7 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{})
+	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
 	err := r.Reconcile()
 	assert.Nil(t, err)
 	actions := client.Actions()
@@ -135,7 +135,7 @@ func TestReconcileNoChanges(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 0, client, &record.FakeRecorder{})
+	r := NewReconciler(ro, 0, client, &record.FakeRecorder{}, "v1alpha3")
 	err := r.Reconcile()
 	assert.Nil(t, err)
 	actions := client.Actions()
@@ -145,9 +145,11 @@ func TestReconcileNoChanges(t *testing.T) {
 
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema)
+	obj := strToUnstructured(regularVsvc)
+	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{})
+	ro.Spec.Strategy.Canary.Networking.Istio.APIVersion = "not-found"
+	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
 	err := r.Reconcile()
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))
@@ -160,7 +162,7 @@ func TestType(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{})
+	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
 	assert.Equal(t, Type, r.Type())
 }
 

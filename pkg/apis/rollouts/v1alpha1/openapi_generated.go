@@ -1096,6 +1096,13 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioNetworking(ref common.ReferenceCallb
 			SchemaProps: spec.SchemaProps{
 				Description: "IstioNetworking configuration for Istio service mesh to enable fine grain configuration",
 				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion which API version of the VirtualService the controller should modify. Defaults to latest Istio version or what version is passed in as a flag",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "VirtualService reference to a Virtual Service that modified to shape traffic",

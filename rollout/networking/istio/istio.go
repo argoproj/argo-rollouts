@@ -20,24 +20,26 @@ import (
 const Type = "Istio"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface, recorder record.EventRecorder, defaultAPIVersion string) *Reconciler {
 	return &Reconciler{
 		rollout:       r,
 		log:           logutil.WithRollout(r),
 		desiredWeight: desiredWeight,
 
-		client:   client,
-		recorder: recorder,
+		client:            client,
+		recorder:          recorder,
+		defaultAPIVersion: defaultAPIVersion,
 	}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
-	rollout       *v1alpha1.Rollout
-	log           *logrus.Entry
-	desiredWeight int32
-	client        dynamic.Interface
-	recorder      record.EventRecorder
+	rollout           *v1alpha1.Rollout
+	log               *logrus.Entry
+	desiredWeight     int32
+	client            dynamic.Interface
+	recorder          record.EventRecorder
+	defaultAPIVersion string
 }
 
 type virtualServicePatch struct {
@@ -149,8 +151,11 @@ func (r *Reconciler) Type() string {
 func (r *Reconciler) Reconcile() error {
 	vsvcName := r.rollout.Spec.Strategy.Canary.Networking.Istio.VirtualService.Name
 
-	//TODO(dthomson) is there a better way to get GVK
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	apiVersion := r.defaultAPIVersion
+	if r.rollout.Spec.Strategy.Canary.Networking.Istio.APIVersion != "" {
+		apiVersion = r.rollout.Spec.Strategy.Canary.Networking.Istio.APIVersion
+	}
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(apiVersion)
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
 	vsvc, err := client.Get(vsvcName, metav1.GetOptions{})
 	if err != nil {

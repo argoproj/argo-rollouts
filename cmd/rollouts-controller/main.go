@@ -29,6 +29,8 @@ import (
 const (
 	// CLIName is the name of the CLI
 	cliName = "argo-rollouts"
+
+	defaultIstioVersion = "v1alpha3"
 )
 
 func newCommand() *cobra.Command {
@@ -43,6 +45,7 @@ func newCommand() *cobra.Command {
 		experimentThreads   int
 		analysisThreads     int
 		serviceThreads      int
+		istioVersion        string
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -104,7 +107,8 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				resyncDuration,
 				instanceID,
-				metricsPort)
+				metricsPort,
+				defaultIstioVersion)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
@@ -128,6 +132,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
+	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	return &command
 }
 

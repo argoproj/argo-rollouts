@@ -90,6 +90,7 @@ func NewManager(
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
+	defaultIstioVersion string,
 ) *Manager {
 
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
@@ -125,7 +126,8 @@ func NewManager(
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		metricsServer,
-		recorder)
+		recorder,
+		defaultIstioVersion)
 
 	experimentController := experiments.NewExperimentController(
 		kubeclientset,

@@ -382,7 +382,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
-		&record.FakeRecorder{})
+		&record.FakeRecorder{},
+		"v1alpha3",
+	)
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
