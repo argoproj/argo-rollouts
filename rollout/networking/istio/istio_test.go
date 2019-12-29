@@ -161,7 +161,7 @@ func TestType(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, 10, client, &record.FakeRecorder{})
-	assert.Equal(t, networkingType, r.Type())
+	assert.Equal(t, Type, r.Type())
 }
 
 func TestInvalidPatches(t *testing.T) {

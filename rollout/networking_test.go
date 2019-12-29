@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/networking/istio"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 type FakeNetworkingReconciler struct {
@@ -29,6 +32,37 @@ func (r *FakeNetworkingReconciler) Reconcile() error {
 
 func (r *FakeNetworkingReconciler) Type() string {
 	return "fake"
+}
+
+func TestReconcileNetworkingReturnErr(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(10),
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Networking = &v1alpha1.RolloutNetworking{}
+	f.fakeNetworking = &FakeNetworkingReconciler{
+		errMessage: "Error message",
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.runExpectError(getKey(r2, t), true)
+
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
@@ -134,7 +168,44 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	assert.Equal(t, int32(0), f.fakeNetworking.controllerSetDesiredWeight)
 }
 
-/*
-Test calculate the desiredWeight (wait until ready)
+func TestNewNetworkingReconciler(t *testing.T) {
+	rc := RolloutController{}
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(10),
+		},
+	}
 
-*/
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler := rc.NewNetworkingReconciler(roCtx, 10)
+		assert.Nil(t, networkReconciler)
+	}
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.Networking = &v1alpha1.RolloutNetworking{}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler := rc.NewNetworkingReconciler(roCtx, 10)
+		assert.Nil(t, networkReconciler)
+	}
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.Networking = &v1alpha1.RolloutNetworking{
+			Istio: &v1alpha1.IstioNetworking{},
+		}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler := rc.NewNetworkingReconciler(roCtx, 10)
+		assert.NotNil(t, networkReconciler)
+		assert.Equal(t, istio.Type, networkReconciler.Type())
+	}
+}

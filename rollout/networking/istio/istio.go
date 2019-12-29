@@ -17,7 +17,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-const networkingType = "Istio"
+const Type = "Istio"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
 func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface, recorder record.EventRecorder) *Reconciler {
@@ -142,7 +142,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured) (*u
 
 // Type indicates this reconciler is an Istio reconciler
 func (r *Reconciler) Type() string {
-	return networkingType
+	return Type
 }
 
 // Reconcile modifies Istio resources to reach desired state
