@@ -267,7 +267,8 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			return err
 		}
 
-		if err := c.reconcileNetworking(roCtx); err != nil {
+		err = c.reconcileTrafficRouting(roCtx)
+		if err != nil {
 			return err
 		}
 

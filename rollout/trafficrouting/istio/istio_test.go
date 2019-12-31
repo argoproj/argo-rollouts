@@ -38,8 +38,8 @@ func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollo
 				Canary: &v1alpha1.CanaryStrategy{
 					StableService: stableSvc,
 					CanaryService: canarySvc,
-					Networking: &v1alpha1.RolloutNetworking{
-						Istio: &v1alpha1.IstioNetworking{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
 							VirtualService: v1alpha1.IstioVirtualService{
 								Name:   vsvc,
 								Routes: routes,
@@ -148,7 +148,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	obj := strToUnstructured(regularVsvc)
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	ro.Spec.Strategy.Canary.Networking.Istio.APIVersion = "not-found"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.APIVersion = "not-found"
 	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
 	err := r.Reconcile()
 	assert.NotNil(t, err)

@@ -80,7 +80,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute) virtu
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	routes := map[string]bool{}
-	for _, r := range r.rollout.Spec.Strategy.Canary.Networking.Istio.VirtualService.Routes {
+	for _, r := range r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes {
 		routes[r] = true
 	}
 
@@ -149,11 +149,11 @@ func (r *Reconciler) Type() string {
 
 // Reconcile modifies Istio resources to reach desired state
 func (r *Reconciler) Reconcile() error {
-	vsvcName := r.rollout.Spec.Strategy.Canary.Networking.Istio.VirtualService.Name
+	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 
 	apiVersion := r.defaultAPIVersion
-	if r.rollout.Spec.Strategy.Canary.Networking.Istio.APIVersion != "" {
-		apiVersion = r.rollout.Spec.Strategy.Canary.Networking.Istio.APIVersion
+	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.APIVersion != "" {
+		apiVersion = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.APIVersion
 	}
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(apiVersion)
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)

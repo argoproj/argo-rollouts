@@ -45,7 +45,7 @@ type RolloutController struct {
 	// argoprojclientset is a clientset for our own API group
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
-	// It is used to interact with networking resources
+	// It is used to interact with TrafficRouting resources
 	dynamicclientset    dynamic.Interface
 	defaultIstioVersion string
 
@@ -61,9 +61,9 @@ type RolloutController struct {
 	metricsServer          *metrics.MetricsServer
 
 	// used for unit testing
-	enqueueRollout          func(obj interface{})
-	enqueueRolloutAfter     func(obj interface{}, duration time.Duration)
-	newNetworkingReconciler func(roCtx rolloutContext, desiredWeight int32) NetworkingReconciler
+	enqueueRollout              func(obj interface{})
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
+	newTrafficRoutingReconciler func(roCtx rolloutContext, desiredWeight int32) TrafficRoutingReconciler
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -128,7 +128,7 @@ func NewRolloutController(
 	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
 	}
-	controller.newNetworkingReconciler = controller.NewNetworkingReconciler
+	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change

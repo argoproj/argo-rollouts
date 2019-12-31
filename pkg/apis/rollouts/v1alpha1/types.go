@@ -124,8 +124,8 @@ type CanaryStrategy struct {
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty"`
-	// Networking hosts all the different networking tools supported to enable more fine-grained traffic shaping
-	Networking *RolloutNetworking `json:"networking,omitempty"`
+	// TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing
+	TrafficRouting *RolloutTrafficRouting `json:"trafficRouting,omitempty"`
 
 	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
@@ -156,14 +156,14 @@ type CanaryStrategy struct {
 	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
 }
 
-// RolloutNetworking hosts all the different networking tools supported to enable more fine-grained traffic shaping
-type RolloutNetworking struct {
+// RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing
+type RolloutTrafficRouting struct {
 	// Istio holds Istio specific configuration to route traffic
-	Istio *IstioNetworking `json:"istio,omitempty"`
+	Istio *IstioTrafficRouting `json:"istio,omitempty"`
 }
 
-// IstioNetworking configuration for Istio service mesh to enable fine grain configuration
-type IstioNetworking struct {
+// IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
+type IstioTrafficRouting struct {
 	// APIVersion which API version of the VirtualService the controller should
 	// modify. Defaults to latest Istio version or what version is passed in as a flag
 	APIVersion string `json:"apiVersion,omitempty"`

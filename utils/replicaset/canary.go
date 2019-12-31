@@ -37,7 +37,7 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 		desiredNewRSReplicaCount = rolloutSpecReplica
 		desiredStableRSReplicaCount = 0
 	}
-	if rollout.Spec.Strategy.Canary.Networking != nil {
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 		desiredStableRSReplicaCount = rolloutSpecReplica
 	}
 
@@ -86,7 +86,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(setWeight) / 100))))
 	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(setWeight) / 100)))
 
-	if rollout.Spec.Strategy.Canary.Networking != nil {
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 		return desiredNewRSReplicaCount, rolloutSpecReplica
 	}
 

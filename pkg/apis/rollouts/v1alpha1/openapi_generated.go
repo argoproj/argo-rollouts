@@ -51,7 +51,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                         schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioNetworking":                          schema_pkg_apis_rollouts_v1alpha1_IstioNetworking(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                      schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                      schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                            schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
@@ -71,11 +71,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef": schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                              schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutNetworking":                        schema_pkg_apis_rollouts_v1alpha1_RolloutNetworking(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                             schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                              schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                            schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                          schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting":                    schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                              schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                             schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                           schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
@@ -696,10 +696,10 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							},
 						},
 					},
-					"networking": {
+					"trafficRouting": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Networking hosts all the different networking tools supported to enable more fine-grained traffic shaping",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutNetworking"),
+							Description: "TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting"),
 						},
 					},
 					"maxUnavailable": {
@@ -724,7 +724,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutNetworking", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -1090,11 +1090,11 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_IstioNetworking(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "IstioNetworking configuration for Istio service mesh to enable fine grain configuration",
+				Description: "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration",
 				Properties: map[string]spec.Schema{
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
@@ -1984,26 +1984,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref common.ReferenceCallback)
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_RolloutNetworking(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "RolloutNetworking hosts all the different networking tools supported to enable more fine-grained traffic shaping",
-				Properties: map[string]spec.Schema{
-					"istio": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Istio holds Istio specific configuration to route traffic",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioNetworking"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioNetworking"},
-	}
-}
-
 func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2262,6 +2242,26 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing",
+				Properties: map[string]spec.Schema{
+					"istio": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Istio holds Istio specific configuration to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting"},
 	}
 }
 

@@ -75,7 +75,7 @@ type fixture struct {
 	enqueuedObjects map[string]int
 	unfreezeTime    func()
 
-	fakeNetworking *FakeNetworkingReconciler
+	fakeTrafficRouting *FakeTrafficRoutingReconciler
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -407,9 +407,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		c.enqueueRollout(obj)
 	}
 
-	c.newNetworkingReconciler = func(roCtx rolloutContext, desiredWeight int32) NetworkingReconciler {
-		f.fakeNetworking.SetDesiredWeight(desiredWeight)
-		return f.fakeNetworking
+	c.newTrafficRoutingReconciler = func(roCtx rolloutContext, desiredWeight int32) TrafficRoutingReconciler {
+		f.fakeTrafficRouting.SetDesiredWeight(desiredWeight)
+		return f.fakeTrafficRouting
 	}
 
 	for _, r := range f.rolloutLister {
@@ -1173,7 +1173,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"77f565f4d7"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7d8887f797"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
