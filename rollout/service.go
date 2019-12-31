@@ -129,21 +129,24 @@ func (c *RolloutController) reconcileStableAndCanaryService(roCtx *canaryContext
 		if err != nil {
 			return err
 		}
-
-		err = c.switchServiceSelector(svc, stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
-		if err != nil {
-			return err
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+			if err != nil {
+				return err
+			}
 		}
+
 	}
 	if r.Spec.Strategy.Canary.CanaryService != "" && newRS != nil {
 		svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
 		if err != nil {
 			return err
 		}
-
-		err = c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
-		if err != nil {
-			return err
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

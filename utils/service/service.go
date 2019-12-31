@@ -33,6 +33,9 @@ func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 		if rollout.Spec.Strategy.Canary.CanaryService != "" {
 			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.CanaryService)] = true
 		}
+		if rollout.Spec.Strategy.Canary.StableService != "" {
+			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.StableService)] = true
+		}
 	}
 	var services []string
 	for svc := range servicesSet {
