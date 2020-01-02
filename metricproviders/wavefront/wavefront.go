@@ -161,7 +161,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
-		result := series.DataPoints[0][1]
+		result := series.DataPoints[0][1] // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
 		if math.IsNaN(result) {
 			return fmt.Sprintf("%.2f", result), v1alpha1.AnalysisPhaseInconclusive, nil
 		}
@@ -189,7 +189,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_a
 		return valueStr, newStatus, nil
 
 	} else {
-		return "", v1alpha1.AnalysisPhaseFailed, nil
+		return "", v1alpha1.AnalysisPhaseFailed, fmt.Errorf("No TimeSeries found in response from Wavefront")
 	}
 }
 
@@ -213,7 +213,7 @@ func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface)
 		if source == metric.Provider.Wavefront.Address {
 			wf_client, _ = wavefront_api.NewClient(&wavefront_api.Config{
 				Address: source,
-				Token:   string(token[:]),
+				Token:   string(token),
 			})
 		}
 	}

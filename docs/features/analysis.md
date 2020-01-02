@@ -98,7 +98,7 @@ spec:
     interval: 5m
     successCondition: result >= 0.95
     failureLimit: 3
-    prometheus:
+    wavefront:
       address: example.wavefront.com
       query: |
         sum(rate(

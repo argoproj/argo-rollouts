@@ -20,6 +20,21 @@ func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
 }
 
+func TestType(t *testing.T) {
+	e := log.Entry{}
+	mockSeries := wavefront_api.TimeSeries{
+		DataPoints: []wavefront_api.DataPoint{
+			[]float64{12000, 10},
+		},
+	}
+	mock := mockAPI{
+		response: &wavefront_api.QueryResponse{
+			TimeSeries: []wavefront_api.TimeSeries{mockSeries},
+		}}
+	p := NewWavefrontProvider(mock, e)
+	assert.Equal(t, ProviderType, p.Type())
+}
+
 func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mockSeries := wavefront_api.TimeSeries{
@@ -73,6 +88,76 @@ func TestRunWithQueryError(t *testing.T) {
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestRunWithEvaluationError(t *testing.T) {
+	e := log.WithField("", "")
+	mock := mockAPI{
+		response: &wavefront_api.QueryResponse{
+			TimeSeries: []wavefront_api.TimeSeries{},
+		}}
+	p := NewWavefrontProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Wavefront: &v1alpha1.WavefrontMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.Equal(t, "No TimeSeries found in response from Wavefront", measurement.Message)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestResume(t *testing.T) {
+	e := log.WithField("", "")
+	mock := mockAPI{}
+	p := NewWavefrontProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Wavefront: &v1alpha1.WavefrontMetric{
+				Query: "test",
+			},
+		},
+	}
+	now := metav1.Now()
+	previousMeasurement := v1alpha1.Measurement{
+		StartedAt: &now,
+		Phase:     v1alpha1.AnalysisPhaseInconclusive,
+	}
+	measurement := p.Resume(newAnalysisRun(), metric, previousMeasurement)
+	assert.Equal(t, previousMeasurement, measurement)
+}
+
+func TestTerminate(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{}
+	p := NewWavefrontProvider(mock, *e)
+	metric := v1alpha1.Metric{}
+	now := metav1.Now()
+	previousMeasurement := v1alpha1.Measurement{
+		StartedAt: &now,
+		Phase:     v1alpha1.AnalysisPhaseRunning,
+	}
+	measurement := p.Terminate(newAnalysisRun(), metric, previousMeasurement)
+	assert.Equal(t, previousMeasurement, measurement)
+}
+
+func TestGarbageCollect(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{}
+	p := NewWavefrontProvider(mock, *e)
+	err := p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
+	assert.NoError(t, err)
 }
 
 func TestProcessNaNResponse(t *testing.T) {
