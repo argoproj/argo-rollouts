@@ -37,6 +37,7 @@ type CreateAnalysisRunOptions struct {
 
 	Name         string
 	GenerateName string
+	InstanceID   string
 	ArgFlags     []string
 	From         string
 	FromFile     string
@@ -232,6 +233,11 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if createOptions.InstanceID != "" {
+				run.Labels = map[string]string{
+					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
+				}
+			}
 			created, err := createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(run)
 			if err != nil {
 				return err
@@ -243,6 +249,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	o.AddKubectlFlags(cmd)
 	cmd.Flags().StringVar(&createOptions.Name, "name", "", "Use the specified name for the run")
 	cmd.Flags().StringVar(&createOptions.GenerateName, "generate-name", "", "Use the specified generateName for the run")
+	cmd.Flags().StringVar(&createOptions.InstanceID, "instance-id", "", "Instance-ID for the AnalysisRun")
 	cmd.Flags().StringArrayVarP(&createOptions.ArgFlags, "argument", "a", []string{}, "Arguments to the parameter template")
 	cmd.Flags().StringVar(&createOptions.From, "from", "", "Create an AnalysisRun from an AnalysisTemplate in the cluster")
 	cmd.Flags().StringVar(&createOptions.FromFile, "from-file", "", "Create an AnalysisRun from an AnalysisTemplate in a local file")

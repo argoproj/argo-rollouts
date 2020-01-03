@@ -422,3 +422,20 @@ func TestNewAnalysisRunFromTemplate(t *testing.T) {
 	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
 	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
 }
+
+func TestGetInstanceID(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+			Labels: map[string]string{
+				v1alpha1.LabelKeyControllerInstanceID: "test",
+			},
+		},
+	}
+	assert.Equal(t, "test", GetInstanceID(run))
+	run.Labels = nil
+	assert.Equal(t, "", GetInstanceID(run))
+	var nilRun *v1alpha1.AnalysisRun
+	assert.Panics(t, func() { GetInstanceID(nilRun) })
+
+}

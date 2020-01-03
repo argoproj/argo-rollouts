@@ -35,9 +35,9 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 	labels := map[string]string{}
 	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 	if analysisRunType == v1alpha1.RolloutTypeStepLabel {
-		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash)
+		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash, "")
 	} else if analysisRunType == v1alpha1.RolloutTypeBackgroundRunLabel {
-		labels = analysisutil.BackgroundLabels(podHash)
+		labels = analysisutil.BackgroundLabels(podHash, "")
 	}
 	return &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{

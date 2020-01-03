@@ -529,6 +529,20 @@ func (f *fixture) expectPatchAnalysisRunAction(r *v1alpha1.AnalysisRun) int {
 	return len
 }
 
+func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+	action := filterInformerActions(f.client.Actions())[index]
+	createAction, ok := action.(core.CreateAction)
+	if !ok {
+		assert.Failf(f.t, "Expected Created action, not %s", action.GetVerb())
+	}
+	obj := createAction.GetObject()
+	ar := &v1alpha1.AnalysisRun{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ar)
+	return ar
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)

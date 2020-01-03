@@ -463,6 +463,10 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 	if err != nil {
 		return nil, err
 	}
+	instanceID := analysisutil.GetInstanceID(ec.ex)
+	if instanceID != "" {
+		run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
+	}
 	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
 	return run, nil
 }
