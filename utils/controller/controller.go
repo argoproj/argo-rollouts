@@ -7,11 +7,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -155,4 +158,19 @@ func EnqueueParentObject(obj interface{}, ownerType string, enqueue func(obj int
 		log.Infof("Enqueuing parent of %s/%s: %s %s", namespace, object.GetName(), ownerRef.Kind, parent)
 		enqueue(parent)
 	}
+}
+
+// InstanceIDRequirement returns the label requirement to filter against a controller instance (or not)
+func InstanceIDRequirement(instanceID string) labels.Requirement {
+	var instanceIDReq *labels.Requirement
+	var err error
+	if instanceID != "" {
+		instanceIDReq, err = labels.NewRequirement(v1alpha1.LabelKeyControllerInstanceID, selection.Equals, []string{instanceID})
+	} else {
+		instanceIDReq, err = labels.NewRequirement(v1alpha1.LabelKeyControllerInstanceID, selection.DoesNotExist, nil)
+	}
+	if err != nil {
+		panic(err)
+	}
+	return *instanceIDReq
 }

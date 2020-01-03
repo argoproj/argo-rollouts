@@ -22,6 +22,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 )
 
 const (
@@ -36,6 +37,7 @@ func newCommand() *cobra.Command {
 		logLevel            string
 		glogLevel           int
 		metricsPort         int
+		instanceID          string
 		rolloutThreads      int
 		experimentThreads   int
 		analysisThreads     int
@@ -75,10 +77,14 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
+			instanceIDSelector := controllerutil.InstanceIDRequirement(instanceID)
 			argoRolloutsInformerFactory := informers.NewSharedInformerFactoryWithOptions(
 				rolloutClient,
 				resyncDuration,
-				informers.WithNamespace(namespace))
+				informers.WithNamespace(namespace),
+				informers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.LabelSelector = instanceIDSelector.String()
+				}))
 			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
@@ -94,6 +100,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				resyncDuration,
+				instanceID,
 				metricsPort)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
@@ -113,6 +120,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
