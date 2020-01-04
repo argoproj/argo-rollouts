@@ -83,6 +83,44 @@ spec:
         ))
 ```
 
+* analysis using wavefront query
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  inputs:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 5m
+    successCondition: result >= 0.95
+    failureLimit: 3
+    wavefront:
+      address: example.wavefront.com
+      query: |
+        sum(rate(
+          5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{inputs.service-name}}"
+        ))) /
+        sum(rate(
+          5m, ts("istio.requestcount.count", reporter=client and destination_service="{{inputs.service-name}}"
+        )))
+```
+
+wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wavefront-api-tokens
+type: Opaque
+data:
+  example1.wavefront.com: <token1>
+  example2.wavefront.com: <token2>
+```
 
 ## Analysis at a Predefined Step
 

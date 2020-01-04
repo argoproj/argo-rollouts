@@ -261,4 +261,19 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
 	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+						Wavefront:  &v1alpha1.WavefrontMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
+	}
 }

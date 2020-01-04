@@ -79,3 +79,9 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+    - ""
+  resources:
+    - secrets
+  verbs:
+    - get
