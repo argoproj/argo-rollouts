@@ -122,7 +122,8 @@ func (bgCtx *blueGreenContext) NewStatus() v1alpha1.RolloutStatus {
 
 func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, otherRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
 	allRSs := append(otherRSs, newRS)
-	stableRS, oldRSs := replicasetutil.GetStableRS(r, newRS, otherRSs)
+	stableRS := replicasetutil.GetStableRS(r, newRS, otherRSs)
+	oldRSs := replicasetutil.GetOlderRSs(r, newRS, stableRS, otherRSs)
 
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 	currentEx := experimentutil.GetCurrentExperiment(r, exList)
