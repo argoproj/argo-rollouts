@@ -95,7 +95,8 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 		return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
 	}
 	if rollout.Spec.Strategy.Canary != nil {
-		stableRS, olderRSs := GetStableRS(rollout, newRS, allRSs)
+		stableRS := GetStableRS(rollout, newRS, allRSs)
+		olderRSs := GetOlderRSs(rollout, newRS, stableRS, allRSs)
 		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
 		return newRSReplicaCount, nil
 	}
