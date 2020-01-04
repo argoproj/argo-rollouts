@@ -4,8 +4,93 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+func TestEvaluateResultWithSuccess(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "false",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+}
+
+func TestEvaluateResultWithFailure(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+
+}
+
+func TestEvaluateResultInconclusive(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "false",
+		FailureCondition: "false",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
+}
+
+func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "",
+		FailureCondition: "false",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+}
+
+func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "false",
+		FailureCondition: "",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+}
+
+func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "",
+		FailureCondition: "",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+}
+
+func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "a == true",
+		FailureCondition: "true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+}
+
+func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "a == true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+
+}
 
 func TestEvaluateConditonWithSucces(t *testing.T) {
 	b, err := EvalCondition(true, "result == true")
