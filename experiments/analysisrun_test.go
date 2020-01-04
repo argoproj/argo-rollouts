@@ -393,6 +393,45 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 }
 
+// TestTerminateExperimentOnSuccessfulAnalysisRun verifies the controller completes a experiment with an analysis
+// with the RequiredForCompletion flag when the Analysis completes successfully
+func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:                  "success-rate",
+			TemplateName:          "success-rate",
+			RequiredForCompletion: true,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = secondsAgo(60)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Status = v1alpha1.AnalysisRunStatus{
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:                  e.Spec.Analyses[0].Name,
+			Phase:                 v1alpha1.AnalysisPhaseRunning,
+			AnalysisRun:           ar.Name,
+			RequiredForCompletion: true,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar)
+	defer f.Close()
+	f.expectUpdateReplicaSetAction(rs)
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
+	assert.Equal(t, patchedEx.Status.Message, requiredAnalysisCompletedMessage)
+	assert.Equal(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
+}
+
 // TestTerminateAnalysisRuns verifies we terminate analysis runs when experiment is terminating
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")

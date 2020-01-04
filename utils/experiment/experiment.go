@@ -45,6 +45,9 @@ func IsTerminating(experiment *v1alpha1.Experiment) bool {
 		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
 			return true
 		}
+		if run.Phase == v1alpha1.AnalysisPhaseSuccessful && run.RequiredForCompletion {
+			return true
+		}
 	}
 	return false
 }

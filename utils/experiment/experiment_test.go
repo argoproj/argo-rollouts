@@ -194,7 +194,20 @@ func TestIsTeriminating(t *testing.T) {
 		}
 		assert.True(t, IsTerminating(e))
 	}
-
+	{
+		e := &v1alpha1.Experiment{
+			Status: v1alpha1.ExperimentStatus{
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				AnalysisRuns: []v1alpha1.ExperimentAnalysisRunStatus{
+					{
+						Phase:                 v1alpha1.AnalysisPhaseSuccessful,
+						RequiredForCompletion: true,
+					},
+				},
+			},
+		}
+		assert.True(t, IsTerminating(e))
+	}
 	{
 		e := &v1alpha1.Experiment{}
 		assert.False(t, IsTerminating(e))

@@ -5349,6 +5349,8 @@ spec:
                     type: array
                   name:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                   templateName:
                     type: string
                 required:
@@ -7814,6 +7816,8 @@ spec:
                     type: string
                   phase:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                 required:
                 - analysisRun
                 - name
@@ -8044,6 +8048,8 @@ spec:
                       anyOf:
                       - type: string
                       - type: integer
+                    stableService:
+                      type: string
                     steps:
                       items:
                         properties:

@@ -23,6 +23,10 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
+const (
+	requiredAnalysisCompletedMessage = "Required AnalysisRun completed"
+)
+
 type experimentContext struct {
 	// parameters supplied to the context
 	ex                     *v1alpha1.Experiment
@@ -249,7 +253,8 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
 	if prevStatus == nil {
 		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
-			Name: analysis.Name,
+			Name:                  analysis.Name,
+			RequiredForCompletion: analysis.RequiredForCompletion,
 		}
 	}
 	newStatus := prevStatus.DeepCopy()
@@ -380,6 +385,9 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 				// We will now fail the experiment.
 				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
+			} else if analysesMessage == requiredAnalysisCompletedMessage {
+				ec.newStatus.Phase = analysesStatus
+				ec.newStatus.Message = analysesMessage
 			} else {
 				// The templates are still Running/Progressing, and the analysis are either still
 				// Running/Pending/Successful.
@@ -438,12 +446,21 @@ func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisPhase, string) 
 func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, string) {
 	worstStatus := v1alpha1.AnalysisPhaseSuccessful
 	message := ""
+
+	requiredAnalysisRunCompleted := false
 	for _, a := range ec.ex.Spec.Analyses {
 		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
+		if as.RequiredForCompletion && as.Phase == v1alpha1.AnalysisPhaseSuccessful {
+			requiredAnalysisRunCompleted = true
+		}
 		if analysisutil.IsWorse(worstStatus, as.Phase) {
 			worstStatus = as.Phase
 			message = as.Message
 		}
+	}
+
+	if requiredAnalysisRunCompleted && analysisutil.IsWorse(worstStatus, v1alpha1.AnalysisPhaseRunning) {
+		return v1alpha1.AnalysisPhaseSuccessful, requiredAnalysisCompletedMessage
 	}
 	if worstStatus == v1alpha1.AnalysisPhasePending {
 		// since this will be used as experiment status, we should return Running instead of Pending

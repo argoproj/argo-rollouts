@@ -190,6 +190,8 @@ type ExperimentAnalysisTemplateRef struct {
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
 	Args []Argument `json:"args,omitempty"`
+	// RequiredForCompletion indicates that experiment should complete after analysis finishes
+	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }
 
 type ExperimentAnalysisRunStatus struct {
@@ -201,4 +203,6 @@ type ExperimentAnalysisRunStatus struct {
 	Phase AnalysisPhase `json:"phase"`
 	// Message is a message explaining the current status
 	Message string `json:"message,omitempty"`
+	// RequiredForCompletion indicates that experiment should complete after analysis finishes
+	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }
