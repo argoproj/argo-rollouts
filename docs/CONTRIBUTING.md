@@ -74,7 +74,7 @@ It is much easier to run and debug if you run Argo Rollout in your local machine
 ```bash
 cd ~/go/src/github.com/argoproj/argo-rollouts
 make controller
-./dist/rollout-controller
+./dist/rollouts-controller
 ```
 
 ## Running Local Containers
