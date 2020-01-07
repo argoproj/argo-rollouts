@@ -27,8 +27,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": 1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result > 0",
-				FailureCondition: "result <= 0",
+				SuccessCondition: "asInt(result) > 0",
+				FailureCondition: "asInt(result) <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -46,8 +46,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": 0}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result > 0",
-				FailureCondition: "result <= 0",
+				SuccessCondition: "asInt(result) > 0",
+				FailureCondition: "asInt(result) <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -64,8 +64,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": 1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result > 0",
-				FailureCondition: "result <= 0",
+				SuccessCondition: "asFloat(result) > 0",
+				FailureCondition: "asFloat(result) <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -82,8 +82,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": -1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result > 0",
-				FailureCondition: "result <= 0",
+				SuccessCondition: "asFloat(result) > 0",
+				FailureCondition: "asFloat(result) <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -276,21 +276,4 @@ func TestRunSuite(t *testing.T) {
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
-}
-
-func TestParsePrimitiveSuite(t *testing.T) {
-	var tests = []struct {
-		in  string
-		out interface{}
-	}{
-		{"1", int64(1)},
-		{"true", true},
-		{"1.1", float64(1.1)},
-		{"String", "String"},
-	}
-
-	for _, test := range tests {
-		result := parsePrimitiveFromString(test.in)
-		assert.Equal(t, test.out, result)
-	}
 }

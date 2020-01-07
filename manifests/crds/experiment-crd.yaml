@@ -647,6 +647,10 @@ spec:
                                     - containerPort
                                     type: object
                                   type: array
+                                  x-kubernetes-list-map-keys:
+                                  - containerPort
+                                  - protocol
+                                  x-kubernetes-list-type: map
                                 readinessProbe:
                                   properties:
                                     exec:
@@ -1721,6 +1725,10 @@ spec:
                                     - containerPort
                                     type: object
                                   type: array
+                                  x-kubernetes-list-map-keys:
+                                  - containerPort
+                                  - protocol
+                                  x-kubernetes-list-type: map
                                 readinessProbe:
                                   properties:
                                     exec:
@@ -2100,6 +2108,10 @@ spec:
                               - whenUnsatisfiable
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - topologyKey
+                            - whenUnsatisfiable
+                            x-kubernetes-list-type: map
                           volumes:
                             items:
                               properties:
