@@ -148,8 +148,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	obj := strToUnstructured(regularVsvc)
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.APIVersion = "not-found"
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
+	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "")
 	err := r.Reconcile()
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))

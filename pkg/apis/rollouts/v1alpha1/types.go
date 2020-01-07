@@ -164,9 +164,6 @@ type RolloutTrafficRouting struct {
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
 type IstioTrafficRouting struct {
-	// APIVersion which API version of the VirtualService the controller should
-	// modify. Defaults to latest Istio version or what version is passed in as a flag
-	APIVersion string `json:"apiVersion,omitempty"`
 	// VirtualService reference to a Virtual Service that modified to shape traffic
 	VirtualService IstioVirtualService `json:"virtualService"`
 }
