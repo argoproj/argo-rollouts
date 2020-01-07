@@ -2599,6 +2599,13 @@ spec:
                           query:
                             type: string
                         type: object
+                      wavefront:
+                        properties:
+                          address:
+                            type: string
+                          query:
+                            type: string
+                        type: object
                     type: object
                   successCondition:
                     type: string
@@ -5276,6 +5283,13 @@ spec:
                         - threshold
                         type: object
                       prometheus:
+                        properties:
+                          address:
+                            type: string
+                          query:
+                            type: string
+                        type: object
+                      wavefront:
                         properties:
                           address:
                             type: string
@@ -8044,6 +8058,8 @@ spec:
                       anyOf:
                       - type: string
                       - type: integer
+                    stableService:
+                      type: string
                     steps:
                       items:
                         properties:
@@ -10769,11 +10785,11 @@ rules:
   - update
   - patch
 - apiGroups:
-    - ""
+  - ""
   resources:
-    - secrets
+  - secrets
   verbs:
-    - get
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
