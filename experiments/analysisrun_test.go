@@ -97,6 +97,34 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
+// TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun
+func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: "my-instance-id"}
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	createIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	createdAr := f.getCreatedAnalysisRun(createIndex)
+	assert.Equal(t, "my-instance-id", createdAr.Labels[v1alpha1.LabelKeyControllerInstanceID])
+}
+
 // TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availablility)
 func TestAnalysisTemplateNotExists(t *testing.T) {
 	templates := generateTemplates("bar")

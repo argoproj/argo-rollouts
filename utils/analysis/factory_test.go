@@ -59,8 +59,9 @@ func TestStepLabels(t *testing.T) {
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeStepLabel,
 		v1alpha1.RolloutCanaryStepIndexLabel:  "1",
+		v1alpha1.LabelKeyControllerInstanceID: "test",
 	}
-	generated := StepLabels(1, podHash)
+	generated := StepLabels(1, podHash, "test")
 	assert.Equal(t, expected, generated)
 }
 
@@ -69,8 +70,9 @@ func TestBackgroundLabels(t *testing.T) {
 	expected := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeBackgroundRunLabel,
+		v1alpha1.LabelKeyControllerInstanceID: "test",
 	}
-	generated := BackgroundLabels(podHash)
+	generated := BackgroundLabels(podHash, "test")
 	assert.Equal(t, expected, generated)
 }
 

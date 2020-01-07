@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -342,4 +343,22 @@ func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 	EnqueueParentObject(invalidObject, register.ExperimentKind, enqueueFunc)
 	assert.Len(t, errorMessages, 0)
 	assert.Len(t, enqueuedObjs, 1)
+}
+
+func TestInstanceIDRequirement(t *testing.T) {
+	setWithLabel := labels.Set{
+		v1alpha1.LabelKeyControllerInstanceID: "test",
+	}
+	setWithNoLabel := labels.Set{}
+
+	instanceID := InstanceIDRequirement("test")
+	noInstanceID := InstanceIDRequirement("")
+
+	assert.True(t, instanceID.Matches(setWithLabel))
+	assert.False(t, instanceID.Matches(setWithNoLabel))
+
+	assert.False(t, noInstanceID.Matches(setWithLabel))
+	assert.True(t, noInstanceID.Matches(setWithNoLabel))
+
+	assert.Panics(t, func() { InstanceIDRequirement(".%&(") })
 }

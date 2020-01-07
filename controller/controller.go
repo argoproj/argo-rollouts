@@ -86,6 +86,7 @@ func NewManager(
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	resyncPeriod time.Duration,
+	instanceID string,
 	metricsPort int,
 ) *Manager {
 
