@@ -15,13 +15,11 @@ Install:
 Argo Rollout additionally uses
 * `controller-gen` binary in order to auto-generate the crd manifest
 * `golangci-lint` to lint the project.
-* `mockery` to generate mock objects.
 
 Run the following commands to install them:
 ```bash
 go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-go get -u github.com/vektra/mockery/.../
 ```
 
 

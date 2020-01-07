@@ -574,6 +574,13 @@
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:603b1ea14337a8198a2de0716d1c707e8995e3dea42c0dc17364a93bc504fb87"
+  name = "github.com/vektra/mockery"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e78b021dcbb558a8e7ac1fc5bc757ad7c277bb81"
+
+[[projects]]
   branch = "master"
   digest = "1:f7be435e0ca22e2cd62b2d2542081a231685837170a87a3662abb7cdf9f3f1cd"
   name = "golang.org/x/crypto"
@@ -1339,6 +1346,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/valyala/fasttemplate",
+    "github.com/vektra/mockery",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
