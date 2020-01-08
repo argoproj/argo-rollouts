@@ -299,6 +299,48 @@ func TestGenerateMetricTasksIncomplete(t *testing.T) {
 	}
 }
 
+func TestGenerateMetricTasksHonorInitialDelay(t *testing.T) {
+	now := metav1.Now()
+	nowMinus10 := metav1.NewTime(now.Add(-10 * time.Second))
+	nowMinus20 := metav1.NewTime(now.Add(-20 * time.Second))
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					InitialDelay: "20s",
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	{
+		// ensure we don't take measurement for metrics with start delays when no startAt is set
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 0, len(tasks))
+	}
+	{
+		run.Status.StartedAt = &nowMinus10
+		// ensure we don't take measurement for metrics with start delays where we haven't waited the start delay
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 0, len(tasks))
+	}
+	{
+		run.Status.StartedAt = &nowMinus20
+		// ensure we do take measurement for metrics with start delays where we have waited the start delay
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 1, len(tasks))
+	}
+	{
+		run.Spec.Metrics[0].InitialDelay = "invalid-start-delay"
+		// ensure we don't take measurement for metrics with invalid start delays
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 0, len(tasks))
+	}
+}
+
 func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 	now := metav1.Now()
 	nowMinus50 := metav1.NewTime(now.Add(-50 * time.Second))
@@ -673,6 +715,50 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 		},
 	}
 	assert.Nil(t, calculateNextReconcileTime(run))
+}
+
+func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
+	now := metav1.Now()
+	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "success-rate",
+					Interval: "60s",
+				},
+				{
+					Name:         "start-delay",
+					Interval:     "60s",
+					InitialDelay: "40s",
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+			StartedAt: &nowMinus30,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "success-rate",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "99",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  &nowMinus30,
+							FinishedAt: &nowMinus30,
+						},
+					},
+				},
+			},
+		},
+	}
+	// ensure we requeue after start delay
+	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
+	run.Spec.Metrics[1].InitialDelay = "not-valid-start-delay"
+	// skip invalid start delay and use the other metrics next reconcile time
+	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run))
+
 }
 
 func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {

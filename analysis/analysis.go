@@ -127,6 +127,20 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			continue
 		}
 		if lastMeasurement == nil {
+			if metric.InitialDelay != "" {
+				if run.Status.StartedAt == nil {
+					continue
+				}
+				duration, err := metric.InitialDelay.Duration()
+				if err != nil {
+					logCtx.Warnf("failed to parse duration: %v", err)
+					continue
+				}
+				if run.Status.StartedAt.Add(duration).After(time.Now()) {
+					logCtx.Infof("waiting until start delay duration passes")
+					continue
+				}
+			}
 			// measurement never taken
 			tasks = append(tasks, metricTask{metric: metric})
 			logCtx.Infof("running initial measurement")
@@ -261,6 +275,11 @@ func (c *AnalysisController) asssessRunStatus(run *v1alpha1.AnalysisRun) v1alpha
 	terminating := analysisutil.IsTerminating(run)
 	everythingCompleted := true
 
+	if run.Status.StartedAt == nil {
+		now := metav1.Now()
+		run.Status.StartedAt = &now
+	}
+
 	// Iterate all metrics and update MetricResult.Phase fields based on lastest measurement(s)
 	for _, metric := range run.Spec.Metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
@@ -369,7 +388,23 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		logCtx := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement == nil {
-			// no measurement was started. we should never get here
+			if metric.InitialDelay != "" {
+				startTime := metav1.Now()
+				if run.Status.StartedAt != nil {
+					startTime = *run.Status.StartedAt
+				}
+				duration, err := metric.InitialDelay.Duration()
+				if err != nil {
+					logCtx.Warnf("failed to parse interval: %v", err)
+					continue
+				}
+				endInitialDelay := startTime.Add(duration)
+				if reconcileTime == nil || reconcileTime.After(endInitialDelay) {
+					reconcileTime = &endInitialDelay
+				}
+				continue
+			}
+			// no measurement was started . we should never get here
 			logCtx.Warnf("metric never started. not factored into enqueue time")
 			continue
 		}

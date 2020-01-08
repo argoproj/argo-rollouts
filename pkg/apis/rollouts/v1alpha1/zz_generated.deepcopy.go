@@ -148,6 +148,10 @@ func (in *AnalysisRunStatus) DeepCopyInto(out *AnalysisRunStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.StartedAt != nil {
+		in, out := &in.StartedAt, &out.StartedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

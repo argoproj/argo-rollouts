@@ -2600,6 +2600,8 @@ spec:
                             type: string
                         type: object
                     type: object
+                  startDelay:
+                    type: string
                   successCondition:
                     type: string
                 required:

@@ -2607,6 +2607,8 @@ spec:
                             type: string
                         type: object
                     type: object
+                  startDelay:
+                    type: string
                   successCondition:
                     type: string
                 required:
@@ -2682,6 +2684,9 @@ spec:
                 type: object
               type: array
             phase:
+              type: string
+            startedAt:
+              format: date-time
               type: string
           required:
           - phase
@@ -5297,6 +5302,8 @@ spec:
                             type: string
                         type: object
                     type: object
+                  startDelay:
+                    type: string
                   successCondition:
                     type: string
                 required:

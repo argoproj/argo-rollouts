@@ -289,12 +289,18 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 							},
 						},
 					},
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt indicates when the analysisRun first started",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1384,6 +1390,13 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"interval": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement. If omitted, will perform a single measurement",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"startDelay": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InitialDelay how long the AnalysisRun should wait before starting this metric",
 							Type:        []string{"string"},
 							Format:      "",
 						},
