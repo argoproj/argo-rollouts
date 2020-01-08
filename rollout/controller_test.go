@@ -87,6 +87,7 @@ func newFixture(t *testing.T) *fixture {
 	now := time.Now()
 	patch := monkey.Patch(time.Now, func() time.Time { return now })
 	f.unfreezeTime = patch.Unpatch
+	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
 	return f
 }
 
@@ -407,8 +408,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx rolloutContext, desiredWeight int32) TrafficRoutingReconciler {
-		f.fakeTrafficRouting.SetDesiredWeight(desiredWeight)
+	c.newTrafficRoutingReconciler = func(roCtx rolloutContext) TrafficRoutingReconciler {
 		return f.fakeTrafficRouting
 	}
 

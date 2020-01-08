@@ -96,11 +96,10 @@ spec:
 
 func TestReconcileWeightsBaseCase(t *testing.T) {
 	r := &Reconciler{
-		rollout:       rollout("stable", "canary", "vsvc", []string{"primary"}),
-		desiredWeight: 10,
+		rollout: rollout("stable", "canary", "vsvc", []string{"primary"}),
 	}
 	obj := strToUnstructured(regularVsvc)
-	modifedObj, _, err := r.reconcileVirtualService(obj)
+	modifedObj, _, err := r.reconcileVirtualService(obj, 10)
 	assert.Nil(t, err)
 	assert.NotNil(t, modifedObj)
 	routes, ok, err := unstructured.NestedSlice(modifedObj.Object, "spec", "http")
@@ -121,8 +120,8 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
-	err := r.Reconcile()
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
+	err := r.Reconcile(10)
 	assert.Nil(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 2)
@@ -135,8 +134,8 @@ func TestReconcileNoChanges(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 0, client, &record.FakeRecorder{}, "v1alpha3")
-	err := r.Reconcile()
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
+	err := r.Reconcile(0)
 	assert.Nil(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -148,8 +147,8 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	obj := strToUnstructured(regularVsvc)
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "")
-	err := r.Reconcile()
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "")
+	err := r.Reconcile(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))
 	actions := client.Actions()
@@ -161,7 +160,7 @@ func TestType(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, 10, client, &record.FakeRecorder{}, "v1alpha3")
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
 	assert.Equal(t, Type, r.Type())
 }
 

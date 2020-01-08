@@ -37,6 +37,8 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 		desiredNewRSReplicaCount = rolloutSpecReplica
 		desiredStableRSReplicaCount = 0
 	}
+	// Unlike the ReplicaSet based weighted canary, a service mesh/ingress
+	// based canary leaves the stable as 100% scaled until the rollout completes.
 	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 		desiredStableRSReplicaCount = rolloutSpecReplica
 	}

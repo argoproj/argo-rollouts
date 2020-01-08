@@ -19,14 +19,11 @@ type FakeTrafficRoutingReconciler struct {
 	controllerSetDesiredWeight int32
 }
 
-func (r *FakeTrafficRoutingReconciler) SetDesiredWeight(desiredWeight int32) {
-	r.controllerSetDesiredWeight = desiredWeight
-}
-
-func (r *FakeTrafficRoutingReconciler) Reconcile() error {
+func (r *FakeTrafficRoutingReconciler) Reconcile(desiredWeight int32) error {
 	if r.errMessage != "" {
 		return fmt.Errorf(r.errMessage)
 	}
+	r.controllerSetDesiredWeight = desiredWeight
 	return nil
 }
 
@@ -46,9 +43,7 @@ func TestReconcileTrafficRoutingReturnErr(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{
-		errMessage: "Error message",
-	}
+	f.fakeTrafficRouting.errMessage = "Error message"
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -80,7 +75,6 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
 
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -117,7 +111,6 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -148,9 +141,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{
-		controllerSetDesiredWeight: 10,
-	}
+	f.fakeTrafficRouting.controllerSetDesiredWeight = 10
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 
@@ -182,7 +173,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx, 10)
+		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, networkReconciler)
 	}
 	{
@@ -192,7 +183,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx, 10)
+		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, networkReconciler)
 	}
 	{
@@ -204,7 +195,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx, 10)
+		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, istio.Type, networkReconciler.Type())
 	}

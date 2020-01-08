@@ -20,11 +20,10 @@ import (
 const Type = "Istio"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Interface, recorder record.EventRecorder, defaultAPIVersion string) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, defaultAPIVersion string) *Reconciler {
 	return &Reconciler{
-		rollout:       r,
-		log:           logutil.WithRollout(r),
-		desiredWeight: desiredWeight,
+		rollout: r,
+		log:     logutil.WithRollout(r),
 
 		client:            client,
 		recorder:          recorder,
@@ -36,7 +35,6 @@ func NewReconciler(r *v1alpha1.Rollout, desiredWeight int32, client dynamic.Inte
 type Reconciler struct {
 	rollout           *v1alpha1.Rollout
 	log               *logrus.Entry
-	desiredWeight     int32
 	client            dynamic.Interface
 	recorder          record.EventRecorder
 	defaultAPIVersion string
@@ -76,7 +74,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	routes := map[string]bool{}
@@ -94,19 +92,19 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute) virtu
 			destination := httpRoutes[i].Route[j]
 			host := destination.Destination.Host
 			weight := destination.Weight
-			if host == canarySvc && weight != int64(r.desiredWeight) {
+			if host == canarySvc && weight != desiredWeight {
 				patch := virtualServicePatch{
 					routeIndex:       i,
 					destinationIndex: j,
-					weight:           int64(r.desiredWeight),
+					weight:           desiredWeight,
 				}
 				patches = append(patches, patch)
 			}
-			if host == stableSvc && weight != int64(100-r.desiredWeight) {
+			if host == stableSvc && weight != 100-desiredWeight {
 				patch := virtualServicePatch{
 					routeIndex:       i,
 					destinationIndex: j,
-					weight:           int64(100 - r.desiredWeight),
+					weight:           100 - desiredWeight,
 				}
 				patches = append(patches, patch)
 			}
@@ -115,7 +113,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute) virtu
 	return patches
 }
 
-func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
 	httpRoutesI, notFound, err := unstructured.NestedSlice(newObj.Object, "spec", "http")
 	if !notFound {
@@ -135,7 +133,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured) (*u
 		return nil, false, err
 	}
 
-	patches := r.generateVirtualServicePatches(httpRoutes)
+	patches := r.generateVirtualServicePatches(httpRoutes, int64(desiredWeight))
 	patches.patchVirtualService(httpRoutesI)
 
 	err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", "http")
@@ -148,7 +146,7 @@ func (r *Reconciler) Type() string {
 }
 
 // Reconcile modifies Istio resources to reach desired state
-func (r *Reconciler) Reconcile() error {
+func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(r.defaultAPIVersion)
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
@@ -160,14 +158,14 @@ func (r *Reconciler) Reconcile() error {
 		}
 		return err
 	}
-	modifiedVsvc, modifed, err := r.reconcileVirtualService(vsvc)
+	modifiedVsvc, modifed, err := r.reconcileVirtualService(vsvc, desiredWeight)
 	if err != nil {
 		return err
 	}
 	if !modifed {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, r.desiredWeight)
+	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, desiredWeight)
 	r.log.Info(msg)
 	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(modifiedVsvc, metav1.UpdateOptions{})

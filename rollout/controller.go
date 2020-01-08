@@ -63,7 +63,7 @@ type RolloutController struct {
 	// used for unit testing
 	enqueueRollout              func(obj interface{})
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
-	newTrafficRoutingReconciler func(roCtx rolloutContext, desiredWeight int32) TrafficRoutingReconciler
+	newTrafficRoutingReconciler func(roCtx rolloutContext) TrafficRoutingReconciler
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
