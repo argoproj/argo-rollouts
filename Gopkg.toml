@@ -3,6 +3,7 @@ required = [
     "github.com/emicklei/go-restful",
     "github.com/go-openapi/spec",
     "k8s.io/kube-openapi/cmd/openapi-gen",
+    "github.com/vektra/mockery",
 ]
 
 [[constraint]]
@@ -58,3 +59,7 @@ required = [
 [[override]]
   name = "github.com/ghodss/yaml"
   branch = "master"
+
+[[constraint]]
+  name = "github.com/vektra/mockery"
+  revision = "e78b021dcbb558a8e7ac1fc5bc757ad7c277bb81"
