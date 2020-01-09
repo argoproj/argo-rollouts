@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	requiredAnalysisCompletedMessage = "Required AnalysisRun completed"
+	requiredAnalysisCompletedMessage = "Required AnalysisRuns completed"
 )
 
 type experimentContext struct {
@@ -253,8 +253,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
 	if prevStatus == nil {
 		prevStatus = &v1alpha1.ExperimentAnalysisRunStatus{
-			Name:                  analysis.Name,
-			RequiredForCompletion: analysis.RequiredForCompletion,
+			Name: analysis.Name,
 		}
 	}
 	newStatus := prevStatus.DeepCopy()
@@ -385,7 +384,9 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 				// We will now fail the experiment.
 				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
-			} else if analysesMessage == requiredAnalysisCompletedMessage {
+			} else if experimentutil.CompletedAllRequiredAnalysisRuns(ec.ex, ec.newStatus) {
+				// All the required analysis runs have completed successfully so we can conclude the experiment
+				// successfully.
 				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
 			} else {
@@ -447,19 +448,15 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 	worstStatus := v1alpha1.AnalysisPhaseSuccessful
 	message := ""
 
-	requiredAnalysisRunCompleted := false
 	for _, a := range ec.ex.Spec.Analyses {
 		as := experimentutil.GetAnalysisRunStatus(*ec.newStatus, a.Name)
-		if as.RequiredForCompletion && as.Phase == v1alpha1.AnalysisPhaseSuccessful {
-			requiredAnalysisRunCompleted = true
-		}
 		if analysisutil.IsWorse(worstStatus, as.Phase) {
 			worstStatus = as.Phase
 			message = as.Message
 		}
 	}
 
-	if requiredAnalysisRunCompleted && analysisutil.IsWorse(worstStatus, v1alpha1.AnalysisPhaseRunning) {
+	if experimentutil.CompletedAllRequiredAnalysisRuns(ec.ex, ec.newStatus) && analysisutil.IsWorse(worstStatus, v1alpha1.AnalysisPhaseRunning) {
 		return v1alpha1.AnalysisPhaseSuccessful, requiredAnalysisCompletedMessage
 	}
 	if worstStatus == v1alpha1.AnalysisPhasePending {

@@ -2512,8 +2512,6 @@ spec:
                     type: string
                   phase:
                     type: string
-                  requiredForCompletion:
-                    type: boolean
                 required:
                 - analysisRun
                 - name

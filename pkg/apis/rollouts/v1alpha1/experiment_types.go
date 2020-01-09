@@ -203,6 +203,4 @@ type ExperimentAnalysisRunStatus struct {
 	Phase AnalysisPhase `json:"phase"`
 	// Message is a message explaining the current status
 	Message string `json:"message,omitempty"`
-	// RequiredForCompletion indicates that experiment should complete after analysis finishes
-	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }

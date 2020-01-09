@@ -795,13 +795,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 							Format:      "",
 						},
 					},
-					"requiredForCompletion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RequiredForCompletion indicates that experiment should complete after analysis finishes",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"name", "analysisRun", "phase"},
 			},

@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
 func TestHasFinished(t *testing.T) {
@@ -196,12 +195,18 @@ func TestIsTeriminating(t *testing.T) {
 	}
 	{
 		e := &v1alpha1.Experiment{
+			Spec: v1alpha1.ExperimentSpec{
+				Analyses: []v1alpha1.ExperimentAnalysisTemplateRef{{
+					Name:                  "foo",
+					RequiredForCompletion: true,
+				}},
+			},
 			Status: v1alpha1.ExperimentStatus{
 				Phase: v1alpha1.AnalysisPhaseRunning,
 				AnalysisRuns: []v1alpha1.ExperimentAnalysisRunStatus{
 					{
-						Phase:                 v1alpha1.AnalysisPhaseSuccessful,
-						RequiredForCompletion: true,
+						Name:  "foo",
+						Phase: v1alpha1.AnalysisPhaseSuccessful,
 					},
 				},
 			},
@@ -361,4 +366,26 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	assert.True(t, IsSemanticallyEqual(*left, *right))
 	right.Templates[0].Replicas = pointer.Int32Ptr(1)
 	assert.False(t, IsSemanticallyEqual(*left, *right))
+}
+
+func TestCompletedAllRequiredAnalysisRuns(t *testing.T) {
+	e := &v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+	}
+	assert.False(t, CompletedAllRequiredAnalysisRuns(e, nil))
+	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{{
+		Name: "foo",
+	}}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{{
+		Name:  "foo",
+		Phase: v1alpha1.AnalysisPhaseRunning,
+	}}
+	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	e.Spec.Analyses[0].RequiredForCompletion = true
+	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	e.Status.AnalysisRuns[0].Phase = v1alpha1.AnalysisPhaseSuccessful
+	assert.True(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
 }
