@@ -8054,6 +8054,9 @@ spec:
                             - name
                             type: object
                           type: array
+                        startAtStep:
+                          format: int32
+                          type: integer
                         templateName:
                           type: string
                       required:

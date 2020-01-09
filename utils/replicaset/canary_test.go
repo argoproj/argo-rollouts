@@ -452,6 +452,36 @@ func TestGetStableRS(t *testing.T) {
 	stableInOtherRSs := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs1, &rs2, &rs3})
 	assert.Equal(t, *stableInOtherRSs, rs1)
 }
+
+func TestBeforeStartingStep(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Analysis: &v1alpha1.RolloutAnalysisBackground{},
+				},
+			},
+		},
+	}
+	assert.False(t, BeforeStartingStep(ro))
+
+	ro.Spec.Strategy.Canary.Analysis.StartAtStep = pointer.Int32Ptr(1)
+	assert.False(t, BeforeStartingStep(ro))
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(1),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	ro.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	assert.True(t, BeforeStartingStep(ro))
+	ro.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	assert.False(t, BeforeStartingStep(ro))
+
+}
+
 func TestGetCurrentCanaryStep(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
 	rollout.Spec.Strategy.Canary.Steps = nil

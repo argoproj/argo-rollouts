@@ -64,8 +64,10 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -118,8 +120,10 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -178,8 +182,10 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -309,8 +315,10 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: "invalid-template-ref",
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: "invalid-template-ref",
+		},
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -343,8 +351,10 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 
@@ -630,8 +640,10 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 	ar.Status = v1alpha1.AnalysisRunStatus{
 		Phase: v1alpha1.AnalysisPhaseInconclusive,
@@ -792,8 +804,10 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
@@ -897,8 +911,10 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 
@@ -935,8 +951,10 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -974,8 +992,10 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewRollout(t *testing.T) {
 	}
 
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisStep{
-		TemplateName: at.Name,
+	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysisStep: v1alpha1.RolloutAnalysisStep{
+			TemplateName: at.Name,
+		},
 	}
 	r1.Status.CurrentPodHash = ""
 	rs1 := newReplicaSet(r1, 1)

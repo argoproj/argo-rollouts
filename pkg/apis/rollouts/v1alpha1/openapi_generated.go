@@ -65,6 +65,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                      schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                         schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                  schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep":                      schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                         schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                    schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
@@ -723,14 +724,14 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 					"analysis": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep"),
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -1721,6 +1722,48 @@ func schema_pkg_apis_rollouts_v1alpha1_Rollout(ref common.ReferenceCallback) com
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutAnalysisBackground defines a template that is used to create a background analysisRun",
+				Properties: map[string]spec.Schema{
+					"templateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Args the arguments that will be added to the AnalysisRuns",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+									},
+								},
+							},
+						},
+					},
+					"startAtStep": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartAtStep indicates which step the background analysis should start on If not listed, controller defaults to 0",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"templateName"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"},
 	}
 }
 
