@@ -1188,10 +1188,6 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.PauseStartTime != nil {
-		in, out := &in.PauseStartTime, &out.PauseStartTime
-		*out = (*in).DeepCopy()
-	}
 	if in.CollisionCount != nil {
 		in, out := &in.CollisionCount, &out.CollisionCount
 		*out = new(int32)

@@ -351,9 +351,6 @@ type RolloutStatus struct {
 	// controller will execute the rollout.
 	// +optional
 	CurrentStepIndex *int32 `json:"currentStepIndex,omitempty"`
-	// PauseStartTime this field is set when the rollout is in a pause step and indicates the time the wait started at
-	// +optional
-	PauseStartTime *metav1.Time `json:"pauseStartTime,omitempty"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.
