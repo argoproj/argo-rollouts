@@ -51,6 +51,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                         schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                      schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                      schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                            schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                             schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
@@ -73,6 +75,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                              schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                            schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                          schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting":                    schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                              schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                             schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                           schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
@@ -693,6 +696,12 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							},
 						},
 					},
+					"trafficRouting": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting"),
+						},
+					},
 					"maxUnavailable": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MaxUnavailable The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old RC can be scaled down by 30% immediately when the rolling update starts. Once new pods are ready, old RC can be scaled down further, followed by scaling up the new RC, ensuring that at least 70% of original number of pods are available at all times during the update.",
@@ -715,7 +724,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -1078,6 +1087,62 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration",
+				Properties: map[string]spec.Schema{
+					"virtualService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VirtualService reference to a Virtual Service that modified to shape traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"),
+						},
+					},
+				},
+				Required: []string{"virtualService"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IstioVirtualService holds information on the virtual service the rollout needs to modify",
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name holds the name of the VirtualService",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"routes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Routes list of routes within VirtualService to edit",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "routes"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2170,6 +2235,26 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing",
+				Properties: map[string]spec.Schema{
+					"istio": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Istio holds Istio specific configuration to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting"},
 	}
 }
 

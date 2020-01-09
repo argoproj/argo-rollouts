@@ -74,6 +74,8 @@ type fixture struct {
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
 	unfreezeTime    func()
+
+	fakeTrafficRouting *FakeTrafficRoutingReconciler
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -85,6 +87,7 @@ func newFixture(t *testing.T) *fixture {
 	now := time.Now()
 	patch := monkey.Patch(time.Now, func() time.Time { return now })
 	f.unfreezeTime = patch.Unpatch
+	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
 	return f
 }
 
@@ -369,7 +372,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 
-	c := NewRolloutController(f.kubeclient, f.client,
+	c := NewRolloutController(f.kubeclient, f.client, nil,
 		i.Argoproj().V1alpha1().Experiments(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
@@ -380,7 +383,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
-		&record.FakeRecorder{})
+		&record.FakeRecorder{},
+		"v1alpha3",
+	)
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
@@ -401,6 +406,10 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	}
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueRollout(obj)
+	}
+
+	c.newTrafficRoutingReconciler = func(roCtx rolloutContext) TrafficRoutingReconciler {
+		return f.fakeTrafficRouting
 	}
 
 	for _, r := range f.rolloutLister {
@@ -1164,7 +1173,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"66c6f797f8"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7d8887f797"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
