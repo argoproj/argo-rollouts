@@ -46,7 +46,27 @@ func IsTerminating(experiment *v1alpha1.Experiment) bool {
 			return true
 		}
 	}
-	return false
+	return RequiredAnalysisRunsSuccessful(experiment, &experiment.Status)
+}
+
+// RequiredAnalysisRunsSuccessful has at least one required for completition analysis run
+// and it completed successfully
+func RequiredAnalysisRunsSuccessful(ex *v1alpha1.Experiment, exStatus *v1alpha1.ExperimentStatus) bool {
+	if exStatus == nil {
+		return false
+	}
+	hasRequiredAnalysisRun := false
+	completedAllRequiredRuns := true
+	for _, analysis := range ex.Spec.Analyses {
+		if analysis.RequiredForCompletion {
+			hasRequiredAnalysisRun = true
+			analysisStatus := GetAnalysisRunStatus(*exStatus, analysis.Name)
+			if analysisStatus == nil || analysisStatus.Phase != v1alpha1.AnalysisPhaseSuccessful {
+				completedAllRequiredRuns = false
+			}
+		}
+	}
+	return hasRequiredAnalysisRun && completedAllRequiredRuns
 }
 
 // PassedDurations indicates if the experiment has run longer than the duration

@@ -5363,6 +5363,8 @@ spec:
                     type: array
                   name:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                   templateName:
                     type: string
                 required:
@@ -7828,6 +7830,8 @@ spec:
                     type: string
                   phase:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                 required:
                 - analysisRun
                 - name
