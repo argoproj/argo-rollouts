@@ -384,7 +384,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 				// We will now fail the experiment.
 				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
-			} else if experimentutil.CompletedAllRequiredAnalysisRuns(ec.ex, ec.newStatus) {
+			} else if experimentutil.RequiredAnalysisRunsSuccessful(ec.ex, ec.newStatus) {
 				// All the required analysis runs have completed successfully so we can conclude the experiment
 				// successfully.
 				ec.newStatus.Phase = analysesStatus
@@ -456,7 +456,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 		}
 	}
 
-	if experimentutil.CompletedAllRequiredAnalysisRuns(ec.ex, ec.newStatus) && analysisutil.IsWorse(worstStatus, v1alpha1.AnalysisPhaseRunning) {
+	if experimentutil.RequiredAnalysisRunsSuccessful(ec.ex, ec.newStatus) && analysisutil.IsWorse(worstStatus, v1alpha1.AnalysisPhaseRunning) {
 		return v1alpha1.AnalysisPhaseSuccessful, requiredAnalysisCompletedMessage
 	}
 	if worstStatus == v1alpha1.AnalysisPhasePending {

@@ -368,14 +368,14 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 
-func TestCompletedAllRequiredAnalysisRuns(t *testing.T) {
+func TestRequiredAnalysisRunsSuccessful(t *testing.T) {
 	e := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo",
 		},
 	}
-	assert.False(t, CompletedAllRequiredAnalysisRuns(e, nil))
-	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	assert.False(t, RequiredAnalysisRunsSuccessful(e, nil))
+	assert.False(t, RequiredAnalysisRunsSuccessful(e, &e.Status))
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{{
 		Name: "foo",
 	}}
@@ -383,9 +383,9 @@ func TestCompletedAllRequiredAnalysisRuns(t *testing.T) {
 		Name:  "foo",
 		Phase: v1alpha1.AnalysisPhaseRunning,
 	}}
-	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	assert.False(t, RequiredAnalysisRunsSuccessful(e, &e.Status))
 	e.Spec.Analyses[0].RequiredForCompletion = true
-	assert.False(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	assert.False(t, RequiredAnalysisRunsSuccessful(e, &e.Status))
 	e.Status.AnalysisRuns[0].Phase = v1alpha1.AnalysisPhaseSuccessful
-	assert.True(t, CompletedAllRequiredAnalysisRuns(e, &e.Status))
+	assert.True(t, RequiredAnalysisRunsSuccessful(e, &e.Status))
 }

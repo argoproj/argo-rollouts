@@ -46,12 +46,12 @@ func IsTerminating(experiment *v1alpha1.Experiment) bool {
 			return true
 		}
 	}
-	return CompletedAllRequiredAnalysisRuns(experiment, &experiment.Status)
+	return RequiredAnalysisRunsSuccessful(experiment, &experiment.Status)
 }
 
-// CompletedAllRequiredAnalysisRuns has at least one required for completition analysis run
+// RequiredAnalysisRunsSuccessful has at least one required for completition analysis run
 // and it completed successfully
-func CompletedAllRequiredAnalysisRuns(ex *v1alpha1.Experiment, exStatus *v1alpha1.ExperimentStatus) bool {
+func RequiredAnalysisRunsSuccessful(ex *v1alpha1.Experiment, exStatus *v1alpha1.ExperimentStatus) bool {
 	if exStatus == nil {
 		return false
 	}
