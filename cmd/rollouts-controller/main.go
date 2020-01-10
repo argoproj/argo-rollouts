@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	_ "k8s.io/code-generator/cmd/client-gen/generators"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
