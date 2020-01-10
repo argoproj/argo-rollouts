@@ -8,7 +8,7 @@ set -o pipefail
 #   create a temporary directory, use this as an output base, and copy everything back once generated.
 
 SCRIPT_ROOT=$(realpath $(dirname ${BASH_SOURCE})/..)
-CODEGEN_VERSION=$(go list -m all | grep 'k8s.io/code-generator' | awk '{print $2}' | head -1)
+CODEGEN_VERSION=$(go list -m k8s.io/code-generator | awk '{print $2}' | head -1)
 CODEGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/k8s.io/code-generator@${CODEGEN_VERSION}")
 
 TEMP_DIR=$(mktemp -d)

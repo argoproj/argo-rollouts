@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
-CODEGEN_VERSION=$(go list -m all | grep 'k8s.io/kube-openapi' | awk '{print $2}' | head -1)
+CODEGEN_VERSION=$(go list -m k8s.io/kube-openapi | awk '{print $2}' | head -1)
 CODEGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/k8s.io/kube-openapi@${CODEGEN_VERSION}")
 VERSION="v1alpha1"
 
