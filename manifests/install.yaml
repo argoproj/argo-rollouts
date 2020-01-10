@@ -10690,9 +10690,6 @@ spec:
                 - startTime
                 type: object
               type: array
-            pauseStartTime:
-              format: date-time
-              type: string
             readyReplicas:
               format: int32
               type: integer
