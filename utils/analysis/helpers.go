@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
@@ -204,4 +206,21 @@ func NewAnalysisRunFromTemplate(template *v1alpha1.AnalysisTemplate, args []v1al
 		},
 	}
 	return &ar, nil
+}
+
+// GetInstanceID takes an object and returns the controller instance id if it has one
+func GetInstanceID(obj runtime.Object) string {
+	objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		// The objects passed into this function are already valid Kubernetes objects stored in the API server.
+		// This function errors when the object passed can't be converted to a map[string]string. As a result,
+		// the object passed in will never fail and the controller should panic in that case.
+		panic(err)
+	}
+	uObj := unstructured.Unstructured{Object: objMap}
+	labels := uObj.GetLabels()
+	if labels != nil {
+		return labels[v1alpha1.LabelKeyControllerInstanceID]
+	}
+	return ""
 }

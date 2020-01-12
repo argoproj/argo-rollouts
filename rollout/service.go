@@ -117,17 +117,37 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	return previewSvc, activeSvc, nil
 }
 
-func (c *RolloutController) reconcileCanaryService(roCtx *canaryContext) error {
+func (c *RolloutController) reconcileStableAndCanaryService(roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	if r.Spec.Strategy.Canary == nil || r.Spec.Strategy.Canary.CanaryService == "" {
+	stableRS := roCtx.StableRS()
+	if r.Spec.Strategy.Canary == nil {
 		return nil
 	}
+	if r.Spec.Strategy.Canary.StableService != "" && stableRS != nil {
+		svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.StableService)
+		if err != nil {
+			return err
+		}
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+			if err != nil {
+				return err
+			}
+		}
 
-	svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
-	if err != nil {
-		return err
 	}
-
-	return c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+	if r.Spec.Strategy.Canary.CanaryService != "" && newRS != nil {
+		svc, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
+		if err != nil {
+			return err
+		}
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

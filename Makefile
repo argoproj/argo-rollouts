@@ -98,7 +98,7 @@ coverage: test
 
 .PHONY: mocks
 mocks:
-	mockery -dir ./metricproviders -name Provider -output ./metricproviders/mocks
+	go run ./vendor/github.com/vektra/mockery/cmd/mockery/mockery.go -dir ./metricproviders -name Provider -output ./metricproviders/mocks
 
 .PHONY: manifests
 manifests:

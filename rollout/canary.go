@@ -52,7 +52,11 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 		return err
 	}
 
-	if err := c.reconcileCanaryService(roCtx); err != nil {
+	if err := c.reconcileStableAndCanaryService(roCtx); err != nil {
+		return err
+	}
+
+	if err := c.reconcileTrafficRouting(roCtx); err != nil {
 		return err
 	}
 

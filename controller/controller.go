@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -78,6 +79,7 @@ type Manager struct {
 func NewManager(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
+	dynamicclientset dynamic.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	jobInformer batchinformers.JobInformer,
@@ -86,7 +88,9 @@ func NewManager(
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	resyncPeriod time.Duration,
+	instanceID string,
 	metricsPort int,
+	defaultIstioVersion string,
 ) *Manager {
 
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
@@ -111,6 +115,7 @@ func NewManager(
 	rolloutController := rollout.NewRolloutController(
 		kubeclientset,
 		argoprojclientset,
+		dynamicclientset,
 		experimentsInformer,
 		analysisRunInformer,
 		analysisTemplateInformer,
@@ -121,7 +126,8 @@ func NewManager(
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		metricsServer,
-		recorder)
+		recorder,
+		defaultIstioVersion)
 
 	experimentController := experiments.NewExperimentController(
 		kubeclientset,

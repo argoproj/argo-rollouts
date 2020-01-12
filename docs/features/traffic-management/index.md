@@ -34,7 +34,7 @@ spec:
     canary:
       canaryService: canary-service
       stableService: stable-service
-      networking:
+      trafficRouting:
        ...
 ```
 

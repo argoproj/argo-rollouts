@@ -515,6 +515,14 @@
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:9a1b782e10224f243d627f9dacfd43e69752247f6edf6bfa83c9c773cfd3ff11"
+  name = "github.com/spaceapegames/go-wavefront"
+  packages = ["."]
+  pruneopts = ""
+  revision = "d617b8803739eb11a2e4db6097b51a64a6def5db"
+  version = "v1.6.2"
+
+[[projects]]
   digest = "1:0c63b3c7ad6d825a898f28cb854252a3b29d37700c68a117a977263f5ec94efe"
   name = "github.com/spf13/cobra"
   packages = ["."]
@@ -564,6 +572,13 @@
   pruneopts = ""
   revision = "8b5e4e491ab636663841c42ea3c5a9adebabaf36"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:603b1ea14337a8198a2de0716d1c707e8995e3dea42c0dc17364a93bc504fb87"
+  name = "github.com/vektra/mockery"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e78b021dcbb558a8e7ac1fc5bc757ad7c277bb81"
 
 [[projects]]
   branch = "master"
@@ -1326,10 +1341,12 @@
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/prometheus/common/model",
     "github.com/sirupsen/logrus",
+    "github.com/spaceapegames/go-wavefront",
     "github.com/spf13/cobra",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/valyala/fasttemplate",
+    "github.com/vektra/mockery",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
@@ -1344,6 +1361,7 @@
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
+    "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/duration",
     "k8s.io/apimachinery/pkg/util/intstr",
@@ -1358,6 +1376,8 @@
     "k8s.io/cli-runtime/pkg/genericclioptions",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
+    "k8s.io/client-go/dynamic",
+    "k8s.io/client-go/dynamic/fake",
     "k8s.io/client-go/informers",
     "k8s.io/client-go/informers/apps/v1",
     "k8s.io/client-go/informers/batch/v1",

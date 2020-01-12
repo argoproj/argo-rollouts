@@ -119,7 +119,8 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	}
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		backgroundLabels := analysisutil.BackgroundLabels(podHash)
+		instanceID := analysisutil.GetInstanceID(rollout)
+		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
 		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.Canary.Analysis, nil, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
@@ -168,7 +169,8 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	}
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		stepLabels := analysisutil.StepLabels(*index, podHash)
+		instanceID := analysisutil.GetInstanceID(rollout)
+		stepLabels := analysisutil.StepLabels(*index, podHash, instanceID)
 		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, index, stepLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
@@ -224,7 +226,6 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 	}
 	nameParts = append(nameParts, rolloutAnalysisStep.TemplateName)
 	name := strings.Join(nameParts, "-")
-
 	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", r.Namespace)
 	if err != nil {
 		return nil, err

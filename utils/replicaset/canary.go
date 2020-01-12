@@ -37,6 +37,12 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 		desiredNewRSReplicaCount = rolloutSpecReplica
 		desiredStableRSReplicaCount = 0
 	}
+	// Unlike the ReplicaSet based weighted canary, a service mesh/ingress
+	// based canary leaves the stable as 100% scaled until the rollout completes.
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+		desiredStableRSReplicaCount = rolloutSpecReplica
+	}
+
 	return desiredNewRSReplicaCount, desiredStableRSReplicaCount
 
 }
@@ -81,6 +87,10 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(setWeight) / 100))))
 	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(setWeight) / 100)))
+
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+		return desiredNewRSReplicaCount, rolloutSpecReplica
+	}
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
@@ -257,20 +267,12 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	return 0
 }
 
-func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) (*appsv1.ReplicaSet, []*appsv1.ReplicaSet) {
-	if rollout.Status.Canary.StableRS == "" {
-		return nil, rslist
-	}
-	if newRS != nil && newRS.Labels != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
-		return newRS, rslist
-	}
+// GetOlderRSs the function goes through a list of ReplicaSets and returns a list of RS that are not the new or stable RS
+func GetOlderRSs(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
 	olderRSs := []*appsv1.ReplicaSet{}
-	var stableRS *appsv1.ReplicaSet
-	for i := range rslist {
-		rs := rslist[i]
+	for _, rs := range allRSs {
 		if rs != nil {
-			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
-				stableRS = rs
+			if stableRS != nil && rs.Name == stableRS.Name {
 				continue
 			}
 			if newRS != nil && rs.Name == newRS.Name {
@@ -279,7 +281,26 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 			olderRSs = append(olderRSs, rs)
 		}
 	}
-	return stableRS, olderRSs
+	return olderRSs
+}
+
+// GetStableRS finds the stable RS using the RS's RolloutUniqueLabelKey and the stored StableRS in the rollout status
+func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	if rollout.Status.Canary.StableRS == "" {
+		return nil
+	}
+	if newRS != nil && newRS.Labels != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
+		return newRS
+	}
+	for i := range rslist {
+		rs := rslist[i]
+		if rs != nil {
+			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
+				return rs
+			}
+		}
+	}
+	return nil
 }
 
 // GetCurrentExperimentStep grabs the latest Experiment step

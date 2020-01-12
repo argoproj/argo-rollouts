@@ -2631,6 +2631,7 @@ spec:
                           query:
                             type: string
                         type: object
+<<<<<<< HEAD
                       web:
                         properties:
                           headers:
@@ -2654,6 +2655,14 @@ spec:
                         required:
                         - jsonPath
                         - url
+=======
+                      wavefront:
+                        properties:
+                          address:
+                            type: string
+                          query:
+                            type: string
+>>>>>>> c79494b99e33e54ab9734f885c196d1d81e8f1f6
                         type: object
                     type: object
                   successCondition:
@@ -5370,6 +5379,7 @@ spec:
                           query:
                             type: string
                         type: object
+<<<<<<< HEAD
                       web:
                         properties:
                           headers:
@@ -5393,6 +5403,14 @@ spec:
                         required:
                         - jsonPath
                         - url
+=======
+                      wavefront:
+                        properties:
+                          address:
+                            type: string
+                          query:
+                            type: string
+>>>>>>> c79494b99e33e54ab9734f885c196d1d81e8f1f6
                         type: object
                     type: object
                   successCondition:
@@ -5463,6 +5481,8 @@ spec:
                     type: array
                   name:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                   templateName:
                     type: string
                 required:
@@ -7958,6 +7978,8 @@ spec:
                     type: string
                   phase:
                     type: string
+                  requiredForCompletion:
+                    type: boolean
                 required:
                 - analysisRun
                 - name
@@ -8190,8 +8212,13 @@ spec:
                     maxUnavailable:
                       anyOf:
                       - type: integer
+<<<<<<< HEAD
                       - type: string
                       x-kubernetes-int-or-string: true
+=======
+                    stableService:
+                      type: string
+>>>>>>> c79494b99e33e54ab9734f885c196d1d81e8f1f6
                     steps:
                       items:
                         properties:
@@ -8313,6 +8340,26 @@ spec:
                             type: integer
                         type: object
                       type: array
+                    trafficRouting:
+                      properties:
+                        istio:
+                          properties:
+                            virtualService:
+                              properties:
+                                name:
+                                  type: string
+                                routes:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - name
+                              - routes
+                              type: object
+                          required:
+                          - virtualService
+                          type: object
+                      type: object
                   type: object
               type: object
             template:
@@ -10832,9 +10879,6 @@ spec:
                 - startTime
                 type: object
               type: array
-            pauseStartTime:
-              format: date-time
-              type: string
             readyReplicas:
               format: int32
               type: integer
@@ -10946,6 +10990,12 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

@@ -54,11 +54,12 @@ func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
 					CanaryService: "canary-service",
+					StableService: "stable-service",
 				},
 			},
 		},
 	})
-	assert.ElementsMatch(t, keys, []string{"default/canary-service"})
+	assert.ElementsMatch(t, keys, []string{"default/canary-service", "default/stable-service"})
 }
 
 func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {

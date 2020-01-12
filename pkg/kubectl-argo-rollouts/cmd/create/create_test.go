@@ -6,6 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	core "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -149,6 +153,27 @@ func TestCreateAnalysisRunName(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
 	assert.Empty(t, stderr)
+}
+
+func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "-a", "foo=bar", "--name", "my-run", "--instance-id", "test"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
+	assert.Empty(t, stderr)
+	assert.Len(t, fakeClient.Actions(), 1)
+	action := fakeClient.Actions()[0].(core.CreateAction)
+	objMap, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(action.GetObject())
+	assert.Nil(t, err)
+	obj := unstructured.Unstructured{Object: objMap}
+	assert.Equal(t, obj.GetLabels()[v1alpha1.LabelKeyControllerInstanceID], "test")
 }
 
 func TestCreateJSON(t *testing.T) {

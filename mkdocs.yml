@@ -24,7 +24,14 @@ nav:
     - features/index.md
     - BlueGreen: features/bluegreen.md
     - Canary: features/canary.md
+<<<<<<< HEAD
     - Traffic Management: features/traffic-management/index.md
+=======
+    - Traffic Management: 
+      - Overview: features/traffic-management/index.md
+      - Istio: features/traffic-management/istio.md 
+      - NGINX: features/traffic-management/nginx.md 
+>>>>>>> c79494b99e33e54ab9734f885c196d1d81e8f1f6
     - Kubectl Plugin: features/kubectl-plugin.md
     - HPA Support: features/hpa-support.md
     - Kustomize Support: features/kustomize.md

@@ -2642,6 +2642,13 @@ spec:
                           query:
                             type: string
                         type: object
+                      wavefront:
+                        properties:
+                          address:
+                            type: string
+                          query:
+                            type: string
+                        type: object
                       web:
                         properties:
                           headers:

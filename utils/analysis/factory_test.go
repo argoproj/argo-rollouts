@@ -59,8 +59,9 @@ func TestStepLabels(t *testing.T) {
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeStepLabel,
 		v1alpha1.RolloutCanaryStepIndexLabel:  "1",
+		v1alpha1.LabelKeyControllerInstanceID: "test",
 	}
-	generated := StepLabels(1, podHash)
+	generated := StepLabels(1, podHash, "test")
 	assert.Equal(t, expected, generated)
 }
 
@@ -69,8 +70,9 @@ func TestBackgroundLabels(t *testing.T) {
 	expected := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeBackgroundRunLabel,
+		v1alpha1.LabelKeyControllerInstanceID: "test",
 	}
-	generated := BackgroundLabels(podHash)
+	generated := BackgroundLabels(podHash, "test")
 	assert.Equal(t, expected, generated)
 }
 
@@ -254,6 +256,21 @@ func TestValidateMetrics(t *testing.T) {
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 						Job:        &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+						Wavefront:  &v1alpha1.WavefrontMetric{},
 					},
 				},
 			},

@@ -13,9 +13,9 @@ kind: Rollout
 metadata:
   name: example-rollout-canary
 spec:
-  # Number of desired pods. Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
+  # Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
   replicas: 5
-  #Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.`
+  # Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.`
   selector:
     matchLabels:
       app: guestbook
@@ -33,7 +33,7 @@ spec:
   paused: false
   # The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.
   progressDeadlineSeconds: 600
-  # field to specify the strategy to run
+  # Field to specify the strategy to run
   strategy:
     blueGreen:
       # Name of the service that the rollout modifies as the active service.
@@ -44,11 +44,11 @@ spec:
       previewReplicaCount: 1
       # Indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true. +optional
       autoPromotionEnabled: false
-      # automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional
+      # Automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional
       autoPromotionSeconds: 30
-      # adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
+      # Adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
       scaleDownDelaySeconds: 30
-      # limits the number of old RS that can run at once before getting scaled down. Defaults to nil
+      # Limits the number of old RS that can run at once before getting scaled down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
     canary:
       # CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version. +optional
@@ -65,7 +65,7 @@ spec:
       - pause:
           duration: 3600 # One hour
       - setWeight: 40
-      # Sets .spec.paused to true and waits until the field is changed back
+        # Sets .spec.paused to true and waits until the field is changed back
       - pause: {} 
 status:
   pauseConditions:

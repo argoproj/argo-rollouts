@@ -376,6 +376,16 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	}
 }
 
+func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable")
+	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	stableRS := newRS("stable", 10, 10)
+	newRS := newRS("canary", 0, 0)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(1), newRSReplicaCount)
+	assert.Equal(t, int32(10), stableRSReplicaCount)
+}
+
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
 	newRS := newRS("stable", 9, 9)
@@ -386,6 +396,31 @@ func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
+}
+
+func TestGetOlderRSs(t *testing.T) {
+	rs := func(podHash string) appsv1.ReplicaSet {
+		return appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: podHash,
+			},
+		}
+	}
+	rollout := &v1alpha1.Rollout{}
+	rs1 := rs("1")
+	rs2 := rs("2")
+	handleNil := GetOlderRSs(rollout, nil, nil, []*appsv1.ReplicaSet{&rs1})
+	assert.Len(t, handleNil, 1)
+	assert.Equal(t, *handleNil[0], rs1)
+
+	handleExistingNewRS := GetOlderRSs(rollout, &rs1, nil, []*appsv1.ReplicaSet{&rs1, &rs2})
+	assert.Len(t, handleExistingNewRS, 1)
+	assert.Equal(t, *handleExistingNewRS[0], rs2)
+
+	handleExistingStableRS := GetOlderRSs(rollout, nil, &rs1, []*appsv1.ReplicaSet{&rs1, &rs2})
+	assert.Len(t, handleExistingStableRS, 1)
+	assert.Equal(t, *handleExistingStableRS[0], rs2)
+
 }
 
 func TestGetStableRS(t *testing.T) {
@@ -404,19 +439,18 @@ func TestGetStableRS(t *testing.T) {
 	rs1 := rs("1")
 	rs2 := rs("2")
 	rs3 := rs("3")
-	noStable, rsList := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
+	noStable := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
 	assert.Nil(t, noStable)
-	assert.Len(t, rsList, 2)
 
 	rollout.Status.Canary.StableRS = "1"
-	sameAsNewRS, rsList := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
+	stableNotFound := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs3})
+	assert.Nil(t, stableNotFound)
+
+	sameAsNewRS := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
 	assert.Equal(t, *sameAsNewRS, rs1)
-	assert.Len(t, rsList, 2)
 
-	stableInOtherRSs, rsList := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs1, &rs2, &rs3})
+	stableInOtherRSs := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs1, &rs2, &rs3})
 	assert.Equal(t, *stableInOtherRSs, rs1)
-	assert.Len(t, rsList, 1)
-
 }
 func TestGetCurrentCanaryStep(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")

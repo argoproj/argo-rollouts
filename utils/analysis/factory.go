@@ -34,21 +34,30 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 }
 
 // BackgroundLabels returns a map[string]string of common labels for the background analysis
-func BackgroundLabels(podHash string) map[string]string {
-	return map[string]string{
+func BackgroundLabels(podHash, instanceID string) map[string]string {
+	labels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeBackgroundRunLabel,
 	}
+	if instanceID != "" {
+		labels[v1alpha1.LabelKeyControllerInstanceID] = instanceID
+	}
+	return labels
+
 }
 
 // StepLabels returns a map[string]string of common labels for analysisruns created from an analysis step
-func StepLabels(index int32, podHash string) map[string]string {
+func StepLabels(index int32, podHash, instanceID string) map[string]string {
 	indexStr := strconv.Itoa(int(index))
-	return map[string]string{
+	labels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypeStepLabel,
 		v1alpha1.RolloutCanaryStepIndexLabel:  indexStr,
 	}
+	if instanceID != "" {
+		labels[v1alpha1.LabelKeyControllerInstanceID] = instanceID
+	}
+	return labels
 }
 
 // ValidateMetrics validates an analysis template spec
@@ -105,6 +114,9 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		numProviders++
 	}
 	if metric.Provider.Web != nil {
+		numProviders++
+	}
+	if metric.Provider.Wavefront != nil {
 		numProviders++
 	}
 	if numProviders == 0 {

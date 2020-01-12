@@ -66,6 +66,10 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
+
+	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
+	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
+	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
@@ -114,9 +118,15 @@ type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
 	// +optional
 	CanaryService string `json:"canaryService,omitempty"`
+	// StableService holds the name of a service which selects pods with stable version and don't select any pods with canary version.
+	// +optional
+	StableService string `json:"stableService,omitempty"`
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty"`
+	// TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing
+	TrafficRouting *RolloutTrafficRouting `json:"trafficRouting,omitempty"`
+
 	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
 	// Absolute number is calculated from percentage by rounding down.
@@ -144,6 +154,26 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
 	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
+}
+
+// RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing
+type RolloutTrafficRouting struct {
+	// Istio holds Istio specific configuration to route traffic
+	Istio *IstioTrafficRouting `json:"istio,omitempty"`
+}
+
+// IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
+type IstioTrafficRouting struct {
+	// VirtualService reference to a Virtual Service that modified to shape traffic
+	VirtualService IstioVirtualService `json:"virtualService"`
+}
+
+// IstioVirtualService holds information on the virtual service the rollout needs to modify
+type IstioVirtualService struct {
+	// Name holds the name of the VirtualService
+	Name string `json:"name"`
+	// Routes list of routes within VirtualService to edit
+	Routes []string `json:"routes"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
@@ -321,9 +351,6 @@ type RolloutStatus struct {
 	// controller will execute the rollout.
 	// +optional
 	CurrentStepIndex *int32 `json:"currentStepIndex,omitempty"`
-	// PauseStartTime this field is set when the rollout is in a pause step and indicates the time the wait started at
-	// +optional
-	PauseStartTime *metav1.Time `json:"pauseStartTime,omitempty"`
 	// Count of hash collisions for the Rollout. The Rollout controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest ReplicaSet.

@@ -148,6 +148,8 @@ spec:
                       - type: integer
                       - type: string
                       x-kubernetes-int-or-string: true
+                    stableService:
+                      type: string
                     steps:
                       items:
                         properties:
@@ -269,6 +271,26 @@ spec:
                             type: integer
                         type: object
                       type: array
+                    trafficRouting:
+                      properties:
+                        istio:
+                          properties:
+                            virtualService:
+                              properties:
+                                name:
+                                  type: string
+                                routes:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - name
+                              - routes
+                              type: object
+                          required:
+                          - virtualService
+                          type: object
+                      type: object
                   type: object
               type: object
             template:
@@ -2800,9 +2822,6 @@ spec:
                 - startTime
                 type: object
               type: array
-            pauseStartTime:
-              format: date-time
-              type: string
             readyReplicas:
               format: int32
               type: integer

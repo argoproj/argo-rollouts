@@ -97,6 +97,34 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
+// TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun
+func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: "my-instance-id"}
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	createIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	createdAr := f.getCreatedAnalysisRun(createIndex)
+	assert.Equal(t, "my-instance-id", createdAr.Labels[v1alpha1.LabelKeyControllerInstanceID])
+}
+
 // TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availablility)
 func TestAnalysisTemplateNotExists(t *testing.T) {
 	templates := generateTemplates("bar")
@@ -391,6 +419,93 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 			f.Close()
 		})
 	}
+}
+
+// TestTerminateExperimentOnSuccessfulAnalysisRun verifies the controller completes a experiment with an analysis
+// with the RequiredForCompletion flag when the Analysis completes successfully
+func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:                  "success-rate",
+			TemplateName:          "success-rate",
+			RequiredForCompletion: true,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = secondsAgo(60)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Status = v1alpha1.AnalysisRunStatus{
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+			AnalysisRun: ar.Name,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar)
+	defer f.Close()
+	f.expectUpdateReplicaSetAction(rs)
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
+	assert.Equal(t, patchedEx.Status.Message, requiredAnalysisCompletedMessage)
+	assert.Equal(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
+}
+
+func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:                  "success-rate",
+			TemplateName:          "success-rate",
+			RequiredForCompletion: true,
+		},
+		{
+			Name:                  "success-rate-2",
+			TemplateName:          "success-rate",
+			RequiredForCompletion: true,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = secondsAgo(60)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Status = v1alpha1.AnalysisRunStatus{
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+	}
+	ar2 := analysisTemplateToRun("success-rate-2", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar2.Status = v1alpha1.AnalysisRunStatus{
+		Phase: v1alpha1.AnalysisPhaseRunning,
+	}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			AnalysisRun: ar.Name,
+		},
+		{
+			Name:        e.Spec.Analyses[1].Name,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+			AnalysisRun: ar2.Name,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar, ar2)
+	defer f.Close()
+	f.expectUpdateReplicaSetAction(rs)
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
+	assert.NotEqual(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
 }
 
 // TestTerminateAnalysisRuns verifies we terminate analysis runs when experiment is terminating

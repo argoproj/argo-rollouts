@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -43,6 +44,10 @@ type RolloutController struct {
 	kubeclientset kubernetes.Interface
 	// argoprojclientset is a clientset for our own API group
 	argoprojclientset clientset.Interface
+	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
+	// It is used to interact with TrafficRouting resources
+	dynamicclientset    dynamic.Interface
+	defaultIstioVersion string
 
 	replicaSetLister       appslisters.ReplicaSetLister
 	replicaSetSynced       cache.InformerSynced
@@ -56,8 +61,9 @@ type RolloutController struct {
 	metricsServer          *metrics.MetricsServer
 
 	// used for unit testing
-	enqueueRollout      func(obj interface{})
-	enqueueRolloutAfter func(obj interface{}, duration time.Duration)
+	enqueueRollout              func(obj interface{})
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
+	newTrafficRoutingReconciler func(roCtx rolloutContext) TrafficRoutingReconciler
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -76,6 +82,7 @@ type RolloutController struct {
 func NewRolloutController(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
+	dynamicclientset dynamic.Interface,
 	experimentInformer informers.ExperimentInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
@@ -86,7 +93,8 @@ func NewRolloutController(
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	serviceWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
-	recorder record.EventRecorder) *RolloutController {
+	recorder record.EventRecorder,
+	defaultIstioVersion string) *RolloutController {
 
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: kubeclientset,
@@ -96,6 +104,8 @@ func NewRolloutController(
 	controller := &RolloutController{
 		kubeclientset:          kubeclientset,
 		argoprojclientset:      argoprojclientset,
+		dynamicclientset:       dynamicclientset,
+		defaultIstioVersion:    defaultIstioVersion,
 		replicaSetControl:      replicaSetControl,
 		replicaSetLister:       replicaSetInformer.Lister(),
 		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
@@ -118,6 +128,8 @@ func NewRolloutController(
 	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
 	}
+	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
+
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -221,16 +233,6 @@ func (c *RolloutController) syncHandler(key string) error {
 		return nil
 	}
 
-	// TODO(dthomson) remove before v0.7 release
-	migrated, err := c.migrateToPauseConditon(r)
-	if migrated {
-		logCtx.Infof("Migrated PauseStartTime to use pause conditions")
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
@@ -306,26 +308,4 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
-}
-
-func (c *RolloutController) migrateToPauseConditon(r *v1alpha1.Rollout) (bool, error) {
-	rollout := r.DeepCopy()
-	if !rollout.Spec.Paused || rollout.Status.PauseStartTime == nil {
-		return false, nil
-	}
-	var reason v1alpha1.PauseReason
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		reason = v1alpha1.PauseReasonBlueGreenPause
-	} else if rollout.Spec.Strategy.Canary != nil {
-		reason = v1alpha1.PauseReasonCanaryPauseStep
-	}
-	cond := v1alpha1.PauseCondition{
-		Reason:    reason,
-		StartTime: *rollout.Status.PauseStartTime,
-	}
-	rollout.Status.PauseConditions = append(rollout.Status.PauseConditions, cond)
-	rollout.Status.PauseStartTime = nil
-	rollout.Spec.Paused = false
-	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
-	return true, err
 }
