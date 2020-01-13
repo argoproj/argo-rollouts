@@ -73,6 +73,8 @@ type Manager struct {
 	serviceWorkqueue     workqueue.RateLimitingInterface
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
+
+	defaultIstioVersion string
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -178,6 +180,7 @@ func NewManager(
 		serviceController:      serviceController,
 		experimentController:   experimentController,
 		analysisController:     analysisController,
+		defaultIstioVersion:    defaultIstioVersion,
 	}
 
 	return cm

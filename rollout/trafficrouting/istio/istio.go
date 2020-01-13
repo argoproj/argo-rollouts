@@ -31,6 +31,20 @@ func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder recor
 	}
 }
 
+// GetRolloutVirtualServiceKeys gets the virtual service and its namespace from a rollout
+func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
+	if rollout.Spec.Strategy.Canary == nil {
+		return []string{}
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return []string{}
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return []string{}
+	}
+	return []string{fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
+}
+
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
 	rollout           *v1alpha1.Rollout

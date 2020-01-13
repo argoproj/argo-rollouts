@@ -7,8 +7,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	dynamicinformers "k8s.io/client-go/dynamic/dynamicinformer"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -17,7 +26,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/log"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -141,7 +149,7 @@ func TestEnqueueRateLimitedInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 	errorMessages := make([]error, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err)
 	})
 	invalidObject := "invalid-object"
@@ -153,7 +161,7 @@ func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 
@@ -166,7 +174,7 @@ func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 
 func TestEnqueueParentObjectNoOwner(t *testing.T) {
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rs := &appsv1.ReplicaSet{
@@ -188,7 +196,7 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -217,7 +225,7 @@ func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 	deploymentKind := appsv1.SchemeGroupVersion.WithKind("Deployment")
 
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	deployment := &appsv1.Deployment{
@@ -246,7 +254,7 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -279,7 +287,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 	rolloutKind := v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rollout := &v1alpha1.Rollout{
@@ -311,7 +319,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 	errorMessages := make([]string, 0)
-	runtime.ErrorHandlers = append(runtime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -361,4 +369,87 @@ func TestInstanceIDRequirement(t *testing.T) {
 	assert.True(t, noInstanceID.Matches(setWithNoLabel))
 
 	assert.Panics(t, func() { InstanceIDRequirement(".%&(") })
+}
+
+func newObj(name, kind, apiVersion string) *unstructured.Unstructured {
+	obj := make(map[string]interface{})
+	obj["apiVersion"] = apiVersion
+	obj["kind"] = kind
+	obj["metadata"] = map[string]interface{}{
+		"name":      name,
+		"namespace": metav1.NamespaceDefault,
+	}
+	return &unstructured.Unstructured{Object: obj}
+}
+
+func TestWatchResourceNotFound(t *testing.T) {
+	obj := newObj("foo", "Object", "example.com/v1")
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	gvk := schema.ParseGroupResource("objects.example.com").WithVersion("v1")
+	returnsError := false
+	client.PrependWatchReactor("*", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+		returnsError = true
+		return true, nil, k8serrors.NewNotFound(gvk.GroupResource(), "virtualservices")
+	})
+	WatchResource(client, gvk, nil, nil, "not-used")
+	assert.True(t, returnsError)
+}
+
+func TestWatchResourceHandleOtherError(t *testing.T) {
+	obj := newObj("foo", "Object", "example.com/v1")
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	gvk := schema.ParseGroupResource("objects.example.com").WithVersion("v1")
+	client.PrependWatchReactor("*", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+		return true, nil, fmt.Errorf("other error")
+	})
+	assert.Panics(t, func() { WatchResource(client, gvk, nil, nil, "not-used") })
+}
+
+func TestWatchResourceHandleStop(t *testing.T) {
+	obj := newObj("foo", "Object", "example.com/v1")
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	gvk := schema.ParseGroupResource("objects.example.com").WithVersion("v1")
+	watchI := watch.NewRaceFreeFake()
+	watchI.Stop()
+	client.PrependWatchReactor("*", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+		return true, watchI, nil
+	})
+
+	WatchResource(client, gvk, nil, nil, "not-used")
+}
+
+func TestProcessNextWatchObj(t *testing.T) {
+	obj := newObj("foo", "Object", "example.com/v1")
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	gvk := schema.ParseGroupResource("objects.example.com").WithVersion("v1")
+	dInformer := dynamicinformers.NewDynamicSharedInformerFactory(client, func() time.Duration { return 0 }())
+	indexer := dInformer.ForResource(gvk).Informer().GetIndexer()
+	indexer.AddIndexers(cache.Indexers{
+		"testIndexer": func(obj interface{}) (strings []string, e error) {
+			return []string{"default/foo"}, nil
+		},
+	})
+	indexer.Add(obj)
+	{
+		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		watchEvent := watch.Event{
+			Object: obj,
+		}
+		processNextWatchObj(watchEvent, wq, indexer, "testIndexer")
+		assert.Equal(t, 1, wq.Len())
+	}
+	{
+		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		watchEvent := watch.Event{
+			Object: obj,
+		}
+		processNextWatchObj(watchEvent, wq, indexer, "no-indexer")
+		assert.Equal(t, 0, wq.Len())
+	}
+	{
+		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		invalidWatchEvent := watch.Event{}
+		processNextWatchObj(invalidWatchEvent, wq, indexer, "testIndexer")
+		assert.Equal(t, 0, wq.Len())
+	}
 }

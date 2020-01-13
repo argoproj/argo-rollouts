@@ -6,10 +6,15 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -17,6 +22,43 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
+
+// processNextWatchObj will process a single object from the watch by seeing if
+// that object is in an index and enqueueing the value object from the indexer
+func processNextWatchObj(watchEvent watch.Event, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
+	obj := watchEvent.Object
+	acc, err := meta.Accessor(obj)
+	if err != nil {
+		log.Errorf("Error processing object from watch: %v", err)
+		return
+	}
+	objsToEnqueue, err := indexer.ByIndex(index, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
+	if err != nil {
+		log.Errorf("Cannot process indexer: %s", err.Error())
+		return
+	}
+	for i := range objsToEnqueue {
+		Enqueue(objsToEnqueue[i], queue)
+	}
+}
+
+// WatchResource is a long-running function that will continually call the
+// processNextWatchObj function in order to watch changes on a resource kind
+// and enqueue a different resources kind that interact with them
+func WatchResource(client dynamic.Interface, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
+	log.Infof("Starting watch on resource '%s'", gvk.Resource)
+	watch, err := client.Resource(gvk).Watch(metav1.ListOptions{})
+	if k8serrors.IsNotFound(err) {
+		log.Infof("Watch for resource '%s' failed: resource not found", gvk.Resource)
+		return
+	}
+	if err != nil {
+		panic(err)
+	}
+	for watchEvent := range watch.ResultChan() {
+		processNextWatchObj(watchEvent, queue, indexer, index)
+	}
+}
 
 // RunWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the

@@ -291,3 +291,28 @@ func TestValidateHosts(t *testing.T) {
 	err = validateHosts(hr, "stable", "not-found-canary")
 	assert.Equal(t, fmt.Errorf("Canary Service 'not-found-canary' not found in route"), err)
 }
+
+func TestGetRolloutVirtualServiceKeys(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{},
+		},
+	}
+	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
+		VirtualService: v1alpha1.IstioVirtualService{
+			Name: "test",
+		},
+	}
+	keys := GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, keys[0], "default/test")
+}
