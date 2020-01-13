@@ -72,15 +72,16 @@ spec:
     interval: 5m
     successCondition: result >= 0.95
     failureLimit: 3
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: |
-        sum(irate(
-          istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
-        )) / 
-        sum(irate(
-          istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
-        ))
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
+          ))
 ```
 
 * analysis using wavefront query
@@ -98,15 +99,16 @@ spec:
     interval: 5m
     successCondition: result >= 0.95
     failureLimit: 3
-    wavefront:
-      address: example.wavefront.com
-      query: |
-        sum(rate(
-          5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{inputs.service-name}}"
-        ))) /
-        sum(rate(
-          5m, ts("istio.requestcount.count", reporter=client and destination_service="{{inputs.service-name}}"
-        )))
+    provider:
+      wavefront:
+        address: example.wavefront.com
+        query: |
+          sum(rate(
+            5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{inputs.service-name}}"
+          ))) /
+          sum(rate(
+            5m, ts("istio.requestcount.count", reporter=client and destination_service="{{inputs.service-name}}"
+          )))
 ```
 
 wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.
@@ -165,15 +167,16 @@ spec:
   metrics:
   - name: success-rate
     successCondition: result >= 0.95
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: |
-        sum(irate(
-          istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
-        )) / 
-        sum(irate(
-          istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
-        ))
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
+          ))
 ```
 
 Multiple measurements can be performed over a longer duration period, by specifying the `count` and 
@@ -185,9 +188,10 @@ Multiple measurements can be performed over a longer duration period, by specify
     successCondition: result >= 0.95
     interval: 60s
     count: 5
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: ...
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: ...
 ```
 
 ## Failure Conditions
@@ -202,12 +206,13 @@ every 5 minutes, causing the analysis run to fail if 10 or more errors were enco
     interval: 5m
     failureCondition: result >= 10
     failureLimit: 3
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: |
-        sum(irate(
-          istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code~"5.*"}[5m]
-        ))
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code~"5.*"}[5m]
+          ))
 ```
 
 ## Inconclusive Runs
@@ -220,9 +225,10 @@ could become `Inconclusive`, is when a metric defines no success or failure cond
 ```yaml
   metrics:
   - name: my-query
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: ...
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: ...
 ```
 
 `Inconclusive` analysis runs might also happen when both success and failure conditions are
@@ -233,9 +239,10 @@ specified, but the measurement value did not meet either condition.
   - name: success-rate
     successCondition: result >= 0.90
     failureCondition: result < 0.50
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: ...
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: ...
 ```
 
 A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts to automate the execution of analysis runs, and collect the measurement, but still allow human judgement to decide
@@ -298,25 +305,26 @@ spec:
   - name: canary-hash
   metrics:
   - name: mann-whitney
-    kayenta:
-      address: https://kayenta.example.com
-      application: guestbook
-      canaryConfigName: my-test
-      thresholds:
-        pass: 90
-        marginal: 75
-      scopes:
-      - name: default
-        controlScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
-          step: 60
-          start: "{{inputs.start-time}}"
-          end: "{{inputs.end-time}}"
-        experimentScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
-          step: 60
-          start: "{{inputs.start-time}}"
-          end: "{{inputs.end-time}}"
+    provider:
+      kayenta:
+        address: https://kayenta.example.com
+        application: guestbook
+        canaryConfigName: my-test
+        thresholds:
+          pass: 90
+          marginal: 75
+        scopes:
+        - name: default
+          controlScope:
+            scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
+            step: 60
+            start: "{{inputs.start-time}}"
+            end: "{{inputs.end-time}}"
+          experimentScope:
+            scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
+            step: 60
+            start: "{{inputs.start-time}}"
+            end: "{{inputs.end-time}}"
 ```
 
 The above would instantiate the following experiment:
@@ -369,25 +377,26 @@ spec:
   - name: canary-hash
   metrics:
   - name: mann-whitney
-    kayenta:
-      address: https://kayenta.intuit.com
-      application: guestbook
-      canaryConfigName: my-test
-      interval: 3600
-      count: 3
-      # loopback will cause start time value to be equal to start of analysis
-      # lookback: true
-      thresholds:
-        pass: 90
-        marginal: 75
-      scopes:
-      - name: default
-        controlScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
-          step: 60
-        experimentScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
-          step: 60
+    provider:
+      kayenta:
+        address: https://kayenta.intuit.com
+        application: guestbook
+        canaryConfigName: my-test
+        interval: 3600
+        count: 3
+        # loopback will cause start time value to be equal to start of analysis
+        # lookback: true
+        thresholds:
+          pass: 90
+          marginal: 75
+        scopes:
+        - name: default
+          controlScope:
+            scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
+            step: 60
+          experimentScope:
+            scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
+            step: 60
 ```
 
 
