@@ -109,19 +109,20 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		return nil, err
 	}
 
-	// Do not create a background run if the rollout is completely rolled out or just created
-	if rollout.Status.Canary.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" {
+	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
+	if rollout.Status.Canary.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
 		return nil, nil
 	}
 
 	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
+
 	if currentAr == nil {
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		instanceID := analysisutil.GetInstanceID(rollout)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.Canary.Analysis, nil, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, &rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysisStep, nil, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}

@@ -37,6 +37,7 @@ type AnalysisTemplateSpec struct {
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
 type DurationString string
 
+// Duration converts DurationString into a time.Duration
 func (d DurationString) Duration() (time.Duration, error) {
 	return time.ParseDuration(string(d))
 }
@@ -48,6 +49,8 @@ type Metric struct {
 	// Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement.
 	// If omitted, will perform a single measurement
 	Interval DurationString `json:"interval,omitempty"`
+	// InitialDelay how long the AnalysisRun should wait before starting this metric
+	InitialDelay DurationString `json:"initialDelay,omitempty"`
 	// Count is the number of times to run the measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
 	// If count > 1, interval must be specified.
@@ -195,6 +198,8 @@ type AnalysisRunStatus struct {
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
 	MetricResults []MetricResult `json:"metricResults,omitempty"`
+	// StartedAt indicates when the analysisRun first started
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

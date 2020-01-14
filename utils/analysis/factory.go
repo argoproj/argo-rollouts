@@ -96,6 +96,11 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 			return fmt.Errorf("invalid interval string: %v", err)
 		}
 	}
+	if metric.InitialDelay != "" {
+		if _, err := metric.InitialDelay.Duration(); err != nil {
+			return fmt.Errorf("invalid startDelay string: %v", err)
+		}
+	}
 
 	if metric.FailureLimit < 0 {
 		return fmt.Errorf("failureLimit must be >= 0")

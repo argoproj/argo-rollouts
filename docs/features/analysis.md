@@ -241,6 +241,44 @@ specified, but the measurement value did not meet either condition.
 A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts to automate the execution of analysis runs, and collect the measurement, but still allow human judgement to decide
 whether or not measurement value is acceptable and decide to proceed or abort.
 
+## Delay Analysis Runs
+If the analysis run does not need to start immediately (i.e give the metric provider time to collect 
+metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
+can be configured to have a different delay. In additional to the metric specific delays, the rollouts 
+with background analysis can delay creating an analysis run until a certain step is reached
+
+Delaying a specific analysis metric:
+```yaml
+  metrics:
+  - name: success-rate
+    initialDelay: 5m # Do not start this analysis until 5 minutes after the analysis run starts
+    successCondition: result >= 0.90
+    prometheus:
+      address: http://prometheus.example.com:9090
+      query: ...
+```
+
+Delaying starting background analysis run until step 3 (Set Weight 40%):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+    canary: 
+      analysis:
+        templateName: success-rate
+        startingStep: 2
+      steps:
+      - setWeight: 20
+      - pause: {duration: 600}
+      - setWeight: 40
+      - pause: {duration: 600}
+```
+
 ## Experimentation (e.g. Mann-Whitney Analysis)
 
 Analysis can also be done as part of an Experiment. 
@@ -389,7 +427,6 @@ spec:
           scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
           step: 60
 ```
-
 
 ## Run experiment indefinitely
 

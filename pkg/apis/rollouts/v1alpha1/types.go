@@ -153,7 +153,7 @@ type CanaryStrategy struct {
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
-	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
+	Analysis *RolloutAnalysisBackground `json:"analysis,omitempty"`
 }
 
 // RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing
@@ -246,6 +246,14 @@ type CanaryStep struct {
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 	// Analysis defines the AnalysisRun that will run for a step
 	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
+}
+
+// RolloutAnalysisBackground defines a template that is used to create a background analysisRun
+type RolloutAnalysisBackground struct {
+	RolloutAnalysisStep `json:",inline"`
+	// StartingStep indicates which step the background analysis should start on
+	// If not listed, controller defaults to 0
+	StartingStep *int32 `json:"startingStep,omitempty"`
 }
 
 // RolloutAnalysisStep defines a template that is used to create a analysisRun

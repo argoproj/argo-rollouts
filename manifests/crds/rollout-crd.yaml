@@ -129,6 +129,9 @@ spec:
                             - name
                             type: object
                           type: array
+                        startingStep:
+                          format: int32
+                          type: integer
                         templateName:
                           type: string
                       required:

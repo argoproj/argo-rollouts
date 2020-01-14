@@ -55,6 +55,8 @@ spec:
                   inconclusiveLimit:
                     format: int32
                     type: integer
+                  initialDelay:
+                    type: string
                   interval:
                     type: string
                   name:
@@ -2681,6 +2683,9 @@ spec:
                 type: object
               type: array
             phase:
+              type: string
+            startedAt:
+              format: date-time
               type: string
           required:
           - phase

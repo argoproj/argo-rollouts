@@ -151,6 +151,24 @@ func TestValidateMetrics(t *testing.T) {
 	}
 	{
 		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        2,
+					Interval:     "60s",
+					InitialDelay: "60s-typo",
+					FailureLimit: 2,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: invalid startDelay string: time: unknown unit s-typo in duration 60s-typo")
+	}
+	{
+		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{},
 		}
 		err := ValidateMetrics(spec.Metrics)

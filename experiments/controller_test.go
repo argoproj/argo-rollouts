@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -322,12 +323,15 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
 		&record.FakeRecorder{})
 
+	var enqueuedObjectsLock sync.Mutex
 	c.enqueueExperiment = func(obj interface{}) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
+		enqueuedObjectsLock.Lock()
+		defer enqueuedObjectsLock.Unlock()
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0
