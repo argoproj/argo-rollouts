@@ -31,6 +31,7 @@ This example highlights:
 * background analysis style of progressive delivery
 * using a prometheus query to perform a measurement
 * the ability to parameterize the analysis
+* Delay starting the analysis run until step 3 (Set Weight 40%)
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -43,8 +44,8 @@ spec:
     canary: 
       analysis:
         templateName: success-rate
-        # NOTE: a field may be introduced to delay starting analysis run until a specified step is reached.
-        # (e.g.: startingStepIndex: 1)
+        startingStep: 2 # delay starting analysis run
+                        # until setWeight: 40%
         args:
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
