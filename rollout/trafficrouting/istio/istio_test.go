@@ -142,6 +142,19 @@ func TestReconcileNoChanges(t *testing.T) {
 	assert.Equal(t, "get", actions[0].GetVerb())
 }
 
+func TestReconcileInvalidValidation(t *testing.T) {
+	obj := strToUnstructured(regularVsvc)
+	schema := runtime.NewScheme()
+	client := fake.NewSimpleDynamicClient(schema, obj)
+	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
+	err := r.Reconcile(0)
+	assert.Equal(t, "Route 'route-not-found' is not found", err.Error())
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "get", actions[0].GetVerb())
+}
+
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	schema := runtime.NewScheme()
 	obj := strToUnstructured(regularVsvc)
@@ -196,4 +209,85 @@ func TestInvalidPatches(t *testing.T) {
 		err := patches.patchVirtualService(invalidHTTPRoute)
 		assert.Error(t, err, invalidCasting, "http[].route[].destination", "map[string]interface")
 	}
+}
+
+func TestValidateHTTPRoutes(t *testing.T) {
+	newRollout := func(routes []string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						StableService: "stable",
+						CanaryService: "canary",
+						TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+							Istio: &v1alpha1.IstioTrafficRouting{
+								VirtualService: v1alpha1.IstioVirtualService{
+									Routes: routes,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	httpRoutes := []httpRoute{{
+		Name: "test",
+		Route: []route{{
+			Destination: destination{
+				Host: "stable",
+			},
+		}},
+	}}
+	rollout := newRollout([]string{"test"})
+	err := validateHTTPRoutes(rollout, httpRoutes)
+	assert.Equal(t, fmt.Errorf("Route 'test' does not have exactly two routes"), err)
+
+	httpRoutes[0].Route = []route{{
+		Destination: destination{
+			Host: "stable",
+		},
+	}, {
+		Destination: destination{
+			Host: "canary",
+		},
+	}}
+	err = validateHTTPRoutes(rollout, httpRoutes)
+	assert.Nil(t, err)
+
+	rolloutWithNotFoundRoute := newRollout([]string{"not-found-route"})
+	err = validateHTTPRoutes(rolloutWithNotFoundRoute, httpRoutes)
+	assert.Equal(t, "Route 'not-found-route' is not found", err.Error())
+
+}
+
+func TestValidateHosts(t *testing.T) {
+	hr := httpRoute{
+		Name: "test",
+		Route: []route{{
+			Destination: destination{
+				Host: "stable",
+			},
+		}},
+	}
+	err := validateHosts(hr, "stable", "canary")
+	assert.Equal(t, fmt.Errorf("Route 'test' does not have exactly two routes"), err)
+
+	hr.Route = []route{{
+		Destination: destination{
+			Host: "stable",
+		},
+	}, {
+		Destination: destination{
+			Host: "canary",
+		},
+	}}
+	err = validateHosts(hr, "stable", "canary")
+	assert.Nil(t, err)
+
+	err = validateHosts(hr, "not-found-stable", "canary")
+	assert.Equal(t, fmt.Errorf("Stable Service 'not-found-stable' not found in route"), err)
+
+	err = validateHosts(hr, "stable", "not-found-canary")
+	assert.Equal(t, fmt.Errorf("Canary Service 'not-found-canary' not found in route"), err)
 }

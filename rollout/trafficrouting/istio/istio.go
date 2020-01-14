@@ -133,6 +133,10 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 		return nil, false, err
 	}
 
+	if err := validateHTTPRoutes(r.rollout, httpRoutes); err != nil {
+		return nil, false, err
+	}
+
 	patches := r.generateVirtualServicePatches(httpRoutes, int64(desiredWeight))
 	patches.patchVirtualService(httpRoutesI)
 
@@ -170,6 +174,62 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(modifiedVsvc, metav1.UpdateOptions{})
 	return err
+}
+
+// validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
+func validateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []httpRoute) error {
+	routes := r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+	stableSvc := r.Spec.Strategy.Canary.StableService
+	canarySvc := r.Spec.Strategy.Canary.CanaryService
+
+	routesPatched := map[string]bool{}
+	for _, route := range routes {
+		routesPatched[route] = false
+	}
+
+	for _, route := range httpRoutes {
+		// check if the httpRoute is in the list of routes from the rollout
+		if _, ok := routesPatched[route.Name]; ok {
+			routesPatched[route.Name] = true
+			err := validateHosts(route, stableSvc, canarySvc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for i := range routesPatched {
+		if !routesPatched[i] {
+			return fmt.Errorf("Route '%s' is not found", i)
+		}
+	}
+
+	return nil
+}
+
+// validateHosts ensures there are two destinations within a route and their hosts are the stable and canary service
+func validateHosts(hr httpRoute, stableSvc, canarySvc string) error {
+	if len(hr.Route) != 2 {
+		return fmt.Errorf("Route '%s' does not have exactly two routes", hr.Name)
+	}
+	hasStableSvc := false
+	hasCanarySvc := false
+	for _, r := range hr.Route {
+		if r.Destination.Host == stableSvc {
+			hasStableSvc = true
+		}
+		if r.Destination.Host == canarySvc {
+			hasCanarySvc = true
+		}
+	}
+	if !hasCanarySvc {
+		return fmt.Errorf("Canary Service '%s' not found in route", canarySvc)
+	}
+	if !hasStableSvc {
+		return fmt.Errorf("Stable Service '%s' not found in route", stableSvc)
+	}
+	return nil
+
 }
 
 // Structs below describe fields within Istio's VirtualService that the Rollout needs to modify
