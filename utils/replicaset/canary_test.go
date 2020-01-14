@@ -465,7 +465,7 @@ func TestBeforeStartingStep(t *testing.T) {
 	}
 	assert.False(t, BeforeStartingStep(ro))
 
-	ro.Spec.Strategy.Canary.Analysis.StartAtStep = pointer.Int32Ptr(1)
+	ro.Spec.Strategy.Canary.Analysis.StartingStep = pointer.Int32Ptr(1)
 	assert.False(t, BeforeStartingStep(ro))
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
 		{

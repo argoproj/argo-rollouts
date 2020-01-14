@@ -1395,7 +1395,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
-					"startDelay": {
+					"initialDelay": {
 						SchemaProps: spec.SchemaProps{
 							Description: "InitialDelay how long the AnalysisRun should wait before starting this metric",
 							Type:        []string{"string"},
@@ -1751,9 +1751,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 							},
 						},
 					},
-					"startAtStep": {
+					"startingStep": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StartAtStep indicates which step the background analysis should start on If not listed, controller defaults to 0",
+							Description: "StartingStep indicates which step the background analysis should start on If not listed, controller defaults to 0",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

@@ -194,14 +194,14 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 
 // BeforeStartingStep checks if canary rollout is at the starting step
 func BeforeStartingStep(rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.StartAtStep == nil {
+	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.StartingStep == nil {
 		return false
 	}
 	_, currStep := GetCurrentCanaryStep(rollout)
 	if currStep == nil {
 		return false
 	}
-	return *currStep < *rollout.Spec.Strategy.Canary.Analysis.StartAtStep
+	return *currStep < *rollout.Spec.Strategy.Canary.Analysis.StartingStep
 }
 
 // CheckStableRSExists checks if the stableRS exists and is different than the newRS

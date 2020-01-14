@@ -50,7 +50,7 @@ type Metric struct {
 	// If omitted, will perform a single measurement
 	Interval DurationString `json:"interval,omitempty"`
 	// InitialDelay how long the AnalysisRun should wait before starting this metric
-	InitialDelay DurationString `json:"startDelay,omitempty"`
+	InitialDelay DurationString `json:"initialDelay,omitempty"`
 	// Count is the number of times to run the measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
 	// If count > 1, interval must be specified.

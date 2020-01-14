@@ -55,6 +55,8 @@ spec:
                   inconclusiveLimit:
                     format: int32
                     type: integer
+                  initialDelay:
+                    type: string
                   interval:
                     type: string
                   name:
@@ -2606,8 +2608,6 @@ spec:
                             type: string
                         type: object
                     type: object
-                  startDelay:
-                    type: string
                   successCondition:
                     type: string
                 required:

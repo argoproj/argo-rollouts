@@ -129,7 +129,7 @@ spec:
                             - name
                             type: object
                           type: array
-                        startAtStep:
+                        startingStep:
                           format: int32
                           type: integer
                         templateName:

@@ -968,8 +968,8 @@ func (in *Rollout) DeepCopyObject() runtime.Object {
 func (in *RolloutAnalysisBackground) DeepCopyInto(out *RolloutAnalysisBackground) {
 	*out = *in
 	in.RolloutAnalysisStep.DeepCopyInto(&out.RolloutAnalysisStep)
-	if in.StartAtStep != nil {
-		in, out := &in.StartAtStep, &out.StartAtStep
+	if in.StartingStep != nil {
+		in, out := &in.StartingStep, &out.StartingStep
 		*out = new(int32)
 		**out = **in
 	}

@@ -251,9 +251,9 @@ type CanaryStep struct {
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
 type RolloutAnalysisBackground struct {
 	RolloutAnalysisStep `json:",inline"`
-	// StartAtStep indicates which step the background analysis should start on
+	// StartingStep indicates which step the background analysis should start on
 	// If not listed, controller defaults to 0
-	StartAtStep *int32 `json:"startAtStep,omitempty"`
+	StartingStep *int32 `json:"startingStep,omitempty"`
 }
 
 // RolloutAnalysisStep defines a template that is used to create a analysisRun
