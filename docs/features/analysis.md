@@ -27,6 +27,7 @@ and the Rollout would be considered in a `Degraded`. Otherwise, if the rollout c
 canary steps, the rollout is considered successful and the analysis run is stopped by the controller.
 
 This example highlights:
+
 * background analysis style of progressive delivery
 * using a prometheus query to perform a measurement
 * the ability to parameterize the analysis
@@ -44,7 +45,7 @@ spec:
         templateName: success-rate
         # NOTE: a field may be introduced to delay starting analysis run until a specified step is reached.
         # (e.g.: startingStepIndex: 1)
-        arguments:
+        args:
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
       steps:
@@ -65,7 +66,7 @@ kind: AnalysisTemplate
 metadata:
   name: success-rate
 spec:
-  inputs:
+  args:
   - name: service-name
   metrics:
   - name: success-rate
@@ -77,10 +78,10 @@ spec:
         address: http://prometheus.example.com:9090
         query: |
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
           )) / 
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
           ))
 ```
 
@@ -92,7 +93,7 @@ kind: AnalysisTemplate
 metadata:
   name: success-rate
 spec:
-  inputs:
+  args:
   - name: service-name
   metrics:
   - name: success-rate
@@ -104,10 +105,10 @@ spec:
         address: example.wavefront.com
         query: |
           sum(rate(
-            5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{inputs.service-name}}"
+            5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{args.service-name}}"
           ))) /
           sum(rate(
-            5m, ts("istio.requestcount.count", reporter=client and destination_service="{{inputs.service-name}}"
+            5m, ts("istio.requestcount.count", reporter=client and destination_service="{{args.service-name}}"
           )))
 ```
 
@@ -135,6 +136,7 @@ This example sets the canary weight to 20%, pauses for 5 minutes, then runs an a
 analysis was successful, continues with rollout, otherwise aborts.
 
 This example demonstrates:
+
 * the ability to invoke an analysis in-line as part of steps
 
 ```yaml
@@ -151,6 +153,9 @@ spec:
       - pause: {duration: 300}
       - analysis:
           templateName: success-rate
+          args:
+          - name: service-name
+            value: guestbook-svc.default.svc.cluster.local
 ```
 
 In this example, the `AnalysisTemplate` is identical to the background analysis example, but since
@@ -162,7 +167,7 @@ kind: AnalysisTemplate
 metadata:
   name: success-rate
 spec:
-  inputs:
+  args:
   - name: service-name
   metrics:
   - name: success-rate
@@ -172,10 +177,10 @@ spec:
         address: http://prometheus.example.com:9090
         query: |
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code!~"5.*"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
           )) / 
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
           ))
 ```
 
@@ -211,7 +216,7 @@ every 5 minutes, causing the analysis run to fail if 10 or more errors were enco
         address: http://prometheus.example.com:9090
         query: |
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{inputs.service-name}}",response_code~"5.*"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"5.*"}[5m]
           ))
 ```
 
@@ -260,9 +265,10 @@ Delaying a specific analysis metric:
   - name: success-rate
     initialDelay: 5m # Do not start this analysis until 5 minutes after the analysis run starts
     successCondition: result >= 0.90
-    prometheus:
-      address: http://prometheus.example.com:9090
-      query: ...
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: ...
 ```
 
 Delaying starting background analysis run until step 3 (Set Weight 40%):
@@ -295,6 +301,7 @@ scale down to zero. Call out to Kayenta to perform Mann-Whintney analysis agains
 short-lived experiment and an asynchronous analysis.
 
 This example demonstrates:
+
 * the ability to start an Experiment as part of rollout steps, which launches multiple ReplicaSets (e.g. baseline & canary)
 * the ability to reference and supply pod-template-hash to an AnalysisRun
 * kayenta metrics
@@ -320,7 +327,7 @@ spec:
             specRef: canary
           analysis:
             templateName: mann-whitney
-            arguments:
+            args:
             - name: stable-hash
               valueFrom:
                 podTemplateHash: baseline
@@ -336,7 +343,7 @@ kind: AnalysisTemplate
 metadata:
   name: mann-whitney
 spec:
-  inputs:
+  args:
   - name: start-time
   - name: end-time
   - name: stable-hash
@@ -354,15 +361,15 @@ spec:
         scopes:
         - name: default
           controlScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
+            scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
             step: 60
-            start: "{{inputs.start-time}}"
-            end: "{{inputs.end-time}}"
+            start: "{{args.start-time}}"
+            end: "{{args.end-time}}"
           experimentScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
+            scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
             step: 60
-            start: "{{inputs.start-time}}"
-            end: "{{inputs.end-time}}"
+            start: "{{args.start-time}}"
+            end: "{{args.end-time}}"
 ```
 
 The above would instantiate the following experiment:
@@ -389,7 +396,7 @@ spec:
         image: guesbook:v2
   analysis:
     templateName: mann-whitney
-    arguments:
+    args:
     - name: start-time
       value: 2019-09-14T01:40:10Z
     - name: end-time
@@ -400,6 +407,7 @@ spec:
 In order to perform multiple kayenta runs over some time duration, the `interval` and `count` fields
 can be supplied. When the `start` and `end` fields are omitted from the kayenta scopes, the values
 will be implicitly decided as:
+
 * start: if `lookback: true` start of analysis, otherwise current time - interval
 * end: current time
 
@@ -410,7 +418,7 @@ kind: AnalysisTemplate
 metadata:
   name: mann-whitney
 spec:
-  inputs:
+  args:
   - name: stable-hash
   - name: canary-hash
   metrics:
@@ -430,10 +438,10 @@ spec:
         scopes:
         - name: default
           controlScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
+            scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
             step: 60
           experimentScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
+            scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
             step: 60
 ```
 
@@ -470,13 +478,14 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
   - name: test
     job:
       backoffLimit: 1
-      template:
-        spec:
-          containers:
-          - name: test
-            image: my-image:latest
-            command: [my-test-script, my-service.default.svc.cluster.local]
-          restartPolicy: Never
+      spec:
+        template:
+          spec:
+            containers:
+            - name: test
+              image: my-image:latest
+              command: [my-test-script, my-service.default.svc.cluster.local]
+            restartPolicy: Never
 ```
 
 ## Webhook Metrics (Not implemented: [issue](https://github.com/argoproj/argo-rollouts/issues/177))
