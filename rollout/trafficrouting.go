@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -58,5 +60,9 @@ func (c *RolloutController) reconcileTrafficRouting(roCtx *canaryContext) error 
 		}
 	}
 
-	return reconciler.Reconcile(desiredWeight)
+	err := reconciler.Reconcile(desiredWeight)
+	if err != nil {
+		c.recorder.Event(rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
+	}
+	return err
 }
