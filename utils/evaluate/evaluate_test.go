@@ -56,3 +56,67 @@ func TestEvaluateInvalidStruct(t *testing.T) {
 	assert.Errorf(t, err, "")
 	assert.False(t, b)
 }
+
+func TestEvaluateAsIntPanic(t *testing.T) {
+	b, err := EvalCondition("1.1", "asInt(result) == 1.1")
+	assert.Errorf(t, err, "got expected error: %v", err)
+	assert.False(t, b)
+}
+
+func TestEvaluateAsInt(t *testing.T) {
+	b, err := EvalCondition("1", "asInt(result) == 1")
+	assert.NoError(t, err)
+	assert.True(t, b)
+}
+
+func TestEvaluateAsFloatPanic(t *testing.T) {
+	b, err := EvalCondition("NotANum", "asFloat(result) == 1.1")
+	assert.Errorf(t, err, "got expected error: %v", err)
+	assert.False(t, b)
+}
+
+func TestEvaluateAsFloat(t *testing.T) {
+	b, err := EvalCondition("1.1", "asFloat(result) == 1.1")
+	assert.NoError(t, err)
+	assert.True(t, b)
+}
+
+func TestAsInt(t *testing.T) {
+	tests := []struct {
+		input       string
+		output      int64
+		shouldPanic bool
+	}{
+		{"1", 1, false},
+		{"notint", 1, true},
+		{"1.1", 1, true},
+	}
+
+	for _, test := range tests {
+		if test.shouldPanic {
+			assert.Panics(t, func() { asInt(test.input) })
+		} else {
+			assert.Equal(t, test.output, asInt(test.input))
+		}
+	}
+}
+
+func TestAsFloat(t *testing.T) {
+	tests := []struct {
+		input       string
+		output      float64
+		shouldPanic bool
+	}{
+		{"1", 1, false},
+		{"notfloat", 1, true},
+		{"1.1", 1.1, false},
+	}
+
+	for _, test := range tests {
+		if test.shouldPanic {
+			assert.Panics(t, func() { asFloat(test.input) })
+		} else {
+			assert.Equal(t, test.output, asFloat(test.input))
+		}
+	}
+}
