@@ -82,6 +82,7 @@ func newCommand() *cobra.Command {
 			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
+				kubeinformers.WithNamespace(namespace),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
