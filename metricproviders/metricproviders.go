@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
+	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -52,6 +53,13 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 	} else if metric.Provider.Kayenta != nil {
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
+	} else if metric.Provider.Web != nil {
+		c := webmetric.NewWebMetricHttpClient(metric)
+		p, err := webmetric.NewWebMetricJsonParser(metric)
+		if err != nil {
+			return nil, err
+		}
+		return webmetric.NewWebMetricProvider(logCtx, c, p), nil
 	} else if metric.Provider.Wavefront != nil {
 		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
 		if err != nil {

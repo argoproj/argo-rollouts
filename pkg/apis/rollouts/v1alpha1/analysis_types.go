@@ -100,6 +100,7 @@ type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
 	Kayenta    *KayentaMetric    `json:"kayenta,omitempty"`
+	Web        *WebMetric        `json:"web,omitempty"`
 	// Wavefront specifies the wavefront metric to query
 	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
 	// Job specifies the job metric run
@@ -281,4 +282,16 @@ type ScopeDetail struct {
 	Step   int    `json:"step"`
 	Start  string `json:"start"`
 	End    string `json:"end"`
+}
+
+type WebMetric struct {
+	URL            string            `json:"url"`
+	Headers        []WebMetricHeader `json:"headers,omitempty"`
+	TimeoutSeconds int               `json:"timeoutSeconds,omitempty"`
+	JSONPath       string            `json:"jsonPath"`
+}
+
+type WebMetricHeader struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
