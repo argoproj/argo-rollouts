@@ -210,8 +210,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
 	logCtx := logutil.WithRollout(r)
-	isControllerPaused := len(r.Status.PauseConditions) > 0
-	logCtx.Infof("Syncing replicas only (controllerPaused: %v, userPaused %v, isScaling: %v)", isControllerPaused, r.Spec.Paused, isScaling)
+	logCtx.Infof("Syncing replicas only (userPaused %v, isScaling: %v)", r.Spec.Paused, isScaling)
 	newRS, oldRSs, err := c.getAllReplicaSetsAndSyncRevision(r, rsList, false)
 	if err != nil {
 		return err
@@ -228,7 +227,6 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 			// so we can abort this resync
 			return err
 		}
-		c.reconcileBlueGreenPause(previewSvc, activeSvc, roCtx)
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.

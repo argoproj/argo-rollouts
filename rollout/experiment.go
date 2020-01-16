@@ -144,7 +144,7 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		return c.cancelExperiments(roCtx, allExs)
 	}
 
-	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return nil
 	}
 

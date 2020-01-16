@@ -154,7 +154,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		return false
 	}
 
-	cond := roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
 	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
 	if cond == nil && !rollout.Status.ControllerPause && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
@@ -168,6 +168,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		now := metav1.Now()
 		if now.After(switchDeadline) {
 			roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+			return false
 		}
 
 	}

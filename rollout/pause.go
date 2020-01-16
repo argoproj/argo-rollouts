@@ -105,9 +105,9 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 	newStatus.PauseConditions = newPauseConditions
 }
 
-func (pCtx *pauseContext) GetPauseCondition(reason v1alpha1.PauseReason) *v1alpha1.PauseCondition {
-	for i := range pCtx.rollout.Status.PauseConditions {
-		cond := pCtx.rollout.Status.PauseConditions[i]
+func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *v1alpha1.PauseCondition {
+	for i := range rollout.Status.PauseConditions {
+		cond := rollout.Status.PauseConditions[i]
 		if cond.Reason == reason {
 			return &cond
 		}
@@ -117,7 +117,7 @@ func (pCtx *pauseContext) GetPauseCondition(reason v1alpha1.PauseReason) *v1alph
 
 func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	rollout := pCtx.rollout
-	pauseCondition := pCtx.GetPauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
+	pauseCondition := getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep)
 
 	if pause.Duration != nil {
 		now := metav1.Now()
