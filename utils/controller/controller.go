@@ -6,13 +6,13 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
@@ -45,18 +45,47 @@ func processNextWatchObj(watchEvent watch.Event, queue workqueue.RateLimitingInt
 // WatchResource is a long-running function that will continually call the
 // processNextWatchObj function in order to watch changes on a resource kind
 // and enqueue a different resources kind that interact with them
-func WatchResource(client dynamic.Interface, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
+func WatchResource(client dynamic.Interface, namespace string, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) error {
 	log.Infof("Starting watch on resource '%s'", gvk.Resource)
-	watch, err := client.Resource(gvk).Watch(metav1.ListOptions{})
-	if k8serrors.IsNotFound(err) {
-		log.Infof("Watch for resource '%s' failed: resource not found", gvk.Resource)
-		return
+	var watchI watch.Interface
+	var err error
+	if namespace == metav1.NamespaceAll {
+		watchI, err = client.Resource(gvk).Watch(metav1.ListOptions{})
+	} else {
+		watchI, err = client.Resource(gvk).Namespace(namespace).Watch(metav1.ListOptions{})
 	}
+
 	if err != nil {
-		panic(err)
+		log.Errorf("Error with watch: %v", err)
+		return err
 	}
-	for watchEvent := range watch.ResultChan() {
+	for watchEvent := range watchI.ResultChan() {
 		processNextWatchObj(watchEvent, queue, indexer, index)
+	}
+	return nil
+}
+
+// WatchResourceWithExponentialBackoff creates a watch for the gvk provided. If there are any error,
+// the function will rety again using exponetial backoff. It starts at 1 second wait, and wait afterwards
+// increases by a factor of 2 and caps at 5 minutes.
+func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.Interface, namespace string, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
+	backoff := wait.Backoff{
+		Duration: 1 * time.Second,
+		Cap:      5 * time.Minute,
+		Factor:   float64(2),
+		Steps:    10,
+	}
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+		err := WatchResource(client, namespace, gvk, queue, indexer, index)
+		if err == nil {
+			continue
+		}
+		time.Sleep(backoff.Step())
 	}
 }
 

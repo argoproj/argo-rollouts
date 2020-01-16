@@ -33,6 +33,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	allRSs := roCtx.AllRSs()
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
+		roCtx.PauseContext().RemoveAbort()
 		logCtx.Infof("New pod template or template change detected")
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}

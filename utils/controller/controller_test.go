@@ -391,18 +391,14 @@ func TestWatchResourceNotFound(t *testing.T) {
 		returnsError = true
 		return true, nil, k8serrors.NewNotFound(gvk.GroupResource(), "virtualservices")
 	})
-	WatchResource(client, gvk, nil, nil, "not-used")
+	err := WatchResource(client, metav1.NamespaceAll, gvk, nil, nil, "not-used")
 	assert.True(t, returnsError)
-}
+	assert.Equal(t, k8serrors.NewNotFound(gvk.GroupResource(), "virtualservices"), err)
 
-func TestWatchResourceHandleOtherError(t *testing.T) {
-	obj := newObj("foo", "Object", "example.com/v1")
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
-	gvk := schema.ParseGroupResource("objects.example.com").WithVersion("v1")
-	client.PrependWatchReactor("*", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-		return true, nil, fmt.Errorf("other error")
-	})
-	assert.Panics(t, func() { WatchResource(client, gvk, nil, nil, "not-used") })
+	returnsError = false
+	err = WatchResource(client, metav1.NamespaceDefault, gvk, nil, nil, "not-used")
+	assert.True(t, returnsError)
+	assert.Equal(t, k8serrors.NewNotFound(gvk.GroupResource(), "virtualservices"), err)
 }
 
 func TestWatchResourceHandleStop(t *testing.T) {
@@ -415,7 +411,7 @@ func TestWatchResourceHandleStop(t *testing.T) {
 		return true, watchI, nil
 	})
 
-	WatchResource(client, gvk, nil, nil, "not-used")
+	WatchResource(client, metav1.NamespaceAll, gvk, nil, nil, "not-used")
 }
 
 func TestProcessNextWatchObj(t *testing.T) {

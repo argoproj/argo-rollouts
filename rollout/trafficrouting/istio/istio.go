@@ -42,6 +42,9 @@ func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
 		return []string{}
 	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
+		return []string{}
+	}
 	return []string{fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
 }
 

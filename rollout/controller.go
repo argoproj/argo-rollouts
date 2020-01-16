@@ -44,6 +44,8 @@ const (
 
 // RolloutController is the controller implementation for Rollout resources
 type RolloutController struct {
+	// namespace which namespace(s) operates on
+	namespace string
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
@@ -87,6 +89,7 @@ type RolloutController struct {
 
 // NewRolloutController returns a new rollout controller
 func NewRolloutController(
+	namespace string,
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
@@ -109,6 +112,7 @@ func NewRolloutController(
 	}
 
 	controller := &RolloutController{
+		namespace:              namespace,
 		kubeclientset:          kubeclientset,
 		argoprojclientset:      argoprojclientset,
 		dynamicclientset:       dynamicclientset,
@@ -215,9 +219,7 @@ func (c *RolloutController) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Started Rollout workers")
 
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-	go wait.Until(func() {
-		controllerutil.WatchResource(c.dynamicclientset, gvk, c.rolloutWorkqueue, c.rolloutsIndexer, virtualServiceIndexName)
-	}, time.Minute, stopCh)
+	go controllerutil.WatchResourceWithExponentialBackoff(stopCh, c.dynamicclientset, c.namespace, gvk, c.rolloutWorkqueue, c.rolloutsIndexer, virtualServiceIndexName)
 
 	<-stopCh
 	log.Info("Shutting down workers")

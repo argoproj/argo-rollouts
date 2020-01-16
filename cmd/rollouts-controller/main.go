@@ -97,7 +97,11 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
-			cm := controller.NewManager(kubeClient, rolloutClient, dynamicClient,
+			cm := controller.NewManager(
+				namespace,
+				kubeClient,
+				rolloutClient,
+				dynamicClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				jobInformerFactory.Batch().V1().Jobs(),

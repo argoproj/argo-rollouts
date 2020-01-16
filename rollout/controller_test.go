@@ -372,7 +372,11 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 
-	c := NewRolloutController(f.kubeclient, f.client, nil,
+	c := NewRolloutController(
+		metav1.NamespaceAll,
+		f.kubeclient,
+		f.client,
+		nil,
 		i.Argoproj().V1alpha1().Experiments(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
