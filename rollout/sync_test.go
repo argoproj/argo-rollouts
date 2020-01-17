@@ -110,25 +110,6 @@ func TestScaleBlueGreen(t *testing.T) {
 			activeSvc:   nil,
 		},
 		{
-			name:       "Scale down older active replica sets",
-			rollout:    newRolloutWithStatus("foo", 5, nil, nil),
-			oldRollout: newRolloutWithStatus("foo", 5, nil, nil),
-
-			newRS: rs("foo-v2", 5, nil, newTimestamp, nil),
-			oldRSs: []*appsv1.ReplicaSet{
-				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, oldTimestamp, nil),
-				rs("foo-v0", 5, nil, olderTimestamp, nil),
-			},
-
-			expectedNew: rs("foo-v2", 5, nil, newTimestamp, nil),
-			expectedOld: []*appsv1.ReplicaSet{
-				rs("foo-v1", 5, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}, oldTimestamp, nil),
-				rs("foo-v0", 0, nil, olderTimestamp, nil),
-			},
-			previewSvc: nil,
-			activeSvc:  newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "foo-v1"}),
-		},
-		{
 			name:       "No updates",
 			rollout:    newRolloutWithStatus("foo", 5, nil, nil),
 			oldRollout: newRolloutWithStatus("foo", 5, nil, nil),
