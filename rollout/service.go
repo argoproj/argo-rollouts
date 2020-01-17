@@ -24,14 +24,20 @@ const (
 
 // switchSelector switch the selector on an existing service to a new value
 func (c RolloutController) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
-	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
-	msg := fmt.Sprintf("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
-	logutil.WithRollout(r).Info(msg)
-	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
-	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
+	if oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && oldPodHash == newRolloutUniqueLabelValue {
+		return nil
+	}
+	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
+	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
+	if err != nil {
+		return err
+	}
+	msg := fmt.Sprintf("Switched selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	logutil.WithRollout(r).Info(msg)
+	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
 	return err
 }
