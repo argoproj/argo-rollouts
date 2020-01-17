@@ -129,10 +129,10 @@ spec:
             templateName: mann-whitney
             args:
             - name: stable-hash
-            valueFrom:
-              podTemplateHash: baseline
+              valueFrom:
+                podTemplateHash: baseline
             - name: canary-hash
-            valueFrom:
-              podTemplateHash: canary
+              valueFrom:
+                podTemplateHash: canary
 ```
-In the example above,  the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.
+In the example above, the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.
