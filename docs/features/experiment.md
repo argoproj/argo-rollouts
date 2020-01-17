@@ -127,7 +127,7 @@ spec:
           specRef: canary
           analysis:
             templateName: mann-whitney
-            arguments:
+            args:
             - name: stable-hash
             valueFrom:
               podTemplateHash: baseline
