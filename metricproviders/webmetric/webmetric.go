@@ -9,12 +9,14 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/jsonpath"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/evaluate"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -47,16 +49,26 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request := &http.Request{
 		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
 	}
-
-	url, err := url.Parse(metric.Provider.Web.URL)
+	urlStr, err := templateutil.ResolveArgs(metric.Provider.Web.URL, run.Spec.Args)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+
+	url, err := url.Parse(urlStr)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
 	request.URL = url
 
 	request.Header = make(http.Header)
+
 	for _, header := range metric.Provider.Web.Headers {
-		request.Header.Set(header.Key, header.Value)
+		value, err := templateutil.ResolveArgs(header.Value, run.Spec.Args)
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		request.Header.Set(header.Key, value)
 	}
 
 	// Send Request
@@ -100,51 +112,8 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 	}
 	out := buf.String()
 
-	status := p.evaluateResponse(metric, out)
+	status := evaluate.EvaluateResult(out, metric, p.logCtx)
 	return out, status, nil
-}
-
-func (p *Provider) evaluateResponse(metric v1alpha1.Metric, result interface{}) v1alpha1.AnalysisPhase {
-	successCondition := false
-	failCondition := false
-	var err error
-
-	if metric.SuccessCondition != "" {
-		successCondition, err = evaluate.EvalCondition(result, metric.SuccessCondition)
-		if err != nil {
-			p.logCtx.Warning(err.Error())
-			return v1alpha1.AnalysisPhaseError
-		}
-	}
-	if metric.FailureCondition != "" {
-		failCondition, err = evaluate.EvalCondition(result, metric.FailureCondition)
-		if err != nil {
-			return v1alpha1.AnalysisPhaseError
-		}
-	}
-
-	switch {
-	case metric.SuccessCondition == "" && metric.FailureCondition == "":
-		//Always return success unless there is an error
-		return v1alpha1.AnalysisPhaseSuccessful
-	case metric.SuccessCondition != "" && metric.FailureCondition == "":
-		// Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true
-		failCondition = !successCondition
-	case metric.SuccessCondition == "" && metric.FailureCondition != "":
-		// Without a success condition, a measurement is considered a successful if the measurement's failure condition is not true
-		successCondition = !failCondition
-	}
-
-	if failCondition {
-		return v1alpha1.AnalysisPhaseFailed
-	}
-
-	if !failCondition && !successCondition {
-		return v1alpha1.AnalysisPhaseInconclusive
-	}
-
-	// If we reach this code path, failCondition is false and successCondition is true
-	return v1alpha1.AnalysisPhaseSuccessful
 }
 
 // Resume should not be used the WebMetric provider since all the work should occur in the Run method

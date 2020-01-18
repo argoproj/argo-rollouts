@@ -85,49 +85,6 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func (p *Provider) evaluateResult(result interface{}, metric v1alpha1.Metric) v1alpha1.AnalysisPhase {
-	successCondition := false
-	failCondition := false
-	var err error
-
-	if metric.SuccessCondition != "" {
-		successCondition, err = evaluate.EvalCondition(result, metric.SuccessCondition)
-		if err != nil {
-			p.logCtx.Warning(err.Error())
-			return v1alpha1.AnalysisPhaseError
-		}
-	}
-	if metric.FailureCondition != "" {
-		failCondition, err = evaluate.EvalCondition(result, metric.FailureCondition)
-		if err != nil {
-			return v1alpha1.AnalysisPhaseError
-		}
-	}
-
-	switch {
-	case metric.SuccessCondition == "" && metric.FailureCondition == "":
-		//Always return success unless there is an error
-		return v1alpha1.AnalysisPhaseSuccessful
-	case metric.SuccessCondition != "" && metric.FailureCondition == "":
-		// Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true
-		failCondition = !successCondition
-	case metric.SuccessCondition == "" && metric.FailureCondition != "":
-		// Without a success condition, a measurement is considered a successful if the measurement's failure condition is not true
-		successCondition = !failCondition
-	}
-
-	if failCondition {
-		return v1alpha1.AnalysisPhaseFailed
-	}
-
-	if !failCondition && !successCondition {
-		return v1alpha1.AnalysisPhaseInconclusive
-	}
-
-	// If we reach this code path, failCondition is false and successCondition is true
-	return v1alpha1.AnalysisPhaseSuccessful
-}
-
 func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value) (string, v1alpha1.AnalysisPhase, error) {
 	switch value := response.(type) {
 	case *model.Scalar:
@@ -136,7 +93,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		if math.IsNaN(result) {
 			return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
 		}
-		newStatus := p.evaluateResult(result, metric)
+		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
 		return valueStr, newStatus, nil
 	case model.Vector:
 		results := make([]float64, 0, len(value))
@@ -157,7 +114,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 				return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
 			}
 		}
-		newStatus := p.evaluateResult(results, metric)
+		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
 		return valueStr, newStatus, nil
 	//TODO(dthomson) add other response types
 	default:
