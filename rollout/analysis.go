@@ -114,7 +114,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		return nil, nil
 	}
 
-	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 
@@ -160,7 +160,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
 	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
 
-	if roCtx.PauseContext().GetPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 

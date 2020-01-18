@@ -326,11 +326,17 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		expectedPatchWithoutSubs := `{
 			"status": {
+				"blueGreen": {
+					"activeSelector": "%s"
+				},
 				"pauseConditions": null,
-				"controllerPause": null
+				"controllerPause": null,
+				"selector": "foo=bar,rollouts-pod-template-hash=%s"
 			}
 		}`
-		expectedPatch := calculatePatch(r2, expectedPatchWithoutSubs)
+		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash))
+		f.expectPatchServiceAction(activeSvc, rs2PodHash)
+		f.expectPatchReplicaSetAction(rs1)
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
