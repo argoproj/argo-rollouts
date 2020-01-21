@@ -73,10 +73,13 @@ type Manager struct {
 	serviceWorkqueue     workqueue.RateLimitingInterface
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
+
+	defaultIstioVersion string
 }
 
 // NewManager returns a new manager to manage all the controllers
 func NewManager(
+	namespace string,
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
@@ -113,6 +116,7 @@ func NewManager(
 	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
 
 	rolloutController := rollout.NewRolloutController(
+		namespace,
 		kubeclientset,
 		argoprojclientset,
 		dynamicclientset,
@@ -178,6 +182,7 @@ func NewManager(
 		serviceController:      serviceController,
 		experimentController:   experimentController,
 		analysisController:     analysisController,
+		defaultIstioVersion:    defaultIstioVersion,
 	}
 
 	return cm

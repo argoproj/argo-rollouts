@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -28,6 +30,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -35,8 +38,14 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
+const (
+	virtualServiceIndexName = "byVirtualService"
+)
+
 // RolloutController is the controller implementation for Rollout resources
 type RolloutController struct {
+	// namespace which namespace(s) operates on
+	namespace string
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
@@ -80,6 +89,7 @@ type RolloutController struct {
 
 // NewRolloutController returns a new rollout controller
 func NewRolloutController(
+	namespace string,
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
@@ -102,6 +112,7 @@ func NewRolloutController(
 	}
 
 	controller := &RolloutController{
+		namespace:              namespace,
 		kubeclientset:          kubeclientset,
 		argoprojclientset:      argoprojclientset,
 		dynamicclientset:       dynamicclientset,
@@ -145,6 +156,15 @@ func NewRolloutController(
 			}
 		},
 	})
+
+	util.CheckErr(rolloutsInformer.Informer().AddIndexers(cache.Indexers{
+		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
+			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
+				return istio.GetRolloutVirtualServiceKeys(rollout), nil
+			}
+			return
+		},
+	}))
 
 	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -197,6 +217,10 @@ func (c *RolloutController) Run(threadiness int, stopCh <-chan struct{}) error {
 		}, time.Second, stopCh)
 	}
 	log.Info("Started Rollout workers")
+
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
+	go controllerutil.WatchResourceWithExponentialBackoff(stopCh, c.dynamicclientset, c.namespace, gvk, c.rolloutWorkqueue, c.rolloutsIndexer, virtualServiceIndexName)
+
 	<-stopCh
 	log.Info("Shutting down workers")
 
