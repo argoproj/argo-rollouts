@@ -83,6 +83,12 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 		}
 		err := WatchResource(client, namespace, gvk, queue, indexer, index)
 		if err == nil {
+			backoff = wait.Backoff{
+				Duration: 1 * time.Second,
+				Cap:      5 * time.Minute,
+				Factor:   float64(2),
+				Steps:    10,
+			}
 			continue
 		}
 		time.Sleep(backoff.Step())
