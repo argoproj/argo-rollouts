@@ -176,13 +176,15 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (int32, error) {
+func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
 	logCtx := logutil.WithRollout(rollout)
 	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
-	totalScaledDown := int32(0)
+	hasScaled := false
 	annotationedRSs := int32(0)
+	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
+		desiredReplicaCount := int32(0)
 		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 			annotationedRSs++
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
@@ -199,26 +201,23 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 					if remainingTime < c.resyncPeriod {
 						c.enqueueRolloutAfter(rollout, remainingTime)
 					}
-					continue
+					desiredReplicaCount = rolloutReplicas
 				}
 			}
 		}
-		if *(targetRS.Spec.Replicas) == 0 {
-			// cannot scale down this ReplicaSet.
+		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
+			// at desired account
 			continue
 		}
-		scaleDownCount := *(targetRS.Spec.Replicas)
 		// Scale down.
-		newReplicasCount := int32(0)
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount, rollout)
+		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount, rollout)
 		if err != nil {
-			return totalScaledDown, err
+			return false, err
 		}
-
-		totalScaledDown += scaleDownCount
+		hasScaled = true
 	}
 
-	return totalScaledDown, nil
+	return hasScaled, nil
 }
 
 func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, activeSvc *corev1.Service, roCtx *blueGreenContext) error {
@@ -324,6 +323,8 @@ func (c *RolloutController) scaleBlueGreen(rollout *v1alpha1.Rollout, newRS *app
 			return err
 		}
 	}
+
+	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
 	annotationedRSs := int32(0)
 	logCtx := logutil.WithRollout(rollout)
