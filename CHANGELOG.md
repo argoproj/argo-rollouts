@@ -1,11 +1,67 @@
 # Changelog
 
+# v0.7.0
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.0/manifests/install.yaml
+
+## Important Notices
+- Please upgrade to v0.6.x before upgrading to v0.7. Pre v0.6.0 has a different pausing logic, and v0.7.0 removes the depreciated PauseStartTime field. The v0.6.x versions have a migration script that is removed in v0.7.0. 
+- This release introduces an alpha implementation of Rollouts leveraging Istio resources for traffic shaping. Check out [traffic management](https://argoproj.github.io/argo-rollouts/features/traffic-management/) for more info.
+
+## Changes since v0.6.3
+
+### General
+* Support instance ids for rollout controller segregation #342
+* Remove PauseStartTime #349
+* Vendor mockery utility #347
+* Remove loud log message #333
+
+### Rollouts
+#### General
+* Add stableService field #337
+
+#### Traffic Routing
+* Initial Istio implementation #341
+* Implement watch for Istio resources #354
+* Add validation to istio virtual services #355
+
+### Kubectl Plugin
+* Introduce 'kubectl argo rollouts terminate' command #297
+
+### Analysis
+
+#### Genernal
+* Allow controller to delay analysis #350
+* Create one background analysis per revision #309
+* Allow AnalysisRun to complete an experiment #345
+
+#### Providers
+* Wavefront metric provider #338
+* Web metric provider #318
+* Refactor common logic in providers to library #368
+* Allow web provider to be parameterized #368
+
+# v0.6.3
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.3/manifests/install.yaml
+
+## Changes since v0.6.2
+### Bug Fixes
+
+* Fix premature scaledown (#365)
+* Add namespace restriction to job informer (#362)
+* Fix honoring autoPromotionSeconds (#360)
+* Ensure podHash stays on stable-svc selector (#340)
+
 # v0.6.2
 ## Quick Start
 kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.2/manifests/install.yaml
 
-## Bug Fixes
+## Changes since v0.6.1
+### Bug Fixes
 
 * omitted revisionHistoryLimit was not defaulting to 10 (#330)
 * Fix panic if rollout cannot create a new RS (#328)
@@ -16,8 +72,8 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.1/manifests/install.yaml
 
-# Changes since v0.6.0
-## Bug Fixes
+## Changes since v0.6.0
+### Bug Fixes
 
 - Create one background analysis per revision (#309)
 - Fix Infinite loop with PreviewReplicaCount set (#308)
