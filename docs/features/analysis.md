@@ -331,10 +331,10 @@ spec:
             args:
             - name: stable-hash
               valueFrom:
-                podTemplateHash: baseline
+                podTemplateHash: Stable
             - name: canary-hash
               valueFrom:
-                podTemplateHash: canary
+                podTemplateHash: Latest
 ```
 
 
