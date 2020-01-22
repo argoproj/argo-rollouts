@@ -79,3 +79,11 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - virtualservices
+  verbs:
+  - watch
+  - get
+  - update
