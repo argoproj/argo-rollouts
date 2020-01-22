@@ -10900,7 +10900,7 @@ spec:
       containers:
       - command:
         - /bin/rollouts-controller
-        image: argoproj/argo-rollouts:v0.6.2
+        image: argoproj/argo-rollouts:v0.6.3
         imagePullPolicy: Always
         name: argo-rollouts
         volumeMounts:
