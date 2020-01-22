@@ -348,10 +348,58 @@
           
 
 
-  <li class="md-nav__item">
-    <a href="traffic-management/" title="Traffic Management" class="md-nav__link">
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4-4" type="checkbox" id="nav-4-4">
+    
+    <label class="md-nav__link" for="nav-4-4">
       Traffic Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-4-4">
+        Traffic Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="traffic-management/" title="Overview" class="md-nav__link">
+      Overview
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="traffic-management/istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="traffic-management/nginx/" title="NGINX" class="md-nav__link">
+      NGINX
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -522,9 +570,9 @@
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-rollout-canary</span>
 <span class="nt">spec</span><span class="p">:</span>
-  <span class="c1"># Number of desired pods. Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.</span>
+  <span class="c1"># Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.</span>
   <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-  <span class="c1">#Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template&#39;s labels.`</span>
+  <span class="c1"># Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template&#39;s labels.`</span>
   <span class="nt">selector</span><span class="p">:</span>
     <span class="nt">matchLabels</span><span class="p">:</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -542,7 +590,7 @@
   <span class="nt">paused</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
   <span class="c1"># The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.</span>
   <span class="nt">progressDeadlineSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
-  <span class="c1"># field to specify the strategy to run</span>
+  <span class="c1"># Field to specify the strategy to run</span>
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">blueGreen</span><span class="p">:</span>
       <span class="c1"># Name of the service that the rollout modifies as the active service.</span>
@@ -553,11 +601,11 @@
       <span class="nt">previewReplicaCount</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
       <span class="c1"># Indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true. +optional</span>
       <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
-      <span class="c1"># automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional</span>
+      <span class="c1"># Automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional</span>
       <span class="nt">autoPromotionSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
-      <span class="c1"># adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information</span>
+      <span class="c1"># Adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information</span>
       <span class="nt">scaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
-      <span class="c1"># limits the number of old RS that can run at once before getting scaled down. Defaults to nil</span>
+      <span class="c1"># Limits the number of old RS that can run at once before getting scaled down. Defaults to nil</span>
       <span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
     <span class="nt">canary</span><span class="p">:</span>
       <span class="c1"># CanaryService holds the name of a service which selects pods with canary version and don&#39;t select any pods with stable version. +optional</span>
@@ -574,7 +622,7 @@
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span>
           <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span> <span class="c1"># One hour</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
-      <span class="c1"># Sets .spec.paused to true and waits until the field is changed back</span>
+        <span class="c1"># Sets .spec.paused to true and waits until the field is changed back</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span> 
 <span class="nt">status</span><span class="p">:</span>
   <span class="nt">pauseConditions</span><span class="p">:</span>

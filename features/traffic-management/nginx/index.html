@@ -36,7 +36,7 @@
     
     
       
-        <title>Nginx - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
+        <title>NGINX - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
       
     
     
@@ -136,7 +136,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Nginx
+                NGINX
               
             </span>
           
@@ -281,10 +281,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
       Features
@@ -336,11 +338,99 @@
           
           
 
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4-4" type="checkbox" id="nav-4-4" checked>
+    
+    <label class="md-nav__link" for="nav-4-4">
+      Traffic Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-4-4">
+        Traffic Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
 
   <li class="md-nav__item">
-    <a href="../" title="Traffic Management" class="md-nav__link">
-      Traffic Management
+    <a href="../" title="Overview" class="md-nav__link">
+      Overview
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        NGINX
+      </label>
+    
+    <a href="./" title="NGINX" class="md-nav__link md-nav__link--active">
+      NGINX
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-argo-rollouts" class="md-nav__link">
+    Integration with Argo Rollouts
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -534,7 +624,7 @@
     <span class="nt">canary</span><span class="p">:</span>
       <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span> <span class="c1"># required</span>
       <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>  <span class="c1"># required</span>
-      <span class="nt">networking</span><span class="p">:</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
         <span class="nt">nginx</span><span class="p">:</span>
            <span class="nt">primaryIngress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>  <span class="c1"># required</span>
            <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example.nginx.com/</span> <span class="c1"># optional</span>
@@ -560,6 +650,41 @@
       
         
 <footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../istio/" title="Istio" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Istio
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../../kubectl-plugin/" title="Kubectl Plugin" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Kubectl Plugin
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">

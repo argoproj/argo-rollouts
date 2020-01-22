@@ -281,10 +281,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
       Features
@@ -336,11 +338,133 @@
           
           
 
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4-4" type="checkbox" id="nav-4-4" checked>
+    
+    <label class="md-nav__link" for="nav-4-4">
+      Traffic Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-4-4">
+        Traffic Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
 
   <li class="md-nav__item">
-    <a href="../" title="Traffic Management" class="md-nav__link">
-      Traffic Management
+    <a href="../" title="Overview" class="md-nav__link">
+      Overview
     </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Istio
+      </label>
+    
+    <a href="./" title="Istio" class="md-nav__link md-nav__link--active">
+      Istio
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#istio-and-rollouts" class="md-nav__link">
+    Istio and Rollouts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrating-with-gitops" class="md-nav__link">
+    Integrating with GitOps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    Alternatives Considered
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#have-the-rollout-own-the-virtual-service" class="md-nav__link">
+    Have the Rollout Own the Virtual Service
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implement-istio-support-through-the-smi" class="md-nav__link">
+    Implement Istio support through the SMI
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../nginx/" title="NGINX" class="md-nav__link">
+      NGINX
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -486,6 +610,56 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#istio-and-rollouts" class="md-nav__link">
+    Istio and Rollouts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrating-with-gitops" class="md-nav__link">
+    Integrating with GitOps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    Alternatives Considered
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#have-the-rollout-own-the-virtual-service" class="md-nav__link">
+    Have the Rollout Own the Virtual Service
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implement-istio-support-through-the-smi" class="md-nav__link">
+    Implement Istio support through the SMI
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -500,7 +674,76 @@
                 
                 
                 <h1 id="istio">Istio<a class="headerlink" href="#istio" title="Permanent link">&para;</a></h1>
-<p>TBD</p>
+<p>NOTE: This functionality will be available in the v0.7 version, and everything described below is subject to change.</p>
+<p><a href="https://istio.io/">Istio</a> is one of the most popular service mesh in the community and offers a rich feature-set to control the flow of traffic. Istio offers this functionality through a set of CRDs, and the Argo Rollouts controller modifies these resources to manipulate the traffic routing into the desired state. However, the Argo Rollouts controller modifies the Istio resources minimally to gives the developer flexibility while configuring their resources.</p>
+<h2 id="istio-and-rollouts">Istio and Rollouts<a class="headerlink" href="#istio-and-rollouts" title="Permanent link">&para;</a></h2>
+<p>The Argo Rollout controller achieves traffic shaping by manipulating the Virtual Service. A Virtual Service provides the flexibility to define how to route traffic when a host address is hit.  The Argo Rollouts controller manipulates the Virtual Service by using the following Rollout configuration:</p>
+<ul>
+<li>Canary Service name</li>
+<li>Stable Service name</li>
+<li>Virtual Service Name</li>
+<li>Which HTTP Routes in the Virtual Service</li>
+</ul>
+<p>Below is an example of a Rollout with all the required fields configured:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+  <span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">steps</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span>
+          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-svc</span> <span class="c1"># required</span>
+      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-svc</span>  <span class="c1"># required</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">istio</span><span class="p">:</span>
+           <span class="nt">virtualService</span><span class="p">:</span> 
+            <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span>  <span class="c1"># required</span>
+            <span class="nt">routes</span><span class="p">:</span>
+            <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">primary</span> <span class="c1"># At least one route is required</span>
+</pre></div>
+
+
+<p>The controller looks for both the canary and stable service listed as destination hosts within the HTTP routes of the specified Virtual Service and modifies the weights of the destinations as desired. The above Rollout expects that there is a virtual service named <code>rollout-vsvc</code> with an HTTP route named <code>primary</code>. That route should have exactly two destinations:  <code>canary-service</code> and <code>stable-svc</code> Services. The <code>canary-svc</code> and <code>stable-svc</code> are required because they indicate to Istio which Pods are the Stable and Canary pods. Here is a Virtual Service that works with the Rollout specified above:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">gateways</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">istio-rollout-gateway</span>
+  <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">istio-rollout.dev.argoproj.io</span>
+  <span class="nt">http</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">primary</span>
+      <span class="nt">route</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
+            <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-svc</span>
+          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100</span>
+        <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
+            <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-svc</span>
+          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
+</pre></div>
+
+
+<p>When the above Rollout progresses through its steps, the controller changes Virtual Service's <code>stable-svc</code>'s weight to 95 and <code>canary-svc</code>'s to 5, wait 5 minutes, and then scales up the canary ReplicaSet to a full replica count. Once it is entirely healthy, the controller changes <code>stable-svc</code>'s selector to point at the canary ReplicaSet and switch the weight back to 100 to <code>stable-svc</code> and 0 to <code>canary-svc</code>.</p>
+<p>Note: The Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. </p>
+<h2 id="integrating-with-gitops">Integrating with GitOps<a class="headerlink" href="#integrating-with-gitops" title="Permanent link">&para;</a></h2>
+<p>The above strategy introduces a problem for users practicing GitOps. The Rollout requires the user-defined Virtual Service to define an HTTP route with both destinations hosts. However, Istio requires routes with multiple destinations to assign a weight to each destination. Since the Argo Rollout controller modifies these Virtual Service's weights as a Rollout progresses through its steps, the Virtual Service becomes out of sync with the Git version.
+Additionally, if a GitOps tool does an apply after the Argo Rollouts controller changes the Virtual Service's weight, the apply would revert the weight to the percentage stored in the Git repo. At best, the user can specify the desired weight of 100% to the stable service and 0% to the canary service. In this case, the Virtual Service is synced with the Git repo when the Rollout completed all the steps. </p>
+<p>Argo CD has an <a href="https://github.com/argoproj/argo-cd/issues/2913">open issue here</a> to address this problem. The proposed solution is to introduce an annotation to the VirtualService which tells Argo CD controller to respect the current weights listed and let the Argo Rollouts controller manage them instead.</p>
+<h2 id="alternatives-considered">Alternatives Considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<h3 id="have-the-rollout-own-the-virtual-service">Have the Rollout Own the Virtual Service<a class="headerlink" href="#have-the-rollout-own-the-virtual-service" title="Permanent link">&para;</a></h3>
+<p>Instead of the controller modifying a reference to a Virtual Service, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
+*  To provide the same flexibility as referencing Virtual Service within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec necessary complicated.
+* If Istio introduces a feature, that feature will not be available in Argo Rollouts until implemented within Argo Rollouts.</p>
+<p>Both of these issues adds more complexity to the users and Argo Rollouts developers compared to referencing a Virtual Service.</p>
+<h3 id="implement-istio-support-through-the-smi">Implement Istio support through the SMI<a class="headerlink" href="#implement-istio-support-through-the-smi" title="Permanent link">&para;</a></h3>
+<p><a href="https://smi-spec.io/">SMI</a> is the Service Mesh Interface, which serves as a standard interface for all common features of a service mesh. This feature is GitOps friendly, but native Istio has extra functionality that SMI does not currently provide. Granted, Argo Rollouts should integrate with the SMI independent of the native Istio integration.</p>
                 
                   
                 
@@ -517,6 +760,41 @@
       
         
 <footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Overview
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../nginx/" title="NGINX" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                NGINX
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">

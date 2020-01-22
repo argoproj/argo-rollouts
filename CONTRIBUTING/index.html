@@ -337,10 +337,58 @@
           
 
 
-  <li class="md-nav__item">
-    <a href="../features/traffic-management/" title="Traffic Management" class="md-nav__link">
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4-4" type="checkbox" id="nav-4-4">
+    
+    <label class="md-nav__link" for="nav-4-4">
       Traffic Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-4-4">
+        Traffic Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../features/traffic-management/" title="Overview" class="md-nav__link">
+      Overview
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../features/traffic-management/istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../features/traffic-management/nginx/" title="NGINX" class="md-nav__link">
+      NGINX
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -652,12 +700,10 @@
 </ul>
 <p>Argo Rollout additionally uses
 * <code>controller-gen</code> binary in order to auto-generate the crd manifest
-* <code>golangci-lint</code> to lint the project.
-* <code>mockery</code> to generate mock objects.</p>
+* <code>golangci-lint</code> to lint the project.</p>
 <p>Run the following commands to install them:</p>
 <div class="codehilite"><pre><span></span>go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-go get -u github.com/vektra/mockery/.../
 </pre></div>
 
 
@@ -698,7 +744,7 @@ go get -u github.com/vektra/mockery/.../
 <p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
 make controller
-./dist/rollout-controller
+./dist/rollouts-controller
 </pre></div>
 
 

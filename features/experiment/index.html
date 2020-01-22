@@ -337,10 +337,58 @@
           
 
 
-  <li class="md-nav__item">
-    <a href="../traffic-management/" title="Traffic Management" class="md-nav__link">
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4-4" type="checkbox" id="nav-4-4">
+    
+    <label class="md-nav__link" for="nav-4-4">
       Traffic Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-4-4">
+        Traffic Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../traffic-management/" title="Overview" class="md-nav__link">
+      Overview
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../traffic-management/istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../traffic-management/nginx/" title="NGINX" class="md-nav__link">
+      NGINX
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -728,17 +776,17 @@
           <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
           <span class="nt">analysis</span><span class="p">:</span>
             <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
-            <span class="nt">arguments</span><span class="p">:</span>
+            <span class="nt">args</span><span class="p">:</span>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
-            <span class="nt">valueFrom</span><span class="p">:</span>
-              <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
+              <span class="nt">valueFrom</span><span class="p">:</span>
+                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
-            <span class="nt">valueFrom</span><span class="p">:</span>
-              <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
+              <span class="nt">valueFrom</span><span class="p">:</span>
+                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
 </pre></div>
 
 
-<p>In the example above,  the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.</p>
+<p>In the example above, the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.</p>
                 
                   
                 
