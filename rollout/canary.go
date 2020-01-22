@@ -158,11 +158,10 @@ func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.Repli
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldRSs, cleanupCount, err := c.cleanupUnhealthyReplicas(oldRSs, roCtx)
+	oldRSs, cleanedUpRSs, err := c.cleanupUnhealthyReplicas(oldRSs, roCtx)
 	if err != nil {
 		return false, nil
 	}
-	logCtx.Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
 
 	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
 	scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(allRSs, oldRSs, rollout)
@@ -171,8 +170,7 @@ func (c *RolloutController) reconcileOldReplicaSetsCanary(allRSs []*appsv1.Repli
 	}
 	logCtx.Infof("Scaled down old RSes by %d", scaledDownCount)
 
-	totalScaledDown := cleanupCount + scaledDownCount
-	return totalScaledDown > 0, nil
+	return cleanedUpRSs || scaledDownCount > 0, nil
 }
 
 // scaleDownOldReplicaSetsForCanary scales down old replica sets when rollout strategy is "canary".
