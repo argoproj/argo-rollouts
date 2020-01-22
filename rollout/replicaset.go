@@ -13,7 +13,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -87,7 +86,6 @@ func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, 
 
 func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
-	logCtx := logutil.WithRollout(rollout)
 
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
@@ -95,30 +93,30 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 		return false, nil
 	}
 
-	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
-	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldRSs, cleanupCount, err := c.cleanupUnhealthyReplicas(oldRSs, roCtx)
-	if err != nil {
-		return false, nil
-	}
-	logCtx.Infof("Cleaned up unhealthy replicas from old RSes by %d", cleanupCount)
-
-	// Scale down old replica sets
-	scaledDownCount := int32(0)
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		scaledDownCount, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, rollout)
+	var err error
+	hasScaled := false
+	if rollout.Spec.Strategy.Canary != nil {
+		// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
+		// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
+		oldRSs, hasScaled, err = c.cleanupUnhealthyReplicas(oldRSs, roCtx)
 		if err != nil {
 			return false, nil
 		}
 	}
-	logCtx.Infof("Scaled down old RSes by %d", scaledDownCount)
 
-	totalScaledDown := cleanupCount + scaledDownCount
-	return totalScaledDown > 0, nil
+	// Scale down old replica sets
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, rollout)
+		if err != nil {
+			return false, nil
+		}
+	}
+
+	return hasScaled, nil
 }
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) ([]*appsv1.ReplicaSet, int32, error) {
+func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) ([]*appsv1.ReplicaSet, bool, error) {
 	logCtx := roCtx.Log()
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order
@@ -139,14 +137,14 @@ func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet
 		scaledDownCount := *(targetRS.Spec.Replicas) - targetRS.Status.AvailableReplicas
 		newReplicasCount := targetRS.Status.AvailableReplicas
 		if newReplicasCount > *(targetRS.Spec.Replicas) {
-			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s/%s %d -> %d", targetRS.Namespace, targetRS.Name, *(targetRS.Spec.Replicas), newReplicasCount)
+			return nil, false, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s/%s %d -> %d", targetRS.Namespace, targetRS.Name, *(targetRS.Spec.Replicas), newReplicasCount)
 		}
 		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount, roCtx.Rollout())
 		if err != nil {
-			return nil, totalScaledDown, err
+			return nil, totalScaledDown > 0, err
 		}
 		totalScaledDown += scaledDownCount
 		oldRSs[i] = updatedOldRS
 	}
-	return oldRSs, totalScaledDown, nil
+	return oldRSs, totalScaledDown > 0, nil
 }
