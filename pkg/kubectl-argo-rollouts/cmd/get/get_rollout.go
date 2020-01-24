@@ -182,6 +182,10 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 		infoCols = append(infoCols, o.colorize(info.InfoTagPreview))
 		name = o.colorizeStatus(name, info.InfoTagPreview)
 	}
+	if rsInfo.ScaleDownDeadline != "" {
+		infoCols = append(infoCols, fmt.Sprintf("delay:%s", rsInfo.ScaleDownDelay()))
+	}
+
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, rsInfo.Age(), strings.Join(infoCols, ","))
 	for i, podInfo := range rsInfo.Pods {
 		isLast := i == len(rsInfo.Pods)-1
