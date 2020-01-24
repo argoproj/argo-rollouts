@@ -4,7 +4,7 @@ Argo Rollouts provides several ways to perform canary analysis to drive progress
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.
 
-# Custom Resource Definitions
+## Custom Resource Definitions
 
 | CRD                 | Description |
 |---------------------|-------------|
@@ -477,30 +477,58 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 ```yaml
   metrics:
   - name: test
-    job:
-      backoffLimit: 1
-      spec:
-        template:
-          spec:
-            containers:
-            - name: test
-              image: my-image:latest
-              command: [my-test-script, my-service.default.svc.cluster.local]
-            restartPolicy: Never
+    provider:
+      job:
+        backoffLimit: 1
+        spec:
+          template:
+            spec:
+              containers:
+              - name: test
+                image: my-image:latest
+                command: [my-test-script, my-service.default.svc.cluster.local]
+              restartPolicy: Never
 ```
 
-## Webhook Metrics (Not implemented: [issue](https://github.com/argoproj/argo-rollouts/issues/177))
+## Web Metrics
 
-Aside from the built-in metric types such as prometheus, kayenta, A webhook can be used to call out to some external service to obtain the measurement. This example
-makes a HTTP request to some URL. The webhook response should return a JSON return value. In this
-example, the measurement is successful if the result's `my-metric` field was in the set [A, B, C]. 
+A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. 
 
 ```yaml
   metrics:
-  - name: webhook
-    successCondition: result.my-metric in (A, B, C)
-    webhook:
-      url: http://my-server.com/api/v1/measurement
+  - name: webmetric
+    successCondition: "true"
+    provider:
+      web:
+        url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
+        timeoutSeconds: 20 # defaults to 10 seconds
+        headers:
+          - key: X-Measurement-Token
+            value: "{{ args.token }}"
+        jsonPath: "{$.results.ok}" 
 ```
+
+In this example, the measurement is successful if the json response returns `"true"` for the nested `ok` field. 
+
+```json
+{ "results": { "ok": "true", "successPercent": 0.95 } }
+```
+
+For success conditions that need to evaluate a numeric return value the `asInt` or `asFloat` functions can be used to convert the result value.
+
+```yaml
+  metrics:
+  - name: webmetric
+    successCondition: "asFloat(result) >= 0.90"
+    provider:
+      web:
+        url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
+        headers:
+          - key: X-Measurement-Token
+            value: "{{ args.token }}"
+        jsonPath: "{$.results.successPercent}" 
+```
+
+
 
 
