@@ -133,8 +133,7 @@ func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
 		}
 		return false
 	}
-
-	return cond == nil && rollout.Status.ControllerPause
+	return cond == nil && (rollout.Status.ControllerPause || rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint)
 }
 
 func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {

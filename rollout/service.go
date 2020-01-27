@@ -83,19 +83,7 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	if err != nil {
 		return err
 	}
-
-	//TODO(dthomson) consider doing this earlier (maybe not since the active service should be pointing at
-	// desired
-	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
-		// when the active service changes to a different RS
-		err := c.removeScaleDownDelay(roCtx, newRS)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
-
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
