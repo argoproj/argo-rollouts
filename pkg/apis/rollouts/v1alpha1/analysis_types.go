@@ -10,6 +10,7 @@ import (
 // AnalysisTemplate holds the template for performing canary analysis
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=analysistemplates,shortName=at
 type AnalysisTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -28,10 +29,14 @@ type AnalysisTemplateList struct {
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
-	Metrics []Metric `json:"metrics"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name"`
 	// Args are the list of arguments to the template
+	// +patchMergeKey=name
+	// +patchStrategy=merge
 	// +optional
-	Args []Argument `json:"args,omitempty"`
+	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -154,7 +159,7 @@ type JobMetric struct {
 // AnalysisRun is an instantiation of an AnalysisTemplate
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=analysisruns
+// +kubebuilder:resource:path=analysisruns, shortName=ar
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="AnalysisRun status"
 type AnalysisRun struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -174,10 +179,14 @@ type AnalysisRunList struct {
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
-	Metrics []Metric `json:"metrics"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name"`
 	// Args are the list of arguments used in this run
 	// +optional
-	Args []Argument `json:"args,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty"`
 }
@@ -198,7 +207,9 @@ type AnalysisRunStatus struct {
 	// Message is a message explaining current status
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
-	MetricResults []MetricResult `json:"metricResults,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	MetricResults []MetricResult `json:"metricResults,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// StartedAt indicates when the analysisRun first started
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 }
@@ -285,8 +296,10 @@ type ScopeDetail struct {
 }
 
 type WebMetric struct {
-	URL            string            `json:"url"`
-	Headers        []WebMetricHeader `json:"headers,omitempty"`
+	URL string `json:"url"`
+	// +patchMergeKey=key
+	// +patchStrategy=merge
+	Headers        []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key"`
 	TimeoutSeconds int               `json:"timeoutSeconds,omitempty"`
 	JSONPath       string            `json:"jsonPath"`
 }
