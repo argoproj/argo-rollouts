@@ -3,7 +3,10 @@ package rollout
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,37 +66,41 @@ func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, pre
 	return nil
 }
 
-func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
+	allRSs := roCtx.AllRSs()
 
-	roCtx.log.Info("Reconciling pause")
-	pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, roCtx)
-	if pauseBeforeSwitchActive {
-		roCtx.log.Info("Not finished reconciling pause")
-		return true, nil
-	}
-
-	roCtx.log.Infof("Reconciling active service '%s'", activeSvc.Name)
-	if !annotations.IsSaturated(r, newRS) {
+	if !replicasetutil.ReadyForPause(r, newRS, allRSs) || !annotations.IsSaturated(r, newRS) {
 		roCtx.log.Infof("New RS '%s' is not fully saturated", newRS.Name)
-		return true, nil
+		return nil
 	}
 
-	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//TODO(dthomson) if statement not needed as switchServiceSelector has check
-	if activeSvc.Spec.Selector != nil {
-		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newPodHash {
-			return false, nil
-		}
+	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	desiredRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	if hasScaleDownDeadlineAnnotationKey || defaults.GetAutoPromotionEnabledOrDefault(r) || newPodHash == "" || roCtx.PauseContext().CompletedBlueGreenPause() {
+		newPodHash = desiredRSPodHash
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, r)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+
+	//TODO(dthomson) consider doing this earlier (maybe not since the active service should be pointing at
+	// desired
+	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
+		// when the active service changes to a different RS
+		err := c.removeScaleDownDelay(roCtx, newRS)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist

@@ -71,22 +71,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	}
 	//TODO(dthomson) remove from here
 
-	switchActiveSvc, err := c.reconcileActiveService(roCtx, previewSvc, activeSvc)
+	roCtx.log.Info("Reconciling pause")
+	c.reconcileBlueGreenPause(activeSvc, previewSvc, roCtx)
+
+	err = c.reconcileActiveService(roCtx, previewSvc, activeSvc)
 	if err != nil {
 		return err
-	}
-	if switchActiveSvc {
-		logCtx.Infof("Not finished reconciling active service '%s'", activeSvc.Name)
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
-
-	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
-		// when the active service changes to a different RS
-		err := c.removeScaleDownDelay(roCtx, newRS)
-		if err != nil {
-			return err
-		}
 	}
 
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
