@@ -5,6 +5,7 @@
 package tools
 
 import (
+	_ "github.com/jstemmer/go-junit-report"
 	_ "github.com/vektra/mockery"
 	_ "k8s.io/code-generator/cmd/client-gen"
 )
