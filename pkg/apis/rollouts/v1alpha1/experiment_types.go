@@ -123,9 +123,7 @@ type ExperimentStatus struct {
 	Message string `json:"message,omitempty"`
 	// TemplateStatuses holds the ReplicaSet related statuses for individual templates
 	// +optional
-	// +patchMergeKey=name
-	// +patchStrategy=merge
-	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty"`
 	// AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
 	// run for the duration of specificed in the spec.
 	// +optional
@@ -135,9 +133,7 @@ type ExperimentStatus struct {
 	Conditions []ExperimentCondition `json:"conditions,omitempty"`
 	// AnalysisRuns tracks the status of AnalysisRuns associated with this Experiment
 	// +optional
-	// +patchMergeKey=name
-	// +patchStrategy=merge
-	AnalysisRuns []ExperimentAnalysisRunStatus `json:"analysisRuns,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	AnalysisRuns []ExperimentAnalysisRunStatus `json:"analysisRuns,omitempty"`
 }
 
 // ExperimentConditionType defines the conditions of Experiment

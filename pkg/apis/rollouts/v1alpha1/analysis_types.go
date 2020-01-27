@@ -207,9 +207,7 @@ type AnalysisRunStatus struct {
 	// Message is a message explaining current status
 	Message string `json:"message,omitempty"`
 	// MetricResults contains the metrics collected during the run
-	// +patchMergeKey=name
-	// +patchStrategy=merge
-	MetricResults []MetricResult `json:"metricResults,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	MetricResults []MetricResult `json:"metricResults,omitempty"`
 	// StartedAt indicates when the analysisRun first started
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 }
