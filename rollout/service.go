@@ -3,8 +3,6 @@ package rollout
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
@@ -77,11 +75,8 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	desiredRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-	if hasScaleDownDeadlineAnnotationKey || defaults.GetAutoPromotionEnabledOrDefault(r) || newPodHash == "" || roCtx.PauseContext().CompletedBlueGreenPause() {
-		newPodHash = desiredRSPodHash
+	if skipPause(roCtx, activeSvc) || roCtx.PauseContext().CompletedBlueGreenPause() {
+		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, r)

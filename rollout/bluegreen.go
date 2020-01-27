@@ -38,14 +38,14 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 
 	// Scale up, if we can.
 	logCtx.Infof("Reconciling new ReplicaSet '%s'", newRS.Name)
-	scaledUp, err := c.reconcileNewReplicaSet(roCtx)
+	_, err = c.reconcileNewReplicaSet(roCtx)
 	if err != nil {
 		return err
 	}
 	// Scale down old non-active replicasets, if we can.
 	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 	logCtx.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), roCtx)
+	_, err = c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), roCtx)
 	if err != nil {
 		return err
 	}
@@ -58,18 +58,6 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	if err != nil {
 		return err
 	}
-
-	//TODO(dthomson) remove from here
-	if scaledUp {
-		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
-
-	if scaledDown {
-		logCtx.Info("Not finished reconciling old replica sets")
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
-	//TODO(dthomson) remove from here
 
 	roCtx.log.Info("Reconciling pause")
 	c.reconcileBlueGreenPause(activeSvc, previewSvc, roCtx)
@@ -93,46 +81,47 @@ func reconcileBlueGreenTemplateChange(roCtx *blueGreenContext) bool {
 	return r.Status.CurrentPodHash != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
-func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) bool {
+func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
+	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+		roCtx.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
+		return true
+	}
+
+	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
+		return true
+	}
+
+	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
+		return true
+	}
+	return false
+}
+
+func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 
 	allRSs := roCtx.AllRSs()
 	if !replicasetutil.ReadyForPause(rollout, newRS, allRSs) {
 		roCtx.log.Infof("New RS '%s' is not ready to pause", newRS.Name)
-		return true
+		return
 	}
-	if newRS != nil {
-		_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-		if hasScaleDownDeadlineAnnotationKey {
-			roCtx.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
-			return false
-		}
-	}
-
 	if rollout.Spec.Paused {
-		return false
+		return
 	}
 
-	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
-		return false
-	}
-
-	if newRS == nil {
-		return false
+	if skipPause(roCtx, activeSvc) {
+		return
 	}
 
 	newRSPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
-		return false
-	}
-
 	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
 	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
 	if cond == nil && !rollout.Status.ControllerPause && !rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
-		return true
+		return
 	}
 
 	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
@@ -142,12 +131,8 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		now := metav1.Now()
 		if now.After(switchDeadline) {
 			roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
-			return false
 		}
-
 	}
-
-	return cond != nil && rollout.Status.ControllerPause
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
