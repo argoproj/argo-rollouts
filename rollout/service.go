@@ -3,11 +3,14 @@ package rollout
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -42,36 +45,43 @@ func (c RolloutController) switchServiceSelector(service *corev1.Service, newRol
 	return err
 }
 
-func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	if previewSvc == nil {
-		return false, nil
+		return nil
 	}
 	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
 	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	// If preview service already points to the new RS, skip the next steps
-	if previewSvc.Spec.Selector != nil {
-		currentSelectorValue, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newPodHash {
-			return false, nil
-		}
-	}
-
 	err := c.switchServiceSelector(previewSvc, newPodHash, r)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
-func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) (bool, error) {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
+
+	roCtx.log.Info("Reconciling pause")
+	pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, roCtx)
+	if pauseBeforeSwitchActive {
+		roCtx.log.Info("Not finished reconciling pause")
+		return true, nil
+	}
+
+	roCtx.log.Infof("Reconciling active service '%s'", activeSvc.Name)
+	if !annotations.IsSaturated(r, newRS) {
+		roCtx.log.Infof("New RS '%s' is not fully saturated", newRS.Name)
+		return true, nil
+	}
+
 	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	//TODO(dthomson) if statement not needed as switchServiceSelector has check
 	if activeSvc.Spec.Selector != nil {
 		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		if ok && currentSelectorValue == newPodHash {

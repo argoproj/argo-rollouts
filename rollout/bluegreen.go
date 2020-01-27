@@ -10,7 +10,6 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -30,7 +29,6 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 
 	roCtx := newBlueGreenCtx(r, newRS, oldRSs)
 	logCtx := roCtx.Log()
-	allRSs := roCtx.AllRSs()
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
@@ -56,11 +54,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
-	switchPreviewSvc, err := c.reconcilePreviewService(roCtx, previewSvc)
+	err = c.reconcilePreviewService(roCtx, previewSvc)
 	if err != nil {
 		return err
 	}
 
+	//TODO(dthomson) remove from here
 	if scaledUp {
 		logCtx.Infof("Not finished reconciling new ReplicaSet '%s'", newRS.Name)
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
@@ -70,39 +69,9 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		logCtx.Info("Not finished reconciling old replica sets")
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 	}
-	if switchPreviewSvc {
-		logCtx.Infof("Not finished reconciling preview service' %s'", previewSvc.Name)
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
+	//TODO(dthomson) remove from here
 
-	if !replicasetutil.ReadyForPause(r, newRS, allRSs) {
-		logutil.WithRollout(r).Infof("New RS '%s' is not ready to pause", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
-
-	noFastRollback := true
-	if newRS != nil {
-		_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-		if hasScaleDownDeadlineAnnotationKey {
-			logCtx.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
-			noFastRollback = false
-		}
-	}
-	if noFastRollback {
-		logCtx.Info("Reconciling pause")
-		pauseBeforeSwitchActive := c.reconcileBlueGreenPause(activeSvc, previewSvc, roCtx)
-		if pauseBeforeSwitchActive {
-			logCtx.Info("Not finished reconciling pause")
-			return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-		}
-	}
-
-	logCtx.Infof("Reconciling active service '%s'", activeSvc.Name)
-	if !annotations.IsSaturated(r, newRS) {
-		logCtx.Infof("New RS '%s' is not fully saturated", newRS.Name)
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
-	}
-	switchActiveSvc, err := c.reconcileActiveService(roCtx, activeSvc)
+	switchActiveSvc, err := c.reconcileActiveService(roCtx, previewSvc, activeSvc)
 	if err != nil {
 		return err
 	}
@@ -136,6 +105,21 @@ func reconcileBlueGreenTemplateChange(roCtx *blueGreenContext) bool {
 
 func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) bool {
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+
+	allRSs := roCtx.AllRSs()
+	if !replicasetutil.ReadyForPause(rollout, newRS, allRSs) {
+		roCtx.log.Infof("New RS '%s' is not ready to pause", newRS.Name)
+		return true
+	}
+	if newRS != nil {
+		_, hasScaleDownDeadlineAnnotationKey := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+		if hasScaleDownDeadlineAnnotationKey {
+			roCtx.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
+			return false
+		}
+	}
+
 	if rollout.Spec.Paused {
 		return false
 	}
@@ -144,7 +128,6 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 		return false
 	}
 
-	newRS := roCtx.NewRS()
 	if newRS == nil {
 		return false
 	}

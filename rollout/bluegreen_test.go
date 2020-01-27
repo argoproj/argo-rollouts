@@ -78,6 +78,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+//TestBlueGreenSetPreviewService ensures the preview service is set to the desired ReplicaSet
 func TestBlueGreenSetPreviewService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -92,7 +93,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	previewSvc := newService("preview", 80, nil)
-	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "test"}
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
 	activeSvc := newService("active", 80, selector)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
