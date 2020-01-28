@@ -116,3 +116,9 @@ If you need to run the mkdocs server, you will need to do the following:
 * Install the `material` theme with the [following guide](https://squidfunk.github.io/mkdocs-material/#quick-start)
 
 Afterwards, you can run `mkdocs serve` and access your documentation at [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+
+If you don't want to setup mkDocs locally, the following docker command should suffice:
+
+```shell
+docker run --rm -it -p 8000:8000 -v ${PWD}:/docs squidfunk/mkdocs-material
+```
