@@ -71,3 +71,10 @@ func parseExperimentTemplateName(annots map[string]string) string {
 	}
 	return ""
 }
+
+func parseScaleDownDeadline(annots map[string]string) string {
+	if annots != nil {
+		return annots[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	}
+	return ""
+}
