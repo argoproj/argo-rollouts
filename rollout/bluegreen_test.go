@@ -858,6 +858,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1.Spec.Replicas = pointer.Int32Ptr(2)
+	rs1.Annotations[annotations.DesiredReplicasAnnotation] = "2"
 	r2 := bumpVersion(r1)
 
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -884,6 +885,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	f.run(getKey(r2, t))
 	rs2Updated := f.getUpdatedReplicaSet(rs2idx)
 	assert.Equal(t, int32(3), *rs2Updated.Spec.Replicas)
+	assert.Equal(t, "2", rs2Updated.Annotations[annotations.DesiredReplicasAnnotation])
 }
 
 func TestBlueGreenRolloutCompleted(t *testing.T) {

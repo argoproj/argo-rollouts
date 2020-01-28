@@ -1221,7 +1221,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	// f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
