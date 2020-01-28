@@ -471,9 +471,108 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Analysis
+      </label>
+    
     <a href="./" title="Analysis" class="md-nav__link md-nav__link--active">
       Analysis
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom-resource-definitions" class="md-nav__link">
+    Custom Resource Definitions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-analysis" class="md-nav__link">
+    Background Analysis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-at-a-predefined-step" class="md-nav__link">
+    Analysis at a Predefined Step
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-conditions" class="md-nav__link">
+    Failure Conditions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inconclusive-runs" class="md-nav__link">
+    Inconclusive Runs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delay-analysis-runs" class="md-nav__link">
+    Delay Analysis Runs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experimentation-eg-mann-whitney-analysis" class="md-nav__link">
+    Experimentation (e.g. Mann-Whitney Analysis)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-experiment-indefinitely" class="md-nav__link">
+    Run experiment indefinitely
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blue-green-automated-rollback" class="md-nav__link">
+    Blue-Green Automated Rollback
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-metrics" class="md-nav__link">
+    Job Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-metrics" class="md-nav__link">
+    Web Metrics
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -543,6 +642,92 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#custom-resource-definitions" class="md-nav__link">
+    Custom Resource Definitions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-analysis" class="md-nav__link">
+    Background Analysis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-at-a-predefined-step" class="md-nav__link">
+    Analysis at a Predefined Step
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-conditions" class="md-nav__link">
+    Failure Conditions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inconclusive-runs" class="md-nav__link">
+    Inconclusive Runs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delay-analysis-runs" class="md-nav__link">
+    Delay Analysis Runs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experimentation-eg-mann-whitney-analysis" class="md-nav__link">
+    Experimentation (e.g. Mann-Whitney Analysis)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-experiment-indefinitely" class="md-nav__link">
+    Run experiment indefinitely
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blue-green-automated-rollback" class="md-nav__link">
+    Blue-Green Automated Rollback
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-metrics" class="md-nav__link">
+    Job Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-metrics" class="md-nav__link">
+    Web Metrics
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -560,7 +745,7 @@
 <p>Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.</p>
-<h1 id="custom-resource-definitions">Custom Resource Definitions<a class="headerlink" href="#custom-resource-definitions" title="Permanent link">&para;</a></h1>
+<h2 id="custom-resource-definitions">Custom Resource Definitions<a class="headerlink" href="#custom-resource-definitions" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1019,28 +1204,52 @@ experiments would be stopped externally, or through the completion of a referenc
 successful if the Job completes and had an exit code of zero, otherwise it is failed.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
-    <span class="nt">job</span><span class="p">:</span>
-      <span class="nt">backoffLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
-      <span class="nt">spec</span><span class="p">:</span>
-        <span class="nt">template</span><span class="p">:</span>
-          <span class="nt">spec</span><span class="p">:</span>
-            <span class="nt">containers</span><span class="p">:</span>
-            <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
-              <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-image:latest</span>
-              <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">my-test-script</span><span class="p p-Indicator">,</span> <span class="nv">my-service.default.svc.cluster.local</span><span class="p p-Indicator">]</span>
-            <span class="nt">restartPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">job</span><span class="p">:</span>
+        <span class="nt">backoffLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+        <span class="nt">spec</span><span class="p">:</span>
+          <span class="nt">template</span><span class="p">:</span>
+            <span class="nt">spec</span><span class="p">:</span>
+              <span class="nt">containers</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+                <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-image:latest</span>
+                <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">my-test-script</span><span class="p p-Indicator">,</span> <span class="nv">my-service.default.svc.cluster.local</span><span class="p p-Indicator">]</span>
+              <span class="nt">restartPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
 </pre></div>
 
 
-<h2 id="webhook-metrics-not-implemented-issue">Webhook Metrics (Not implemented: <a href="https://github.com/argoproj/argo-rollouts/issues/177">issue</a>)<a class="headerlink" href="#webhook-metrics-not-implemented-issue" title="Permanent link">&para;</a></h2>
-<p>Aside from the built-in metric types such as prometheus, kayenta, A webhook can be used to call out to some external service to obtain the measurement. This example
-makes a HTTP request to some URL. The webhook response should return a JSON return value. In this
-example, the measurement is successful if the result's <code>my-metric</code> field was in the set [A, B, C]. </p>
+<h2 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h2>
+<p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. </p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webhook</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result.my-metric in (A, B, C)</span>
-    <span class="nt">webhook</span><span class="p">:</span>
-      <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://my-server.com/api/v1/measurement</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">web</span><span class="p">:</span>
+        <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">timeoutSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span> <span class="c1"># defaults to 10 seconds</span>
+        <span class="nt">headers</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Measurement-Token</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
+</pre></div>
+
+
+<p>In this example, the measurement is successful if the json response returns <code>"true"</code> for the nested <code>ok</code> field. </p>
+<div class="codehilite"><pre><span></span><span class="p">{</span> <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&quot;ok&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="nt">&quot;successPercent&quot;</span><span class="p">:</span> <span class="mf">0.95</span> <span class="p">}</span> <span class="p">}</span>
+</pre></div>
+
+
+<p>For success conditions that need to evaluate a numeric return value the <code>asInt</code> or <code>asFloat</code> functions can be used to convert the result value.</p>
+<div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;asFloat(result)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">0.90&quot;</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">web</span><span class="p">:</span>
+        <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">headers</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Measurement-Token</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.successPercent}&quot;</span> 
 </pre></div>
                 
                   

@@ -782,6 +782,9 @@ make controller
 <li>Install the <code>material</code> theme with the <a href="https://squidfunk.github.io/mkdocs-material/#quick-start">following guide</a></li>
 </ul>
 <p>Afterwards, you can run <code>mkdocs serve</code> and access your documentation at <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
+<p>If you don't want to setup mkDocs locally, the following docker command should suffice:</p>
+<div class="codehilite"><pre><span></span>docker run --rm -it -p <span class="m">8000</span>:8000 -v <span class="si">${</span><span class="nv">PWD</span><span class="si">}</span>:/docs squidfunk/mkdocs-material
+</pre></div>
                 
                   
                 
