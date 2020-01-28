@@ -8,6 +8,8 @@ spec:
     kind: AnalysisTemplate
     listKind: AnalysisTemplateList
     plural: analysistemplates
+    shortNames:
+    - at
     singular: analysistemplate
   scope: Namespaced
   validation:
