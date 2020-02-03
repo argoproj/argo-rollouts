@@ -21,6 +21,7 @@ import (
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -346,11 +347,31 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // run with a collision counter increase.
 func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
-	run, err := ec.newAnalysisRun(analysis, analysis.Args)
+	args, err := ec.ResolveAnalysisRunArgs(analysis.Args)
+	if err != nil {
+		return nil, err
+	}
+	run, err := ec.newAnalysisRun(analysis, args)
 	if err != nil {
 		return nil, err
 	}
 	return analysisutil.CreateWithCollisionCounter(ec.log, analysisRunIf, *run)
+}
+
+func (ec *experimentContext) ResolveAnalysisRunArgs(args []v1alpha1.Argument) ([]v1alpha1.Argument, error) {
+	resolvedArgs := []v1alpha1.Argument{}
+	for _, arg := range args {
+		resolvedArg := v1alpha1.Argument{Name: arg.Name}
+		if arg.Value != nil {
+			value, err := templateutil.ResolveExperimentArgsValue(*arg.Value, ec.ex, ec.templateRSs)
+			if err != nil {
+				return nil, err
+			}
+			resolvedArg.Value = &value
+		}
+		resolvedArgs = append(resolvedArgs, resolvedArg)
+	}
+	return resolvedArgs, nil
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
@@ -473,6 +494,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		return nil, err
 	}
 	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+
 	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
 	if err != nil {
 		return nil, err

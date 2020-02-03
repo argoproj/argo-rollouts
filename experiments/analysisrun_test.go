@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -148,7 +149,67 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "not found")
 }
 
-// TestAnalysisRunCreateError verifies we error the run if create fails
+// TestCreateAnalysisRunWhenAvailable ensures we create the AnalysisRun when we become available
+func TestCreateAnalysisRunWithArg(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+			Args: []v1alpha1.Argument{{
+				Name:  "test",
+				Value: pointer.StringPtr("sss"),
+			}},
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+}
+
+// TestAnalysisRunFailToResolveArg verifies we error the run if the controller can't resolve an arg to an analysis
+func TestAnalysisRunFailToResolveArg(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+			Args: []v1alpha1.Argument{{
+
+				Name:  "test",
+				Value: pointer.StringPtr("{{not a real substitution}}"),
+			}},
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, patchedEx.Status.AnalysisRuns[0].Phase)
+	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "failed to resolve {{not a real substitution}}")
+}
+
 func TestAnalysisRunCreateError(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")

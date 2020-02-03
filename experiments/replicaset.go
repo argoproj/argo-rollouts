@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/controller"
+	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -145,24 +147,39 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 // newReplicaSetFromTemplate is a helper to formulate a replicaset from an experiment's template
 func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec, collisionCount *int32) appsv1.ReplicaSet {
 	newRSTemplate := *template.Template.DeepCopy()
+	replicaSetAnnotations := newReplicaSetAnnotations(experiment.Name, template.Name)
+	if newRSTemplate.Labels != nil {
+		if _, ok := newRSTemplate.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			delete(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+		}
+	}
+	podHash := controller.ComputeHash(&newRSTemplate, collisionCount)
+
+	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podHash)
+	// Add podTemplateHash label to selector.
+	newRSSelector := labelsutil.CloneSelectorAndAddLabel(template.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podHash)
+
 	// The annotations must be different for each template because annotations are used to match
 	// replicasets to templates. We inject the experiment and template name in the replicaset
 	// annotations to ensure uniqueness.
-	replicaSetAnnotations := newReplicaSetAnnotations(experiment.Name, template.Name)
-	return appsv1.ReplicaSet{
+	rs := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", experiment.Name, template.Name),
-			Namespace:       experiment.Namespace,
+			Name:      fmt.Sprintf("%s-%s", experiment.Name, template.Name),
+			Namespace: experiment.Namespace,
+			Labels: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+			},
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
 			Annotations:     replicaSetAnnotations,
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas:        new(int32),
 			MinReadySeconds: template.MinReadySeconds,
-			Selector:        template.Selector,
+			Selector:        newRSSelector,
 			Template:        newRSTemplate,
 		},
 	}
+	return rs
 }
 
 // isReplicaSetSemanticallyEqual checks to see if an existing ReplicaSet is semantically equal
