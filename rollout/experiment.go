@@ -3,6 +3,11 @@ package rollout
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -10,12 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/controller"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // GetExperimentFromTemplate takes the canary experiment step and converts it to an experiment
@@ -86,6 +85,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			}
 			for key := range templateStep.Metadata.Labels {
 				template.Template.ObjectMeta.Labels[key] = templateStep.Metadata.Labels[key]
+				template.Selector.MatchLabels[key] = templateStep.Metadata.Labels[key]
 			}
 		}
 		if templateStep.Metadata.Annotations != nil {
