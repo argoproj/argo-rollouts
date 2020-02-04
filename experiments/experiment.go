@@ -367,10 +367,11 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 			ec.log.Infof("Marked AvailableAt: %v", now)
 		}
 		if templateStatus.Completed() {
-			if templateStatus == v1alpha1.AnalysisPhaseSuccessful {
+			analysisRun := analysesStatus.Completed() || experimentutil.HasRequiredAnalysisRuns(ec.ex)
+			if templateStatus == v1alpha1.AnalysisPhaseSuccessful && analysisRun {
 				// If the templates have completed successfully (e.g. it ran without degrading for
-				// the entire duration), then the status of the Experiment is deferred to the status
-				// the analyses results.
+				// the entire duration), and there are required analysis runs or they have completed, then
+				// the status of the Experiment is deferred to the status of the analyses results.
 				ec.newStatus.Phase = analysesStatus
 				ec.newStatus.Message = analysesMessage
 			} else {

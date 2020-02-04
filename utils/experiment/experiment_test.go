@@ -389,3 +389,18 @@ func TestRequiredAnalysisRunsSuccessful(t *testing.T) {
 	e.Status.AnalysisRuns[0].Phase = v1alpha1.AnalysisPhaseSuccessful
 	assert.True(t, RequiredAnalysisRunsSuccessful(e, &e.Status))
 }
+
+func TestHasRequiredAnalysisRuns(t *testing.T) {
+	e := &v1alpha1.Experiment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+	}
+	assert.False(t, HasRequiredAnalysisRuns(e))
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{{
+		Name: "foo",
+	}}
+	assert.False(t, HasRequiredAnalysisRuns(e))
+	e.Spec.Analyses[0].RequiredForCompletion = true
+	assert.True(t, HasRequiredAnalysisRuns(e))
+}

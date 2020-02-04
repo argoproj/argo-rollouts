@@ -49,6 +49,15 @@ func IsTerminating(experiment *v1alpha1.Experiment) bool {
 	return RequiredAnalysisRunsSuccessful(experiment, &experiment.Status)
 }
 
+func HasRequiredAnalysisRuns(ex *v1alpha1.Experiment) bool {
+	for _, analysis := range ex.Spec.Analyses {
+		if analysis.RequiredForCompletion {
+			return true
+		}
+	}
+	return false
+}
+
 // RequiredAnalysisRunsSuccessful has at least one required for completition analysis run
 // and it completed successfully
 func RequiredAnalysisRunsSuccessful(ex *v1alpha1.Experiment, exStatus *v1alpha1.ExperimentStatus) bool {

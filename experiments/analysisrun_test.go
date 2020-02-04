@@ -245,12 +245,14 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:         "success-rate",
-			TemplateName: "success-rate",
+			Name:                  "success-rate",
+			TemplateName:          "success-rate",
+			RequiredForCompletion: true,
 		},
 		{
-			Name:         "latency",
-			TemplateName: "latency",
+			Name:                  "latency",
+			TemplateName:          "latency",
+			RequiredForCompletion: true,
 		},
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
@@ -506,6 +508,44 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
 	assert.NotEqual(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
+}
+
+func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "1m")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: "success-rate",
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = secondsAgo(61)
+	rs := templateToRS(e, templates[0], 0)
+	rs.Spec.Replicas = new(int32)
+	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	ar.Status = v1alpha1.AnalysisRunStatus{
+		Phase: v1alpha1.AnalysisPhaseRunning,
+	}
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
+		Name:   "bar",
+		Status: v1alpha1.TemplateStatusSuccessful,
+	}}
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        e.Spec.Analyses[0].Name,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+			AnalysisRun: ar.Name,
+		},
+	}
+
+	f := newFixture(t, e, rs, ar)
+	defer f.Close()
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
+	//assert.True(t, patchedEx.Spec.Terminate)
+	assert.Equal(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
 }
 
 // TestTerminateAnalysisRuns verifies we terminate analysis runs when experiment is terminating
