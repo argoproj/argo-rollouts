@@ -78,6 +78,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+//TestBlueGreenSetPreviewService ensures the preview service is set to the desired ReplicaSet
 func TestBlueGreenSetPreviewService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -92,7 +93,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	previewSvc := newService("preview", 80, nil)
-	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "test"}
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
 	activeSvc := newService("active", 80, selector)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
@@ -732,17 +733,19 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 
 	r2.Spec.Replicas = pointer.Int32Ptr(2)
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
 
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 1, 1, false, true)
+	f.objects = append(f.objects, r2)
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -855,6 +858,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1.Spec.Replicas = pointer.Int32Ptr(2)
+	rs1.Annotations[annotations.DesiredReplicasAnnotation] = "2"
 	r2 := bumpVersion(r1)
 
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -881,36 +885,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	f.run(getKey(r2, t))
 	rs2Updated := f.getUpdatedReplicaSet(rs2idx)
 	assert.Equal(t, int32(3), *rs2Updated.Spec.Replicas)
-}
-
-func TestBlueGreenRolloutScalePreviewActiveRS(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	rs1 := newReplicaSetWithStatus(r1, 2, 2)
-	r2 := bumpVersion(r1)
-
-	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-
-	r2.Spec.Replicas = pointer.Int32Ptr(2)
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
-
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
-	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
-
-	f.expectUpdateReplicaSetAction(rs2)
-	f.expectPatchRolloutAction(r1)
-
-	f.run(getKey(r2, t))
+	assert.Equal(t, "2", rs2Updated.Annotations[annotations.DesiredReplicasAnnotation])
 }
 
 func TestBlueGreenRolloutCompleted(t *testing.T) {

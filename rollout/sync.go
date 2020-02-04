@@ -222,7 +222,7 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		if err != nil {
 			return nil
 		}
-		if err := c.scaleBlueGreen(r, newRS, oldRSs, previewSvc, activeSvc); err != nil {
+		if err := c.reconcileBlueGreenReplicaSets(roCtx, activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
 			return err
@@ -301,7 +301,7 @@ func (c *RolloutController) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*
 
 func (c *RolloutController) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout) (bool, *appsv1.ReplicaSet, error) {
 	// No need to scale
-	if *(rs.Spec.Replicas) == newScale {
+	if *(rs.Spec.Replicas) == newScale && !annotations.ReplicasAnnotationsNeedUpdate(rs, defaults.GetReplicasOrDefault(rollout.Spec.Replicas)) {
 		return false, rs, nil
 	}
 	var scalingOperation string

@@ -98,7 +98,7 @@ type BlueGreenStrategy struct {
 	// AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the
 	// specified pause delay in seconds after the ReplicaSet becomes ready.
 	// If omitted, the Rollout enters and remains in a paused state until manually resumed by
-	// resetting spec.Paused to false.
+	// removing the pause condition.
 	// +optional
 	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
