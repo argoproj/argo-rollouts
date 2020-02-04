@@ -2,28 +2,33 @@ package info
 
 import (
 	"sort"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 type ReplicaSetInfo struct {
 	Metadata
-	Status    string
-	Icon      string
-	Revision  int
-	Stable    bool
-	Canary    bool
-	Active    bool
-	Preview   bool
-	Replicas  int32
-	Available int32
-	Template  string
-	Images    []string
-	Pods      []PodInfo
+	Status            string
+	Icon              string
+	Revision          int
+	Stable            bool
+	Canary            bool
+	Active            bool
+	Preview           bool
+	Replicas          int32
+	Available         int32
+	Template          string
+	ScaleDownDeadline string
+	Images            []string
+	Pods              []PodInfo
 }
 
 func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []ReplicaSetInfo {
@@ -47,6 +52,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
 		rsInfo.Revision = parseRevision(rs.ObjectMeta.Annotations)
 		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
+		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
 		if ro != nil {
 			if ro.Spec.Strategy.Canary != nil && rs.Labels != nil {
@@ -121,4 +127,11 @@ func getReplicaSetCondition(status appsv1.ReplicaSetStatus, condType appsv1.Repl
 		}
 	}
 	return nil
+}
+
+func (rs ReplicaSetInfo) ScaleDownDelay() string {
+	if deadline, err := time.Parse(time.RFC3339, rs.ScaleDownDeadline); err == nil {
+		return duration.HumanDuration(deadline.Sub(metav1.Now().Time))
+	}
+	return ""
 }

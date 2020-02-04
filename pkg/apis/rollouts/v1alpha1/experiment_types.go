@@ -27,7 +27,9 @@ type Experiment struct {
 // ExperimentSpec is the spec for a Experiment resource
 type ExperimentSpec struct {
 	// Templates are a list of PodSpecs that define the ReplicaSets that should be run during an experiment.
-	Templates []TemplateSpec `json:"templates"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Templates []TemplateSpec `json:"templates" patchStrategy:"merge" patchMergeKey:"name"`
 	// Duration the amount of time for the experiment to run as a duration string (e.g. 30s, 5m, 1h).
 	// If omitted, the experiment will run indefinitely, stopped either via termination, or a failed analysis run.
 	// +optional
@@ -42,7 +44,9 @@ type ExperimentSpec struct {
 	// Terminate is used to prematurely stop the experiment
 	Terminate bool `json:"terminate,omitempty"`
 	// Analyses references AnalysisTemplates to run during the experiment
-	Analyses []ExperimentAnalysisTemplateRef `json:"analyses,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Analyses []ExperimentAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 type TemplateSpec struct {
@@ -189,7 +193,9 @@ type ExperimentAnalysisTemplateRef struct {
 	TemplateName string `json:"templateName"`
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
-	Args []Argument `json:"args,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 	// RequiredForCompletion indicates that experiment should complete after analysis finishes
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }

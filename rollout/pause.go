@@ -115,6 +115,27 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 	return nil
 }
 
+func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
+	rollout := pCtx.rollout
+	if pCtx.HasAddPause() {
+		return false
+	}
+	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
+
+	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
+	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
+		//c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *autoPromoteActiveServiceDelaySeconds)
+		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
+		now := metav1.Now()
+		if now.After(switchDeadline) {
+			pCtx.log.Info("Rollout has waited the duration of the autoPromoteActiveServiceDelaySeconds")
+			return true
+		}
+		return false
+	}
+	return cond == nil && (rollout.Status.ControllerPause || rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint)
+}
+
 func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	rollout := pCtx.rollout
 	pauseCondition := getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep)

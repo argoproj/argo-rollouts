@@ -98,7 +98,7 @@ type BlueGreenStrategy struct {
 	// AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the
 	// specified pause delay in seconds after the ReplicaSet becomes ready.
 	// If omitted, the Rollout enters and remains in a paused state until manually resumed by
-	// resetting spec.Paused to false.
+	// removing the pause condition.
 	// +optional
 	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
@@ -179,12 +179,16 @@ type IstioVirtualService struct {
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
 type RolloutExperimentStep struct {
 	// Templates what templates that should be added to the experiment. Should be non-nil
-	Templates []RolloutExperimentTemplate `json:"templates"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Templates []RolloutExperimentTemplate `json:"templates" patchStrategy:"merge" patchMergeKey:"name"`
 	// Duration is a duration string (e.g. 30s, 5m, 1h) that the experiment should run for
 	// +optional
 	Duration DurationString `json:"duration,omitempty"`
 	// Analyses reference which analysis templates to run with the experiment
-	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {
@@ -193,7 +197,9 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
 	// Args the arguments that will be added to the AnalysisRuns
-	Args []AnalysisRunArgument `json:"args,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -261,7 +267,9 @@ type RolloutAnalysisStep struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
 	// Args the arguments that will be added to the AnalysisRuns
-	Args []AnalysisRunArgument `json:"args,omitempty"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
 // AnalysisRunArgument argument to add to analysisRun

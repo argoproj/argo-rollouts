@@ -96,21 +96,41 @@ func TestCanaryRolloutInfo(t *testing.T) {
 }
 
 func TestBlueGreenRolloutInfo(t *testing.T) {
-	rolloutObjs := testdata.NewBlueGreenRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
-	assert.Len(t, roInfo.Revisions(), 3)
+	{
+		rolloutObjs := testdata.NewBlueGreenRollout()
+		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+		assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
+		assert.Len(t, roInfo.Revisions(), 3)
 
-	assert.Equal(t, roInfo.Images(), []ImageInfo{
-		{
-			Image: "argoproj/rollouts-demo:blue",
-			Tags:  []string{InfoTagActive},
-		},
-		{
-			Image: "argoproj/rollouts-demo:green",
-			Tags:  []string{InfoTagPreview},
-		},
-	})
+		assert.Len(t, roInfo.ReplicaSetsByRevision(11), 1)
+		assert.Len(t, roInfo.ReplicaSetsByRevision(10), 1)
+		assert.Len(t, roInfo.ReplicaSetsByRevision(8), 1)
+
+		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDeadline, "")
+		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDelay(), "")
+
+		assert.Equal(t, roInfo.Images(), []ImageInfo{
+			{
+				Image: "argoproj/rollouts-demo:blue",
+				Tags:  []string{InfoTagActive},
+			},
+			{
+				Image: "argoproj/rollouts-demo:green",
+				Tags:  []string{InfoTagPreview},
+			},
+		})
+	}
+	{
+		rolloutObjs := testdata.NewBlueGreenRollout()
+		inFourHours := metav1.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+		rolloutObjs.ReplicaSets[0].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inFourHours
+		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
+		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+
+		assert.Equal(t, roInfo.ReplicaSets[1].UID, delayedRs)
+		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDeadline, inFourHours)
+		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDelay(), "3h59m")
+	}
 }
 
 func TestExperimentAnalysisRolloutInfo(t *testing.T) {

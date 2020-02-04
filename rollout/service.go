@@ -3,11 +3,15 @@ package rollout
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -24,60 +28,62 @@ const (
 
 // switchSelector switch the selector on an existing service to a new value
 func (c RolloutController) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
-	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
-	msg := fmt.Sprintf("Switching selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
-	logutil.WithRollout(r).Info(msg)
-	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
-	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
+	if oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && oldPodHash == newRolloutUniqueLabelValue {
+		return nil
+	}
+	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
+	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
+	if err != nil {
+		return err
+	}
+	msg := fmt.Sprintf("Switched selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	logutil.WithRollout(r).Info(msg)
+	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
 	return err
 }
 
-func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
 	if previewSvc == nil {
-		return false, nil
+		return nil
 	}
 	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
 	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	// If preview service already points to the new RS, skip the next steps
-	if previewSvc.Spec.Selector != nil {
-		currentSelectorValue, ok := previewSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newPodHash {
-			return false, nil
-		}
-	}
-
 	err := c.switchServiceSelector(previewSvc, newPodHash, r)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
-func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, activeSvc *corev1.Service) (bool, error) {
+func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if activeSvc.Spec.Selector != nil {
-		currentSelectorValue, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if ok && currentSelectorValue == newPodHash {
-			return false, nil
-		}
+	allRSs := roCtx.AllRSs()
+
+	if !replicasetutil.ReadyForPause(r, newRS, allRSs) || !annotations.IsSaturated(r, newRS) {
+		roCtx.log.Infof("New RS '%s' is not fully saturated", newRS.Name)
+		return nil
+	}
+
+	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if skipPause(roCtx, activeSvc) || roCtx.PauseContext().CompletedBlueGreenPause() {
+		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, r)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
