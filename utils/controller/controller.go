@@ -56,7 +56,7 @@ func WatchResource(client dynamic.Interface, namespace string, gvk schema.GroupV
 	}
 
 	if err != nil {
-		log.Errorf("Error with watch: %v", err)
+		log.Warningf("Error with watch: %v", err)
 		return err
 	}
 	for watchEvent := range watchI.ResultChan() {
