@@ -1,7 +1,5 @@
 # Istio
 
-NOTE: This functionality will be available in the v0.7 version, and everything described below is subject to change.
-
 [Istio](https://istio.io/) is one of the most popular service mesh in the community and offers a rich feature-set to control the flow of traffic. Istio offers this functionality through a set of CRDs, and the Argo Rollouts controller modifies these resources to manipulate the traffic routing into the desired state. However, the Argo Rollouts controller modifies the Istio resources minimally to gives the developer flexibility while configuring their resources.
 
 ## Istio and Rollouts

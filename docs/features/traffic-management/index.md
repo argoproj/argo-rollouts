@@ -1,7 +1,5 @@
 # Traffic management
 
-NOTE: This is being implemented for the v0.7 version and everything described below is subject to change.
-
 Traffic management is controlling the data plane to have intelligent routing rules for an application. These routing rules can manipulate the flow of traffic to different versions of an application enabling Progressive Delivery. These controls limit the blast radius of a new release by ensuring a small percentage of users receive a new version while it is verified.
 
 There are various techniques to achieve traffic management:
