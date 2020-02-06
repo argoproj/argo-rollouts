@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
     make \
     wget \
     gcc \
-    zip && \
+    zip \
+    ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -75,6 +76,7 @@ RUN groupadd -g 999 argo-rollouts && \
 FROM scratch
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Import the user and group files from the builder.
 COPY --from=argo-rollouts-build /etc/passwd /etc/passwd
