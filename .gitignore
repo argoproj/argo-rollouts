@@ -9,3 +9,4 @@ cmd/**/debug
 debug.test
 coverage.out
 coverage.html
+site/
