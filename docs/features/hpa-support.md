@@ -20,7 +20,7 @@ spec:
   maxReplicas: 6
   minReplicas: 2
   scaleTargetRef:
-    apiVersion: argoproj.io
+    apiVersion: argoproj.io/v1alpha1
     kind: Rollout
     name: example-rollout
   targetCPUUtilizationPercentage: 80
