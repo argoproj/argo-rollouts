@@ -88,8 +88,12 @@ lint:
 	golangci-lint run --fix
 
 .PHONY: test
-test:
+test: test-kustomize
 	go test -failfast -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+
+.PHONY: test-kustomize
+test-kustomize:
+	./test/kustomize/test.sh
 
 .PHONY: coverage
 coverage: test

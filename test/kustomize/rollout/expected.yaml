@@ -1,0 +1,152 @@
+apiVersion: v1
+data:
+  FOO: BAR
+kind: ConfigMap
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-cm-bt8kmct6gk
+---
+apiVersion: v1
+data:
+  password: UGE1NXcwcmQ=
+kind: Secret
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-secret-t95h96m85d
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-canary-svc
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: guestbook
+    foo: bar
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-stable-svc
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: guestbook
+    foo: bar
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: guestbook
+      foo: bar
+  strategy:
+    canary:
+      canaryService: my-guestbook-canary-svc
+      stableService: my-guestbook-stable-svc
+      trafficRouting:
+        istio:
+          virtualService:
+            name: my-guestbook-vsvc
+            routes:
+            - primary
+  template:
+    metadata:
+      annotations:
+        foo: bar
+      labels:
+        app: guestbook
+        foo: bar
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: guestbook
+                  foo: bar
+      containers:
+      - command:
+        - ping my-guestbook-stable-svc
+        env:
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: my-guestbook-secret-t95h96m85d
+        - name: FOO
+          valueFrom:
+            configMapKeyRef:
+              key: FOO
+              name: my-guestbook-cm-bt8kmct6gk
+        image: guestbook:v2
+        name: guestbook
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+        - mountPath: /etc/secrets
+          name: secret-volume
+      volumes:
+      - configMap:
+          name: my-guestbook-cm-bt8kmct6gk
+        name: config-volume
+      - name: secret-volume
+        secret:
+          secretName: my-guestbook-secret-t95h96m85d
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-vsvc
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: guestbook-stable-svc
+      weight: 100
+    - destination:
+        host: guestbook-canary-svc
+      weight: 0
