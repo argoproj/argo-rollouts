@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -17,12 +18,31 @@ func TestResolveExperimentArgsValueInvalidTemplate(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("Cannot find end tag=\"}}\" in the template=\"test-{{args.var\" starting from \"args.var\""), err)
 }
 
-func TestResolveExperimentArgsValue(t *testing.T) {
+func TestResolveExperimentArgsValueInvalidDuration(t *testing.T) {
+	now := metav1.Now()
 	ex := &v1alpha1.Experiment{
 		Spec: v1alpha1.ExperimentSpec{
+			Duration: "asdf",
+		},
+		Status: v1alpha1.ExperimentStatus{
+			AvailableAt: &now,
+		},
+	}
+	_, err := ResolveExperimentArgsValue("test", ex, nil)
+	assert.Equal(t, fmt.Errorf("time: invalid duration asdf"), err)
+}
+
+func TestResolveExperimentArgsValue(t *testing.T) {
+	now := metav1.Now()
+	ex := &v1alpha1.Experiment{
+		Spec: v1alpha1.ExperimentSpec{
+			Duration: "1m",
 			Templates: []v1alpha1.TemplateSpec{{
 				Name: "test",
 			}},
+		},
+		Status: v1alpha1.ExperimentStatus{
+			AvailableAt: &now,
 		},
 	}
 	rsMap := map[string]*appsv1.ReplicaSet{
@@ -37,6 +57,12 @@ func TestResolveExperimentArgsValue(t *testing.T) {
 	argValue, err := ResolveExperimentArgsValue("{{templates.test.podTemplateHash}}", ex, rsMap)
 	assert.Nil(t, err)
 	assert.Equal(t, "abcd", argValue)
+	argValue, err = ResolveExperimentArgsValue("{{experiment.availableAt}}", ex, rsMap)
+	assert.Nil(t, err)
+	assert.Equal(t, now.Format(time.RFC3339), argValue)
+	argValue, err = ResolveExperimentArgsValue("{{experiment.finishedAt}}", ex, rsMap)
+	assert.Nil(t, err)
+	assert.Equal(t, now.Add(1*time.Minute).Format(time.RFC3339), argValue)
 }
 
 func TestResolveArgsWithNoSubstitution(t *testing.T) {
