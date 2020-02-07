@@ -1,4 +1,4 @@
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/plugins/builtinconfig/consts/namereference.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/namereference.go
 nameReference:
 - kind: ConfigMap
   version: v1
@@ -32,16 +32,6 @@ nameReference:
     kind: Rollout
   - path: spec/template/spec/volumes/projected/sources/secret/name
     kind: Rollout
-# These Service fields are unique to Rollouts and absent from Rollout
-- kind: Service
-  version: v1
-  fieldSpecs:
-  - path: spec/strategy/blueGreen/activeService
-    kind: Rollout
-  - path: spec/strategy/blueGreen/previewService
-    kind: Rollout
-  - path: spec/strategy/canary/canaryService
-    kind: Rollout
 - kind: ServiceAccount
   version: v1
   fieldSpecs:
@@ -52,8 +42,25 @@ nameReference:
   fieldSpecs:
   - path: spec/template/spec/volumes/persistentVolumeClaim/claimName
     kind: Rollout
+# The name references below are unique to Rollouts and not applicable to Deployment
+- kind: Service
+  version: v1
+  fieldSpecs:
+  - path: spec/strategy/blueGreen/activeService
+    kind: Rollout
+  - path: spec/strategy/blueGreen/previewService
+    kind: Rollout
+  - path: spec/strategy/canary/canaryService
+    kind: Rollout
+  - path: spec/strategy/canary/stableService
+    kind: Rollout
+- kind: VirtualService
+  group: networking.istio.io
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/istio/virtualService/name
+    kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/plugins/builtinconfig/consts/commonlabels.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonlabels.go
 commonLabels:
 - path: spec/selector/matchLabels
   create: true
@@ -63,28 +70,24 @@ commonLabels:
   kind: Rollout
 - path: spec/template/spec/affinity/podAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels
   create: false
-  group: apps
   kind: Rollout
 - path: spec/template/spec/affinity/podAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels
   create: false
-  group: apps
   kind: Rollout
 - path: spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels
   create: false
-  group: apps
   kind: Rollout
 - path: spec/template/spec/affinity/podAntiAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels
   create: false
-  group: apps
   kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/plugins/builtinconfig/consts/commonannotations.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonannotations.go
 commonAnnotations:
 - path: spec/template/metadata/annotations
   create: true
   kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/plugins/builtinconfig/consts/varreference.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/varreference.go
 varReference:
 - path: spec/template/spec/containers/args
   kind: Rollout
@@ -103,7 +106,7 @@ varReference:
 - path: spec/template/spec/initContainers/volumeMounts/mountPath
   kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/plugins/builtinconfig/consts/replicas.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/replicas.go
 replicas:
 - path: spec/replicas
   create: true
