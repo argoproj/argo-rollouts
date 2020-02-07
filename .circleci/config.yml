@@ -14,7 +14,7 @@ jobs:
       - restore_cache:
           keys:
             - v3-pkg-cache
-      - run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash && mv kustomize /usr/local/bin/
+      - run: brew install kustomize
       - run: go get github.com/jstemmer/go-junit-report
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run:
