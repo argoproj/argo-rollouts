@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/valyala/fasttemplate"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,15 +17,27 @@ const (
 	openBracket               = "{{"
 	closeBracket              = "}}"
 	experimentPodTemplateHash = "templates.%s.podTemplateHash"
+	experimentAvailableAt     = "experiment.availableAt"
+	experimentEndsAt          = "experiment.finishedAt"
 )
 
-// ResolveExperimentArgValue substitutes values from the experiment (i.e. a template's pod hash) in the args value field
+// ResolveExperimentArgsValue substitutes values from the experiment (i.e. a template's pod hash) in the args value field
 func ResolveExperimentArgsValue(argTemplate string, ex *v1alpha1.Experiment, templateRSs map[string]*appsv1.ReplicaSet) (string, error) {
 	t, err := fasttemplate.NewTemplate(argTemplate, openBracket, closeBracket)
 	if err != nil {
 		return "", err
 	}
 	argsMap := make(map[string]string)
+	if ex.Status.AvailableAt != nil {
+		argsMap[experimentAvailableAt] = ex.Status.AvailableAt.Format(time.RFC3339)
+		if ex.Spec.Duration != "" {
+			duration, err := ex.Spec.Duration.Duration()
+			if err != nil {
+				return "", err
+			}
+			argsMap[experimentEndsAt] = ex.Status.AvailableAt.Add(duration).Format(time.RFC3339)
+		}
+	}
 	for _, template := range ex.Spec.Templates {
 		if rs, ok := templateRSs[template.Name]; ok {
 			argsMap[fmt.Sprintf(experimentPodTemplateHash, template.Name)] = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
