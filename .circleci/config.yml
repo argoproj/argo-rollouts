@@ -17,8 +17,8 @@ jobs:
       - run:
           name: Install kustomize
           command: |
-            cd $HOME
             curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+            sudo mv kustomize /usr/local/bin/
       - run: go get github.com/jstemmer/go-junit-report
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run:
