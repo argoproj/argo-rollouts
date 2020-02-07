@@ -399,9 +399,9 @@ spec:
     templateName: mann-whitney
     args:
     - name: start-time
-      value: 2019-09-14T01:40:10Z
+      value: "{{experiment.availableAt}}"
     - name: end-time
-      value: 2019-09-14T02:40:10Z
+      value: "{{experiment.finishedAt}}"
 ```
 
 
