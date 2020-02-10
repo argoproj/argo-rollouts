@@ -1,5 +1,22 @@
 # Changelog
 
+# v0.7.1
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.1/manifests/install.yaml
+
+## Changes since v0.7.0
+
+### General
+* Adding ca-certificates to docker image (#393)
+* Add patchMergeKey and patchStrategy struct tags and comments (#386)
+* Reduce log from error to warning (#394)
+
+### Experiments
+* Allow ex to use availableAt and finishedAt as args (#400)
+* Experiments passed duration succeed with running analysis (#392)
+* Refactor Experiment handling of pod hashes (#385)
+
 # v0.7.0
 ## Quick Start
 kubectl create namespace argo-rollouts
