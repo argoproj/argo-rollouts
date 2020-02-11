@@ -325,11 +325,71 @@ Note: The controller will error when merging the templates if:
 * multiple metrics in the templates have the same name
 * Two arguments with the same name both have values
 
+## BlueGreen Pre Promotion Analysis
+A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
+AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
+failure of the analysis run decides if the Rollout will switch traffic, or abort the Rollout completely.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+
+    blueGreen:
+      activeService: active-svc
+      previewService: preview-svc
+      prePromotionAnalysis:
+        templates:
+        - templateName: smoke-tests
+        args:
+        - name: service-name
+          value: preview-svc.default.svc.cluster.local
+```
+
+In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
+Rollout will not switch traffic to the new version until the analysis run finishes successfully. 
+
+Note: if the`autoPromotionSeconds` field is specified and the Rollout has waited auto promotion seconds amount of time,
+the Rollout marks the AnalysisRun successful and switches the traffic to a new version automatically. If the AnalysisRun
+completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the 
+`autoPromotionSeconds`.
+
+## BlueGreen Post Promotion Analysis
+A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
+run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
+If the `scaleDownDelaySeconds` has passed for the previous ReplicaSet, the AnalysisRun for that ReplicaSet is marked as 
+successful. If the AnalysisRun completes before the `scaleDownDelaySeconds`, the Rollout will not create another 
+AnalysisRun and wait out the rest of `scaleDownDelaySeconds` before scaling down the previous ReplicaSet.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+    blueGreen:
+      activeService: active-svc
+      previewService: preview-svc
+      scaleDownDelaySeconds: 600 # 10 minutes
+      postPromotionAnalysis:
+        templates:
+        - templateName: smoke-tests
+        args:
+        - name: service-name
+          value: preview-svc.default.svc.cluster.local
+```
+
 ## Failure Conditions
 
-As an alternative to measuring success, `failureCondition` can be used to cause an analysis run to
-fail. The following example continually polls a prometheus server to get the total number of errors
-every 5 minutes, causing the analysis run to fail if 10 or more errors were encountered.
+`failureCondition` can be used to cause an analysis run to fail. The following example continually polls a prometheus 
+server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
+encountered.
 
 ```yaml
   metrics:
