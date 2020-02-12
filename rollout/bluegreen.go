@@ -27,7 +27,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
-	roCtx := newBlueGreenCtx(r, newRS, oldRSs)
+	arList, err := c.getAnalysisRunsForRollout(r)
+	if err != nil {
+		return err
+	}
+
+	roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 	logCtx := roCtx.Log()
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
@@ -53,7 +58,6 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	if err != nil {
 		return err
 	}
-
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 }
 

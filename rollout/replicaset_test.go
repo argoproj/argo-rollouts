@@ -153,7 +153,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			test := tests[i]
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
-			bgCtx := newBlueGreenCtx(rollout, newRS, nil)
+			bgCtx := newBlueGreenCtx(rollout, newRS, nil, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			controller := &RolloutController{
@@ -243,7 +243,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
-			roCtx := newBlueGreenCtx(rollout, newRS, oldRSs)
+			roCtx := newBlueGreenCtx(rollout, newRS, oldRSs, nil)
 
 			f := newFixture(t)
 			defer f.Close()

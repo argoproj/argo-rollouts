@@ -685,7 +685,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
 	rs := newReplicaSetWithStatus(ro, 1, 1)
-	roCtx := newBlueGreenCtx(ro, rs, nil)
+	roCtx := newBlueGreenCtx(ro, rs, nil, nil)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
 
