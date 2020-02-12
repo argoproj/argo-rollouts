@@ -111,6 +111,8 @@ type BlueGreenStrategy struct {
 	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
 	// +optional
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty"`
+	// PrePromotionAnalysis configuration to run analysis before a selector switch
+	PrePromotionAnalysis *RolloutAnalysis `json:"prePromotionAnalysis,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -313,6 +315,8 @@ const (
 	RolloutTypeStepLabel = "Step"
 	// RolloutTypeBackgroundRunLabel indicates that the analysisRun was created in Background to an execution
 	RolloutTypeBackgroundRunLabel = "Background"
+	// RolloutTypePrePromotionLabel indicates that the analysisRun was created before the active service promotion
+	RolloutTypePrePromotionLabel = "PrePromotion"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
 	RolloutCanaryStepIndexLabel = "step-index"
 )
@@ -420,6 +424,8 @@ type BlueGreenStatus struct {
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
 	// +optional
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
+	// CurrentPrePromotionAnalysisRun the current analysis run running before the active service promotion
+	CurrentPrePromotionAnalysisRun string `json:"currentPrePromotionAnalysisRun,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout

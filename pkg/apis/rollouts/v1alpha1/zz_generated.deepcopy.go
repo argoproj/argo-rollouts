@@ -345,6 +345,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.PrePromotionAnalysis != nil {
+		in, out := &in.PrePromotionAnalysis, &out.PrePromotionAnalysis
+		*out = new(RolloutAnalysis)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
