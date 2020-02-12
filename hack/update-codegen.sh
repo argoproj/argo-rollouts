@@ -7,7 +7,7 @@ set -o pipefail
 # To work around this and support any location: 
 #   create a temporary directory, use this as an output base, and copy everything back once generated.
 
-SCRIPT_ROOT=$(realpath $(dirname ${BASH_SOURCE})/..)
+SCRIPT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )"
 CODEGEN_VERSION=$(go list -m k8s.io/code-generator | awk '{print $2}' | head -1)
 CODEGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/k8s.io/code-generator@${CODEGEN_VERSION}")
 
