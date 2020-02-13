@@ -1216,3 +1216,21 @@ func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("result > %s", arg), newRun.Spec.Metrics[0].SuccessCondition)
 	assert.Equal(t, arg, newRun.Spec.Metrics[0].Provider.Prometheus.Query)
 }
+
+func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:             "rate",
+					SuccessCondition: "{{args.does-not-exist}}",
+				},
+			},
+		},
+	}
+	err := c.resolveMetricArgs(run)
+	assert.EqualError(t, err, "failed to resolve {{args.does-not-exist}}")
+}
