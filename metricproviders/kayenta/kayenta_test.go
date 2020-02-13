@@ -2,13 +2,15 @@ package kayenta
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -66,18 +68,18 @@ func buildMetric() v1alpha1.Metric {
 					{
 						Name: "default",
 						ControlScope: v1alpha1.ScopeDetail{
-							Scope:  "app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}",
+							Scope:  "app=guestbook and rollouts-pod-template-hash=xxxx",
 							Step:   60,
 							Region: "us-=west-2",
-							Start:  "{{args.start-time}}",
-							End:    "{{args.end-time}}",
+							Start:  "2019-03-29T01:08:34Z",
+							End:    "2019-03-29T01:38:34Z",
 						},
 						ExperimentScope: v1alpha1.ScopeDetail{
-							Scope:  "app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}",
+							Scope:  "app=guestbook and rollouts-pod-template-hash=yyyy",
 							Step:   60,
 							Region: "us-=west-2",
-							Start:  "{{args.start-time}}",
-							End:    "{{args.end-time}}",
+							Start:  "2019-03-29T01:08:34Z",
+							End:    "2019-03-29T01:38:34Z",
 						},
 					},
 				},
@@ -131,11 +133,40 @@ const (
 	jobURL    = "https://kayenta.example.oom/canary/bf9795c0-170f-403e-bb7f-fef3f9a44d42?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=intuit-kayenta&storageAccountName=intuit-kayenta"
 )
 
+const expectedBody = `{	
+	"scopes": {
+		"default":{
+			"controlScope": {
+				"scope":"app=guestbook and rollouts-pod-template-hash=xxxx",
+				"region":"us-=west-2",
+				"step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}	
+	},	
+	"thresholds" : {	
+		"pass": 90,	
+		"marginal": 75	
+	}	
+}`
+
 func TestRunSuccessfully(t *testing.T) {
 	e := log.NewEntry(log.New())
 	c := NewTestClient(func(req *http.Request) *http.Response {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
+			body, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				panic(err)
+			}
+			bodyI := map[string]interface{}{}
+			err = json.Unmarshal(body, &bodyI)
+			if err != nil {
+				panic(err)
+			}
+			expectedBodyI := map[string]interface{}{}
+			err = json.Unmarshal([]byte(expectedBody), &expectedBodyI)
+			if err != nil {
+				panic(err)
+			}
+			assert.Equal(t, expectedBodyI, bodyI)
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
