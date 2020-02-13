@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -45,12 +44,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	query, err := templateutil.ResolveArgs(metric.Provider.Prometheus.Query, run.Spec.Args)
-	if err != nil {
-		return metricutil.MarkMeasurementError(newMeasurement, err)
-	}
-
-	response, err := p.api.Query(ctx, query, time.Now())
+	response, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}

@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -1118,4 +1119,102 @@ func TestTrimMeasurementHistory(t *testing.T) {
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 1)
 		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
 	}
+}
+
+// TestResolveMetricArgs verifies that metric arguments are resolved
+func TestResolveMetricArgs(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	arg1, arg2 := "success-rate", "success-rate2"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "metric-name",
+					Value: &arg1,
+				},
+				{
+					Name: "metric-name2",
+					Value: &arg2,
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "metric-name",
+					SuccessCondition: "result > {{args.metric-name}}",
+
+				},
+				{
+					Name: "metric-name2",
+					SuccessCondition: "result < {{args.metric-name2}}",
+				},
+			},
+		},
+	}
+
+	err := c.resolveMetricArgs(run)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg1), run.Spec.Metrics[0].SuccessCondition)
+	assert.Equal(t, fmt.Sprintf("result < %s", arg2), run.Spec.Metrics[1].SuccessCondition)
+}
+
+// TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+func TestResolveMetricArgsWithQuotes(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	arg := "foo \"bar\" baz"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "rate",
+					Value: &arg,
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "rate",
+					SuccessCondition: "{{args.rate}}",
+
+				},
+			},
+		},
+	}
+	err := c.resolveMetricArgs(run)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf(arg), run.Spec.Metrics[0].SuccessCondition)
+}
+
+func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	arg := "success-rate"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "metric-name",
+					Value: &arg,
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "metric-name",
+					SuccessCondition: "result > {{args.metric-name}}",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Query: "{{args.metric-name}}",
+						},
+					},
+				},
+			},
+		},
+	}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg), newRun.Spec.Metrics[0].SuccessCondition)
+	assert.Equal(t, arg, newRun.Spec.Metrics[0].Provider.Prometheus.Query)
 }

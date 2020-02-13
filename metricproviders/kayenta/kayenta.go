@@ -17,7 +17,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -131,12 +130,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	jobPayLoad := fmt.Sprintf(jobPayloadFormat, scopes, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
 
-	jsonValue, err := templateutil.ResolveArgs(jobPayLoad, run.Spec.Args)
-	if err != nil {
-		return metricutil.MarkMeasurementError(newMeasurement, err)
-	}
-
-	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jsonValue)))
+	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jobPayLoad)))
 	if err != nil || response.Body == nil || response.StatusCode != 200 {
 		if err == nil {
 			err = errors.New("Invalid Response")

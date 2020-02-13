@@ -2,8 +2,10 @@ package analysis
 
 import (
 	"fmt"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 	"sync"
 	"time"
+	"encoding/json"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -58,6 +60,17 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 			return run
 		}
 	}
+
+	err := c.resolveMetricArgs(run)
+	if err != nil {
+		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
+		log.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+		return run
+	}
+
 	tasks := generateMetricTasks(run)
 	log.Infof("taking %d measurements", len(tasks))
 	c.runMeasurements(run, tasks)
@@ -77,7 +90,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		run.Status.Phase = newStatus
 	}
 
-	err := c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
+	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
 	if err != nil {
 		// TODO(jessesuen): surface errors to controller so they can be retried
 		log.Warnf("Failed to garbage collect measurements: %v", err)
@@ -93,6 +106,33 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
+}
+
+// Resolves args for all metrics in AnalysisRun
+// Uses ResolveQuotedArgs to handle escaped quotes
+func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
+	for i, metric := range run.Spec.Metrics {
+		metricBytes, err := json.Marshal(metric)
+		if err != nil {
+			return err
+		}
+		var newMetricStr string
+		//if metric.Provider.Job != nil {
+		newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), run.Spec.Args)
+		//} else {
+			//newMetricStr, err = templateutil.ResolveArgs(string(metricBytes), run.Spec.Args)
+		//}
+		if err != nil {
+			return err
+		}
+		var newMetric v1alpha1.Metric
+		err = json.Unmarshal([]byte(newMetricStr), &newMetric)
+		if err != nil {
+			return err
+		}
+		run.Spec.Metrics[i] = newMetric
+	}
+	return nil
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this

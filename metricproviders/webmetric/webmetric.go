@@ -16,7 +16,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -49,12 +48,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request := &http.Request{
 		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
 	}
-	urlStr, err := templateutil.ResolveArgs(metric.Provider.Web.URL, run.Spec.Args)
-	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	}
 
-	url, err := url.Parse(urlStr)
+	url, err := url.Parse(metric.Provider.Web.URL)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -64,11 +59,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header = make(http.Header)
 
 	for _, header := range metric.Provider.Web.Headers {
-		value, err := templateutil.ResolveArgs(header.Value, run.Spec.Args)
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-		request.Header.Set(header.Key, value)
+		request.Header.Set(header.Key, header.Value)
 	}
 
 	// Send Request
