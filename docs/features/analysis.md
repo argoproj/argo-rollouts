@@ -43,7 +43,9 @@ spec:
   strategy:
     canary: 
       analysis:
-        templateName: success-rate
+        name: background-analysis
+        templates:
+        - templateName: success-rate
         startingStep: 2 # delay starting analysis run
                         # until setWeight: 40%
         args:
@@ -60,6 +62,8 @@ spec:
       - pause: {duration: 600}
 ```
 
+Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
+AnalysisTemplate. This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. 
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -153,11 +157,16 @@ spec:
       - setWeight: 20
       - pause: {duration: 300}
       - analysis:
-          templateName: success-rate
+          name: step-analysis
+          templates:
+          - templateName: success-rate
           args:
           - name: service-name
             value: guestbook-svc.default.svc.cluster.local
 ```
+
+Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
+AnalysisTemplate. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. 
 
 In this example, the `AnalysisTemplate` is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.
@@ -199,6 +208,126 @@ Multiple measurements can be performed over a longer duration period, by specify
         address: http://prometheus.example.com:9090
         query: ...
 ```
+
+## Analysis with multiple templates
+A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to create
+multiple AnalysisTemplates and have a Rollout chose which the AnalysisTemplates it should use. If multiple templates 
+are referenced, then the controller will merge the templates together. The controller combines the metrics and args
+fields of all the templates.
+
+
+Rollout referencing multiple AnalysisTemplates:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        name: background-analysis
+        templates:
+        - templateName: success-rate
+        - templateName: error-rate
+        args:
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
+```
+The AnalysisTemplates:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 5m
+    successCondition: result >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
+
+The controller would create an AnalysisRun with the following yaml:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  name: guestbook-CurrentPodHash-multiple-templates
+spec:
+  args:
+  - name: service-name
+    value: guestbook-svc.default.svc.cluster.local
+  metrics:
+  - name: success-rate
+    interval: 5m
+    successCondition: result >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+``` 
+
+Note: The controller will error when merging the templates if:
+* multiple metrics in the templates have the same name
+* Two arguments with the same name both have values
 
 ## Failure Conditions
 
@@ -284,7 +413,9 @@ spec:
   strategy:
     canary: 
       analysis:
-        templateName: success-rate
+        name: success-rate
+        templates:
+        - templateName: success-rate
         startingStep: 2
       steps:
       - setWeight: 20
@@ -327,7 +458,9 @@ spec:
           - name: canary
             specRef: canary
           analysis:
-            templateName: mann-whitney
+            name: mann-whitney
+            templates:
+            - templateName: mann-whitney
             args:
             - name: stable-hash
               valueFrom:
