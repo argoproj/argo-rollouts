@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
@@ -18,9 +19,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 var noResyncPeriodFunc = func() time.Duration { return 0 }
@@ -148,63 +146,6 @@ func TestRun(t *testing.T) {
 	measurement = p.Run(run, metric)
 	expectedName = fmt.Sprintf("%s.%s.2", run.UID, metric.Name)
 	assert.Equal(t, expectedName, measurement.Metadata[JobNameKey])
-}
-
-func TestJobArgResolution(t *testing.T) {
-	p := newTestJobProvider()
-	run := newRunWithJobMetric()
-	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
-	run.Spec.Args = []v1alpha1.Argument{
-		{
-			Name:  "my-arg",
-			Value: pointer.StringPtr("my-arg-value"),
-		},
-	}
-
-	measurement := p.Run(run, run.Spec.Metrics[0])
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
-	assert.Nil(t, measurement.FinishedAt)
-	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, "my-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
-}
-
-func TestJobQuotedArgResolution(t *testing.T) {
-	p := newTestJobProvider()
-	run := newRunWithJobMetric()
-	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
-	run.Spec.Args = []v1alpha1.Argument{
-		{
-			Name:  "my-arg",
-			Value: pointer.StringPtr("my-\"quoted\"-arg-value"),
-		},
-	}
-
-	measurement := p.Run(run, run.Spec.Metrics[0])
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
-	assert.Nil(t, measurement.FinishedAt)
-	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, "my-\"quoted\"-arg-value", jobs.Items[0].Spec.Template.Spec.Containers[0].Command[0])
-}
-
-func TestJobArgFailedResolution(t *testing.T) {
-	p := newTestJobProvider()
-	run := newRunWithJobMetric()
-	run.Spec.Metrics[0].Provider.Job.Spec.Template.Spec.Containers[0].Command = []string{"{{args.my-arg}}"}
-	run.Spec.Args = []v1alpha1.Argument{
-		{
-			Name:  "my-arg-typo",
-			Value: pointer.StringPtr("my-arg-value"),
-		},
-	}
-
-	measurement := p.Run(run, run.Spec.Metrics[0])
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
-	assert.NotNil(t, measurement.FinishedAt)
-	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
-	assert.NoError(t, err)
-	assert.Len(t, jobs.Items, 0)
 }
 
 func TestRunCreateFail(t *testing.T) {

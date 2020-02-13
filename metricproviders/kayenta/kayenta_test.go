@@ -136,19 +136,6 @@ func TestRunSuccessfully(t *testing.T) {
 	c := NewTestClient(func(req *http.Request) *http.Response {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
-
-			body, _ := ioutil.ReadAll(req.Body)
-			assert.Equal(t, string(body), `
-							{
-								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
-								},
-                                "thresholds" : {
-                                    "pass": 90,
-                                    "marginal": 75
-                                }
-                            }`)
-
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
@@ -206,89 +193,11 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, measurement, measurement2)
 }
 
-func TestRunMissingArgs(t *testing.T) {
-	e := log.NewEntry(log.New())
-	c := NewTestClient(func(req *http.Request) *http.Response {
-		if req.URL.String() == jobURL {
-			assert.Equal(t, req.URL.String(), jobURL)
-
-			body, _ := ioutil.ReadAll(req.Body)
-			assert.Equal(t, string(body), `
-							{
-								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
-								},
-                                "thresholds" : {
-                                    "pass": 90,
-                                    "marginal": 75
-                                }
-                            }`)
-
-			return &http.Response{
-				StatusCode: 200,
-				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(`
-			{
-				"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-            }
-			`)),
-				// Must be set to non-nil value or it panics
-				Header: make(http.Header),
-			}
-		} else {
-			url := req.URL.String()
-			assert.Equal(t, url, lookupURL)
-
-			return &http.Response{
-				StatusCode: 200,
-				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
-				// Must be set to non-nil value or it panics
-				Header: make(http.Header),
-			}
-		}
-	})
-
-	p := NewKayentaProvider(*e, c)
-	metric := buildMetric()
-
-	stableHash := "xxxx"
-	canaryHash := "yyyy"
-	//startTime := "2019-03-29T01:08:34Z"
-	endTime := "2019-03-29T01:38:34Z"
-	run := newAnalysisRun()
-	run.Spec.Args = []v1alpha1.Argument{
-		//{Name: "start-time", Value: &startTime},
-		{Name: "end-time", Value: &endTime},
-		{Name: "stable-hash", Value: &stableHash},
-		{Name: "canary-hash", Value: &canaryHash},
-	}
-
-	measurement := p.Run(run, metric)
-
-	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
-
-}
-
 func TestRunBadJobResponse(t *testing.T) {
 	e := log.Entry{}
 	c := NewTestClient(func(req *http.Request) *http.Response {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
-
-			body, _ := ioutil.ReadAll(req.Body)
-			assert.Equal(t, string(body), `
-							{
-								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
-								},
-                                "thresholds" : {
-                                    "pass": 90,
-                                    "marginal": 75
-                                }
-                            }`)
-
 			return &http.Response{
 				StatusCode: 500,
 				// Send response to be tested
@@ -471,19 +380,6 @@ func TestRunEmptyExecutionId(t *testing.T) {
 	c := NewTestClient(func(req *http.Request) *http.Response {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
-
-			body, _ := ioutil.ReadAll(req.Body)
-			assert.Equal(t, string(body), `
-							{
-								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
-								},
-                                "thresholds" : {
-                                    "pass": 90,
-                                    "marginal": 75
-                                }
-                            }`)
-
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested

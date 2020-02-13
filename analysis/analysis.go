@@ -1,11 +1,12 @@
 package analysis
 
 import (
+	"encoding/json"
 	"fmt"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 	"sync"
 	"time"
-	"encoding/json"
+
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -111,27 +112,21 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 // Resolves args for all metrics in AnalysisRun
 // Uses ResolveQuotedArgs to handle escaped quotes
 func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
-	for i, metric := range run.Spec.Metrics {
-		metricBytes, err := json.Marshal(metric)
-		if err != nil {
-			return err
-		}
-		var newMetricStr string
-		//if metric.Provider.Job != nil {
-		newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), run.Spec.Args)
-		//} else {
-			//newMetricStr, err = templateutil.ResolveArgs(string(metricBytes), run.Spec.Args)
-		//}
-		if err != nil {
-			return err
-		}
-		var newMetric v1alpha1.Metric
-		err = json.Unmarshal([]byte(newMetricStr), &newMetric)
-		if err != nil {
-			return err
-		}
-		run.Spec.Metrics[i] = newMetric
+	metricBytes, err := json.Marshal(run.Spec.Metrics)
+	if err != nil {
+		return err
 	}
+	var newMetricStr string
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), run.Spec.Args)
+	if err != nil {
+		return err
+	}
+	var newMetrics []v1alpha1.Metric
+	err = json.Unmarshal([]byte(newMetricStr), &newMetrics)
+	if err != nil {
+		return err
+	}
+	run.Spec.Metrics = newMetrics
 	return nil
 }
 

@@ -1131,22 +1131,21 @@ func TestResolveMetricArgs(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Args: []v1alpha1.Argument{
 				{
-					Name: "metric-name",
+					Name:  "metric-name",
 					Value: &arg1,
 				},
 				{
-					Name: "metric-name2",
+					Name:  "metric-name2",
 					Value: &arg2,
 				},
 			},
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "metric-name",
+					Name:             "metric-name",
 					SuccessCondition: "result > {{args.metric-name}}",
-
 				},
 				{
-					Name: "metric-name2",
+					Name:             "metric-name2",
 					SuccessCondition: "result < {{args.metric-name2}}",
 				},
 			},
@@ -1169,15 +1168,14 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Args: []v1alpha1.Argument{
 				{
-					Name: "rate",
+					Name:  "rate",
 					Value: &arg,
 				},
 			},
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "rate",
+					Name:             "rate",
 					SuccessCondition: "{{args.rate}}",
-
 				},
 			},
 		},
@@ -1196,13 +1194,13 @@ func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Args: []v1alpha1.Argument{
 				{
-					Name: "metric-name",
+					Name:  "metric-name",
 					Value: &arg,
 				},
 			},
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "metric-name",
+					Name:             "metric-name",
 					SuccessCondition: "result > {{args.metric-name}}",
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{
