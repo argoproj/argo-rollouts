@@ -2,20 +2,20 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 configurations:
-- rollout-transform.yaml
+- ../../../docs/features/kustomize/rollout-transform.yaml
 
 namePrefix: my-
 
 resources:
-- rollouts-demo.yaml
+- rollout.yaml
 
 configMapGenerator:
-- name: rollouts-demo-cm
+- name: guestbook-cm
   literals:
   - FOO=BAR
 
 secretGenerator:
-- name: rollouts-demo-secret
+- name: guestbook-secret
   literals:
   - password=Pa55w0rd
 
@@ -29,11 +29,15 @@ vars:
 - name: SERVICE_NAME
   objref:
     kind: Service
-    name: rollouts-demo-svc
+    name: guestbook-stable-svc
     apiVersion: v1
   fieldref:
     fieldpath: metadata.name
 
+replicas:
+- name: guestbook
+  count: 3
+
 images:
-- name: argoproj/rollouts-demo
-  newTag: green
+- name: guestbook
+  newTag: v2

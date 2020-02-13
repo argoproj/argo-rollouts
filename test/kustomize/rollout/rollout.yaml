@@ -1,0 +1,108 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: guestbook-cm
+      - name: secret-volume
+        secret:
+          secretName: guestbook-secret
+      containers:
+      - name: guestbook
+        image: guestbook:v1
+        command:
+        - ping $(SERVICE_NAME)
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+        - name: secret-volume
+          mountPath: /etc/secrets
+        env:
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: guestbook-secret
+              key: password
+        - name: FOO
+          valueFrom:
+            configMapKeyRef:
+              name: guestbook-cm
+              key: FOO
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: guestbook
+  strategy:
+    canary:
+      stableService: guestbook-stable-svc
+      canaryService: guestbook-canary-svc
+      trafficRouting:
+        istio:
+          virtualService:
+            name: guestbook-vsvc
+            routes:
+              - primary
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: guestbook-vsvc
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: guestbook-stable-svc
+      weight: 100
+    - destination:
+        host: guestbook-canary-svc
+      weight: 0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-stable-svc
+spec:
+  selector:
+    app: guestbook
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-canary-svc
+spec:
+  selector:
+    app: guestbook
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

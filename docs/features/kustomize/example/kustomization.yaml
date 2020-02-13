@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+configurations:
+- ../rollout-transform.yaml
+
+namePrefix: my-
+
+resources:
+- rollouts-demo.yaml
+
+configMapGenerator:
+- name: rollouts-demo-cm
+  literals:
+  - FOO=BAR
+
+secretGenerator:
+- name: rollouts-demo-secret
+  literals:
+  - password=Pa55w0rd
+
+commonLabels:
+  foo: bar
+
+commonAnnotations:
+  foo: bar
+
+vars:
+- name: SERVICE_NAME
+  objref:
+    kind: Service
+    name: rollouts-demo-svc
+    apiVersion: v1
+  fieldref:
+    fieldpath: metadata.name
+
+images:
+- name: argoproj/rollouts-demo
+  newTag: green
