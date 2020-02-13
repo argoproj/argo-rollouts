@@ -1227,10 +1227,16 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 				{
 					Name:             "rate",
 					SuccessCondition: "{{args.does-not-exist}}",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Query: "{{args.metric-name}}",
+						},
+					},
 				},
 			},
 		},
 	}
-	err := c.resolveMetricArgs(run)
-	assert.EqualError(t, err, "failed to resolve {{args.does-not-exist}}")
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, newRun.Status.Phase, v1alpha1.AnalysisPhaseError)
+	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
 }
