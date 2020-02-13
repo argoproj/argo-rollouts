@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -68,13 +67,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	query, err := templateutil.ResolveArgs(metric.Provider.Wavefront.Query, run.Spec.Args)
-	if err != nil {
-		return metricutil.MarkMeasurementError(newMeasurement, err)
-	}
-
 	queryParams := &wavefront_api.QueryParams{
-		QueryString:             query,
+		QueryString:             metric.Provider.Wavefront.Query,
 		StartTime:               strconv.FormatInt(time.Now().Unix()*1000, 10),
 		MaxPoints:               "1",
 		Granularity:             "s",

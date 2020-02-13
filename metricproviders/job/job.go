@@ -1,7 +1,6 @@
 package job
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -17,7 +16,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -74,20 +72,6 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 }
 
 func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.Job, error) {
-	specBytes, err := json.Marshal(metric.Provider.Job.Spec)
-	if err != nil {
-		return nil, err
-	}
-	newSpecStr, err := templateutil.ResolveQuotedArgs(string(specBytes), run.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-	var newSpec batchv1.JobSpec
-	err = json.Unmarshal([]byte(newSpecStr), &newSpec)
-	if err != nil {
-		return nil, err
-	}
-
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            newJobName(run, metric),
@@ -101,7 +85,7 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.J
 				AnalysisRunUIDLabelKey: string(run.UID),
 			},
 		},
-		Spec: newSpec,
+		Spec: metric.Provider.Job.Spec,
 	}
 	return &job, nil
 }
