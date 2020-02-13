@@ -251,25 +251,38 @@ type CanaryStep struct {
 	// Experiment defines the experiment object that should be created
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 	// Analysis defines the AnalysisRun that will run for a step
-	Analysis *RolloutAnalysisStep `json:"analysis,omitempty"`
+	Analysis *RolloutAnalysis `json:"analysis,omitempty"`
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
 type RolloutAnalysisBackground struct {
-	RolloutAnalysisStep `json:",inline"`
+	RolloutAnalysis `json:",inline"`
 	// StartingStep indicates which step the background analysis should start on
 	// If not listed, controller defaults to 0
 	StartingStep *int32 `json:"startingStep,omitempty"`
 }
 
-// RolloutAnalysisStep defines a template that is used to create a analysisRun
-type RolloutAnalysisStep struct {
+// RolloutAnalysis defines a template that is used to create a analysisRun
+type RolloutAnalysis struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
-	TemplateName string `json:"templateName"`
+	// Deprecated and will be removed in v0.9
+	TemplateName string `json:"templateName,omitempty"`
+	// Name field to use to name analysis run
+	// TODO(dthomson) Remove omitempty for v0.9 release
+	Name string `json:"name,omitempty"`
+
+	//Templates reference to a list of analysis templates to combine for an AnalysisRun
+	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
+
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+}
+
+type RolloutAnalysisTemplates struct {
+	//TemplateName name of template to use in AnalysisRun
+	TemplateName string `json:"templateName"`
 }
 
 // AnalysisRunArgument argument to add to analysisRun

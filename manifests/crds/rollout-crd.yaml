@@ -129,13 +129,22 @@ spec:
                             - name
                             type: object
                           type: array
+                        name:
+                          type: string
                         startingStep:
                           format: int32
                           type: integer
                         templateName:
                           type: string
-                      required:
-                      - templateName
+                        templates:
+                          items:
+                            properties:
+                              templateName:
+                                type: string
+                            required:
+                            - templateName
+                            type: object
+                          type: array
                       type: object
                     canaryService:
                       type: string
@@ -170,10 +179,19 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              name:
+                                type: string
                               templateName:
                                 type: string
-                            required:
-                            - templateName
+                              templates:
+                                items:
+                                  properties:
+                                    templateName:
+                                      type: string
+                                  required:
+                                  - templateName
+                                  type: object
+                                type: array
                             type: object
                           experiment:
                             properties:
