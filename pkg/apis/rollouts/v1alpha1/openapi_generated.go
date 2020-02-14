@@ -65,8 +65,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                      schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                         schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                  schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis":                          schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep":                      schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates":                 schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                         schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                    schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef": schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
@@ -589,7 +590,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 					},
 					"autoPromotionSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false.",
+							Description: "AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by removing the pause condition.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -685,14 +686,14 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 					"analysis": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Analysis defines the AnalysisRun that will run for a step",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep"),
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"},
 	}
 }
 
@@ -1774,6 +1775,59 @@ func schema_pkg_apis_rollouts_v1alpha1_Rollout(ref common.ReferenceCallback) com
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutAnalysis defines a template that is used to create a analysisRun",
+				Properties: map[string]spec.Schema{
+					"templateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"templates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Templates reference to a list of analysis templates to combine for an AnalysisRun",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates"),
+									},
+								},
+							},
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args the arguments that will be added to the AnalysisRuns",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1782,9 +1836,22 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
+							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"templates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Templates reference to a list of analysis templates to combine for an AnalysisRun",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates"),
+									},
+								},
+							},
 						},
 					},
 					"args": {
@@ -1814,52 +1881,30 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 						},
 					},
 				},
-				Required: []string{"templateName"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates"},
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "RolloutAnalysisStep defines a template that is used to create a analysisRun",
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
+							Description: "TemplateName name of template to use in AnalysisRun",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"args": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-patch-merge-key": "name",
-								"x-kubernetes-patch-strategy":  "merge",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Args the arguments that will be added to the AnalysisRuns",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
-									},
-								},
-							},
 						},
 					},
 				},
 				Required: []string{"templateName"},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"},
+		Dependencies: []string{},
 	}
 }
 

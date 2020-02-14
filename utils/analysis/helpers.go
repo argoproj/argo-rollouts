@@ -189,6 +189,98 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	}
 }
 
+func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
+	template, err := FlattenTemplates(templates)
+	if err != nil {
+		return nil, err
+	}
+	newArgs, err := MergeArgs(args, template.Spec.Args)
+	if err != nil {
+		return nil, err
+	}
+	ar := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:         name,
+			GenerateName: generateName,
+			Namespace:    namespace,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: template.Spec.Metrics,
+			Args:    newArgs,
+		},
+	}
+	return &ar, nil
+}
+
+func FlattenTemplates(templates []*v1alpha1.AnalysisTemplate) (*v1alpha1.AnalysisTemplate, error) {
+	metrics, err := flattenMetrics(templates)
+	if err != nil {
+		return nil, err
+	}
+	args, err := flattenArgs(templates)
+	if err != nil {
+		return nil, err
+	}
+	return &v1alpha1.AnalysisTemplate{
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: metrics,
+			Args:    args,
+		},
+	}, nil
+}
+
+func flattenArgs(templates []*v1alpha1.AnalysisTemplate) ([]v1alpha1.Argument, error) {
+	argsMap := map[string]v1alpha1.Argument{}
+	for i := range templates {
+		args := templates[i].Spec.Args
+		for j := range args {
+			arg := args[j]
+			if storedArg, ok := argsMap[arg.Name]; ok {
+				if arg.Value != nil && storedArg.Value != nil && *arg.Value != *storedArg.Value {
+					return nil, fmt.Errorf("two args with the same name have the different values: arg %s", arg.Name)
+				}
+				// If the controller have a storedArg with a non-nul value, the storedArg should not be replaced by
+				// the arg with a nil value
+				if storedArg.Value != nil {
+					continue
+				}
+			}
+			argsMap[arg.Name] = arg
+		}
+	}
+	if len(argsMap) == 0 {
+		return nil, nil
+	}
+	args := make([]v1alpha1.Argument, 0, len(argsMap))
+	for name := range argsMap {
+		arg := argsMap[name]
+		args = append(args, arg)
+	}
+	return args, nil
+}
+
+func flattenMetrics(templates []*v1alpha1.AnalysisTemplate) ([]v1alpha1.Metric, error) {
+	metricMap := map[string]v1alpha1.Metric{}
+	for i := range templates {
+		metrics := templates[i].Spec.Metrics
+		for j := range metrics {
+			metric := metrics[j]
+			if _, ok := metricMap[metric.Name]; !ok {
+				metricMap[metric.Name] = metric
+			} else {
+				return nil, fmt.Errorf("two metrics have the same name %s", metric.Name)
+			}
+		}
+	}
+	metrics := make([]v1alpha1.Metric, 0, len(metricMap))
+	for name := range metricMap {
+		metric := metricMap[name]
+		metrics = append(metrics, metric)
+	}
+	return metrics, nil
+}
+
+//TODO(dthomson) remove v0.9.0
 func NewAnalysisRunFromTemplate(template *v1alpha1.AnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
 	newArgs, err := MergeArgs(args, template.Spec.Args)
 	if err != nil {

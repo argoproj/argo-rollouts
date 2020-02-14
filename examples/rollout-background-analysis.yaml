@@ -30,7 +30,8 @@ spec:
       # begins. The run is terminated when the update completes. A failure/error of the analysis
       # will cause the rollout's update to abort, and set the canary weight to zero.
       analysis:
-        templateName: random-fail
+        templates:
+        - templateName: random-fail
       steps:
       - setWeight: 25
       - pause: {}

@@ -122,7 +122,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 		podHash := replicasetutil.GetPodTemplateHash(newRS)
 		instanceID := analysisutil.GetInstanceID(rollout)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, &rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysisStep, nil, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(roCtx, &rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis, nil, backgroundLabels)
 		if err == nil {
 			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}
@@ -137,15 +137,15 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	return currentAr, nil
 }
 
-func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) createAnalysisRun(roCtx *canaryContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()
-	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysisStep.Args, stableRS, newRS)
+	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS)
 	podHash := replicasetutil.GetPodTemplateHash(newRS)
 	if podHash == "" {
 		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
 	}
-	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysisStep, args, podHash, stepIdx, labels)
+	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysis, args, podHash, stepIdx, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -210,26 +210,50 @@ func (c *RolloutController) cancelAnalysisRuns(roCtx *canaryContext, analysisRun
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysisStep *v1alpha1.RolloutAnalysisStep, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	r := roCtx.Rollout()
 	logctx := roCtx.Log()
-	template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(rolloutAnalysisStep.TemplateName)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysisStep.TemplateName)
-		}
-		return nil, err
-	}
 	revision := r.Annotations[annotations.RevisionAnnotation]
 	nameParts := []string{r.Name, podHash, revision}
 	if stepIdx != nil {
 		nameParts = append(nameParts, strconv.Itoa(int(*stepIdx)))
 	}
-	nameParts = append(nameParts, rolloutAnalysisStep.TemplateName)
+	if rolloutAnalysis.TemplateName != "" {
+		//TODO(dthomson) remove this code block in v0.9.0
+		nameParts = append(nameParts, rolloutAnalysis.TemplateName)
+	}
 	name := strings.Join(nameParts, "-")
-	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", r.Namespace)
-	if err != nil {
-		return nil, err
+	var run *v1alpha1.AnalysisRun
+	var err error
+	if rolloutAnalysis.TemplateName != "" {
+		//TODO(dthomson) remove this code block in v0.9.0
+		template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(rolloutAnalysis.TemplateName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+			}
+			return nil, err
+		}
+		run, err = analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", r.Namespace)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		templates := make([]*v1alpha1.AnalysisTemplate, 0)
+		for _, templateRef := range rolloutAnalysis.Templates {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+				}
+				return nil, err
+			}
+			templates = append(templates, template)
+		}
+		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, args, name, "", r.Namespace)
+		if err != nil {
+			return nil, err
+		}
 	}
 	run.Labels = labels
 	run.Annotations = map[string]string{
