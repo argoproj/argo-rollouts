@@ -208,10 +208,9 @@ Multiple measurements can be performed over a longer duration period, by specify
 ```
 
 ## Analysis with multiple templates
-A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to create
-multiple AnalysisTemplates and have a Rollout chose which the AnalysisTemplates it should use. If multiple templates 
-are referenced, then the controller will merge the templates together. The controller combines the metrics and args
-fields of all the templates.
+A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
+analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
+templates together. The controller combines the metrics and args fields of all the templates.
 
 
 Rollout referencing multiple AnalysisTemplates:
