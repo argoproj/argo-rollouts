@@ -43,7 +43,6 @@ spec:
   strategy:
     canary: 
       analysis:
-        name: background-analysis
         templates:
         - templateName: success-rate
         startingStep: 2 # delay starting analysis run
@@ -157,7 +156,6 @@ spec:
       - setWeight: 20
       - pause: {duration: 300}
       - analysis:
-          name: step-analysis
           templates:
           - templateName: success-rate
           args:
@@ -227,7 +225,6 @@ spec:
   strategy:
     canary:
       analysis:
-        name: background-analysis
         templates:
         - templateName: success-rate
         - templateName: error-rate
@@ -413,7 +410,6 @@ spec:
   strategy:
     canary: 
       analysis:
-        name: success-rate
         templates:
         - templateName: success-rate
         startingStep: 2
@@ -458,9 +454,7 @@ spec:
           - name: canary
             specRef: canary
           analysis:
-            name: mann-whitney
-            templates:
-            - templateName: mann-whitney
+            templateName: mann-whitney
             args:
             - name: stable-hash
               valueFrom:
