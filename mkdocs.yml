@@ -22,7 +22,9 @@ nav:
   - Getting Started: getting-started.md
   - Features:
     - features/index.md
-    - BlueGreen: features/bluegreen.md
+    - BlueGreen:
+      - features/blue-green/index.md
+      - Anti Affinity: features/blue-green/anti-affinity/anti-affinity.md
     - Canary: features/canary.md
     - Traffic Management: 
       - Overview: features/traffic-management/index.md

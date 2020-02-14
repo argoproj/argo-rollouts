@@ -22,6 +22,7 @@ spec:
       autoPromotionSeconds: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
+      antiAffinityBetweenVersion: bool
 ```
 
 ### PreviewService
@@ -58,3 +59,8 @@ Defaults to 30
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
 Default to nil
+
+
+### AntiAffinityBetweenVersion
+
+Check out the [Blue Green Anti Affinity document](anti-affinity/anti-affinity.md) document for more information
