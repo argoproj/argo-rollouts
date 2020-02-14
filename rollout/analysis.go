@@ -221,8 +221,6 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx *canaryContext, roll
 	if rolloutAnalysis.TemplateName != "" {
 		//TODO(dthomson) remove this code block in v0.9.0
 		nameParts = append(nameParts, rolloutAnalysis.TemplateName)
-	} else {
-		nameParts = append(nameParts, rolloutAnalysis.Name)
 	}
 	name := strings.Join(nameParts, "-")
 	var run *v1alpha1.AnalysisRun

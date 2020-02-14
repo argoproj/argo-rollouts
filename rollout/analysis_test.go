@@ -120,7 +120,6 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Name: at.Name,
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
 				TemplateName: at.Name,
 			}},
@@ -150,7 +149,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
 	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
@@ -409,7 +408,6 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRefWithTemplates(t *tes
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Name: "invalid-template-ref",
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
 				TemplateName: "invalid-template-ref",
 			}},
@@ -448,7 +446,6 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	at := analysisTemplate("bar")
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Name: at.Name,
 			Templates: []v1alpha1.RolloutAnalysisTemplates{
 				{
 					TemplateName: at.Name,

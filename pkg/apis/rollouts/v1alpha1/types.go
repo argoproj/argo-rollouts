@@ -267,9 +267,6 @@ type RolloutAnalysis struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
 	TemplateName string `json:"templateName,omitempty"`
-	// Name field to use to name analysis run
-	// TODO(dthomson) Remove omitempty for v0.9 release
-	Name string `json:"name,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns

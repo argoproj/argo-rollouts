@@ -1788,13 +1788,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name field to use to name analysis run",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templates": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Templates reference to a list of analysis templates to combine for an AnalysisRun",
@@ -1844,13 +1837,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name field to use to name analysis run",
 							Type:        []string{"string"},
 							Format:      "",
 						},

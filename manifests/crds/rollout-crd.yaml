@@ -129,8 +129,6 @@ spec:
                             - name
                             type: object
                           type: array
-                        name:
-                          type: string
                         startingStep:
                           format: int32
                           type: integer
@@ -179,8 +177,6 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              name:
-                                type: string
                               templateName:
                                 type: string
                               templates:
