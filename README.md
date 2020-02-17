@@ -1,5 +1,5 @@
 
-# Argo Rollouts - Advanced Kubernetes Deployment Controller
+# Argo Rollouts - Progressive Delivery for Kubernetes
 [![codecov](https://codecov.io/gh/argoproj/argo-rollouts/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-rollouts)
 [![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
 
