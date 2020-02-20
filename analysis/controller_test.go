@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
 	"reflect"
 	"testing"
 	"time"
@@ -39,6 +40,8 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 
+	// Secrets to put in the store.
+	secretRunLister []*corev1.Secret
 	// Objects to put in the store.
 	analysisRunLister []*v1alpha1.AnalysisRun
 	// Actions expected to happen on the client.
@@ -52,7 +55,9 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T) *fixture {
-	f := &fixture{}
+	f := &fixture{
+		kubeclient:k8sfake.NewSimpleClientset(),
+	}
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
@@ -92,6 +97,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		f.kubeclient,
 		f.client,
 		i.Argoproj().V1alpha1().AnalysisRuns(),
+		jobI.Core().V1().Secrets(),
 		jobI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
@@ -122,6 +128,10 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
+	}
+
+	for _, s := range f.secretRunLister {
+		k8sI.Core().V1().Secrets().Informer().GetIndexer().Add(s)
 	}
 
 	return c, i, k8sI

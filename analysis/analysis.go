@@ -61,7 +61,11 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		}
 	}
 
-	err := c.resolveMetricArgs(run)
+	//err := c.resolveMetricArgs(run)
+
+	tasks := generateMetricTasks(run)
+	log.Infof("taking %d measurements", len(tasks))
+	err := c.runMeasurements(run, tasks)
 	if err != nil {
 		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
 		log.Warn(message)
@@ -70,10 +74,6 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
 		return run
 	}
-
-	tasks := generateMetricTasks(run)
-	log.Infof("taking %d measurements", len(tasks))
-	c.runMeasurements(run, tasks)
 
 	newStatus := c.asssessRunStatus(run)
 	if newStatus != run.Status.Phase {
@@ -107,26 +107,28 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	}
 	return run
 }
-
-// Resolves args for all metrics in AnalysisRun
+// Resolves args for single metric in AnalysisRun
+// Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
-func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
-	metricBytes, err := json.Marshal(run.Spec.Metrics)
+//func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
+// Resolves args for all metrics in AnalysisRun
+func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
+	metricBytes, err := json.Marshal(metric)//run.Spec.Metrics)
+	var newMetric v1alpha1.Metric
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var newMetricStr string
-	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), run.Spec.Args)
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)//run.Spec.Args)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var newMetrics []v1alpha1.Metric
-	err = json.Unmarshal([]byte(newMetricStr), &newMetrics)
+	err = json.Unmarshal([]byte(newMetricStr), &newMetric)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	run.Spec.Metrics = newMetrics
-	return nil
+	//run.Spec.Metrics = newMetrics
+	return &newMetric, nil
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -208,12 +210,46 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
+func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
 	var resultsLock sync.Mutex
 	terminating := analysisutil.IsTerminating(run)
+
+	//check args (if valueFrom, replace value with secret value)
+	//error if both value and valueFrom
+
+	secretSet := map[string]bool{} //create set of secrets for redactor
+	args := make([]v1alpha1.Argument, len(run.Spec.Args))
+	for i, arg := range run.Spec.Args {
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				err := fmt.Errorf("arg %s has both Value and ValueFrom fields", arg.Name)
+				return err
+			}
+			name := arg.ValueFrom.SecretKeyRef.LocalObjectReference.Name
+			//mySecret, err := c.kubeclientset.CoreV1().Secrets(run.Namespace).Get(name, metav1.GetOptions{})
+			mySecret, err := c.secretLister.Secrets(run.Namespace).Get(name)
+			if err != nil {
+				return err
+			}
+			superSecretContent := string(mySecret.Data[arg.ValueFrom.SecretKeyRef.Key])
+			secretSet[superSecretContent] = true
+
+			newArg := arg.DeepCopy()
+			newArg.Value = &superSecretContent
+			args[i] = *newArg
+		}
+	}
+
+	for i, task := range tasks {
+		newMetric, err := c.resolveMetricArgs(task.metric, args)
+		if err != nil {
+			return err
+		}
+		tasks[i].metric = *newMetric
+	}
 
 	for _, task := range tasks {
 		wg.Add(1)
@@ -299,6 +335,8 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 		}(task)
 	}
 	wg.Wait()
+
+	return nil
 }
 
 // asssessRunStatus assesses the overall status of this AnalysisRun
