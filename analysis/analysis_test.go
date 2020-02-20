@@ -1302,6 +1302,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "web-metric-secret",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Data: map[string][]byte{
 			"apikey": []byte("12345"),
@@ -1309,10 +1310,14 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 	}
 	//f.objects = append(f.objects, secret)
 	defer f.Close()
+	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	f.kubeclient.CoreV1().Secrets(secret.GetNamespace()).Create(secret)
+	//f.kubeclient.CoreV1().Secrets(secret.GetNamespace()).Create(secret)
 	argname := "apikey"
 	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			Args: []v1alpha1.Argument{
 				{

@@ -89,7 +89,6 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
-	jobI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 
@@ -97,8 +96,8 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		f.kubeclient,
 		f.client,
 		i.Argoproj().V1alpha1().AnalysisRuns(),
-		jobI.Core().V1().Secrets(),
-		jobI.Batch().V1().Jobs(),
+		k8sI.Core().V1().Secrets(),
+		k8sI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
