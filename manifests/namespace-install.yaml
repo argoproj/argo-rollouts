@@ -8109,8 +8109,15 @@ spec:
                           type: integer
                         templateName:
                           type: string
-                      required:
-                      - templateName
+                        templates:
+                          items:
+                            properties:
+                              templateName:
+                                type: string
+                            required:
+                            - templateName
+                            type: object
+                          type: array
                       type: object
                     canaryService:
                       type: string
@@ -8147,8 +8154,15 @@ spec:
                                 type: array
                               templateName:
                                 type: string
-                            required:
-                            - templateName
+                              templates:
+                                items:
+                                  properties:
+                                    templateName:
+                                      type: string
+                                  required:
+                                  - templateName
+                                  type: object
+                                type: array
                             type: object
                           experiment:
                             properties:

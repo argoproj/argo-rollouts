@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -304,6 +305,193 @@ func TestCreateWithCollisionCounter(t *testing.T) {
 	assert.Equal(t, run.Name+".1", createdRun.Name)
 }
 
+func TestFlattenTemplates(t *testing.T) {
+	metric := func(name, successCondition string) v1alpha1.Metric {
+		return v1alpha1.Metric{
+			Name:             name,
+			SuccessCondition: successCondition,
+		}
+	}
+	arg := func(name string, value *string) v1alpha1.Argument {
+		return v1alpha1.Argument{
+			Name:  name,
+			Value: value,
+		}
+	}
+	t.Run("Handle empty list", func(t *testing.T) {
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{})
+		assert.Nil(t, err)
+		assert.Len(t, template.Spec.Metrics, 0)
+		assert.Len(t, template.Spec.Args, 0)
+
+	})
+	t.Run("No changes on single template", func(t *testing.T) {
+		orig := &v1alpha1.AnalysisTemplate{
+			Spec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{metric("foo", "{{args.test}}")},
+				Args:    []v1alpha1.Argument{arg("test", pointer.StringPtr("true"))},
+			},
+		}
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{orig})
+		assert.Nil(t, err)
+		assert.Equal(t, orig.Spec, template.Spec)
+	})
+	t.Run("Merge multiple metrics successfully", func(t *testing.T) {
+		fooMetric := metric("foo", "true")
+		barMetric := metric("bar", "true")
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{fooMetric},
+					Args:    nil,
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{barMetric},
+					Args:    nil,
+				},
+			},
+		})
+		assert.Nil(t, err)
+		assert.Nil(t, template.Spec.Args)
+		assert.Len(t, template.Spec.Metrics, 2)
+		assert.Contains(t, template.Spec.Metrics, fooMetric)
+		assert.Contains(t, template.Spec.Metrics, barMetric)
+	})
+	t.Run(" Merge fail with name collision", func(t *testing.T) {
+		fooMetric := metric("foo", "true")
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{fooMetric},
+					Args:    nil,
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{fooMetric},
+					Args:    nil,
+				},
+			},
+		})
+		assert.Nil(t, template)
+		assert.Equal(t, err, fmt.Errorf("two metrics have the same name foo"))
+	})
+	t.Run("Merge multiple args successfully", func(t *testing.T) {
+		fooArgs := arg("foo", pointer.StringPtr("true"))
+		barArgs := arg("bar", pointer.StringPtr("true"))
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{fooArgs},
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{barArgs},
+				},
+			},
+		})
+		assert.Nil(t, err)
+		assert.Len(t, template.Spec.Args, 2)
+		assert.Contains(t, template.Spec.Args, fooArgs)
+		assert.Contains(t, template.Spec.Args, barArgs)
+	})
+	t.Run(" Merge args with same name but only one has value", func(t *testing.T) {
+		fooArgsValue := arg("foo", pointer.StringPtr("true"))
+		fooArgsNoValue := arg("foo", nil)
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{fooArgsValue},
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{fooArgsNoValue},
+				},
+			},
+		})
+		assert.Nil(t, err)
+		assert.Len(t, template.Spec.Args, 1)
+		assert.Contains(t, template.Spec.Args, fooArgsValue)
+	})
+	t.Run("Error: merge args with same name and both have values", func(t *testing.T) {
+		fooArgs := arg("foo", pointer.StringPtr("true"))
+		fooArgsWithDiffValue := arg("foo", pointer.StringPtr("false"))
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{fooArgs},
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: nil,
+					Args:    []v1alpha1.Argument{fooArgsWithDiffValue},
+				},
+			},
+		})
+		assert.Equal(t, fmt.Errorf("two args with the same name have the different values: arg foo"), err)
+		assert.Nil(t, template)
+	})
+}
+
+func TestNewAnalysisRunFromTemplates(t *testing.T) {
+	templates := []*v1alpha1.AnalysisTemplate{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+			},
+			Args: []v1alpha1.Argument{
+				{
+					Name: "my-arg",
+				},
+			},
+		},
+	}}
+	args := []v1alpha1.Argument{
+		{
+			Name:  "my-arg",
+			Value: pointer.StringPtr("my-val"),
+		},
+	}
+	run, err := NewAnalysisRunFromTemplates(templates, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	assert.Equal(t, "foo-run", run.Name)
+	assert.Equal(t, "foo-run-generate-", run.GenerateName)
+	assert.Equal(t, "my-ns", run.Namespace)
+	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
+	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
+
+	// Fail Merge Args
+	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
+	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
+	run, err = NewAnalysisRunFromTemplates(templates, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.Nil(t, run)
+	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
+	// Fail flatten metric
+	matchingMetric := &v1alpha1.AnalysisTemplate{
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "success-rate",
+			}},
+		},
+	}
+	// Fail Flatten Templates
+	templates = append(templates, matchingMetric)
+	run, err = NewAnalysisRunFromTemplates(templates, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.Nil(t, run)
+	assert.Equal(t, fmt.Errorf("two metrics have the same name success-rate"), err)
+}
+
 func TestMergeArgs(t *testing.T) {
 	{
 		// nil list
@@ -389,6 +577,7 @@ func TestMergeArgs(t *testing.T) {
 	}
 }
 
+//TODO(dthomson) remove this test in v0.9.0
 func TestNewAnalysisRunFromTemplate(t *testing.T) {
 	template := v1alpha1.AnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
