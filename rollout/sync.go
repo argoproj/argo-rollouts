@@ -301,7 +301,7 @@ func (c *RolloutController) isScalingEvent(rollout *v1alpha1.Rollout, rsList []*
 
 func (c *RolloutController) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout) (bool, *appsv1.ReplicaSet, error) {
 	// No need to scale
-	if *(rs.Spec.Replicas) == newScale {
+	if *(rs.Spec.Replicas) == newScale && !annotations.ReplicasAnnotationsNeedUpdate(rs, defaults.GetReplicasOrDefault(rollout.Spec.Replicas)) {
 		return false, rs, nil
 	}
 	var scalingOperation string
