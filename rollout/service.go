@@ -4,16 +4,15 @@ import (
 	"fmt"
 
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 const (
@@ -75,7 +74,10 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if skipPause(roCtx, activeSvc) || roCtx.PauseContext().CompletedBlueGreenPause() {
+	if skipPause(roCtx, activeSvc) {
+		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+	if roCtx.PauseContext().CompletedBlueGreenPause() && completedPrePromotionAnalysis(roCtx) {
 		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 

@@ -50,6 +50,9 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 		if ar.Name == r.Status.Canary.CurrentBackgroundAnalysisRun {
 			return true
 		}
+		if ar.Name == r.Status.BlueGreen.CurrentPrePromotionAnalysisRun {
+			return true
+		}
 		return false
 	})
 }

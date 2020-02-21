@@ -58,6 +58,11 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	if err != nil {
 		return err
 	}
+
+	err = c.reconcileAnalysisRuns(roCtx)
+	if err != nil {
+		return err
+	}
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 }
 
@@ -130,7 +135,8 @@ func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 		return true
 	}
 
-	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
+	// If a rollout has a PrePromotionAnalysis, the controller only skips the pause after the analysis passes
+	if defaults.GetAutoPromotionEnabledOrDefault(rollout) && completedPrePromotionAnalysis(roCtx) {
 		return true
 	}
 
