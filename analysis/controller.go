@@ -1,8 +1,9 @@
 package analysis
 
 import (
-	coreinformers "k8s.io/client-go/informers/core/v1"
 	"time"
+
+	coreinformers "k8s.io/client-go/informers/core/v1"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -79,12 +80,11 @@ func NewAnalysisController(
 		analysisRunLister:    analysisRunInformer.Lister(),
 		metricsServer:        metricsServer,
 		analysisRunWorkQueue: analysisRunWorkQueue,
-		secretLister:	      secretInformer.Lister(),
+		secretLister:         secretInformer.Lister(),
 		jobInformer:          jobInformer,
 		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
 		recorder:             recorder,
 		resyncPeriod:         resyncPeriod,
-
 	}
 
 	controller.enqueueAnalysis = func(obj interface{}) {

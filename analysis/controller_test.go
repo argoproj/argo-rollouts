@@ -2,10 +2,11 @@ package analysis
 
 import (
 	"encoding/json"
-	corev1 "k8s.io/api/core/v1"
 	"reflect"
 	"testing"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/bouk/monkey"
 	log "github.com/sirupsen/logrus"
@@ -56,7 +57,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	f := &fixture{
-		kubeclient:k8sfake.NewSimpleClientset(),
+		kubeclient: k8sfake.NewSimpleClientset(),
 	}
 	f.t = t
 	f.objects = []runtime.Object{}

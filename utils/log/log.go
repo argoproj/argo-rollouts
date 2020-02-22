@@ -1,9 +1,8 @@
 package log
 
 import (
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -32,4 +31,14 @@ func WithExperiment(experiment *v1alpha1.Experiment) *log.Entry {
 // WithAnalysisRun returns a logging context for AnalysisRun
 func WithAnalysisRun(ar *v1alpha1.AnalysisRun) *log.Entry {
 	return log.WithField(AnalysisRunKey, ar.Name).WithField(NamespaceKey, ar.Namespace)
+}
+
+// WithRedactor returns a log entry with the inputted secrets redacted
+func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
+	newFormatter := RedactorFormatter{
+		entry.Logger.Formatter,
+		secrets,
+	}
+	entry.Logger.Formatter = &newFormatter
+	return &entry
 }

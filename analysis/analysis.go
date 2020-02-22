@@ -3,6 +3,7 @@ package analysis
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +46,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	if origRun.Status.Phase.Completed() {
 		return origRun
 	}
+
 	log := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
@@ -107,19 +109,20 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	}
 	return run
 }
+
 // Resolves args for single metric in AnalysisRun
 // Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
 //func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
 // Resolves args for all metrics in AnalysisRun
 func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
-	metricBytes, err := json.Marshal(metric)//run.Spec.Metrics)
+	metricBytes, err := json.Marshal(metric) //run.Spec.Metrics)
 	var newMetric v1alpha1.Metric
 	if err != nil {
 		return nil, err
 	}
 	var newMetricStr string
-	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)//run.Spec.Args)
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args) //run.Spec.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +139,9 @@ func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1
 // terminating (e.g. due to manual termination or failing metric), will not schedule further
 // measurements other than to resume any in-flight measurements.
 func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
-	log := logutil.WithAnalysisRun(run)
+	//log := logutil.WithAnalysisRun(run)
+	secrets := []string{"web-metric-secret", "12345"}
+	log := logutil.WithRedactor(*logutil.WithAnalysisRun(run), secrets)
 	var tasks []metricTask
 	terminating := analysisutil.IsTerminating(run)
 	for _, metric := range run.Spec.Metrics {
@@ -211,6 +216,8 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
 func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
+	//defer HandleErrorSecrets(err)
+	// defer and redact error message
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
@@ -219,8 +226,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 	//check args (if valueFrom, replace value with secret value)
 	//error if both value and valueFrom
-
-	secretSet := map[string]bool{} //create set of secrets for redactor
+	secretSet := map[string]bool{} //create set of secrets for redaction
 	args := make([]v1alpha1.Argument, len(run.Spec.Args))
 	for i, arg := range run.Spec.Args {
 		if arg.ValueFrom != nil {
@@ -243,6 +249,31 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 		}
 	}
 
+	// creates list of secrets from secretSet for RedactorFormatter
+	secrets := make([]string, 0, len(secretSet))
+	for k := range secretSet {
+		secrets = append(secrets, k)
+	}
+
+	// redacts secrets from error message
+	// redacts secrets from measurement messages
+	//defer func() {
+	//for _, metricResult := range run.Status.MetricResults {
+	//	for _, measurement := range metricResult.Measurements {
+	//		for _, secret := range secrets {
+	//			measurement.Message = strings.ReplaceAll(measurement.Message, secret, "*****")
+	//		}
+	//	}
+	//}
+	//if err != nil {
+	//	result := err.Error()
+	//	for _, secret := range secrets {
+	//		result = strings.ReplaceAll(result, secret, "*****")
+	//	}
+	//	err = fmt.Errorf(result)
+	//}
+	//}()
+
 	for i, task := range tasks {
 		newMetric, err := c.resolveMetricArgs(task.metric, args)
 		if err != nil {
@@ -256,7 +287,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 		go func(t metricTask) {
 			defer wg.Done()
-			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
+			log := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			resultsLock.Lock()
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
@@ -322,6 +353,12 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
+
+			// redact secrets from measurement message
+			for _, secret := range secrets {
+				newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")
+			}
+
 			if t.incompleteMeasurement == nil {
 				metricResult.Measurements = append(metricResult.Measurements, newMeasurement)
 			} else {
