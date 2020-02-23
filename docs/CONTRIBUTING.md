@@ -114,6 +114,7 @@ If you need to run the mkdocs server, you will need to do the following:
 
 * Follow the instruction guide to install [mkDocs](https://www.mkdocs.org/#installation)
 * Install the `material` theme with the [following guide](https://squidfunk.github.io/mkdocs-material/#quick-start)
+* Run `make plugin-docs` to generate kubectl plugin documentation
 
 Afterwards, you can run `mkdocs serve` and access your documentation at [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 

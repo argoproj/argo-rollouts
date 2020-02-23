@@ -68,6 +68,10 @@ plugin-linux:
 plugin-darwin:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
+.PHONY: plugin-docs
+plugin-docs:
+	go run ./hack/gen-plugin-docs/main.go
+
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
