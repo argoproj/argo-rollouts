@@ -25,8 +25,7 @@ func TestRetryCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "retry <rollout|experiment> RESOURCE")
+	assert.Contains(t, stderr, "Usage:\n  retry <rollout|experiment> RESOURCE")
 }
 
 func TestRetryRolloutCmdUsage(t *testing.T) {
@@ -40,8 +39,8 @@ func TestRetryRolloutCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "rollout ROLLOUT")
+	assert.Contains(t, stderr, "Usage:\n  rollout ROLLOUT")
+	assert.Contains(t, stderr, "Aliases:\n  rollout, ro, rollouts")
 }
 
 func TestRetryExperimentCmdUsage(t *testing.T) {
@@ -55,8 +54,8 @@ func TestRetryExperimentCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "experiment EXPERIMENT")
+	assert.Contains(t, stderr, "Usage:\n  experiment EXPERIMENT")
+	assert.Contains(t, stderr, "Aliases:\n  experiment, exp, experiments")
 }
 
 func TestRetryRolloutCmd(t *testing.T) {

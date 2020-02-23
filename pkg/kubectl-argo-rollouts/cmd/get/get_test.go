@@ -56,6 +56,9 @@ func TestGetRolloutUsage(t *testing.T) {
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	assert.Error(t, err)
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	expectedOut := "Aliases:\n  rollout, ro, rollouts"
+	assert.Contains(t, stderr, expectedOut)
 }
 
 func TestGetExperimentUsage(t *testing.T) {
@@ -66,6 +69,9 @@ func TestGetExperimentUsage(t *testing.T) {
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	assert.Error(t, err)
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	expectedOut := "Aliases:\n  experiment, exp, experiments"
+	assert.Contains(t, stderr, expectedOut)
 }
 
 func TestRolloutNotFound(t *testing.T) {

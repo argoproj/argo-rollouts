@@ -39,7 +39,7 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "rollout ROLLOUT",
-		Aliases: []string{"ro"},
+		Aliases: []string{"ro", "rollouts"},
 		Short:   "Retry an aborted rollout",
 		Example: o.Example(`
   # Retry an aborted rollout
@@ -70,7 +70,7 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "experiment EXPERIMENT",
-		Aliases: []string{"exp"},
+		Aliases: []string{"exp", "experiments"},
 		Short:   "Retry an experiment",
 		Example: o.Example(`
   # Retry an experiment

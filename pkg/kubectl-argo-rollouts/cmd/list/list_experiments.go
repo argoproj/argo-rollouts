@@ -21,7 +21,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:     "experiments",
-		Aliases: []string{"exp"},
+		Aliases: []string{"exp", "experiment"},
 		Short:   "List experiments",
 		Example: o.Example(`
   # List rollouts

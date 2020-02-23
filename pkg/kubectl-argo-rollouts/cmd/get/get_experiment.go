@@ -23,7 +23,7 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:     "experiment EXPERIMENT",
-		Aliases: []string{"exp"},
+		Aliases: []string{"exp", "experiments"},
 		Short:   "Get details about an Experiment",
 		Example: o.Example(`
   # Get an experiment

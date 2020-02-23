@@ -77,6 +77,42 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 	}
 }
 
+func TestListCmdUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdList(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	assert.Error(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "Usage:\n  list [flags]\n  list [command]")
+}
+
+func TestListRolloutsCmdUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdListRollouts(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-h"})
+	usage := cmd.UsageString()
+	assert.Contains(t, usage, "Usage:\n  rollouts [flags]")
+	assert.Contains(t, usage, "Aliases:\n  rollouts, ro, rollout")
+}
+
+func TestListExperimentsCmdUsage(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdListExperiments(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{})
+	usage := cmd.UsageString()
+	assert.Contains(t, usage, "Usage:\n  experiments [flags]")
+	assert.Contains(t, usage, "Aliases:\n  experiments, exp, experiment")
+}
+
 func TestListRolloutsNoResources(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
