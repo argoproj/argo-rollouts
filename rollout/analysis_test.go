@@ -1369,7 +1369,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 				"currentPrePromotionAnalysisRun": null
 			}
 		}
-	}`, now,now)
+	}`, now, now)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 

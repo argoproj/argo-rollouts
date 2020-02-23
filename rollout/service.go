@@ -10,10 +10,10 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 const (
@@ -86,7 +86,7 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	if r.Status.Abort {
 		previousPodHash := ""
 		currentRevision := int(0)
-		for _, rs := range  controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
+		for _, rs := range controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
 			revisionStr, ok := rs.Annotations[annotations.RevisionAnnotation]
 			if ok {
 				revision, err := strconv.Atoi(revisionStr)

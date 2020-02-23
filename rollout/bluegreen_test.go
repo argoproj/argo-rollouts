@@ -1188,7 +1188,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.expectPatchServiceAction(s, rs1PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	expectedConditions := generateConditionsPatch(true,conditions.RolloutAbortedReason, r2, true )
+	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
