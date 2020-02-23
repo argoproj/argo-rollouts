@@ -1156,3 +1156,48 @@ func TestScaleDownLimit(t *testing.T) {
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
 	assert.Equal(t, rs1.Name, updatedRS.Name)
 }
+
+// TestBlueGreenAbort Switches active service back to previous ReplicaSet when Rollout is aborted
+func TestBlueGreenAbort(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	r2 := bumpVersion(r1)
+	r2.Status.Abort = true
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	//Setting the scaleDownAt time
+	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	s := newService("bar", 80, serviceSelector)
+	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, 1, 1, 2, 1, false, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.serviceLister = append(f.serviceLister, s)
+
+	f.expectPatchServiceAction(s, rs1PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	expectedConditions := generateConditionsPatch(true,conditions.RolloutAbortedReason, r2, true )
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"blueGreen": {
+				"activeSelector": "%s"
+			},
+			"conditions": %s,
+			"selector": "foo=bar,rollouts-pod-template-hash=%s"
+		}	
+	}`, rs1PodHash, expectedConditions, rs1PodHash)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}

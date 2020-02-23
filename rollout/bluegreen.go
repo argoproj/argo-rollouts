@@ -150,6 +150,10 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 
+	if rollout.Status.Abort {
+		return
+	}
+
 	allRSs := roCtx.AllRSs()
 	if !replicasetutil.ReadyForPause(rollout, newRS, allRSs) {
 		roCtx.log.Infof("New RS '%s' is not ready to pause", newRS.Name)
@@ -280,7 +284,7 @@ func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 
-	if reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
+	if r.Status.Abort && reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
 		return false
 	}
 

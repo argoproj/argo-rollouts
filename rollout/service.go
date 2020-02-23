@@ -2,17 +2,18 @@ package rollout
 
 import (
 	"fmt"
-
-	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 const (
@@ -74,11 +75,34 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	//
 	if skipPause(roCtx, activeSvc) {
 		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 	if roCtx.PauseContext().CompletedBlueGreenPause() && completedPrePromotionAnalysis(roCtx) {
 		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+
+	if r.Status.Abort {
+		previousPodHash := ""
+		currentRevision := int(0)
+		for _, rs := range  controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
+			revisionStr, ok := rs.Annotations[annotations.RevisionAnnotation]
+			if ok {
+				revision, err := strconv.Atoi(revisionStr)
+				if err != nil {
+					roCtx.Log().WithField("ReplicaSet", rs.Name).Warn("ReplicaSet does not have revision annotation")
+					continue
+				}
+				if _, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && revision > currentRevision {
+					previousPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+					currentRevision = revision
+				}
+			}
+		}
+		if previousPodHash != "" {
+			newPodHash = previousPodHash
+		}
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, r)
