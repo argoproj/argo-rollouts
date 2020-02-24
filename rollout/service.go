@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
