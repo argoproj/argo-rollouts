@@ -23,7 +23,7 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:     "rollout ROLLOUT",
-		Aliases: []string{"ro"},
+		Aliases: []string{"ro", "rollouts"},
 		Short:   "Get details about a rollout",
 		Example: o.Example(`
   # Get a rollout

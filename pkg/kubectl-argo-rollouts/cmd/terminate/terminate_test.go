@@ -25,8 +25,7 @@ func TestTerminateCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "terminate <analysisrun|experiment> RESOURCE")
+	assert.Contains(t, stderr, "Usage:\n  terminate <analysisrun|experiment> RESOURCE")
 }
 
 func TestTerminateAnalysisCmdUsage(t *testing.T) {
@@ -40,8 +39,8 @@ func TestTerminateAnalysisCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "analysisrun ANALYSISRUN")
+	assert.Contains(t, stderr, "Usage:\n  analysisrun ANALYSISRUN")
+	assert.Contains(t, stderr, "Aliases:\n  analysisrun, ar, analysisruns")
 }
 
 func TestTerminateExperimentCmdUsage(t *testing.T) {
@@ -55,8 +54,8 @@ func TestTerminateExperimentCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:")
-	assert.Contains(t, stderr, "experiment EXPERIMENT")
+	assert.Contains(t, stderr, "Usage:\n  experiment EXPERIMENT")
+	assert.Contains(t, stderr, "Aliases:\n  experiment, exp, experiments")
 }
 
 func TestTerminateAnalysisRunCmd(t *testing.T) {

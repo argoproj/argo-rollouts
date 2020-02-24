@@ -22,7 +22,7 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:     "rollouts",
-		Aliases: []string{"ro"},
+		Aliases: []string{"ro", "rollout"},
 		Short:   "List rollouts",
 		Example: o.Example(`
   # List rollouts
