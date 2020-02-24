@@ -2,8 +2,6 @@ package rollout
 
 import (
 	"fmt"
-	"strconv"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -84,24 +82,13 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	if r.Status.Abort {
-		previousPodHash := ""
 		currentRevision := int(0)
 		for _, rs := range controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
-			revisionStr, ok := rs.Annotations[annotations.RevisionAnnotation]
-			if ok {
-				revision, err := strconv.Atoi(revisionStr)
-				if err != nil {
-					roCtx.Log().WithField("ReplicaSet", rs.Name).Warn("ReplicaSet does not have revision annotation")
-					continue
-				}
-				if _, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && revision > currentRevision {
-					previousPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-					currentRevision = revision
-				}
+			revision := replicasetutil.GetReplicaSetRevision(r, rs)
+			if revision > currentRevision {
+				newPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				currentRevision = revision
 			}
-		}
-		if previousPodHash != "" {
-			newPodHash = previousPodHash
 		}
 	}
 

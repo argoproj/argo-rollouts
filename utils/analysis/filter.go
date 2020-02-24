@@ -29,18 +29,6 @@ func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string
 	return nil
 }
 
-//GetCurrentBackgroundAnalysisRun filters the currentArs and returns the background based analysis run
-func GetCurrentBackgroundAnalysisRun(currentArs []*v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
-	for i := range currentArs {
-		ar := currentArs[i]
-		rolloutType, ok := ar.Labels[v1alpha1.RolloutTypeLabel]
-		if ok && rolloutType == v1alpha1.RolloutTypeBackgroundRunLabel {
-			return ar
-		}
-	}
-	return nil
-}
-
 // FilterCurrentRolloutAnalysisRuns returns analysisRuns that match the analysisRuns listed in the rollout status
 func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, []*v1alpha1.AnalysisRun) {
 	return FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {

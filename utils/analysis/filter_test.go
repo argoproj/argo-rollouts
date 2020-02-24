@@ -57,19 +57,35 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		},
 		nil,
 	}
-	r := &v1alpha1.Rollout{
-		Status: v1alpha1.RolloutStatus{
-			Canary: v1alpha1.CanaryStatus{
-				CurrentStepAnalysisRun:       "foo",
-				CurrentBackgroundAnalysisRun: "bar",
+	t.Run("Canary", func(t *testing.T) {
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				Canary: v1alpha1.CanaryStatus{
+					CurrentStepAnalysisRun:       "foo",
+					CurrentBackgroundAnalysisRun: "bar",
+				},
 			},
-		},
-	}
-	currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
-	assert.Len(t, currentArs, 2)
-	assert.Len(t, nonCurrentArs, 1)
-	assert.Contains(t, currentArs, ars[0])
-	assert.Contains(t, currentArs, ars[1])
+		}
+		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
+		assert.Len(t, currentArs, 2)
+		assert.Len(t, nonCurrentArs, 1)
+		assert.Contains(t, currentArs, ars[0])
+		assert.Contains(t, currentArs, ars[1])
+
+	})
+	t.Run("BlueGreen", func(t *testing.T) {
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				BlueGreen: v1alpha1.BlueGreenStatus{
+					CurrentPrePromotionAnalysisRun:       "foo",
+				},
+			},
+		}
+		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
+		assert.Len(t, currentArs, 1)
+		assert.Len(t, nonCurrentArs, 2)
+		assert.Contains(t, currentArs, ars[0])
+	})
 }
 
 func TestFilterAnalysisRunsByName(t *testing.T) {

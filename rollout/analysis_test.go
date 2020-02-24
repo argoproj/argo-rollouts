@@ -1373,6 +1373,161 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
+func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			TemplateName: at.Name,
+		}},
+	}
+	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector)
+
+	f.objects = append(f.objects, r2, at, ar)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	f.expectPatchServiceAction(activeSvc, rs2PodHash)
+	f.expectPatchReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"blueGreen": {
+				"activeSelector": "%s"
+			},
+			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+		}
+	}`,rs2PodHash,rs2PodHash)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
+func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = pointer.Int32Ptr(10)
+	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			TemplateName: at.Name,
+		}},
+	}
+	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
+	r2.Status.PauseConditions[0].StartTime = now
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector)
+
+	f.objects = append(f.objects, r2, at, ar)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	f.expectPatchServiceAction(activeSvc, rs2PodHash)
+	f.expectPatchReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"blueGreen": {
+				"activeSelector": "%s"
+			},
+			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+		}
+	}`,rs2PodHash,rs2PodHash)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
+func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			TemplateName: at.Name,
+		}},
+	}
+	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
+	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	inconclusivePauseCondition := v1alpha1.PauseCondition{
+		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+		StartTime: metav1.Now(),
+	}
+	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
+	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector)
+
+	f.objects = append(f.objects, r2, at, ar)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+}
+
 func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

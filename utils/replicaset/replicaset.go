@@ -341,6 +341,21 @@ func GetPodTemplateHash(rs *appsv1.ReplicaSet) string {
 	return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
+func GetReplicaSetRevision(ro *v1alpha1.Rollout, rs *appsv1.ReplicaSet) int {
+	logCtx := logutil.WithRollout(ro).WithField("ReplicaSet", rs.Name)
+	revisionStr, ok := rs.Annotations[annotations.RevisionAnnotation]
+	if !ok {
+		logCtx.Warn("ReplicaSet has no revision")
+		return -1
+	}
+	revision, err := strconv.Atoi(revisionStr)
+	if err != nil {
+		logCtx.Warnf("Unable to convert ReplicaSet revision to int: %s", err.Error())
+		return -1
+	}
+	return revision
+}
+
 // ReplicaSetsByRevisionNumber sorts a list of ReplicaSet by revision timestamp, using their creation timestamp as a tie breaker.
 type ReplicaSetsByRevisionNumber []*appsv1.ReplicaSet
 
