@@ -1,5 +1,14 @@
 # Changelog
 
+# v0.7.2
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.2/manifests/install.yaml
+
+## Changes since v0.7.1
+### Rollouts
+* Update RS if RS's annotations need to be changed #413
+
 # v0.7.1
 ## Quick Start
 kubectl create namespace argo-rollouts
