@@ -93,6 +93,7 @@ func NewManager(
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
+	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	defaultIstioVersion string,
 ) *Manager {
 
@@ -110,6 +111,7 @@ func NewManager(
 	metricsServer := metrics.NewMetricsServer(
 		metricsAddr,
 		rolloutsInformer.Lister(),
+		k8sRequestProvider,
 	)
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")

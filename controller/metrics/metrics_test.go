@@ -40,6 +40,9 @@ func newFakeLister(fakeRollout ...string) (context.CancelFunc, lister.RolloutLis
 	defer cancel()
 	var fakeRollouts []runtime.Object
 	for _, name := range fakeRollout {
+		if name == "" {
+			continue
+		}
 		fakeRollouts = append(fakeRollouts, newFakeRollout(name))
 	}
 	appClientset := clientset.NewSimpleClientset(fakeRollouts...)
@@ -55,7 +58,7 @@ func newFakeLister(fakeRollout ...string) (context.CancelFunc, lister.RolloutLis
 func testRolloutDescribe(t *testing.T, fakeRollout string, expectedResponse string) {
 	cancel, rolloutLister := newFakeLister(fakeRollout)
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8080", rolloutLister)
+	metricsServ := NewMetricsServer("localhost:8080", rolloutLister, &K8sRequestsCountProvider{})
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -71,7 +74,9 @@ type testCombination struct {
 	expectedResponse string
 }
 
-const fakeRollout = `
+const (
+	noRollouts  = ""
+	fakeRollout = `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -100,7 +105,7 @@ spec:
       activeService: active-service
       previewService: preview-service
 `
-
+)
 const expectedResponse = `# HELP rollout_created_time Creation time in unix timestamp for an rollout.
 # TYPE rollout_created_time gauge
 rollout_created_time{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} -6.21355968e+10

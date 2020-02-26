@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
 
@@ -21,6 +22,7 @@ type MetricsServer struct {
 	*http.Server
 	reconcileHistogram *prometheus.HistogramVec
 	errorCounter       *prometheus.CounterVec
+	k8sRequestsCounter *K8sRequestsCountProvider
 }
 
 const (
@@ -79,7 +81,7 @@ const (
 )
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
-func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *MetricsServer {
+func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister, k8sRequestProvider *K8sRequestsCountProvider) *MetricsServer {
 	mux := http.NewServeMux()
 	rolloutRegistry := NewRolloutRegistry(rolloutLister)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
@@ -97,7 +99,7 @@ func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *M
 		},
 		append(descRolloutWithStrategyLabels),
 	)
-
+	k8sRequestProvider.Register(rolloutRegistry)
 	rolloutRegistry.MustRegister(reconcileHistogram)
 
 	errorCounter := prometheus.NewCounterVec(
@@ -117,6 +119,7 @@ func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *M
 		},
 		reconcileHistogram: reconcileHistogram,
 		errorCounter:       errorCounter,
+		k8sRequestsCounter: k8sRequestProvider,
 	}
 }
 
