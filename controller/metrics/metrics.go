@@ -2,15 +2,16 @@ package metrics
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+	// make sure to register workqueue prometheus metrics
+	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
 
-	"time"
-
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -81,7 +82,12 @@ const (
 func NewMetricsServer(addr string, rolloutLister rolloutlister.RolloutLister) *MetricsServer {
 	mux := http.NewServeMux()
 	rolloutRegistry := NewRolloutRegistry(rolloutLister)
-	mux.Handle(MetricsPath, promhttp.HandlerFor(rolloutRegistry, promhttp.HandlerOpts{}))
+	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
+		// contains app controller specific metrics
+		rolloutRegistry,
+		// contains process, golang and controller workqueues metrics
+		prometheus.DefaultGatherer,
+	}, promhttp.HandlerOpts{}))
 
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -164,8 +170,6 @@ func NewRolloutCollector(rolloutLister rolloutlister.RolloutLister) prometheus.C
 func NewRolloutRegistry(rolloutLister rolloutlister.RolloutLister) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewRolloutCollector(rolloutLister))
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	registry.MustRegister(prometheus.NewGoCollector())
 	return registry
 }
 
