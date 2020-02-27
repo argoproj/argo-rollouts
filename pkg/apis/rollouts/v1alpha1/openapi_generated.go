@@ -92,6 +92,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRun is an instantiation of an AnalysisTemplate",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -136,6 +137,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunArgument argument to add to analysisRun",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -171,6 +173,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunList is a list of AnalysisTemplate resources",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -217,6 +220,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunSpec is the spec for a AnalysisRun resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metrics": {
 						VendorExtensible: spec.VendorExtensible{
@@ -277,6 +281,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisRunStatus is the status for a AnalysisRun resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"phase": {
 						SchemaProps: spec.SchemaProps{
@@ -325,6 +330,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisTemplate holds the template for performing canary analysis",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -364,6 +370,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisTemplateList is a list of AnalysisTemplate resources",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -410,6 +417,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AnalysisTemplateSpec is the specification for a AnalysisTemplate resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metrics": {
 						VendorExtensible: spec.VendorExtensible{
@@ -463,6 +471,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) co
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Argument is an argument to an AnalysisRun",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -482,7 +491,6 @@ func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) co
 				Required: []string{"name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -491,6 +499,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ArgumentValueFrom defines references to fields within resources to grab for the value (i.e. Pod Template Hash)",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"podTemplateHashValue": {
 						SchemaProps: spec.SchemaProps{
@@ -502,7 +511,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref common.ReferenceCal
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -511,6 +519,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "BlueGreenStatus status fields that only pertain to the blueGreen rollout",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"previewSelector": {
 						SchemaProps: spec.SchemaProps{
@@ -559,6 +568,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "BlueGreenStrategy defines parameters for Blue Green deployment",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"activeService": {
 						SchemaProps: spec.SchemaProps{
@@ -613,7 +623,6 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 				Required: []string{"activeService"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -622,6 +631,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "CanaryStatus status fields that only pertain to the canary rollout",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"stableRS": {
 						SchemaProps: spec.SchemaProps{
@@ -654,7 +664,6 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -663,6 +672,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "CanaryStep defines a step of a canary deployment.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"setWeight": {
 						SchemaProps: spec.SchemaProps{
@@ -702,6 +712,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "CanaryStrategy defines parameters for a Replica Based Canary",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"canaryService": {
 						SchemaProps: spec.SchemaProps{
@@ -767,6 +778,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Experiment(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Experiment is a specification for an Experiment resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -810,6 +822,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -843,7 +856,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 				Required: []string{"name", "analysisRun", "phase"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -851,6 +863,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -906,6 +919,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentCondition describes the state of a experiment at a certain point.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
@@ -961,6 +975,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentList is a list of Experiment resources",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -1007,6 +1022,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentSpec is the spec for a Experiment resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templates": {
 						VendorExtensible: spec.VendorExtensible{
@@ -1081,6 +1097,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ExperimentStatus is the status for a Experiment resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"phase": {
 						SchemaProps: spec.SchemaProps{
@@ -1154,6 +1171,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
@@ -1175,6 +1193,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "IstioVirtualService holds information on the virtual service the rollout needs to modify",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1201,7 +1220,6 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 				Required: []string{"name", "routes"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1210,6 +1228,7 @@ func schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref common.ReferenceCallback) c
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "JobMetric defines a job to run which acts as a metric",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
@@ -1234,6 +1253,7 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"address": {
 						SchemaProps: spec.SchemaProps{
@@ -1301,6 +1321,7 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1331,6 +1352,7 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"pass": {
 						SchemaProps: spec.SchemaProps{
@@ -1348,7 +1370,6 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 				Required: []string{"pass", "marginal"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1357,6 +1378,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Measurement is a point in time result value of a single metric, and the time it was measured",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"phase": {
 						SchemaProps: spec.SchemaProps{
@@ -1396,6 +1418,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 							Description: "Metadata stores additional metadata about this metric result, used by the different providers (e.g. kayenta run ID, job name)",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -1425,6 +1448,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Metric defines a metric in which to perform analysis",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1509,6 +1533,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "MetricProvider which external system to use to verify the analysis Only one of the fields in this struct should be non-nil",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"prometheus": {
 						SchemaProps: spec.SchemaProps{
@@ -1551,6 +1576,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "MetricResult contain a list of the most recent measurements for a single metric along with counters on how often the measurement",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1642,6 +1668,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "PauseCondition the reason for a pause and when it started",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"reason": {
 						SchemaProps: spec.SchemaProps{
@@ -1668,12 +1695,14 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "PodTemplateMetadata extra labels to add to the template",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"labels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Labels Additional labels to add to the experiment",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -1688,6 +1717,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 							Description: "Annotations additional annotations to add to the experiment",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -1700,7 +1730,6 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1709,6 +1738,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "PrometheusMetric defines the prometheus query to perform canary analysis",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"address": {
 						SchemaProps: spec.SchemaProps{
@@ -1727,7 +1757,6 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1736,6 +1765,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Rollout(ref common.ReferenceCallback) com
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Rollout is a specification for a Rollout resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -1780,6 +1810,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutAnalysis defines a template that is used to create a analysisRun",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
@@ -1833,6 +1864,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutAnalysisBackground defines a template that is used to create a background analysisRun",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
@@ -1892,6 +1924,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
@@ -1904,7 +1937,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 				Required: []string{"templateName"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1913,6 +1945,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutCondition describes the state of a rollout at a certain point.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
@@ -1968,6 +2001,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutExperimentStep defines a template that is used to create a experiment for a step",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templates": {
 						VendorExtensible: spec.VendorExtensible{
@@ -2027,6 +2061,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2075,6 +2110,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2123,6 +2159,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutList is a list of Rollout resources",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -2169,6 +2206,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutPause defines a pause stage for a rollout",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"duration": {
 						SchemaProps: spec.SchemaProps{
@@ -2180,7 +2218,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2189,6 +2226,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutSpec is the spec for a Rollout resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
@@ -2257,6 +2295,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStatus is the status for a Rollout resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"abort": {
 						SchemaProps: spec.SchemaProps{
@@ -2400,6 +2439,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutStrategy defines strategy to apply during next rollout",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"blueGreen": {
 						SchemaProps: spec.SchemaProps{
@@ -2424,6 +2464,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"istio": {
 						SchemaProps: spec.SchemaProps{
@@ -2443,6 +2484,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"scope": {
 						SchemaProps: spec.SchemaProps{
@@ -2478,7 +2520,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 				Required: []string{"scope", "region", "step", "start", "end"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2486,6 +2527,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2534,6 +2576,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "TemplateStatus is the status of a specific template of an Experiment",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2611,6 +2654,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WavefrontMetric defines the wavefront query to perform canary analysis",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"address": {
 						SchemaProps: spec.SchemaProps{
@@ -2629,7 +2673,6 @@ func schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref common.ReferenceCallb
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2637,6 +2680,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
@@ -2687,6 +2731,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"key": {
 						SchemaProps: spec.SchemaProps{
@@ -2704,6 +2749,5 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref common.ReferenceCallb
 				Required: []string{"key", "value"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
