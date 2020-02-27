@@ -693,7 +693,6 @@
 <ul>
 <li><a href="https://docs.docker.com/install/#supported-platforms">docker</a></li>
 <li><a href="https://golang.org/">golang</a></li>
-<li><a href="https://github.com/golang/dep">dep</a></li>
 <li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></li>
 <li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
@@ -708,7 +707,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 
 <p>Brew users can quickly install the lot:</p>
-<div class="codehilite"><pre><span></span>brew install go dep kubectl kustomize
+<div class="codehilite"><pre><span></span>brew install go kubectl kustomize
 </pre></div>
 
 
@@ -725,11 +724,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
-<p>Ensure dependencies are up to date first:</p>
-<div class="codehilite"><pre><span></span>dep ensure -v
-</pre></div>
-
-
+<p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
 <ul>
 <li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</li>

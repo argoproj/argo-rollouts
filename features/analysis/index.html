@@ -511,6 +511,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#analysis-with-multiple-templates" class="md-nav__link">
+    Analysis with multiple templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#failure-conditions" class="md-nav__link">
     Failure Conditions
   </a>
@@ -667,6 +674,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#analysis-with-multiple-templates" class="md-nav__link">
+    Analysis with multiple templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#failure-conditions" class="md-nav__link">
     Failure Conditions
   </a>
@@ -798,7 +812,8 @@ canary steps, the rollout is considered successful and the analysis run is stopp
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">analysis</span><span class="p">:</span>
-        <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
         <span class="nt">startingStep</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span> <span class="c1"># delay starting analysis run</span>
                         <span class="c1"># until setWeight: 40%</span>
         <span class="nt">args</span><span class="p">:</span>
@@ -816,6 +831,8 @@ canary steps, the rollout is considered successful and the analysis run is stopp
 </pre></div>
 
 
+<p>Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
+AnalysisTemplate. This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. </p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -904,13 +921,16 @@ analysis was successful, continues with rollout, otherwise aborts.</p>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">300</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">analysis</span><span class="p">:</span>
-          <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+          <span class="nt">templates</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
           <span class="nt">args</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
             <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </pre></div>
 
 
+<p>Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
+AnalysisTemplate. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. </p>
 <p>In this example, the <code>AnalysisTemplate</code> is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -950,6 +970,122 @@ no interval is specified, the analysis will perform a single measurement and com
 </pre></div>
 
 
+<h2 id="analysis-with-multiple-templates">Analysis with multiple templates<a class="headerlink" href="#analysis-with-multiple-templates" title="Permanent link">&para;</a></h2>
+<p>A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
+analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
+templates together. The controller combines the metrics and args fields of all the templates.</p>
+<p>Rollout referencing multiple AnalysisTemplates:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">analysis</span><span class="p">:</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+        <span class="nt">args</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+</pre></div>
+
+
+<p>The AnalysisTemplates:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">prometheus</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+          <span class="no">)) /</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+          <span class="no">))</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &lt;= 0.95</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">prometheus</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code=~&quot;5.*&quot;}[5m]</span>
+          <span class="no">)) /</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+          <span class="no">))</span>
+</pre></div>
+
+
+<p>The controller would create an AnalysisRun with the following yaml:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-CurrentPodHash-multiple-templates</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+    <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">prometheus</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+          <span class="no">)) / </span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+          <span class="no">))</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &lt;= 0.95</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">prometheus</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code=~&quot;5.*&quot;}[5m]</span>
+          <span class="no">)) / </span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+          <span class="no">))</span>
+</pre></div>
+
+
+<p>Note: The controller will error when merging the templates if:
+* multiple metrics in the templates have the same name
+* Two arguments with the same name both have values</p>
 <h2 id="failure-conditions">Failure Conditions<a class="headerlink" href="#failure-conditions" title="Permanent link">&para;</a></h2>
 <p>As an alternative to measuring success, <code>failureCondition</code> can be used to cause an analysis run to
 fail. The following example continually polls a prometheus server to get the total number of errors
@@ -1025,7 +1161,8 @@ with background analysis can delay creating an analysis run until a certain step
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">analysis</span><span class="p">:</span>
-        <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
         <span class="nt">startingStep</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
@@ -1069,10 +1206,10 @@ short-lived experiment and an asynchronous analysis.</p>
             <span class="nt">args</span><span class="p">:</span>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
               <span class="nt">valueFrom</span><span class="p">:</span>
-                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Stable</span>
+                <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Stable</span>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
               <span class="nt">valueFrom</span><span class="p">:</span>
-                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
+                <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
 </pre></div>
 
 
@@ -1135,9 +1272,9 @@ short-lived experiment and an asynchronous analysis.</p>
     <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
     <span class="nt">args</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">start-time</span>
-      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2019-09-14T01:40:10Z</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{experiment.availableAt}}&quot;</span>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">end-time</span>
-      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2019-09-14T02:40:10Z</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{experiment.finishedAt}}&quot;</span>
 </pre></div>
 
 
