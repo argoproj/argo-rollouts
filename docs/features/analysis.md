@@ -457,10 +457,10 @@ spec:
             args:
             - name: stable-hash
               valueFrom:
-                podTemplateHash: Stable
+                podTemplateHashValue: Stable
             - name: canary-hash
               valueFrom:
-                podTemplateHash: Latest
+                podTemplateHashValue: Latest
 ```
 
 
