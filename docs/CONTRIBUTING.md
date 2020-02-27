@@ -7,7 +7,6 @@ Install:
 
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
-* [dep](https://github.com/golang/dep)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
@@ -26,7 +25,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 Brew users can quickly install the lot:
     
 ```bash
-brew install go dep kubectl kustomize
+brew install go kubectl kustomize
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
@@ -45,11 +44,8 @@ cd ~/go/src/github.com/argoproj/argo-rollouts
 
 ## Building
 
-Ensure dependencies are up to date first:
+`go.mod` is used, so the `go build/test` commands automatically install the needed dependencies
 
-```shell
-dep ensure -v
-```
 
 The `make controller` command will build the controller.
 

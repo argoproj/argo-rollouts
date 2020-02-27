@@ -2,7 +2,7 @@ run:
   deadline: 1m
   skip-dirs:
     - pkg/client
-    - vendor
+  modules-download-mode: readonly
 linter-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-rollouts
