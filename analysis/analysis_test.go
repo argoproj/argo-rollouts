@@ -1292,6 +1292,7 @@ func TestSecretContentReferenceValueFromError(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg %v has both Value and ValueFrom fields", argname), newRun.Status.Message)
 }
 
+// TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
 func TestSecretContentReferenceSuccess(t *testing.T) {
 	f := newFixture(t)
 	secret := &corev1.Secret{
@@ -1347,6 +1348,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
 
+// TestSecretContentReferenceProviderError verifies that secret values are redacted in logs
 func TestSecretContentReferenceProviderError(t *testing.T) {
 	buf := bytes.NewBufferString("")
 	log.SetOutput(buf)
@@ -1420,9 +1422,8 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
 
-func TestSecretContentReferenceAndLogRedactionSuccess(t *testing.T) {
-	//buf := bytes.NewBufferString("")
-	//log.SetOutput(buf)
+//TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
+func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f := newFixture(t)
 	secretname, secretkey, secretvalue := "web-metric-secret", "apikey", "12345"
 	arg := "success-rate"
@@ -1462,10 +1463,17 @@ func TestSecretContentReferenceAndLogRedactionSuccess(t *testing.T) {
 			},
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:             "{{args.secret}}",
+					Name:             "secret",
 					SuccessCondition: "result > {{args.metric-name}}",
 					Provider: v1alpha1.MetricProvider{
-						Web: &v1alpha1.WebMetric{},
+						Web: &v1alpha1.WebMetric{
+							Headers: []v1alpha1.WebMetricHeader{
+								{
+									Key:   "apikey",
+									Value: "{{args.secret}}",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -1474,11 +1482,5 @@ func TestSecretContentReferenceAndLogRedactionSuccess(t *testing.T) {
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
 	newRun := c.reconcileAnalysisRun(run)
-	//c.reconcileAnalysisRun(run)
-	//logMessage := buf.String()
-
-	assert.Equal(t, nil, newRun.Status.Phase)
-	//assert.False(t, strings.Contains(logMessage, "12345"))
-	//assert.Equal(t, "hello", logMessage)
-	//assert.True(t, strings.Contains(logMessage, "*****"))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
