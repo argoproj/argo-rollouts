@@ -61,7 +61,8 @@ spec:
 Defaults to "25%".
 ### maxUnavailable
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
-    // Defaults to 0
+
+Defaults to 0
 
 ### CanaryService
 `canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.

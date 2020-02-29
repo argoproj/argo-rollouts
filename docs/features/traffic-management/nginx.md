@@ -1,6 +1,7 @@
 # Nginx
 
-NOTE: This is being implemented for a later version and everything described below is subject to change.
+!!! note "Work in Progress" 
+    This is being implemented for a later version and everything described below is subject to change.
 
 The [Nginx Ingress Controller](https://kubernetes.github.io/ingress-nginx/) enables traffic management through one or more Ingress objects to configure an Nginx deployment that routes traffic directly to pods. Each Nginx Ingress contains multiple annotations that modify the behavior of the Nginx Deployment. For traffic management between different versions of an application, the Nginx Ingress controller provides the capability to split traffic by introducing a second Ingress object (referred to as the canary Ingress) with some special annotations. Here are the canary specific annotations: 
 

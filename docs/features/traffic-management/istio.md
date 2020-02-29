@@ -62,7 +62,8 @@ spec:
 
 When the above Rollout progresses through its steps, the controller changes Virtual Service's `stable-svc`'s weight to 95 and `canary-svc`'s to 5, wait 5 minutes, and then scales up the canary ReplicaSet to a full replica count. Once it is entirely healthy, the controller changes `stable-svc`'s selector to point at the canary ReplicaSet and switch the weight back to 100 to `stable-svc` and 0 to `canary-svc`.
 
-Note: The Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. 
+!!! note 
+    The Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. 
 
 
 ## Integrating with GitOps

@@ -61,8 +61,9 @@ spec:
       - pause: {duration: 600}
 ```
 
-Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
-AnalysisTemplate. This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. 
+!!! note
+    Previously, the analysis section had a field called "templateName" where a user would specify a single
+    `AnalysisTemplate.` This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. 
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -163,8 +164,9 @@ spec:
             value: guestbook-svc.default.svc.cluster.local
 ```
 
-Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
-AnalysisTemplate. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. 
+!!! note
+    Previously, the analysis section had a field called "templateName" where a user would specify a single
+    `AnalysisTemplate`. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. 
 
 In this example, the `AnalysisTemplate` is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.
@@ -321,9 +323,11 @@ spec:
           ))
 ``` 
 
-Note: The controller will error when merging the templates if:
-* multiple metrics in the templates have the same name
-* Two arguments with the same name both have values
+!!! note 
+    The controller will error when merging the templates if:
+
+    * multiple metrics in the templates have the same name
+    * Two arguments with the same name both have values
 
 ## Failure Conditions
 
