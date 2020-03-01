@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"strconv"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -321,7 +324,42 @@ const (
 type RolloutPause struct {
 	// Duration the amount of time to wait before moving to the next step.
 	// +optional
-	Duration *int32 `json:"duration,omitempty"`
+	Duration *intstr.IntOrString `json:"duration,omitempty"`
+}
+
+// DurationSeconds converts the pause duration to seconds
+// If Duration is nil 0 is returned
+// if Duration values is string and does not contain a valid unit -1 is returned
+func (p RolloutPause) DurationSeconds() int32 {
+	if p.Duration != nil {
+		if p.Duration.Type == intstr.String {
+			s, err := strconv.Atoi(p.Duration.StrVal)
+			if err != nil {
+				d, err := time.ParseDuration(p.Duration.StrVal)
+				if err != nil {
+					return -1
+				}
+				return int32(d.Seconds())
+			}
+			// special case where no unit was specified
+			return int32(s)
+		}
+		return int32(p.Duration.IntVal)
+	}
+	return 0
+}
+
+// DurationFromInt creates duration in seconds from int value
+func DurationFromInt(i int) *intstr.IntOrString {
+	d := intstr.FromInt(i)
+	return &d
+}
+
+// DurationFromString creates duration from string
+// value must be a string representation of an int with optional time unit (see time.ParseDuration)
+func DurationFromString(s string) *intstr.IntOrString {
+	d := intstr.FromString(s)
+	return &d
 }
 
 // PauseReason reasons that the rollout can pause
