@@ -344,7 +344,7 @@ func (p RolloutPause) DurationSeconds() int32 {
 			// special case where no unit was specified
 			return int32(s)
 		}
-		return int32(p.Duration.IntVal)
+		return p.Duration.IntVal
 	}
 	return 0
 }
