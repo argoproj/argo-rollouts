@@ -55,9 +55,7 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T) *fixture {
-	f := &fixture{
-		kubeclient: k8sfake.NewSimpleClientset(),
-	}
+	f := &fixture{}
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
@@ -86,6 +84,7 @@ type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
+	f.kubeclient = k8sfake.NewSimpleClientset()
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())

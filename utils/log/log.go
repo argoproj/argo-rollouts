@@ -40,6 +40,6 @@ func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
 		entry.Logger.Formatter,
 		secrets,
 	}
-	entry.Logger.Formatter = &newFormatter
+	entry.Logger.SetFormatter(&newFormatter)
 	return &entry
 }

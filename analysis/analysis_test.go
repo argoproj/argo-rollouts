@@ -56,14 +56,12 @@ func newRun() *v1alpha1.AnalysisRun {
 				{
 					Name:  "metric1",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "1",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
 				},
 				{
 					Name: "metric2",
@@ -93,13 +91,13 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "run-forever",
+					Name: "runForever",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
 				},
 				{
-					Name: "failed-metric",
+					Name: "failedMetric",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
@@ -110,25 +108,21 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:  "run-forever",
+					Name:  "runForever",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:     v1alpha1.AnalysisPhaseRunning,
-							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Phase:     v1alpha1.AnalysisPhaseRunning,
+						StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
 				},
 				{
-					Name:  "failed-metric",
+					Name:  "failedMetric",
 					Count: 1,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:      status,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      status,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
 				},
 			},
 		},
@@ -141,13 +135,11 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 		run.Status.MetricResults[1].Inconclusive = 1
 	case v1alpha1.AnalysisPhaseError:
 		run.Status.MetricResults[1].Error = 1
-		run.Status.MetricResults[1].Measurements = []v1alpha1.Measurement{
-			{
-				Phase:      v1alpha1.AnalysisPhaseError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
-			},
-		}
+		run.Status.MetricResults[1].Measurements = []v1alpha1.Measurement{{
+			Phase:      v1alpha1.AnalysisPhaseError,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+		}}
 	}
 	return &run
 }
@@ -155,29 +147,23 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 func TestGenerateMetricTasksInterval(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:     "success-rate",
-					Interval: "60s",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name:     "successRate",
+				Interval: "60s",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
+					FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
+				}},
+			}},
 		},
 	}
 	{
@@ -201,7 +187,7 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "success-rate",
+					Name: "successRate",
 				},
 				{
 					Name: "latency",
@@ -210,12 +196,10 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "latency",
-					Phase: v1alpha1.AnalysisPhaseFailed,
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "latency",
+				Phase: v1alpha1.AnalysisPhaseFailed,
+			}},
 		},
 	}
 	// ensure we don't perform more measurements when one result already failed
@@ -230,28 +214,22 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "successRate",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Count: 1,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Count: 1,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
+					FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
+				}},
+			}},
 		},
 	}
 	{
@@ -273,27 +251,21 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 func TestGenerateMetricTasksIncomplete(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "successRate",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:     "99",
-							Phase:     v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:     "99",
+					Phase:     v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt: timePtr(metav1.NewTime(time.Now().Add(-50 * time.Second))),
+				}},
+			}},
 		},
 	}
 	{
@@ -312,7 +284,7 @@ func TestGenerateMetricTasksHonorInitialDelay(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:         "success-rate",
+					Name:         "successRate",
 					InitialDelay: "20s",
 				},
 			},
@@ -339,7 +311,7 @@ func TestGenerateMetricTasksHonorInitialDelay(t *testing.T) {
 		assert.Equal(t, 1, len(tasks))
 	}
 	{
-		run.Spec.Metrics[0].InitialDelay = "invalid-start-delay"
+		run.Spec.Metrics[0].InitialDelay = "invalid-startDelay"
 		// ensure we don't take measurement for metrics with invalid start delays
 		tasks := generateMetricTasks(run)
 		assert.Equal(t, 0, len(tasks))
@@ -355,10 +327,10 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "success-rate",
+					Name: "successRate",
 				},
 				{
-					Name: "success-rate2",
+					Name: "successRate2",
 				},
 			},
 		},
@@ -366,27 +338,23 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:  "success-rate",
+					Name:  "successRate",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:     "99",
-							Phase:     v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt: &nowMinus50,
-							ResumeAt:  &nowPlus10,
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Value:     "99",
+						Phase:     v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt: &nowMinus50,
+						ResumeAt:  &nowPlus10,
+					}},
 				}, {
-					Name:  "success-rate2",
+					Name:  "successRate2",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:     "99",
-							Phase:     v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt: &nowMinus50,
-							ResumeAt:  &nowMinus10,
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Value:     "99",
+						Phase:     v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt: &nowMinus50,
+						ResumeAt:  &nowMinus10,
+					}},
 				},
 			},
 		},
@@ -395,35 +363,29 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 		// ensure we don't take measurement when resumeAt has not passed
 		tasks := generateMetricTasks(run)
 		assert.Equal(t, 1, len(tasks))
-		assert.Equal(t, "success-rate2", tasks[0].metric.Name)
+		assert.Equal(t, "successRate2", tasks[0].metric.Name)
 	}
 }
 
 func TestGenerateMetricTasksError(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "successRate",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Error: 1,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:      v1alpha1.AnalysisPhaseError,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Error: 1,
+				Measurements: []v1alpha1.Measurement{{
+					Phase:      v1alpha1.AnalysisPhaseError,
+					StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+					FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+				}},
+			}},
 		},
 	}
 	// ensure we generate a task when have a measurement which was errored
@@ -442,7 +404,7 @@ func TestAssessRunStatus(t *testing.T) {
 					Name: "latency",
 				},
 				{
-					Name: "success-rate",
+					Name: "successRate",
 				},
 			},
 		},
@@ -457,7 +419,7 @@ func TestAssessRunStatus(t *testing.T) {
 					Phase: v1alpha1.AnalysisPhaseSuccessful,
 				},
 				{
-					Name:  "success-rate",
+					Name:  "successRate",
 					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
 			},
@@ -474,7 +436,7 @@ func TestAssessRunStatus(t *testing.T) {
 					Phase: v1alpha1.AnalysisPhaseSuccessful,
 				},
 				{
-					Name:  "success-rate",
+					Name:  "successRate",
 					Phase: v1alpha1.AnalysisPhaseFailed,
 				},
 			},
@@ -493,13 +455,13 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name: "sleep-infinity",
+					Name: "sleepInfinity",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
 				},
 				{
-					Name: "fail-after-30",
+					Name: "failAfter30",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
@@ -510,27 +472,23 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:  "sleep-infinity",
+					Name:  "sleepInfinity",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:     v1alpha1.AnalysisPhaseRunning,
-							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Phase:     v1alpha1.AnalysisPhaseRunning,
+						StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
 				},
 				{
-					Name:   "fail-after-30",
+					Name:   "failAfter30",
 					Count:  1,
 					Failed: 1,
 					Phase:  v1alpha1.AnalysisPhaseRunning, // This should flip to Failed
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:      v1alpha1.AnalysisPhaseFailed,
-							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      v1alpha1.AnalysisPhaseFailed,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
 				},
 			},
 		},
@@ -543,7 +501,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	// no measurements yet taken
 	metric := v1alpha1.Metric{
-		Name: "success-rate",
+		Name: "successRate",
 	}
 	result := v1alpha1.MetricResult{
 		Measurements: nil,
@@ -554,7 +512,7 @@ func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	// in-flight measurement
 	metric := v1alpha1.Metric{
-		Name: "success-rate",
+		Name: "successRate",
 	}
 	result := v1alpha1.MetricResult{
 		Measurements: []v1alpha1.Measurement{
@@ -576,21 +534,19 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 }
 func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	metric := v1alpha1.Metric{
-		Name:         "success-rate",
+		Name:         "successRate",
 		FailureLimit: 2,
 		Interval:     "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Failed: 3,
 		Count:  3,
-		Measurements: []v1alpha1.Measurement{
-			{
-				Value:      "99",
-				Phase:      v1alpha1.AnalysisPhaseFailed,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-			},
-		},
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
@@ -601,21 +557,19 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name:              "success-rate",
+		Name:              "successRate",
 		InconclusiveLimit: 2,
 		Interval:          "60s",
 	}
 	result := v1alpha1.MetricResult{
 		Inconclusive: 3,
 		Count:        3,
-		Measurements: []v1alpha1.Measurement{
-			{
-				Value:      "99",
-				Phase:      v1alpha1.AnalysisPhaseInconclusive,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-			},
-		},
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseInconclusive,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
@@ -626,19 +580,17 @@ func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name:     "success-rate",
+		Name:     "successRate",
 		Interval: "60s",
 	}
 	result := v1alpha1.MetricResult{
 		ConsecutiveError: 5,
 		Count:            5,
-		Measurements: []v1alpha1.Measurement{
-			{
-				Phase:      v1alpha1.AnalysisPhaseError,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-			},
-		},
+		Measurements: []v1alpha1.Measurement{{
+			Phase:      v1alpha1.AnalysisPhaseError,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, true))
@@ -649,20 +601,18 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
 	metric := v1alpha1.Metric{
-		Name:  "success-rate",
+		Name:  "successRate",
 		Count: 10,
 	}
 	result := v1alpha1.MetricResult{
 		Successful: 10,
 		Count:      10,
-		Measurements: []v1alpha1.Measurement{
-			{
-				Value:      "99",
-				Phase:      v1alpha1.AnalysisPhaseSuccessful,
-				StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-				FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-			},
-		},
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseSuccessful,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
 	result.Successful = 5
@@ -675,29 +625,23 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:     "success-rate",
-					Interval: "60s",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name:     "successRate",
+				Interval: "60s",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  &nowMinus30,
-							FinishedAt: &nowMinus30,
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  &nowMinus30,
+					FinishedAt: &nowMinus30,
+				}},
+			}},
 		},
 	}
 	// ensure we requeue at correct interval
@@ -710,14 +654,12 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 	nowMinus120 := metav1.NewTime(now.Add(time.Second * -120))
 	run.Status.MetricResults[0] = v1alpha1.MetricResult{
 		Phase: v1alpha1.AnalysisPhaseSuccessful,
-		Measurements: []v1alpha1.Measurement{
-			{
-				Value:      "99",
-				Phase:      v1alpha1.AnalysisPhaseSuccessful,
-				StartedAt:  &nowMinus120,
-				FinishedAt: &nowMinus120,
-			},
-		},
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseSuccessful,
+			StartedAt:  &nowMinus120,
+			FinishedAt: &nowMinus120,
+		}},
 	}
 	assert.Nil(t, calculateNextReconcileTime(run))
 }
@@ -729,11 +671,11 @@ func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:     "success-rate",
+					Name:     "successRate",
 					Interval: "60s",
 				},
 				{
-					Name:         "start-delay",
+					Name:         "startDelay",
 					Interval:     "60s",
 					InitialDelay: "40s",
 				},
@@ -742,25 +684,21 @@ func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase:     v1alpha1.AnalysisPhaseRunning,
 			StartedAt: &nowMinus30,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  &nowMinus30,
-							FinishedAt: &nowMinus30,
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  &nowMinus30,
+					FinishedAt: &nowMinus30,
+				}},
+			}},
 		},
 	}
 	// ensure we requeue after start delay
 	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
-	run.Spec.Metrics[1].InitialDelay = "not-valid-start-delay"
+	run.Spec.Metrics[1].InitialDelay = "notValidStartDelay"
 	// skip invalid start delay and use the other metrics next reconcile time
 	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run))
 
@@ -770,29 +708,23 @@ func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:  "success-rate",
-					Count: 1,
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name:  "successRate",
+				Count: 1,
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseSuccessful,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  &now,
-							FinishedAt: &now,
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseSuccessful,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  &now,
+					FinishedAt: &now,
+				}},
+			}},
 		},
 	}
 	assert.Nil(t, calculateNextReconcileTime(run))
@@ -806,7 +738,7 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:     "success-rate",
+					Name:     "successRate",
 					Interval: "60s",
 				},
 				{
@@ -819,28 +751,24 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:  "success-rate",
+					Name:  "successRate",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  &nowMinus30,
-							FinishedAt: &nowMinus30,
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "99",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  &nowMinus30,
+						FinishedAt: &nowMinus30,
+					}},
 				},
 				{
 					Name:  "latency",
 					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "1",
-							Phase:      v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt:  &nowMinus50,
-							FinishedAt: &nowMinus50,
-						},
-					},
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  &nowMinus50,
+						FinishedAt: &nowMinus50,
+					}},
 				},
 			},
 		},
@@ -855,29 +783,23 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 	nowPlus10 := metav1.NewTime(now.Add(time.Second * 10))
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:     "success-rate",
-					Interval: "60s",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name:     "successRate",
+				Interval: "60s",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:     "99",
-							Phase:     v1alpha1.AnalysisPhaseSuccessful,
-							StartedAt: &nowMinus30,
-							ResumeAt:  &nowPlus10,
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:     "99",
+					Phase:     v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt: &nowMinus30,
+					ResumeAt:  &nowPlus10,
+				}},
+			}},
 		},
 	}
 	// ensure we requeue at correct interval
@@ -888,29 +810,23 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "successRate",
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "success-rate",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Error: 1,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Value:      "99",
-							Phase:      v1alpha1.AnalysisPhaseError,
-							StartedAt:  &now,
-							FinishedAt: &now,
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "successRate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Error: 1,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseError,
+					StartedAt:  &now,
+					FinishedAt: &now,
+				}},
+			}},
 		},
 	}
 	// ensure we requeue at correct interval
@@ -923,15 +839,13 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:     "success-rate",
-					Interval: "60s",
-					Provider: v1alpha1.MetricProvider{
-						Prometheus: &v1alpha1.PrometheusMetric{},
-					},
+			Metrics: []v1alpha1.Metric{{
+				Name:     "successRate",
+				Interval: "60s",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{},
 				},
-			},
+			}},
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
@@ -969,11 +883,9 @@ func TestReconcileAnalysisRunInvalid(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-				},
-			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "successRate",
+			}},
 		},
 	}
 	newRun := c.reconcileAnalysisRun(run)
@@ -1012,29 +924,23 @@ func TestReconcileAnalysisRunResumeInProgress(t *testing.T) {
 
 	run := v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "test",
-					Provider: v1alpha1.MetricProvider{
-						Job: &v1alpha1.JobMetric{},
-					},
+			Metrics: []v1alpha1.Metric{{
+				Name: "test",
+				Provider: v1alpha1.MetricProvider{
+					Job: &v1alpha1.JobMetric{},
 				},
-			},
+			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
-			MetricResults: []v1alpha1.MetricResult{
-				{
-					Name:  "test",
-					Phase: v1alpha1.AnalysisPhaseRunning,
-					Measurements: []v1alpha1.Measurement{
-						{
-							Phase:     v1alpha1.AnalysisPhaseRunning,
-							StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
-						},
-					},
-				},
-			},
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "test",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Phase:     v1alpha1.AnalysisPhaseRunning,
+					StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+				}},
+			}},
 		},
 	}
 
@@ -1060,26 +966,22 @@ func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
 	for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseError} {
 		run := v1alpha1.AnalysisRun{
 			Spec: v1alpha1.AnalysisRunSpec{
-				Metrics: []v1alpha1.Metric{
-					{
-						Name: "test",
-						Provider: v1alpha1.MetricProvider{
-							Job: &v1alpha1.JobMetric{},
-						},
+				Metrics: []v1alpha1.Metric{{
+					Name: "test",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
 					},
-				},
+				}},
 			},
 			Status: v1alpha1.AnalysisRunStatus{
 				Phase: v1alpha1.AnalysisPhaseRunning,
-				MetricResults: []v1alpha1.MetricResult{
-					{
-						Name:             "test",
-						Phase:            v1alpha1.AnalysisPhaseRunning,
-						ConsecutiveError: 4,
-						Count:            4,
-						Error:            4,
-					},
-				},
+				MetricResults: []v1alpha1.MetricResult{{
+					Name:             "test",
+					Phase:            v1alpha1.AnalysisPhaseRunning,
+					ConsecutiveError: 4,
+					Count:            4,
+					Error:            4,
+				}},
 			},
 		}
 		f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(status), nil)
@@ -1130,35 +1032,23 @@ func TestResolveMetricArgs(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg1, arg2 := "success-rate", "success-rate2"
-	run := &v1alpha1.AnalysisRun{
-		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{
-				{
-					Name:  "metric-name",
-					Value: &arg1,
-				},
-				{
-					Name:  "metric-name2",
-					Value: &arg2,
-				},
-			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "metric-name",
-					SuccessCondition: "result > {{args.metric-name}}",
-				},
-				{
-					Name:             "metric-name2",
-					SuccessCondition: "result < {{args.metric-name2}}",
-				},
-			},
+	arg1, arg2 := "successRate", "successRate2"
+	arguments := []v1alpha1.Argument{
+		{
+			Name:  "metricName",
+			Value: &arg1,
+		},
+		{
+			Name:  "metricName2",
+			Value: &arg2,
 		},
 	}
-	metric1, _ := c.resolveMetricArgs(run.Spec.Metrics[0], run.Spec.Args)
-	metric2, _ := c.resolveMetricArgs(run.Spec.Metrics[1], run.Spec.Args)
-	assert.Equal(t, fmt.Sprintf("result > %s", arg1), metric1.SuccessCondition)
-	assert.Equal(t, fmt.Sprintf("result < %s", arg2), metric2.SuccessCondition)
+	metric1 := v1alpha1.Metric{ Name: "metricName", SuccessCondition: "result > {{args.metricName}}"}
+	metric2 := v1alpha1.Metric{Name: "metricName2", SuccessCondition: "result < {{args.metricName2}}"}
+	newMetric1, _ := c.resolveMetricArgs(metric1, arguments)
+	newMetric2, _ := c.resolveMetricArgs(metric2, arguments)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg1), newMetric1.SuccessCondition)
+	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
 }
 
 //TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
@@ -1167,60 +1057,12 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	arg := "foo \"bar\" baz"
-	run := &v1alpha1.AnalysisRun{
-		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{
-				{
-					Name:  "rate",
-					Value: &arg,
-				},
-			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "rate",
-					SuccessCondition: "{{args.rate}}",
-				},
-			},
-		},
-	}
-	metric, err := c.resolveMetricArgs(run.Spec.Metrics[0], run.Spec.Args)
-	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), metric.SuccessCondition)
-}
 
-// TestResolveMetricArgsInReconcileAnalysisRun verifies that metric args are resolved in reconcileAnalysisRun
-func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg := "success-rate"
-	run := &v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{
-				{
-					Name:  "metric-name",
-					Value: &arg,
-				},
-			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "metric-name",
-					SuccessCondition: "result > {{args.metric-name}}",
-					Provider: v1alpha1.MetricProvider{
-						Prometheus: &v1alpha1.PrometheusMetric{
-							Query: "{{args.metric-name}}",
-						},
-					},
-				},
-			},
-		},
-	}
-	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
-	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	arguments := []v1alpha1.Argument{{Name: "rate", Value: &arg,}}
+	metric := v1alpha1.Metric{Name: "rate", SuccessCondition: "{{args.rate}}"}
+	newMetric, err := c.resolveMetricArgs(metric, arguments)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
 }
 
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
@@ -1229,22 +1071,20 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "rate",
-					SuccessCondition: "{{args.does-not-exist}}",
-					Provider: v1alpha1.MetricProvider{
-						Prometheus: &v1alpha1.PrometheusMetric{
-							Query: "{{args.metric-name}}",
-						},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "rate",
+				SuccessCondition: "{{args.doesNotExist}}",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{
+						Query: "{{args.metricName}}",
 					},
 				},
-			},
+			}},
 		},
 	}
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, newRun.Status.Phase, v1alpha1.AnalysisPhaseError)
-	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
+	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metricName}}")
 }
 
 func TestSecretContentReferenceValueFromError(t *testing.T) {
@@ -1255,38 +1095,31 @@ func TestSecretContentReferenceValueFromError(t *testing.T) {
 	argval := "value"
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{
-				{
-					Name:  argname,
-					Value: &argval,
-					ValueFrom: &v1alpha1.ValueFrom{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "web-metric-secret",
-							},
-							Key: "apikey",
+			Args: []v1alpha1.Argument{{
+				Name:  argname,
+				Value: &argval,
+				ValueFrom: &v1alpha1.ValueFrom{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "webMetricSecret",
 						},
+						Key: "apikey",
+					},
+				}},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "rate",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Headers: []v1alpha1.WebMetricHeader{{
+							Key:   "apikey",
+							Value: "{{args.apikey}}",
+						}},
 					},
 				},
-			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "rate",
-					Provider: v1alpha1.MetricProvider{
-						Web: &v1alpha1.WebMetric{
-							Headers: []v1alpha1.WebMetricHeader{
-								{
-									Key:   "apikey",
-									Value: "{{args.apikey}}",
-								},
-							},
-						},
-					},
-				},
-			},
+			}},
 		},
 	}
-	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
 	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg %v has both Value and ValueFrom fields", argname), newRun.Status.Message)
@@ -1297,7 +1130,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 	f := newFixture(t)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "web-metric-secret",
+			Name:      "webMetricSecret",
 			Namespace: metav1.NamespaceDefault,
 		},
 		Data: map[string][]byte{
@@ -1313,34 +1146,28 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{
-				{
-					Name: argname,
-					ValueFrom: &v1alpha1.ValueFrom{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "web-metric-secret",
-							},
-							Key: "apikey",
+			Args: []v1alpha1.Argument{{
+				Name: argname,
+				ValueFrom: &v1alpha1.ValueFrom{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "webMetricSecret",
 						},
+						Key: "apikey",
 					},
 				},
-			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "rate",
-					Provider: v1alpha1.MetricProvider{
-						Web: &v1alpha1.WebMetric{
-							Headers: []v1alpha1.WebMetricHeader{
-								{
-									Key:   "apikey",
-									Value: "{{args.apikey}}",
-								},
-							},
-						},
+			}},
+			Metrics: []v1alpha1.Metric{{
+				Name: "rate",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Headers: []v1alpha1.WebMetricHeader{{
+							Key:   "apikey",
+							Value: "{{args.apikey}}",
+						}},
 					},
 				},
-			},
+			}},
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
@@ -1353,8 +1180,8 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	buf := bytes.NewBufferString("")
 	log.SetOutput(buf)
 	f := newFixture(t)
-	secretname, secretkey, secretvalue := "web-metric-secret", "apikey", "12345"
-	arg := "success-rate"
+	secretname, secretkey, secretvalue := "webMetricSecret", "apikey", "12345"
+	arg := "successRate"
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretname,
@@ -1385,26 +1212,22 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 					},
 				},
 				{
-					Name:  "metric-name",
+					Name:  "metricName",
 					Value: &arg,
 				},
 			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "rate",
-					SuccessCondition: "result > {{args.metric-name}}",
-					Provider: v1alpha1.MetricProvider{
-						Web: &v1alpha1.WebMetric{
-							Headers: []v1alpha1.WebMetricHeader{
-								{
-									Key:   "apikey",
-									Value: "{{args.secret}}",
-								},
-							},
-						},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "rate",
+				SuccessCondition: "result > {{args.metricName}}",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Headers: []v1alpha1.WebMetricHeader{{
+							Key:   "apikey",
+							Value: "{{args.secret}}",
+						}},
 					},
 				},
-			},
+			}},
 		},
 	}
 
@@ -1425,8 +1248,8 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 //TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
 func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f := newFixture(t)
-	secretname, secretkey, secretvalue := "web-metric-secret", "apikey", "12345"
-	arg := "success-rate"
+	secretname, secretkey, secretvalue := "webMetricSecret", "apikey", "12345"
+	arg := "successRate"
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretname,
@@ -1457,26 +1280,22 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 					},
 				},
 				{
-					Name:  "metric-name",
+					Name:  "metricName",
 					Value: &arg,
 				},
 			},
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:             "secret",
-					SuccessCondition: "result > {{args.metric-name}}",
-					Provider: v1alpha1.MetricProvider{
-						Web: &v1alpha1.WebMetric{
-							Headers: []v1alpha1.WebMetricHeader{
-								{
-									Key:   "apikey",
-									Value: "{{args.secret}}",
-								},
-							},
-						},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "secret",
+				SuccessCondition: "result > {{args.metricName}}",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Headers: []v1alpha1.WebMetricHeader{{
+							Key:   "apikey",
+							Value: "{{args.secret}}",
+						}},
 					},
 				},
-			},
+			}},
 		},
 	}
 

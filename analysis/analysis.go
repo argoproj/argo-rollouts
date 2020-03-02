@@ -107,16 +107,16 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	return run
 }
 
-// Resolves args for single metric in AnalysisRun
+// resolveMetricArgs resolves args for single metric in AnalysisRun
 // Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
 func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
-	metricBytes, err := json.Marshal(metric) //run.Spec.Metrics)
+	metricBytes, err := json.Marshal(metric)
 	if err != nil {
 		return nil, err
 	}
 	var newMetricStr string
-	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args) //run.Spec.Args)
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)
 	if err != nil {
 		return nil, err
 	}
@@ -206,37 +206,30 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	return tasks
 }
 
-// runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
-	var wg sync.WaitGroup
-	// resultsLock should be held whenever we are accessing or setting status.metricResults since
-	// we are performing queries in parallel
-	var resultsLock sync.Mutex
-	terminating := analysisutil.IsTerminating(run)
-
-	//check args
-	//if secret specified in valueFrom, replace value with secret value
-	//error if arg has both value and valueFrom
+// resolveArgs resolves args for metricTasks, including secret references
+// returns resolved metricTasks and secrets for log redaction
+func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
 	//create set of secrets for redaction
 	secretSet := map[string]bool{}
-	args := make([]v1alpha1.Argument, len(run.Spec.Args))
-	for i, arg := range run.Spec.Args {
-		if arg.ValueFrom != nil { // if arg contains secret
+	for i, arg := range args {
+		//if secret specified in valueFrom, replace value with secret value
+		//error if arg has both value and valueFrom
+		if arg.ValueFrom != nil {
 			if arg.Value != nil {
 				err := fmt.Errorf("arg %s has both Value and ValueFrom fields", arg.Name)
-				return err
+				return nil, nil, err
 			}
 			name := arg.ValueFrom.SecretKeyRef.LocalObjectReference.Name
-			mySecret, err := c.secretLister.Secrets(run.Namespace).Get(name)
+			secret, err := c.secretLister.Secrets(namespace).Get(name)
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 
-			superSecretContent := string(mySecret.Data[arg.ValueFrom.SecretKeyRef.Key])
-			secretSet[superSecretContent] = true
-			newArg := arg.DeepCopy()
-			newArg.Value = &superSecretContent
-			args[i] = *newArg
+			secretContent := string(secret.Data[arg.ValueFrom.SecretKeyRef.Key])
+			secretSet[secretContent] = true
+			resolvedArg := arg.DeepCopy()
+			resolvedArg.Value = &secretContent
+			args[i] = *resolvedArg
 		} else {
 			args[i] = arg
 		}
@@ -250,11 +243,27 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 	// resolves arguments in each metric task
 	for i, task := range tasks {
-		newMetric, err := c.resolveMetricArgs(task.metric, args)
+		resolvedMetric, err := c.resolveMetricArgs(task.metric, args)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
-		tasks[i].metric = *newMetric
+		tasks[i].metric = *resolvedMetric
+	}
+
+	return tasks, secrets, nil
+}
+
+// runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
+func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
+	var wg sync.WaitGroup
+	// resultsLock should be held whenever we are accessing or setting status.metricResults since
+	// we are performing queries in parallel
+	var resultsLock sync.Mutex
+	terminating := analysisutil.IsTerminating(run)
+
+	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
+	if err != nil {
+		return err
 	}
 
 	for _, task := range tasks {
