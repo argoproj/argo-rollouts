@@ -382,6 +382,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
+		k8sI.Extensions().V1beta1().Ingresses(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		resync(),
 		rolloutWorkqueue,

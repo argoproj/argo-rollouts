@@ -45,6 +45,7 @@ func newCommand() *cobra.Command {
 		experimentThreads   int
 		analysisThreads     int
 		serviceThreads      int
+		ingressThreads      int
 		istioVersion        string
 	)
 	var command = cobra.Command{
@@ -105,6 +106,7 @@ func newCommand() *cobra.Command {
 				dynamicClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
+				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
 				jobInformerFactory.Batch().V1().Jobs(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
@@ -121,7 +123,7 @@ func newCommand() *cobra.Command {
 			argoRolloutsInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
-			if err = cm.Run(rolloutThreads, serviceThreads, experimentThreads, analysisThreads, stopCh); err != nil {
+			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
@@ -137,6 +139,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
+	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	return &command
 }
