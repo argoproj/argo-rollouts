@@ -1,12 +1,16 @@
 package analysis
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -1151,14 +1155,13 @@ func TestResolveMetricArgs(t *testing.T) {
 			},
 		},
 	}
-
-	err := c.resolveMetricArgs(run)
-	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("result > %s", arg1), run.Spec.Metrics[0].SuccessCondition)
-	assert.Equal(t, fmt.Sprintf("result < %s", arg2), run.Spec.Metrics[1].SuccessCondition)
+	metric1, _ := c.resolveMetricArgs(run.Spec.Metrics[0], run.Spec.Args)
+	metric2, _ := c.resolveMetricArgs(run.Spec.Metrics[1], run.Spec.Args)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg1), metric1.SuccessCondition)
+	assert.Equal(t, fmt.Sprintf("result < %s", arg2), metric2.SuccessCondition)
 }
 
-// TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
 func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1180,17 +1183,21 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 			},
 		},
 	}
-	err := c.resolveMetricArgs(run)
+	metric, err := c.resolveMetricArgs(run.Spec.Metrics[0], run.Spec.Args)
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), run.Spec.Metrics[0].SuccessCondition)
+	assert.Equal(t, fmt.Sprintf(arg), metric.SuccessCondition)
 }
 
+// TestResolveMetricArgsInReconcileAnalysisRun verifies that metric args are resolved in reconcileAnalysisRun
 func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	arg := "success-rate"
 	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			Args: []v1alpha1.Argument{
 				{
@@ -1213,8 +1220,7 @@ func TestResolveMetricArgsInReconcileAnalysisRun(t *testing.T) {
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
 	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, fmt.Sprintf("result > %s", arg), newRun.Spec.Metrics[0].SuccessCondition)
-	assert.Equal(t, arg, newRun.Spec.Metrics[0].Provider.Prometheus.Query)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
 
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
@@ -1239,4 +1245,242 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, newRun.Status.Phase, v1alpha1.AnalysisPhaseError)
 	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
+}
+
+func TestSecretContentReferenceValueFromError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	argname := "apikey"
+	argval := "value"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  argname,
+					Value: &argval,
+					ValueFrom: &v1alpha1.ValueFrom{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "web-metric-secret",
+							},
+							Key: "apikey",
+						},
+					},
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "rate",
+					Provider: v1alpha1.MetricProvider{
+						Web: &v1alpha1.WebMetric{
+							Headers: []v1alpha1.WebMetricHeader{
+								{
+									Key:   "apikey",
+									Value: "{{args.apikey}}",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg %v has both Value and ValueFrom fields", argname), newRun.Status.Message)
+}
+
+// TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
+func TestSecretContentReferenceSuccess(t *testing.T) {
+	f := newFixture(t)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web-metric-secret",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			"apikey": []byte("12345"),
+		},
+	}
+	defer f.Close()
+	f.secretRunLister = append(f.secretRunLister, secret)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	argname := "apikey"
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: argname,
+					ValueFrom: &v1alpha1.ValueFrom{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "web-metric-secret",
+							},
+							Key: "apikey",
+						},
+					},
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "rate",
+					Provider: v1alpha1.MetricProvider{
+						Web: &v1alpha1.WebMetric{
+							Headers: []v1alpha1.WebMetricHeader{
+								{
+									Key:   "apikey",
+									Value: "{{args.apikey}}",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+}
+
+// TestSecretContentReferenceProviderError verifies that secret values are redacted in logs
+func TestSecretContentReferenceProviderError(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	f := newFixture(t)
+	secretname, secretkey, secretvalue := "web-metric-secret", "apikey", "12345"
+	arg := "success-rate"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretname,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			secretkey: []byte(secretvalue),
+		},
+	}
+	defer f.Close()
+	f.secretRunLister = append(f.secretRunLister, secret)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "secret",
+					ValueFrom: &v1alpha1.ValueFrom{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secretname,
+							},
+							Key: secretkey,
+						},
+					},
+				},
+				{
+					Name:  "metric-name",
+					Value: &arg,
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:             "rate",
+					SuccessCondition: "result > {{args.metric-name}}",
+					Provider: v1alpha1.MetricProvider{
+						Web: &v1alpha1.WebMetric{
+							Headers: []v1alpha1.WebMetricHeader{
+								{
+									Key:   "apikey",
+									Value: "{{args.secret}}",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	error := fmt.Errorf("Error with Header Value: %v", secretvalue)
+	expectedValue := "Error with Header Value: *****"
+	measurement := newMeasurement(v1alpha1.AnalysisPhaseError)
+	measurement.Message = error.Error()
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(measurement)
+	newRun := c.reconcileAnalysisRun(run)
+	logMessage := buf.String()
+
+	assert.Equal(t, expectedValue, newRun.Status.MetricResults[0].Measurements[0].Message)
+	assert.False(t, strings.Contains(logMessage, "12345"))
+	assert.True(t, strings.Contains(logMessage, "*****"))
+}
+
+//TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
+func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
+	f := newFixture(t)
+	secretname, secretkey, secretvalue := "web-metric-secret", "apikey", "12345"
+	arg := "success-rate"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretname,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			secretkey: []byte(secretvalue),
+		},
+	}
+	defer f.Close()
+	f.secretRunLister = append(f.secretRunLister, secret)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "secret",
+					ValueFrom: &v1alpha1.ValueFrom{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secretname,
+							},
+							Key: secretkey,
+						},
+					},
+				},
+				{
+					Name:  "metric-name",
+					Value: &arg,
+				},
+			},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:             "secret",
+					SuccessCondition: "result > {{args.metric-name}}",
+					Provider: v1alpha1.MetricProvider{
+						Web: &v1alpha1.WebMetric{
+							Headers: []v1alpha1.WebMetricHeader{
+								{
+									Key:   "apikey",
+									Value: "{{args.secret}}",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }

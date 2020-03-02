@@ -65,6 +65,7 @@ type Manager struct {
 	experimentSynced       cache.InformerSynced
 	analysisRunSynced      cache.InformerSynced
 	analysisTemplateSynced cache.InformerSynced
+	secretSynced           cache.InformerSynced
 	serviceSynced          cache.InformerSynced
 	jobSynced              cache.InformerSynced
 	replicasSetSynced      cache.InformerSynced
@@ -85,6 +86,7 @@ func NewManager(
 	dynamicclientset dynamic.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
+	secretInformer coreinformers.SecretInformer,
 	jobInformer batchinformers.JobInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
@@ -150,6 +152,7 @@ func NewManager(
 		kubeclientset,
 		argoprojclientset,
 		analysisRunInformer,
+		secretInformer,
 		jobInformer,
 		resyncPeriod,
 		analysisRunWorkqueue,
@@ -169,6 +172,7 @@ func NewManager(
 		metricsServer:          metricsServer,
 		rolloutSynced:          rolloutsInformer.Informer().HasSynced,
 		serviceSynced:          servicesInformer.Informer().HasSynced,
+		secretSynced:           secretInformer.Informer().HasSynced,
 		jobSynced:              jobInformer.Informer().HasSynced,
 		experimentSynced:       experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,

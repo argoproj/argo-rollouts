@@ -105,6 +105,7 @@ func newCommand() *cobra.Command {
 				dynamicClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
+				kubeInformerFactory.Core().V1().Secrets(),
 				jobInformerFactory.Batch().V1().Jobs(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),

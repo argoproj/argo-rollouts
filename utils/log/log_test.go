@@ -59,3 +59,22 @@ func TestWithAnalysis(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
 	assert.True(t, strings.Contains(logMessage, "analysisrun=test-name"))
 }
+
+func TestWithRedactor(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	entry := WithAnalysisRun(&run)
+	secrets := []string{"test-name", "test-ns"}
+	logCtx := WithRedactor(*entry, secrets)
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.False(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.False(t, strings.Contains(logMessage, "analysisrun=test-name"))
+	assert.True(t, strings.Contains(logMessage, "*****"))
+}
