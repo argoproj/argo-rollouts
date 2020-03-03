@@ -56,10 +56,7 @@ func TestAddMetricsTransportWrapperWrapTwice(t *testing.T) {
 }
 
 func TestResolveK8sRequestVerb(t *testing.T) {
-	regex, err := regexp.Compile(findPathRegex)
-	if err != nil {
-		panic(err)
-	}
+	regex := regexp.MustCompile(findPathRegex)
 	m := metricsRoundTripper{
 		processPath: regex,
 	}

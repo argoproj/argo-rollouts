@@ -211,10 +211,7 @@ func (mrt *metricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 
 // AddMetricsTransportWrapper adds a transport wrapper which wraps a function call around each kubernetes request
 func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo) error) *rest.Config {
-	regex, err := regexp.Compile(findPathRegex)
-	if err != nil {
-		panic(err)
-	}
+	regex := regexp.MustCompile(findPathRegex)
 	wrap := config.WrapTransport
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		if wrap != nil {
