@@ -1668,7 +1668,7 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "NginxTrafficRouting configuration for Nginx ingress controller to controll traffic routing",
+				Description: "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"annotationPrefix": {

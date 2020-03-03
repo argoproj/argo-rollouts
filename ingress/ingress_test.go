@@ -26,12 +26,12 @@ func newIngress(name string, port int, serviceName string) *extensionsv1beta1.In
 		},
 		Spec: extensionsv1beta1.IngressSpec{
 			Rules: []extensionsv1beta1.IngressRule{
-				extensionsv1beta1.IngressRule{
+				{
 					Host: "fakehost.example.com",
 					IngressRuleValue: extensionsv1beta1.IngressRuleValue{
 						HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
 							Paths: []extensionsv1beta1.HTTPIngressPath{
-								extensionsv1beta1.HTTPIngressPath{
+								{
 									Path: "/foo",
 									Backend: extensionsv1beta1.IngressBackend{
 										ServiceName: serviceName,

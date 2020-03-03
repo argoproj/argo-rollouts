@@ -165,7 +165,7 @@ type RolloutTrafficRouting struct {
 	Nginx *NginxTrafficRouting `json:"nginx,omitempty"`
 }
 
-// NginxTrafficRouting configuration for Nginx ingress controller to controll traffic routing
+// NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
 type NginxTrafficRouting struct {
 	// AnnotationPrefix has to match the configured annotation prefix on the nginx ingress controller
 	// +optional

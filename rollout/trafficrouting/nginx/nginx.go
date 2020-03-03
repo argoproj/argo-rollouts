@@ -36,12 +36,11 @@ func NewReconciler(r *v1alpha1.Rollout, client kubernetes.Interface, recorder re
 
 // Reconciler holds required fields to reconcile Nginx resources
 type Reconciler struct {
-	rollout           *v1alpha1.Rollout
-	log               *logrus.Entry
-	client            kubernetes.Interface
-	recorder          record.EventRecorder
-	controllerKind    schema.GroupVersionKind
-	defaultAPIVersion string
+	rollout        *v1alpha1.Rollout
+	log            *logrus.Entry
+	client         kubernetes.Interface
+	recorder       record.EventRecorder
+	controllerKind schema.GroupVersionKind
 }
 
 // Type indicates this reconciler is an Nginx reconciler
