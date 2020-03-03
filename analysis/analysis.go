@@ -219,13 +219,22 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 				err := fmt.Errorf("arg %s has both Value and ValueFrom fields", arg.Name)
 				return nil, nil, err
 			}
+			if arg.ValueFrom.SecretKeyRef == nil {
+				err := fmt.Errorf("arg %s does not contain a secret reference", arg.Name)
+				return nil, nil, err
+			}
 			name := arg.ValueFrom.SecretKeyRef.Name
 			secret, err := c.secretLister.Secrets(namespace).Get(name)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			secretContent := string(secret.Data[arg.ValueFrom.SecretKeyRef.Key])
+			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+			if !ok {
+				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+				return nil, nil, err
+			}
+			secretContent := string(secretContentBytes)
 			secretSet[secretContent] = true
 			resolvedArg := arg.DeepCopy()
 			resolvedArg.Value = &secretContent

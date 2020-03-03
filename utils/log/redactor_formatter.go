@@ -2,7 +2,6 @@ package log
 
 import (
 	"bytes"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +16,10 @@ func (f *RedactorFormatter) Format(e *log.Entry) ([]byte, error) {
 		return nil, err
 	}
 	for _, secret := range f.secrets {
-		data = bytes.ReplaceAll(data, []byte(secret), []byte("*****"))
+		// Only replace non-empty strings to prevent injection at every character in logger
+		if secret != "" {
+			data = bytes.ReplaceAll(data, []byte(secret), []byte("*****"))
+		}
 	}
 	return data, nil
 }
