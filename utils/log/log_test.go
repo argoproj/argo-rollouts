@@ -14,7 +14,8 @@ import (
 
 func TestWithRollout(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
+	logger := log.New()
+	logger.SetOutput(buf)
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -22,6 +23,7 @@ func TestWithRollout(t *testing.T) {
 		},
 	}
 	logCtx := WithRollout(&ro)
+	logCtx.Logger = logger
 	logCtx.Info("Test")
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
@@ -30,7 +32,8 @@ func TestWithRollout(t *testing.T) {
 
 func TestWithExperiment(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
+	logger := log.New()
+	logger.SetOutput(buf)
 	ex := v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -38,6 +41,7 @@ func TestWithExperiment(t *testing.T) {
 		},
 	}
 	logCtx := WithExperiment(&ex)
+	logCtx.Logger = logger
 	logCtx.Info("Test")
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
@@ -46,7 +50,8 @@ func TestWithExperiment(t *testing.T) {
 
 func TestWithAnalysis(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
+	logger := log.New()
+	logger.SetOutput(buf)
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -54,15 +59,18 @@ func TestWithAnalysis(t *testing.T) {
 		},
 	}
 	logCtx := WithAnalysisRun(&run)
+	logCtx.Logger = logger
 	logCtx.Info("Test")
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
 	assert.True(t, strings.Contains(logMessage, "analysisrun=test-name"))
 }
 
+// TestWithRedactor verifies that WithRedactor redacts secrets in logger
 func TestWithRedactor(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
+	logger := log.New()
+	logger.SetOutput(buf)
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -70,18 +78,21 @@ func TestWithRedactor(t *testing.T) {
 		},
 	}
 	entry := WithAnalysisRun(&run)
+	entry.Logger = logger
 	secrets := []string{"test-name", "test-ns"}
 	logCtx := WithRedactor(*entry, secrets)
 	logCtx.Info("Test")
 	logMessage := buf.String()
-	assert.False(t, strings.Contains(logMessage, "namespace=test-ns"))
-	assert.False(t, strings.Contains(logMessage, "analysisrun=test-name"))
+	assert.False(t, strings.Contains(logMessage, "test-name"))
+	assert.False(t, strings.Contains(logMessage, "test-ns"))
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
 
-func TestWithRedactorEmptySecret(t *testing.T) {
+// TestWithRedactor verifies that WithRedactor ignores secrets that are empty strings (to prevent injection at every character in logger)
+func TestWithRedactorWithEmptySecret(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
+	logger := log.New()
+	logger.SetOutput(buf)
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -89,10 +100,10 @@ func TestWithRedactorEmptySecret(t *testing.T) {
 		},
 	}
 	entry := WithAnalysisRun(&run)
+	entry.Logger = logger
 	secrets := []string{""}
 	logCtx := WithRedactor(*entry, secrets)
 	logCtx.Info("Test")
 	logMessage := buf.String()
-	//assert.Equal(t, logMessage, "")
 	assert.False(t, strings.Contains(logMessage, "*****"))
 }

@@ -224,6 +224,10 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 				return nil, nil, err
 			}
 			name := arg.ValueFrom.SecretKeyRef.Name
+			if name == "" {
+				err := fmt.Errorf("secret referenced by arg %s has ", arg.Name) //TODO: fix message
+				return nil, nil, err
+			}
 			secret, err := c.secretLister.Secrets(namespace).Get(name)
 			if err != nil {
 				return nil, nil, err
@@ -350,7 +354,9 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 			//redact secrets from measurement message
 			for _, secret := range secrets {
-				newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")
+				if secret != "" {
+					newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")
+				}
 			}
 
 			if t.incompleteMeasurement == nil {
