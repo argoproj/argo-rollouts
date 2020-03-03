@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -110,16 +111,21 @@ func (c *IngressController) syncIngress(key string) error {
 	if err != nil {
 		return err
 	}
-	ing, err := c.ingressLister.Ingresses(namespace).Get(name)
-	if errors.IsNotFound(err) {
-		log.WithField(logutil.IngressKey, key).Infof("Ingress %v has been deleted", key)
-		return nil
-	}
+	_, err = c.ingressLister.Ingresses(namespace).Get(name)
 	if err != nil {
-		return err
+		if errors.IsNotFound(err) {
+			if !strings.HasSuffix(name, "-canary") {
+				// a primary ingress was deleted, simply ignore the event
+				log.WithField(logutil.IngressKey, key).Infof("Primary ingress %v has been deleted", key)
+				return nil
+			}
+		} else {
+			// Other unknown error occurred
+			return err
+		}
 	}
 
-	if rollouts, err := c.getRolloutsByIngress(ing.Namespace, ing.Name); err == nil {
+	if rollouts, err := c.getRolloutsByIngress(namespace, name); err == nil {
 		for i := range rollouts {
 			// reconciling the Rollout will ensure the canaryIngress is updated or created
 			c.enqueueRollout(rollouts[i])
