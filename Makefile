@@ -124,6 +124,10 @@ clean: clean-debug
 .PHONY: precheckin
 precheckin: test lint
 
+.PHONY release-docs
+release-docs: plugin-docs
+    mkdocs gh-deploy
+
 .PHONY: release-precheck
 release-precheck: manifests
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
