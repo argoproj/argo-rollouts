@@ -25,7 +25,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
-	goclient "github.com/argoproj/argo-rollouts/utils/go-client"
+	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 )
 
 const (
@@ -74,7 +74,7 @@ func newCommand() *cobra.Command {
 				log.Infof("Using namespace %s", namespace)
 			}
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
-			goclient.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
+			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
 
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)

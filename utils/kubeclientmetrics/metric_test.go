@@ -1,8 +1,9 @@
-package go_client
+package kubeclientmetrics
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,6 +52,80 @@ func TestAddMetricsTransportWrapperWrapTwice(t *testing.T) {
 	// Ensures second wrapper added by AddMetricsTransportWrapper is executed
 	assert.Equal(t, 1, currentCount)
 
+}
+
+func TestResolveK8sRequestVerb(t *testing.T) {
+
+	request := func(str string) *http.Request {
+		requestURL, err := url.Parse(str)
+		if err != nil {
+			panic(err)
+		}
+		return &http.Request{
+			Method: "GET",
+			URL:    requestURL,
+		}
+	}
+	t.Run("Pod LIST", func(t *testing.T) {
+		r := request("https://127.0.0.1/api/v1/namespaces/default/pods")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, List, verb)
+	})
+	t.Run("Pod GET", func(t *testing.T) {
+		r := request("https://127.0.0.1/api/v1/namespaces/default/pods/pod-name-123456")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, Get, verb)
+	})
+	t.Run("Namespace LIST", func(t *testing.T) {
+		r := request("https://127.0.0.1/api/v1/namespaces")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, List, verb)
+	})
+	t.Run("Namespace GET", func(t *testing.T) {
+		r := request("https://127.0.0.1/api/v1/namespaces/default")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, Get, verb)
+	})
+	t.Run("ReplicaSet LIST", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/extensions/v1beta1/namespaces/default/replicasets")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, List, verb)
+	})
+	t.Run("ReplicaSet GET", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/extensions/v1beta1/namespaces/default/replicasets/rs-abc123")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, Get, verb)
+	})
+	t.Run("VirtualService LIST", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/networking.istio.io/v1alpha3/namespaces/default/virtualservices")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, List, verb)
+	})
+	t.Run("VirtualService GET", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/networking.istio.io/v1alpha3/namespaces/default/virtualservices/virutal-service")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, Get, verb)
+	})
+	t.Run("ClusterRole LIST", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/rbac.authorization.k8s.io/v1/clusterroles")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, List, verb)
+	})
+	t.Run("ClusterRole GET", func(t *testing.T) {
+		r := request("https://127.0.0.1/apis/rbac.authorization.k8s.io/v1/clusterroles/argo-rollouts-clusterrole")
+		m := metricsRoundTripper{}
+		verb := m.resolveK8sRequestVerb(r)
+		assert.Equal(t, Get, verb)
+	})
 }
 
 func TestGetRequest(t *testing.T) {

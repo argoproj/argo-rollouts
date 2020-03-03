@@ -1,12 +1,13 @@
-package go_client
+package kubeclientmetrics
 
 import (
 	"io/ioutil"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -37,9 +38,33 @@ func (ri ResourceInfo) HasAllFields() bool {
 }
 
 type metricsRoundTripper struct {
-	roundTripper    http.RoundTripper
-	inc             func(ResourceInfo) error
-	commonResources map[string]bool
+	roundTripper http.RoundTripper
+	inc          func(ResourceInfo) error
+}
+
+// isGetOrList Uses a path from a request to determine if the request is a GET or LIST. The function tries to find an
+// API version within the path and then calculates how many remaining segments are after the API version. A LIST request
+// has segments for the kind with a namespace and the specific namespace if the kind is a namespaced resource.
+// Meanwhile a GET request has an additional segment for resource name. As a result, a LIST has an odd number of
+// segments while a GET request has an even number of segments.
+func isGetOrList(r *http.Request) K8sRequestVerb {
+	// The following code checks if the path ends with  value of the path is a resource name or kind.
+	// finds the API version in the url and
+	regex, err := regexp.Compile(`v1\w*?(/[a-zA-Z0-9-]*)(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?`)
+	if err != nil {
+		panic(err)
+	}
+	segements := regex.FindStringSubmatch(r.URL.Path)
+	unusedGroup := 0
+	for _, str := range segements {
+		if str == "" {
+			unusedGroup++
+		}
+	}
+	if unusedGroup%2 == 1 {
+		return List
+	}
+	return Get
 }
 
 func (m metricsRoundTripper) resolveK8sRequestVerb(r *http.Request) K8sRequestVerb {
@@ -56,11 +81,7 @@ func (m metricsRoundTripper) resolveK8sRequestVerb(r *http.Request) K8sRequestVe
 		return Update
 	}
 	if r.Method == "GET" {
-		resource := path.Base(r.URL.Path)
-		if _, ok := m.commonResources[resource]; ok {
-			return List
-		}
-		return Get
+		return isGetOrList(r)
 	}
 	return Unknown
 }
@@ -97,17 +118,17 @@ func handleCreate(r *http.Request, statusCode int) ResourceInfo {
 	kind := path.Base(r.URL.Path)
 	bodyIO, err := r.GetBody()
 	if err != nil {
-		log.With("Kind", kind).Warn("Unable to Process Create request")
+		log.WithField("Kind", kind).Warn("Unable to Process Create request")
 		return ResourceInfo{}
 	}
 	body, err := ioutil.ReadAll(bodyIO)
 	if err != nil {
-		log.With("Kind", kind).Warn("Unable to Process Create request")
+		log.WithField("Kind", kind).Warn("Unable to Process Create request")
 		return ResourceInfo{}
 	}
 	obj, err := unstructured.StrToUnstructured(string(body))
 	if err != nil {
-		log.With("Kind", kind).Warn("Unable to Process Create request")
+		log.WithField("Kind", kind).Warn("Unable to Process Create request")
 		return ResourceInfo{}
 	}
 	return ResourceInfo{
@@ -181,7 +202,7 @@ func (mrt *metricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 	case Update:
 		info = handleUpdate(r, resp.StatusCode)
 	default:
-		log.With("path", r.URL.Path).With("method", r.Method).Warnf("Unknown Request")
+		log.WithField("path", r.URL.Path).WithField("method", r.Method).Warnf("Unknown Request")
 		info = ResourceInfo{
 			Verb:       Unknown,
 			StatusCode: resp.StatusCode,
@@ -201,16 +222,6 @@ func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo) 
 		return &metricsRoundTripper{
 			roundTripper: rt,
 			inc:          incFunc,
-			commonResources: map[string]bool{
-				"replicasets":       true,
-				"services":          true,
-				"experiments":       true,
-				"rollouts":          true,
-				"analysistemplates": true,
-				"analysisruns":      true,
-				"virutalservices":   true,
-				"jobs":              true,
-			},
 		}
 	}
 	return config
