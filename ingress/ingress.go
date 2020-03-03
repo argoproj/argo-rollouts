@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	// ingressIndexName is the index by which Ingress resources are cached
 	ingressIndexName = "byIngress"
 )
 
@@ -65,7 +66,7 @@ func NewIngressController(
 	}
 
 	util.CheckErr(rolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		ingressIndexName: func(obj interface{}) (strings []string, e error) {
+		ingressIndexName: func(obj interface{}) ([]string, error) {
 			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
 				return ingressutil.GetRolloutIngressKeys(rollout), nil
 			}

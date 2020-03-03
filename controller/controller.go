@@ -36,25 +36,25 @@ import (
 const controllerAgentName = "rollouts-controller"
 
 const (
-	// DefaultRolloutResyncPeriod Default time in seconds for rollout resync period
+	// DefaultRolloutResyncPeriod is the default time in seconds for rollout resync period
 	DefaultRolloutResyncPeriod = 15 * 60
 
-	// DefaultMetricsPort Default port to expose the metrics endpoint
+	// DefaultMetricsPort is the default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
 
-	// DefaultRolloutThreads Default number of rollout worker threads to start with the controller
+	// DefaultRolloutThreads is the default number of rollout worker threads to start with the controller
 	DefaultRolloutThreads = 10
 
-	// DefaultExperimentThreads Default number of experiment worker threads to start with the controller
+	// DefaultExperimentThreads is the default number of experiment worker threads to start with the controller
 	DefaultExperimentThreads = 10
 
-	// DefaultAnalysisThreads Default number of analysis worker threads to start with the controller
+	// DefaultAnalysisThreads is the default number of analysis worker threads to start with the controller
 	DefaultAnalysisThreads = 30
 
-	// DefaultServiceThreads Default number of service worker threads to start with the controller
+	// DefaultServiceThreads is the default number of service worker threads to start with the controller
 	DefaultServiceThreads = 10
 
-	// DefaultIngressThreads Default number of ingress worker threads to start with the controller
+	// DefaultIngressThreads is the default number of ingress worker threads to start with the controller
 	DefaultIngressThreads = 10
 )
 
