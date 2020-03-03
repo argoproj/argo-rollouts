@@ -216,11 +216,11 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 		//error if arg has both value and valueFrom
 		if arg.ValueFrom != nil {
 			if arg.Value != nil {
-				err := fmt.Errorf("arg %s has both Value and ValueFrom fields", arg.Name)
+				err := fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
 				return nil, nil, err
 			}
 			if arg.ValueFrom.SecretKeyRef == nil {
-				err := fmt.Errorf("arg %s does not contain a secret reference", arg.Name)
+				err := fmt.Errorf("arg '%s' does not contain a secret reference", arg.Name)
 				return nil, nil, err
 			}
 			name := arg.ValueFrom.SecretKeyRef.Name

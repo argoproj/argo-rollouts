@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+
 	log "github.com/sirupsen/logrus"
 )
 

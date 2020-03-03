@@ -78,3 +78,21 @@ func TestWithRedactor(t *testing.T) {
 	assert.False(t, strings.Contains(logMessage, "analysisrun=test-name"))
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
+
+func TestWithRedactorEmptySecret(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	entry := WithAnalysisRun(&run)
+	secrets := []string{""}
+	logCtx := WithRedactor(*entry, secrets)
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	//assert.Equal(t, logMessage, "")
+	assert.False(t, strings.Contains(logMessage, "*****"))
+}
