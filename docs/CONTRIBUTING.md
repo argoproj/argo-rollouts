@@ -12,12 +12,10 @@ Install:
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 Argo Rollout additionally uses
-* `controller-gen` binary in order to auto-generate the crd manifest
 * `golangci-lint` to lint the project.
 
 Run the following commands to install them:
 ```bash
-go get -u sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.2 # versions v0.2.3 and higher generate CRD no longer compatible with some older kubernetes versions
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
@@ -41,6 +39,12 @@ Checkout the code:
 go get -u github.com/argoproj/argo-rollouts
 cd ~/go/src/github.com/argoproj/argo-rollouts
 ```
+
+Run the following command to download all the dependencies:
+```
+go mod download
+```
+
 
 ## Building
 
