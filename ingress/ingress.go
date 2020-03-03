@@ -95,7 +95,7 @@ func (c *IngressController) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Ingress workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.ingressWorkqueue, logutil.ServiceKey, c.syncIngress, c.metricServer)
+			controllerutil.RunWorker(c.ingressWorkqueue, logutil.IngressKey, c.syncIngress, c.metricServer)
 		}, time.Second, stopCh)
 	}
 
