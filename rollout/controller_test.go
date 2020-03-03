@@ -386,7 +386,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		resync(),
 		rolloutWorkqueue,
 		serviceWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
+		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
 		&record.FakeRecorder{},
 		"v1alpha3",
 	)

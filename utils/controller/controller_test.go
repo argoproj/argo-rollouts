@@ -32,7 +32,7 @@ import (
 func TestProcessNextWorkItemHandlePanic(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	q.Add("valid/key")
-	metricServer := metrics.NewMetricsServer("localhost:8080", nil)
+	metricServer := metrics.NewMetricsServer("localhost:8080", nil, &metrics.K8sRequestsCountProvider{})
 	syncHandler := func(key string) error {
 		panic("Bad big panic :(")
 	}
@@ -78,7 +78,7 @@ func TestProcessNextWorkItemNormalSync(t *testing.T) {
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	q.Add("valid/key")
-	metricServer := metrics.NewMetricsServer("localhost:8080", nil)
+	metricServer := metrics.NewMetricsServer("localhost:8080", nil, &metrics.K8sRequestsCountProvider{})
 	syncHandler := func(key string) error {
 		return fmt.Errorf("error message")
 	}

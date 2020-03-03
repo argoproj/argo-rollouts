@@ -95,7 +95,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		jobI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
+		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
 		&record.FakeRecorder{})
 
 	c.enqueueAnalysis = func(obj interface{}) {
