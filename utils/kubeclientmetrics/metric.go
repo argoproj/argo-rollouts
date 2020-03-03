@@ -25,6 +25,8 @@ const (
 	Unknown K8sRequestVerb = "Unknown"
 )
 
+const findPathRegex = `/v\d\w*?(/[a-zA-Z0-9-]*)(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?`
+
 type ResourceInfo struct {
 	Kind       string
 	Namespace  string
@@ -40,6 +42,7 @@ func (ri ResourceInfo) HasAllFields() bool {
 type metricsRoundTripper struct {
 	roundTripper http.RoundTripper
 	inc          func(ResourceInfo) error
+	processPath  *regexp.Regexp
 }
 
 // isGetOrList Uses a path from a request to determine if the request is a GET or LIST. The function tries to find an
@@ -47,16 +50,10 @@ type metricsRoundTripper struct {
 // has segments for the kind with a namespace and the specific namespace if the kind is a namespaced resource.
 // Meanwhile a GET request has an additional segment for resource name. As a result, a LIST has an odd number of
 // segments while a GET request has an even number of segments.
-func isGetOrList(r *http.Request) K8sRequestVerb {
-	// The following code checks if the path ends with  value of the path is a resource name or kind.
-	// finds the API version in the url and
-	regex, err := regexp.Compile(`v1\w*?(/[a-zA-Z0-9-]*)(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?`)
-	if err != nil {
-		panic(err)
-	}
-	segements := regex.FindStringSubmatch(r.URL.Path)
+func (m metricsRoundTripper) isGetOrList(r *http.Request) K8sRequestVerb {
+	segments := m.processPath.FindStringSubmatch(r.URL.Path)
 	unusedGroup := 0
-	for _, str := range segements {
+	for _, str := range segments {
 		if str == "" {
 			unusedGroup++
 		}
@@ -81,7 +78,7 @@ func (m metricsRoundTripper) resolveK8sRequestVerb(r *http.Request) K8sRequestVe
 		return Update
 	}
 	if r.Method == "GET" {
-		return isGetOrList(r)
+		return m.isGetOrList(r)
 	}
 	return Unknown
 }
@@ -214,6 +211,10 @@ func (mrt *metricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 
 // AddMetricsTransportWrapper adds a transport wrapper which wraps a function call around each kubernetes request
 func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo) error) *rest.Config {
+	regex, err := regexp.Compile(findPathRegex)
+	if err != nil {
+		panic(err)
+	}
 	wrap := config.WrapTransport
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		if wrap != nil {
@@ -222,6 +223,7 @@ func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo) 
 		return &metricsRoundTripper{
 			roundTripper: rt,
 			inc:          incFunc,
+			processPath:  regex,
 		}
 	}
 	return config
