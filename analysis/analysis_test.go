@@ -1120,7 +1120,7 @@ func TestSecretContentReferenceValueFromError(t *testing.T) {
 	}
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
-	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg %v has both Value and ValueFrom fields", argname), newRun.Status.Message)
+	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argname), newRun.Status.Message)
 }
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
@@ -1294,4 +1294,84 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+}
+
+func TestSecretNotFound(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	args := []v1alpha1.Argument{{
+		Name: "secretDoesNotExist",
+		ValueFrom: &v1alpha1.ValueFrom{
+			SecretKeyRef: &v1alpha1.SecretKeyRef{
+				Name: "secretDoesNotExist",
+			},
+			//SecretKeyRef: nil,
+		},
+	}}
+	tasks := []metricTask{{
+		metric: v1alpha1.Metric{
+			Name:             "metricName",
+			SuccessCondition: "{{args.secretDoesNotExist}}",
+		},
+		incompleteMeasurement: nil,
+	}}
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	assert.Equal(t, "secret \"secretDoesNotExist\" not found", err.Error())
+}
+
+func TestArgDoesNotContainSecretRefError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	args := []v1alpha1.Argument{{
+		Name: "secretEmpty",
+		ValueFrom: &v1alpha1.ValueFrom{
+			//SecretKeyRef: &v1alpha1.SecretKeyRef{},
+			SecretKeyRef: nil,
+		},
+	}}
+	tasks := []metricTask{{
+		metric: v1alpha1.Metric{
+			Name:             "metricName",
+			SuccessCondition: "{{args.secretEmpty}}",
+		},
+		incompleteMeasurement: nil,
+	}}
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	assert.Equal(t, "arg 'secretEmpty' does not contain a secret reference", err.Error())
+}
+
+func TestKeyNotInSecret(t *testing.T) {
+	f := newFixture(t)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secretName",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+	defer f.Close()
+	f.secretRunLister = append(f.secretRunLister, secret)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	args := []v1alpha1.Argument{{
+		Name: "secretWrongKey",
+		ValueFrom: &v1alpha1.ValueFrom{
+			SecretKeyRef: &v1alpha1.SecretKeyRef{
+				Name: "secretName",
+				Key:  "keyName",
+			},
+		},
+	}}
+	tasks := []metricTask{{
+		metric: v1alpha1.Metric{
+			Name:             "metricName",
+			SuccessCondition: "{{args.secretName}}",
+		},
+		incompleteMeasurement: nil,
+	}}
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	assert.Equal(t, "key 'keyName' does not exist in secret 'secretName'", err.Error())
 }
