@@ -371,6 +371,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
+	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
 	c := NewRolloutController(
 		metav1.NamespaceAll,
@@ -387,6 +388,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		resync(),
 		rolloutWorkqueue,
 		serviceWorkqueue,
+		ingressWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()),
 		&record.FakeRecorder{},
 		"v1alpha3",

@@ -1,6 +1,9 @@
 package ingress
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -82,4 +85,54 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(rollout)
 	}
 	return c, kubeclient, enqueuedObjects
+}
+
+func TestSyncMissingIngress(t *testing.T) {
+	ctrl, _, _ := newFakeIngressController(nil, nil)
+
+	err := ctrl.syncIngress("default/test-ingress")
+	assert.NoError(t, err)
+}
+
+func TestSyncIngressNotReferencedByRollout(t *testing.T) {
+	ing := newIngress("test-stable-ingress", 80, "test-stable-service")
+
+	ctrl, kubeclient, _ := newFakeIngressController(ing, nil)
+
+	err := ctrl.syncIngress("default/test-stable-ingress")
+	assert.NoError(t, err)
+	actions := kubeclient.Actions()
+	assert.Len(t, actions, 0)
+}
+
+func TestSyncIngressReferencedByRollout(t *testing.T) {
+	ing := newIngress("test-stable-ingress", 80, "stable-service")
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rollout",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable-service",
+					CanaryService: "canary-service",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Nginx: &v1alpha1.NginxTrafficRouting{
+							StableIngress: "test-stable-ingress",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, rollout)
+
+	err := ctrl.syncIngress("default/test-stable-ingress")
+	assert.NoError(t, err)
+	actions := kubeclient.Actions()
+	assert.Len(t, actions, 0)
+	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
 }

@@ -44,13 +44,13 @@ type Reconciler struct {
 	defaultAPIVersion string
 }
 
-// Type indicates this reconciler is an Istio reconciler
+// Type indicates this reconciler is an Nginx reconciler
 func (r *Reconciler) Type() string {
 	return Type
 }
 
 // canaryIngress returns the desired state of the canary ingress
-func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, currentCanaryIngress *extensionsv1beta1.Ingress, desiredWeight int32) *extensionsv1beta1.Ingress {
+func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, desiredWeight int32) *extensionsv1beta1.Ingress {
 	stableIngressName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
 	stableServiceName := r.rollout.Spec.Strategy.Canary.StableService
@@ -80,6 +80,10 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, cur
 				desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName = canaryServiceName
 			}
 		}
+	}
+
+	if desiredCanaryIngress.Annotations == nil {
+		desiredCanaryIngress.Annotations = map[string]string{}
 	}
 
 	// Process additional annotations, prepend annotationPrefix unless supplied. We are keeping all the annotations
@@ -118,7 +122,7 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 		}, extensionsv1beta1.Ingress{})
 }
 
-// Reconcile modifies Istio resources to reach desired state
+// Reconcile modifies Nginx Ingress resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	stableIngressName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
@@ -148,7 +152,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	// Construct the desired canary Ingress resource
-	desiredCanaryIngress := r.canaryIngress(stableIngress, canaryIngress, desiredWeight)
+	desiredCanaryIngress := r.canaryIngress(stableIngress, desiredWeight)
 
 	if !canaryIngressExists {
 		msg := fmt.Sprintf("Creating canary Ingress `%s` at desiredWeight '%d'", canaryIngressName, desiredWeight)
