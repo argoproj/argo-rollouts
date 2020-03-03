@@ -85,3 +85,5 @@ rules:
     - secrets
   verbs:
     - get
+    - list
+    - watch

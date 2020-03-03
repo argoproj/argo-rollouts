@@ -49,10 +49,9 @@ spec:
                                   type: string
                                 name:
                                   type: string
-                                optional:
-                                  type: boolean
                               required:
                               - key
+                              - name
                               type: object
                           type: object
                       required:

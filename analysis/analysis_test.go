@@ -1043,7 +1043,7 @@ func TestResolveMetricArgs(t *testing.T) {
 			Value: &arg2,
 		},
 	}
-	metric1 := v1alpha1.Metric{ Name: "metricName", SuccessCondition: "result > {{args.metricName}}"}
+	metric1 := v1alpha1.Metric{Name: "metricName", SuccessCondition: "result > {{args.metricName}}"}
 	metric2 := v1alpha1.Metric{Name: "metricName2", SuccessCondition: "result < {{args.metricName2}}"}
 	newMetric1, _ := c.resolveMetricArgs(metric1, arguments)
 	newMetric2, _ := c.resolveMetricArgs(metric2, arguments)
@@ -1058,7 +1058,7 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	arg := "foo \"bar\" baz"
 
-	arguments := []v1alpha1.Argument{{Name: "rate", Value: &arg,}}
+	arguments := []v1alpha1.Argument{{Name: "rate", Value: &arg}}
 	metric := v1alpha1.Metric{Name: "rate", SuccessCondition: "{{args.rate}}"}
 	newMetric, err := c.resolveMetricArgs(metric, arguments)
 	assert.NoError(t, err)
@@ -1099,11 +1099,9 @@ func TestSecretContentReferenceValueFromError(t *testing.T) {
 				Name:  argname,
 				Value: &argval,
 				ValueFrom: &v1alpha1.ValueFrom{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "webMetricSecret",
-						},
-						Key: "apikey",
+					SecretKeyRef: &v1alpha1.SecretKeyRef{
+						Name: "webMetricSecret",
+						Key:  "apikey",
 					},
 				}},
 			},
@@ -1149,11 +1147,9 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 			Args: []v1alpha1.Argument{{
 				Name: argname,
 				ValueFrom: &v1alpha1.ValueFrom{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "webMetricSecret",
-						},
-						Key: "apikey",
+					SecretKeyRef: &v1alpha1.SecretKeyRef{
+						Name: "webMetricSecret",
+						Key:  "apikey",
 					},
 				},
 			}},
@@ -1203,11 +1199,9 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 				{
 					Name: "secret",
 					ValueFrom: &v1alpha1.ValueFrom{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secretname,
-							},
-							Key: secretkey,
+						SecretKeyRef: &v1alpha1.SecretKeyRef{
+							Name: secretname,
+							Key:  secretkey,
 						},
 					},
 				},
@@ -1271,11 +1265,9 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 				{
 					Name: "secret",
 					ValueFrom: &v1alpha1.ValueFrom{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secretname,
-							},
-							Key: secretkey,
+						SecretKeyRef: &v1alpha1.SecretKeyRef{
+							Name: secretname,
+							Key:  secretkey,
 						},
 					},
 				},

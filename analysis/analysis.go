@@ -219,7 +219,7 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 				err := fmt.Errorf("arg %s has both Value and ValueFrom fields", arg.Name)
 				return nil, nil, err
 			}
-			name := arg.ValueFrom.SecretKeyRef.LocalObjectReference.Name
+			name := arg.ValueFrom.SecretKeyRef.Name
 			secret, err := c.secretLister.Secrets(namespace).Get(name)
 			if err != nil {
 				return nil, nil, err

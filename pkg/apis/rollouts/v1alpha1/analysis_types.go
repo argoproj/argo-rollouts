@@ -4,7 +4,6 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -207,7 +206,14 @@ type Argument struct {
 type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
-	SecretKeyRef *corev1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty"`
+}
+
+type SecretKeyRef struct {
+	// Name is the name of the secret
+	Name string `json:"name"`
+	// Key is the key of the secret to select from.
+	Key string `json:"key"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
