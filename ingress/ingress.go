@@ -66,7 +66,6 @@ func NewIngressController(
 	util.CheckErr(rolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		ingressIndexName: func(obj interface{}) (strings []string, e error) {
 			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
-				log.Errorf("getting ingresses for %s", rollout.Name)
 				return ingressutil.GetRolloutIngressKeys(rollout), nil
 			}
 			return []string{}, nil
@@ -113,7 +112,7 @@ func (c *IngressController) syncIngress(key string) error {
 	}
 	ing, err := c.ingressLister.Ingresses(namespace).Get(name)
 	if errors.IsNotFound(err) {
-		log.WithField(logutil.ServiceKey, key).Infof("Service %v has been deleted", key)
+		log.WithField(logutil.IngressKey, key).Infof("Ingress %v has been deleted", key)
 		return nil
 	}
 	if err != nil {
@@ -122,6 +121,7 @@ func (c *IngressController) syncIngress(key string) error {
 
 	if rollouts, err := c.getRolloutsByIngress(ing.Namespace, ing.Name); err == nil {
 		for i := range rollouts {
+			// reconciling the Rollout will ensure the canaryIngress is updated or created
 			c.enqueueRollout(rollouts[i])
 		}
 	}

@@ -17,7 +17,7 @@ Argo Rollout additionally uses
 
 Run the following commands to install them:
 ```bash
-go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
+go get -u sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.2 # versions v0.2.3 and higher generate CRD no longer compatible with some older kubernetes versions
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 

@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func newIngress(name string, port int, selector map[string]string) *extensionsv1beta1.Ingress {
+func newIngress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
 	return &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -31,8 +31,8 @@ func newIngress(name string, port int, selector map[string]string) *extensionsv1
 								extensionsv1beta1.HTTPIngressPath{
 									Path: "/foo",
 									Backend: extensionsv1beta1.IngressBackend{
-										ServiceName: "test-service",
-										ServicePort: intstr.FromInt(8080),
+										ServiceName: serviceName,
+										ServicePort: intstr.FromInt(port),
 									},
 								},
 							},
