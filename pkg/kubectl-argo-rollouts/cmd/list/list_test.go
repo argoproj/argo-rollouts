@@ -88,7 +88,7 @@ func TestListCmdUsage(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "Usage:\n  list [flags]\n  list [command]")
+	assert.Contains(t, stderr, "Usage:\n  list <rollout|experiment> RESOURCE [flags]\n  list [command]")
 }
 
 func TestListRolloutsCmdUsage(t *testing.T) {
