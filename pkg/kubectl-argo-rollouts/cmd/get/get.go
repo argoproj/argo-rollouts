@@ -76,7 +76,7 @@ type GetOptions struct {
 // NewCmdGet returns a new instance of an `rollouts get` command
 func NewCmdGet(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "get",
+		Use:   "get <rollout|experiment> RESOURCE",
 		Short: "Get details about rollouts, experiments",
 		Example: o.Example(`
   # Get a rollout

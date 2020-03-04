@@ -12,7 +12,8 @@ Argo Rollouts offers a Kubectl plugin to enrich the experience with Rollouts, Ex
 curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
 ```
 
-Note: For Linux dist, replace `darwin` with `linux`
+!!! tip 
+    For Linux dist, replace `darwin` with `linux`
 
 1. Make the kubectl-argo-rollouts binary executable.
 

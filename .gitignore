@@ -9,3 +9,5 @@ debug.test
 coverage.out
 coverage.html
 site/
+# generated
+docs/generated

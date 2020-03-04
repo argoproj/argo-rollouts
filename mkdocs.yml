@@ -28,12 +28,14 @@ nav:
       - Overview: features/traffic-management/index.md
       - Istio: features/traffic-management/istio.md 
       - NGINX: features/traffic-management/nginx.md 
-    - Kubectl Plugin: features/kubectl-plugin.md
     - HPA Support: features/hpa-support.md
     - Kustomize Support: features/kustomize.md
     - Controller Metrics: features/controller-metrics.md
   - Experiments: features/experiment.md
   - Analysis: features/analysis.md
+  - Kubectl Plugin: 
+        - Overview: features/kubectl-plugin.md
+        - Commands: generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
   - Contributing: CONTRIBUTING.md
   - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones

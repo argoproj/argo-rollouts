@@ -22,7 +22,8 @@ On GKE, you will need grant your account the ability to create new cluster roles
 kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
 ```
 
-Note: The cluster-level installation assumes that Argo Rollouts is deployed into the `argo-rollouts` namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the `ClusterRoleBinding` resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.
+!!! note 
+    The cluster-level installation assumes that Argo Rollouts is deployed into the `argo-rollouts` namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the `ClusterRoleBinding` resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.
 
 ### Namespace-Level Installation
 ```bash
