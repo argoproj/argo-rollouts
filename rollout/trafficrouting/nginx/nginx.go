@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -51,7 +52,7 @@ func (r *Reconciler) Type() string {
 }
 
 // canaryIngress returns the desired state of the canary ingress
-func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, desiredWeight int32) *extensionsv1beta1.Ingress {
+func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, desiredWeight int32) (*extensionsv1beta1.Ingress, error) {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
 	stableServiceName := r.cfg.Rollout.Spec.Strategy.Canary.StableService
@@ -75,12 +76,17 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	desiredCanaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(r.cfg.Rollout, r.cfg.ControllerKind)})
 
 	// Change all references to the stable service to point to the canary service instead
+	var hasStableServiceBackendRule bool
 	for ir := 0; ir < len(desiredCanaryIngress.Spec.Rules); ir++ {
 		for ip := 0; ip < len(desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths); ip++ {
 			if desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName == stableServiceName {
+				hasStableServiceBackendRule = true
 				desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName = canaryServiceName
 			}
 		}
+	}
+	if !hasStableServiceBackendRule {
+		return nil, errors.New(fmt.Sprintf("ingress `%s` has no rules using service %s backend", stableIngressName, stableServiceName))
 	}
 
 	if desiredCanaryIngress.Annotations == nil {
@@ -100,7 +106,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary", annotationPrefix)] = "true"
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary-weight", annotationPrefix)] = fmt.Sprintf("%d", desiredWeight)
 
-	return desiredCanaryIngress
+	return desiredCanaryIngress, nil
 }
 
 // compareCanaryIngresses compares the current canaryIngress with the desired one and returns a patch
@@ -131,10 +137,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	// Check if stable ingress exists, error if it does not
 	stableIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			msg := fmt.Sprintf("Ingress `%s` not found", stableIngressName)
-			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "StableIngressNotFound", msg)
-		}
+		r.log.WithField(logutil.IngressKey, stableIngressName).Errorf("Error retrieving ingress: %v", err)
 		return err
 	}
 
@@ -145,15 +148,20 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			// An error other than "not found" occurred
-			r.log.WithField(logutil.IngressKey, canaryIngressName).Errorf("Error retrieving canary ingress `%s`: %v", canaryIngressName, err)
-			return err
+			msg := fmt.Sprintf("Error retrieving canary ingress `%s`: %v", canaryIngressName, err)
+			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
+			return errors.New(msg)
 		}
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("Canary ingress `%s` not found, creating", canaryIngressName)
 		canaryIngressExists = false
 	}
 
 	// Construct the desired canary Ingress resource
-	desiredCanaryIngress := r.canaryIngress(stableIngress, desiredWeight)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, desiredWeight)
+	if err != nil {
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+		return err
+	}
 
 	if !canaryIngressExists {
 		msg := fmt.Sprintf("Creating canary Ingress `%s` at desiredWeight '%d'", canaryIngressName, desiredWeight)
@@ -167,13 +175,24 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		if err != nil {
 			msg := fmt.Sprintf("Cannot create or update canary ingress `%s`: %v", canaryIngressName, err)
 			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressFailed", msg)
-			return err
+			return errors.New(msg)
 		}
 		return nil
 	}
 
 	// Canary Ingress already exists, apply a patch if needed
+
+	// Validate Owner reference matches. If it does not, it means the canary ingress resource
+	// was created outside of this controller and must not be modified
+	if len(canaryIngress.GetOwnerReferences()) == 0 {
+		err := errors.New(fmt.Sprintf("canary ingress %s already exists with no OwnerReferences", canaryIngressName))
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+		return err
+	} else if desiredCanaryIngress.OwnerReferences[0].UID != r.cfg.Rollout.GetUID() {
+		err := errors.New(fmt.Sprintf("canary ingress %s already exists with different owner", canaryIngressName))
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+		return err
+	}
 
 	// Make patches
 	patch, modified, err := compareCanaryIngresses(canaryIngress, desiredCanaryIngress)
@@ -181,8 +200,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		msg := fmt.Sprintf("Error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
-		return err
+		return errors.New(msg)
 	}
 	if !modified {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("No changes to canary ingress `%s` - skipping patch", canaryIngressName)
@@ -198,8 +216,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		msg := fmt.Sprintf("Cannot patch canary ingress `%s`: %v", canaryIngressName, err)
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
-		return err
+		return errors.New(msg)
 	}
 
 	return nil
