@@ -28,7 +28,7 @@ func newCanaryRollout() *v1alpha1.Rollout {
 						},
 						{
 							Pause: &v1alpha1.RolloutPause{
-								Duration: pointer.Int32Ptr(60),
+								Duration: v1alpha1.DurationFromInt(60),
 							},
 						},
 						{

@@ -1171,7 +1171,7 @@ func (in *RolloutPause) DeepCopyInto(out *RolloutPause) {
 	*out = *in
 	if in.Duration != nil {
 		in, out := &in.Duration, &out.Duration
-		*out = new(int32)
+		*out = new(intstr.IntOrString)
 		**out = **in
 	}
 	return
