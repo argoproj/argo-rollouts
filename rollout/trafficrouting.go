@@ -24,7 +24,12 @@ func (c *RolloutController) NewTrafficRoutingReconciler(roCtx rolloutContext) Tr
 		return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion)
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
-		return nginx.NewReconciler(rollout, c.kubeclientset, c.recorder, controllerKind)
+		return nginx.NewReconciler(nginx.ReconcilerConfig{
+			Rollout:        rollout,
+			Client:         c.kubeclientset,
+			Recorder:       c.recorder,
+			ControllerKind: controllerKind,
+		})
 	}
 	return nil
 }

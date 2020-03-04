@@ -65,7 +65,7 @@ type Manager struct {
 	experimentController *experiments.ExperimentController
 	analysisController   *analysis.AnalysisController
 	serviceController    *service.ServiceController
-	ingressController    *ingress.IngressController
+	ingressController    *ingress.Controller
 
 	rolloutSynced          cache.InformerSynced
 	experimentSynced       cache.InformerSynced
@@ -181,14 +181,15 @@ func NewManager(
 		serviceWorkqueue,
 		metricsServer)
 
-	ingressController := ingress.NewIngressController(
-		kubeclientset,
-		ingressesInformer,
-		rolloutsInformer,
-		resyncPeriod,
-		rolloutWorkqueue,
-		ingressWorkqueue,
-		metricsServer)
+	ingressController := ingress.NewController(ingress.ControllerConfig{
+		IngressInformer:  ingressesInformer,
+		IngressWorkQueue: ingressWorkqueue,
+
+		RolloutsInformer: rolloutsInformer,
+		RolloutWorkQueue: rolloutWorkqueue,
+
+		MetricsServer: metricsServer,
+	})
 
 	cm := &Manager{
 		metricsServer:          metricsServer,

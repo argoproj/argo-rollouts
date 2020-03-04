@@ -47,7 +47,7 @@ func newIngress(name string, port int, serviceName string) *extensionsv1beta1.In
 	}
 }
 
-func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.Rollout) (*IngressController, *k8sfake.Clientset, map[string]int) {
+func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.Rollout) (*Controller, *k8sfake.Clientset, map[string]int) {
 	client := fake.NewSimpleClientset()
 	kubeclient := k8sfake.NewSimpleClientset()
 	i := informers.NewSharedInformerFactory(client, 0)
@@ -56,13 +56,15 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
-	c := NewIngressController(kubeclient,
-		k8sI.Extensions().V1beta1().Ingresses(),
-		i.Argoproj().V1alpha1().Rollouts(),
-		0,
-		rolloutWorkqueue,
-		ingressWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister()))
+	c := NewController(ControllerConfig{
+		IngressInformer:  k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWorkQueue: ingressWorkqueue,
+
+		RolloutsInformer: i.Argoproj().V1alpha1().Rollouts(),
+		RolloutWorkQueue: rolloutWorkqueue,
+
+		MetricsServer: metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+	})
 	enqueuedObjects := map[string]int{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string

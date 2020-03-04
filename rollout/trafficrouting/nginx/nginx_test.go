@@ -79,7 +79,9 @@ func checkBackendService(t *testing.T, ing *extensionsv1beta1.Ingress, serviceNa
 
 func TestCanaryIngressCreate(t *testing.T) {
 	r := Reconciler{
-		rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		cfg: ReconcilerConfig{
+			Rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 
@@ -92,7 +94,9 @@ func TestCanaryIngressCreate(t *testing.T) {
 
 func TestCanaryIngressPatchWeight(t *testing.T) {
 	r := Reconciler{
-		rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		cfg: ReconcilerConfig{
+			Rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	canaryIngress := ingress("canary-ingress", 80, "canary-service")
@@ -113,7 +117,9 @@ func TestCanaryIngressPatchWeight(t *testing.T) {
 
 func TestCanaryIngressUpdatedRoute(t *testing.T) {
 	r := Reconciler{
-		rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		cfg: ReconcilerConfig{
+			Rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	stableIngress.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
@@ -135,7 +141,9 @@ func TestCanaryIngressUpdatedRoute(t *testing.T) {
 
 func TestCanaryIngressRetainIngressClass(t *testing.T) {
 	r := Reconciler{
-		rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		cfg: ReconcilerConfig{
+			Rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	stableIngress.SetAnnotations(map[string]string{
@@ -152,9 +160,11 @@ func TestCanaryIngressRetainIngressClass(t *testing.T) {
 
 func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 	r := Reconciler{
-		rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		cfg: ReconcilerConfig{
+			Rollout: rollout("stable-service", "canary-service", "stable-ingress"),
+		},
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
+	r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
 		"canary-by-header":       "X-Foo",
 		"canary-by-header-value": "DoCanary",
 	}
@@ -173,7 +183,12 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	rollout := rollout("stable-service", "canary-service", "stable-ingress")
-	r := NewReconciler(rollout, client, &record.FakeRecorder{}, schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"})
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
 	assert.Equal(t, Type, r.Type())
 }
 
@@ -181,7 +196,12 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 	rollout := rollout("stable-service", "canary-service", "stable-ingress")
 	client := fake.NewSimpleClientset()
 
-	r := NewReconciler(rollout, client, &record.FakeRecorder{}, schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"})
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
 
 	err := r.Reconcile(10)
 	assert.NotNil(t, err, "Reconcile returns error")
@@ -194,7 +214,12 @@ func TestReconcileStableIngressFound(t *testing.T) {
 
 	client := fake.NewSimpleClientset(stableIngress)
 
-	r := NewReconciler(rollout, client, &record.FakeRecorder{}, schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"})
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
 
 	err := r.Reconcile(10)
 	assert.Nil(t, err, "Reconcile returns no error")
@@ -218,7 +243,12 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 	})
 	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
 
-	r := NewReconciler(rollout, client, &record.FakeRecorder{}, schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"})
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
 
 	err := r.Reconcile(10)
 	assert.Nil(t, err, "Reconcile returns no error")
@@ -242,7 +272,12 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 	})
 	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
 
-	r := NewReconciler(rollout, client, &record.FakeRecorder{}, schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"})
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
 
 	err := r.Reconcile(10)
 	assert.Nil(t, err, "Reconcile returns no error")

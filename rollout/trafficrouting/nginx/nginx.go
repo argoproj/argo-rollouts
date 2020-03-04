@@ -20,27 +20,29 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
+// Type holds this controller type
 const Type = "Nginx"
 
-// NewReconciler returns a reconciler struct that brings the canary Ingress into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client kubernetes.Interface, recorder record.EventRecorder, controllerKind schema.GroupVersionKind) *Reconciler {
-	return &Reconciler{
-		rollout: r,
-		log:     logutil.WithRollout(r),
-
-		client:         client,
-		recorder:       recorder,
-		controllerKind: controllerKind,
-	}
+// ReconcilerConfig describes static configuration data for the nginx reconciler
+type ReconcilerConfig struct {
+	Rollout        *v1alpha1.Rollout
+	Client         kubernetes.Interface
+	Recorder       record.EventRecorder
+	ControllerKind schema.GroupVersionKind
 }
 
 // Reconciler holds required fields to reconcile Nginx resources
 type Reconciler struct {
-	rollout        *v1alpha1.Rollout
-	log            *logrus.Entry
-	client         kubernetes.Interface
-	recorder       record.EventRecorder
-	controllerKind schema.GroupVersionKind
+	cfg ReconcilerConfig
+	log *logrus.Entry
+}
+
+// NewReconciler returns a reconciler struct that brings the canary Ingress into the desired state
+func NewReconciler(cfg ReconcilerConfig) *Reconciler {
+	return &Reconciler{
+		cfg: cfg,
+		log: logutil.WithRollout(cfg.Rollout),
+	}
 }
 
 // Type indicates this reconciler is an Nginx reconciler
@@ -50,11 +52,11 @@ func (r *Reconciler) Type() string {
 
 // canaryIngress returns the desired state of the canary ingress
 func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, desiredWeight int32) *extensionsv1beta1.Ingress {
-	stableIngressName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
+	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
-	stableServiceName := r.rollout.Spec.Strategy.Canary.StableService
-	canaryServiceName := r.rollout.Spec.Strategy.Canary.CanaryService
-	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.rollout)
+	stableServiceName := r.cfg.Rollout.Spec.Strategy.Canary.StableService
+	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
+	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.cfg.Rollout)
 
 	desiredCanaryIngress := stableIngress.DeepCopy()
 
@@ -70,7 +72,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	delete(desiredCanaryIngress.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
 	// Ensure canaryIngress is owned by this Rollout for cleanup
-	desiredCanaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(r.rollout, r.controllerKind)})
+	desiredCanaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(r.cfg.Rollout, r.cfg.ControllerKind)})
 
 	// Change all references to the stable service to point to the canary service instead
 	for ir := 0; ir < len(desiredCanaryIngress.Spec.Rules); ir++ {
@@ -88,7 +90,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	// Process additional annotations, prepend annotationPrefix unless supplied. We are keeping all the annotations
 	// from the stableIngress since the controller automatically ignores most of them anyway:
 	// See: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary
-	for k, v := range r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations {
+	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations {
 		if !strings.HasPrefix(k, annotationPrefix) {
 			k = fmt.Sprintf("%s/%s", annotationPrefix, k)
 		}
@@ -123,21 +125,21 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 
 // Reconcile modifies Nginx Ingress resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
-	stableIngressName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
+	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
 
 	// Check if stable ingress exists, error if it does not
-	stableIngress, err := r.client.ExtensionsV1beta1().Ingresses(r.rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
+	stableIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			msg := fmt.Sprintf("Ingress `%s` not found", stableIngressName)
-			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "StableIngressNotFound", msg)
+			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "StableIngressNotFound", msg)
 		}
 		return err
 	}
 
 	// Check if canary ingress exists, determines whether we later call Create() or Update()
-	canaryIngress, err := r.client.ExtensionsV1beta1().Ingresses(r.rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
+	canaryIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
 
 	canaryIngressExists := true
 	if err != nil {
@@ -156,16 +158,16 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if !canaryIngressExists {
 		msg := fmt.Sprintf("Creating canary Ingress `%s` at desiredWeight '%d'", canaryIngressName, desiredWeight)
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Info(msg)
-		r.recorder.Event(r.rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", msg)
+		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", msg)
 		// Remove fields which must never be sent on a Create()
 		desiredCanaryIngress.SetResourceVersion("")
 		desiredCanaryIngress.SetSelfLink("")
 		desiredCanaryIngress.SetUID("")
-		_, err = r.client.ExtensionsV1beta1().Ingresses(r.rollout.Namespace).Create(desiredCanaryIngress)
+		_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Create(desiredCanaryIngress)
 		if err != nil {
 			msg := fmt.Sprintf("Cannot create or update canary ingress `%s`: %v", canaryIngressName, err)
 			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "CanaryIngressFailed", msg)
+			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressFailed", msg)
 			return err
 		}
 		return nil
@@ -179,7 +181,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		msg := fmt.Sprintf("Error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		r.recorder.Event(r.rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
+		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
 		return err
 	}
 	if !modified {
@@ -190,13 +192,13 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	r.log.WithField(logutil.IngressKey, canaryIngressName).Debugf("Canary Ingress patch: %s", patch)
 	msg := fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
 	r.log.WithField(logutil.IngressKey, canaryIngressName).Info(msg)
-	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", msg)
-	_, err = r.client.ExtensionsV1beta1().Ingresses(r.rollout.Namespace).Patch(canaryIngressName, types.MergePatchType, patch)
+	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", msg)
+	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(canaryIngressName, types.MergePatchType, patch)
 
 	if err != nil {
 		msg := fmt.Sprintf("Cannot patch canary ingress `%s`: %v", canaryIngressName, err)
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		r.recorder.Event(r.rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
+		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "CanaryIngressPatchError", msg)
 		return err
 	}
 
