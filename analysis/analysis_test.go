@@ -1059,11 +1059,11 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	arg := "foo \"bar\" baz"
 
 	arguments := []v1alpha1.Argument{{
-		Name: "rate",
+		Name:  "rate",
 		Value: &arg,
 	}}
 	metric := v1alpha1.Metric{
-		Name: "rate",
+		Name:             "rate",
 		SuccessCondition: "{{args.rate}}",
 	}
 	newMetric, err := c.resolveMetricArgs(metric, arguments)
