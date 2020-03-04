@@ -124,9 +124,9 @@ clean: clean-debug
 .PHONY: precheckin
 precheckin: test lint
 
-.PHONY release-docs
+.PHONY: release-docs
 release-docs: plugin-docs
-    mkdocs gh-deploy
+	mkdocs gh-deploy
 
 .PHONY: release-precheck
 release-precheck: manifests
