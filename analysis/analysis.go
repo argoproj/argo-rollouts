@@ -209,7 +209,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
 func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
-	//create set of secrets for redaction
+	//create set of secret values for redaction
 	secretSet := map[string]bool{}
 	for i, arg := range args {
 		//if secret specified in valueFrom, replace value with secret value
@@ -224,10 +224,6 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 				return nil, nil, err
 			}
 			name := arg.ValueFrom.SecretKeyRef.Name
-			if name == "" {
-				err := fmt.Errorf("secret referenced by arg %s has ", arg.Name) //TODO: fix message
-				return nil, nil, err
-			}
 			secret, err := c.secretLister.Secrets(namespace).Get(name)
 			if err != nil {
 				return nil, nil, err
@@ -248,7 +244,7 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 		}
 	}
 
-	// creates list of secrets from secretSet for RedactorFormatter
+	// creates list of secret values from secretSet for RedactorFormatter
 	secrets := make([]string, 0, len(secretSet))
 	for k := range secretSet {
 		secrets = append(secrets, k)
@@ -274,6 +270,8 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 	var resultsLock sync.Mutex
 	terminating := analysisutil.IsTerminating(run)
 
+	// resolve args for metricTasks
+	// get list of secret values for log redaction
 	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
 	if err != nil {
 		return err
@@ -284,7 +282,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 
 		go func(t metricTask) {
 			defer wg.Done()
-			//redact secrets from logs
+			//redact secret values from logs
 			log := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			resultsLock.Lock()
@@ -352,7 +350,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 				}
 			}
 
-			//redact secrets from measurement message
+			//redact secret values from measurement message
 			for _, secret := range secrets {
 				if secret != "" {
 					newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")

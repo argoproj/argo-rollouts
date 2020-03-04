@@ -34,7 +34,7 @@ func WithAnalysisRun(ar *v1alpha1.AnalysisRun) *log.Entry {
 	return log.WithField(AnalysisRunKey, ar.Name).WithField(NamespaceKey, ar.Namespace)
 }
 
-// WithRedactor returns a log entry with the inputted secrets redacted
+// WithRedactor returns a log entry with the inputted secret values redacted
 func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
 	newFormatter := RedactorFormatter{
 		entry.Logger.Formatter,
