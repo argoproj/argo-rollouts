@@ -22,7 +22,7 @@ type ListOptions struct {
 // NewCmdList returns a new instance of an `rollouts list` command
 func NewCmdList(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "list",
+		Use:   "list <rollout|experiment> RESOURCE",
 		Short: "List rollouts, experiments",
 		Example: o.Example(`
   # List rollouts
