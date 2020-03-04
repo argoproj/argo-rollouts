@@ -102,6 +102,7 @@ func NewManager(
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
+	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	defaultIstioVersion string,
 ) *Manager {
 
@@ -116,14 +117,17 @@ func NewManager(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
+	metricsServer := metrics.NewMetricsServer(
+		metricsAddr,
+		rolloutsInformer.Lister(),
+		k8sRequestProvider,
+	)
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
-
-	metricsServer := metrics.NewMetricsServer(metricsAddr, rolloutsInformer.Lister())
 
 	rolloutController := rollout.NewRolloutController(
 		namespace,

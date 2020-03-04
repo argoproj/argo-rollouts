@@ -19,11 +19,13 @@ import (
 	"k8s.io/klog"
 
 	"github.com/argoproj/argo-rollouts/controller"
+	"github.com/argoproj/argo-rollouts/controller/metrics"
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 )
 
 const (
@@ -72,6 +74,8 @@ func newCommand() *cobra.Command {
 				namespace = configNS
 				log.Infof("Using namespace %s", namespace)
 			}
+			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
 
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)
@@ -115,6 +119,7 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				instanceID,
 				metricsPort,
+				k8sRequestProvider,
 				defaultIstioVersion)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
