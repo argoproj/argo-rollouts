@@ -65,6 +65,7 @@ type Manager struct {
 	experimentSynced       cache.InformerSynced
 	analysisRunSynced      cache.InformerSynced
 	analysisTemplateSynced cache.InformerSynced
+	secretSynced           cache.InformerSynced
 	serviceSynced          cache.InformerSynced
 	jobSynced              cache.InformerSynced
 	replicasSetSynced      cache.InformerSynced
@@ -85,6 +86,7 @@ func NewManager(
 	dynamicclientset dynamic.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
+	secretInformer coreinformers.SecretInformer,
 	jobInformer batchinformers.JobInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
@@ -154,6 +156,7 @@ func NewManager(
 		kubeclientset,
 		argoprojclientset,
 		analysisRunInformer,
+		secretInformer,
 		jobInformer,
 		resyncPeriod,
 		analysisRunWorkqueue,
@@ -173,6 +176,7 @@ func NewManager(
 		metricsServer:          metricsServer,
 		rolloutSynced:          rolloutsInformer.Informer().HasSynced,
 		serviceSynced:          servicesInformer.Informer().HasSynced,
+		secretSynced:           secretInformer.Informer().HasSynced,
 		jobSynced:              jobInformer.Informer().HasSynced,
 		experimentSynced:       experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
@@ -205,7 +209,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, experimentThreadin
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.jobSynced, c.secretSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 

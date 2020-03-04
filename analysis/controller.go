@@ -8,7 +8,9 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -30,6 +32,8 @@ type AnalysisController struct {
 	kubeclientset kubernetes.Interface
 	// analysisclientset is a clientset for our own API group
 	argoProjClientset clientset.Interface
+
+	secretLister corelisters.SecretLister
 
 	analysisRunLister listers.AnalysisRunLister
 
@@ -62,6 +66,7 @@ func NewAnalysisController(
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	analysisRunInformer informers.AnalysisRunInformer,
+	secretInformer coreinformers.SecretInformer,
 	jobInformer batchinformers.JobInformer,
 	resyncPeriod time.Duration,
 	analysisRunWorkQueue workqueue.RateLimitingInterface,
@@ -74,6 +79,7 @@ func NewAnalysisController(
 		analysisRunLister:    analysisRunInformer.Lister(),
 		metricsServer:        metricsServer,
 		analysisRunWorkQueue: analysisRunWorkQueue,
+		secretLister:         secretInformer.Lister(),
 		jobInformer:          jobInformer,
 		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
 		recorder:             recorder,

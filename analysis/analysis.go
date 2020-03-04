@@ -3,6 +3,7 @@ package analysis
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,7 +62,9 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		}
 	}
 
-	err := c.resolveMetricArgs(run)
+	tasks := generateMetricTasks(run)
+	log.Infof("taking %d measurements", len(tasks))
+	err := c.runMeasurements(run, tasks)
 	if err != nil {
 		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
 		log.Warn(message)
@@ -70,10 +73,6 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
 		return run
 	}
-
-	tasks := generateMetricTasks(run)
-	log.Infof("taking %d measurements", len(tasks))
-	c.runMeasurements(run, tasks)
 
 	newStatus := c.asssessRunStatus(run)
 	if newStatus != run.Status.Phase {
@@ -108,25 +107,25 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 	return run
 }
 
-// Resolves args for all metrics in AnalysisRun
+// resolveMetricArgs resolves args for single metric in AnalysisRun
+// Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
-func (c *AnalysisController) resolveMetricArgs(run *v1alpha1.AnalysisRun) error {
-	metricBytes, err := json.Marshal(run.Spec.Metrics)
+func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
+	metricBytes, err := json.Marshal(metric)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var newMetricStr string
-	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), run.Spec.Args)
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var newMetrics []v1alpha1.Metric
-	err = json.Unmarshal([]byte(newMetricStr), &newMetrics)
+	var newMetric v1alpha1.Metric
+	err = json.Unmarshal([]byte(newMetricStr), &newMetric)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	run.Spec.Metrics = newMetrics
-	return nil
+	return &newMetric, nil
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -207,20 +206,84 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	return tasks
 }
 
+// resolveArgs resolves args for metricTasks, including secret references
+// returns resolved metricTasks and secrets for log redaction
+func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
+	//create set of secret values for redaction
+	secretSet := map[string]bool{}
+	for i, arg := range args {
+		//if secret specified in valueFrom, replace value with secret value
+		//error if arg has both value and valueFrom
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				err := fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
+				return nil, nil, err
+			}
+			if arg.ValueFrom.SecretKeyRef == nil {
+				err := fmt.Errorf("arg '%s' does not contain a secret reference", arg.Name)
+				return nil, nil, err
+			}
+			name := arg.ValueFrom.SecretKeyRef.Name
+			secret, err := c.secretLister.Secrets(namespace).Get(name)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+			if !ok {
+				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+				return nil, nil, err
+			}
+			secretContent := string(secretContentBytes)
+			secretSet[secretContent] = true
+			resolvedArg := arg.DeepCopy()
+			resolvedArg.Value = &secretContent
+			args[i] = *resolvedArg
+		} else {
+			args[i] = arg
+		}
+	}
+
+	// creates list of secret values from secretSet for RedactorFormatter
+	secrets := make([]string, 0, len(secretSet))
+	for k := range secretSet {
+		secrets = append(secrets, k)
+	}
+
+	// resolves arguments in each metric task
+	for i, task := range tasks {
+		resolvedMetric, err := c.resolveMetricArgs(task.metric, args)
+		if err != nil {
+			return nil, nil, err
+		}
+		tasks[i].metric = *resolvedMetric
+	}
+
+	return tasks, secrets, nil
+}
+
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) {
+func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
 	var resultsLock sync.Mutex
 	terminating := analysisutil.IsTerminating(run)
 
+	// resolve args for metricTasks
+	// get list of secret values for log redaction
+	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
+	if err != nil {
+		return err
+	}
+
 	for _, task := range tasks {
 		wg.Add(1)
 
 		go func(t metricTask) {
 			defer wg.Done()
-			log := logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name)
+			//redact secret values from logs
+			log := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			resultsLock.Lock()
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
@@ -286,6 +349,14 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
+
+			//redact secret values from measurement message
+			for _, secret := range secrets {
+				if secret != "" {
+					newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")
+				}
+			}
+
 			if t.incompleteMeasurement == nil {
 				metricResult.Measurements = append(metricResult.Measurements, newMeasurement)
 			} else {
@@ -299,6 +370,8 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 		}(task)
 	}
 	wg.Wait()
+
+	return nil
 }
 
 // asssessRunStatus assesses the overall status of this AnalysisRun
