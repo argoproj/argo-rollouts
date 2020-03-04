@@ -31,7 +31,6 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/valyala/fasttemplate v1.0.1
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.16.4
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.16.4
@@ -44,6 +43,7 @@ require (
 	k8s.io/kubectl v0.16.4
 	k8s.io/kubernetes v1.16.4
 	k8s.io/utils v0.0.0-20190923111123-69764acb6e8e
+	sigs.k8s.io/controller-tools v0.2.2 // indirect
 )
 
 replace (
