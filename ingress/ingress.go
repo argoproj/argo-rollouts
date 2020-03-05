@@ -110,15 +110,15 @@ func (c *Controller) syncIngress(key string) error {
 	}
 	_, err = c.ingressLister.Ingresses(namespace).Get(name)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			if !strings.HasSuffix(name, "-canary") {
-				// a primary ingress was deleted, simply ignore the event
-				log.WithField(logutil.IngressKey, key).Infof("Primary ingress %v has been deleted", key)
-				return nil
-			}
-		} else {
-			// Other unknown error occurred
+		if !errors.IsNotFound(err) {
+			// Unknown error occurred
 			return err
+		}
+
+		if !strings.HasSuffix(name, "-canary") {
+			// a primary ingress was deleted, simply ignore the event
+			log.WithField(logutil.IngressKey, key).Warn("primary ingress has been deleted")
+			return nil
 		}
 	}
 

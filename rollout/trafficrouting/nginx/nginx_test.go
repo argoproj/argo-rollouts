@@ -7,7 +7,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -214,7 +213,6 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 
 	err := r.Reconcile(10)
 	assert.NotNil(t, err, "Reconcile returns error")
-	assert.True(t, k8serrors.IsNotFound(err), "Error is IsNotFound")
 }
 
 func TestReconcileStableIngressFound(t *testing.T) {

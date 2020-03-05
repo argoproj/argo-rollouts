@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,12 +67,15 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 		MetricsServer: metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
 	})
 	enqueuedObjects := map[string]int{}
+	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
+		enqueuedObjectsLock.Lock()
+		defer enqueuedObjectsLock.Unlock()
 		count, ok := enqueuedObjects[key]
 		if !ok {
 			count = 0

@@ -137,8 +137,8 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	// Check if stable ingress exists, error if it does not
 	stableIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
 	if err != nil {
-		r.log.WithField(logutil.IngressKey, stableIngressName).Errorf("Error retrieving ingress: %v", err)
-		return err
+		r.log.WithField(logutil.IngressKey, stableIngressName).WithField("err", err.Error()).Error("error retrieving stableIngress")
+		return errors.New(fmt.Sprintf("error retrieving stableIngress `%s`: %v", stableIngressName, err))
 	}
 
 	// Check if canary ingress exists, determines whether we later call Create() or Update()
@@ -148,11 +148,10 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			// An error other than "not found" occurred
-			msg := fmt.Sprintf("Error retrieving canary ingress `%s`: %v", canaryIngressName, err)
-			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-			return errors.New(msg)
+			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error retrieving canary ingress")
+			return errors.New(fmt.Sprintf("error retrieving canary ingress `%s`: %v", canaryIngressName, err))
 		}
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("Canary ingress `%s` not found, creating", canaryIngressName)
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("canary ingress not found")
 		canaryIngressExists = false
 	}
 
@@ -164,59 +163,48 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	if !canaryIngressExists {
-		msg := fmt.Sprintf("Creating canary Ingress `%s` at desiredWeight '%d'", canaryIngressName, desiredWeight)
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Info(msg)
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", msg)
+		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("Creating canary Ingress")
+		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", fmt.Sprintf("Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight))
 		// Remove fields which must never be sent on a Create()
 		desiredCanaryIngress.SetResourceVersion("")
 		desiredCanaryIngress.SetSelfLink("")
 		desiredCanaryIngress.SetUID("")
 		_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Create(desiredCanaryIngress)
 		if err != nil {
-			msg := fmt.Sprintf("Cannot create or update canary ingress `%s`: %v", canaryIngressName, err)
-			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-			return errors.New(msg)
+			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
+			return errors.New(fmt.Sprintf("error creating canary ingress `%s`: %v", canaryIngressName, err))
 		}
 		return nil
 	}
 
 	// Canary Ingress already exists, apply a patch if needed
 
-	// Validate Owner reference matches. If it does not, it means the canary ingress resource
-	// was created outside of this controller and must not be modified
-	if len(canaryIngress.GetOwnerReferences()) == 0 {
-		err := errors.New(fmt.Sprintf("canary ingress %s already exists with no OwnerReferences", canaryIngressName))
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-		return err
-	} else if canaryIngress.OwnerReferences[0].UID != r.cfg.Rollout.GetUID() {
-		err := errors.New(fmt.Sprintf("canary ingress %s already exists with different owner", canaryIngressName))
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-		return err
+	// Only modify canaryIngress if it is controlled by this Rollout
+	if !metav1.IsControlledBy(canaryIngress, r.cfg.Rollout) {
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Error("canary ingress controlled by different object")
+		return errors.New(fmt.Sprintf("canary ingress `%s` controlled by different object", canaryIngressName))
 	}
 
 	// Make patches
 	patch, modified, err := compareCanaryIngresses(canaryIngress, desiredCanaryIngress)
 
 	if err != nil {
-		msg := fmt.Sprintf("Error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		return errors.New(msg)
+		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error constructing canary ingress patch")
+		return errors.New(fmt.Sprintf("error constructing canary ingress patch for `%s`: %v", canaryIngressName, err))
 	}
 	if !modified {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("No changes to canary ingress `%s` - skipping patch", canaryIngressName)
+		r.log.WithField(logutil.IngressKey, canaryIngressName).Info("No changes to canary ingress - skipping patch")
 		return nil
 	}
 
-	r.log.WithField(logutil.IngressKey, canaryIngressName).Debugf("Canary Ingress patch: %s", patch)
-	msg := fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
-	r.log.WithField(logutil.IngressKey, canaryIngressName).Info(msg)
-	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", msg)
-	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(canaryIngressName, types.MergePatchType, patch)
+	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", patch).Debug("applying canary Ingress patch")
+	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
+	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight))
 
+	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(canaryIngressName, types.MergePatchType, patch)
 	if err != nil {
-		msg := fmt.Sprintf("Cannot patch canary ingress `%s`: %v", canaryIngressName, err)
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(msg)
-		return errors.New(msg)
+		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error patching canary ingress")
+		return errors.New(fmt.Sprintf("error patching canary ingress `%s`: %v", canaryIngressName, err))
 	}
 
 	return nil
