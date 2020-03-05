@@ -184,7 +184,6 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 
 	// Validate Owner reference matches. If it does not, it means the canary ingress resource
 	// was created outside of this controller and must not be modified
-	r.log.Errorf("owner: %+v", canaryIngress.GetOwnerReferences())
 	if len(canaryIngress.GetOwnerReferences()) == 0 {
 		err := errors.New(fmt.Sprintf("canary ingress %s already exists with no OwnerReferences", canaryIngressName))
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
