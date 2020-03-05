@@ -245,6 +245,23 @@ func TestReconcileStableIngressFound(t *testing.T) {
 	}
 }
 
+func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
+	rollout := rollout("stable-service", "canary-service", "stable-ingress")
+	stableIngress := ingress("stable-ingress", 80, "other-service")
+
+	client := fake.NewSimpleClientset(stableIngress)
+
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
+
+	err := r.Reconcile(10)
+	assert.NotNil(t, err, "Reconcile returns error")
+}
+
 func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 	rollout := rollout("stable-service", "canary-service", "stable-ingress")
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
@@ -264,12 +281,12 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
-	other_rollout := rollout("stable-service2", "canary-service2", "stable-ingress2")
-	other_rollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
+	otherRollout := rollout("stable-service2", "canary-service2", "stable-ingress2")
+	otherRollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
 	rollout := rollout("stable-service", "canary-service", "stable-ingress")
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	canaryIngress := ingress("stable-ingress-canary", 80, "canary-service")
-	setIngressOwnerRef(canaryIngress, other_rollout)
+	setIngressOwnerRef(canaryIngress, otherRollout)
 	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
 
 	r := NewReconciler(ReconcilerConfig{
