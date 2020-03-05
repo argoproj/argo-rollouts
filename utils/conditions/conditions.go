@@ -339,7 +339,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
 			}
-			if step.Pause != nil && step.Pause.Duration != nil && *step.Pause.Duration < 0 {
+			if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
 			}
 		}

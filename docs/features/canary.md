@@ -36,9 +36,32 @@ spec:
       steps:
       - setWeight: 10
       - pause:
-          duration: 3600 # 1 hour
+          duration: "1h" # 1 hour
       - setWeight: 20
-      - pause: {}
+      - pause: {} # pause indefinitely
+```
+
+### Pause Duration
+Pause duration can be specied with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. 
+
+```yaml
+spec:
+  strategy:
+    canary:
+      steps:
+        - pause: { duration: 10 }  # 10 seconds
+        - pause: { duration: 10s } # 10 seconds
+        - pause: { duration: 10m } # 10 minutes
+        - pause: { duration: 10h } # 10 hours
+        - pause: { duration: -10 } # invalid spec!
+        - pause: {}                # pause indefinitely
+```
+
+If no `duration` specified for a pause step the rollout will be paused indefinitely. To unpause use the [argo kubectl plugin](kubectl-plugin.md) `promote` command. 
+
+```shell
+# promote to the next step
+kubectl argo rollouts promote <rollout>
 ```
 
 ## Mimicking Rolling Update
@@ -59,12 +82,13 @@ spec:
 `maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")
 
 Defaults to "25%".
+
 ### maxUnavailable
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
 Defaults to 0
 
-### CanaryService
+### canaryService
 `canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.
 
 Defaults to an empty string

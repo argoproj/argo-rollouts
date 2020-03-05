@@ -143,7 +143,7 @@ func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	if pause.Duration != nil {
 		now := metav1.Now()
 		if pauseCondition != nil {
-			expiredTime := pauseCondition.StartTime.Add(time.Duration(*pause.Duration) * time.Second)
+			expiredTime := pauseCondition.StartTime.Add(time.Duration(pause.DurationSeconds()) * time.Second)
 			if now.After(expiredTime) {
 				pCtx.log.Info("Rollout has waited the duration of the pause step")
 				return true

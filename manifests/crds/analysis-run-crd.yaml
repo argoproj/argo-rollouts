@@ -38,6 +38,19 @@ spec:
                     type: string
                   value:
                     type: string
+                  valueFrom:
+                    properties:
+                      secretKeyRef:
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
+                    type: object
                 required:
                 - name
                 type: object

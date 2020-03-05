@@ -147,7 +147,7 @@ func (c *RolloutController) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause.Duration == nil {
 		return true
 	}
-	c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *currentStep.Pause.Duration)
+	c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, currentStep.Pause.DurationSeconds())
 	return true
 }
 

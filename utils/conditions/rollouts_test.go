@@ -368,7 +368,19 @@ func TestVerifyRolloutSpecCanary(t *testing.T) {
 			name: "Pause duration is not less than 0",
 			steps: []v1alpha1.CanaryStep{{
 				Pause: &v1alpha1.RolloutPause{
-					Duration: pointer.Int32Ptr(-1),
+					Duration: v1alpha1.DurationFromInt(-1),
+				},
+			}},
+
+			notValid: true,
+			reason:   InvalidSpecReason,
+			message:  InvalidDurationMessage,
+		},
+		{
+			name: "Pause duration invalid unit",
+			steps: []v1alpha1.CanaryStep{{
+				Pause: &v1alpha1.RolloutPause{
+					Duration: v1alpha1.DurationFromString("10z"),
 				},
 			}},
 

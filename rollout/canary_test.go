@@ -798,7 +798,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 			SetWeight: int32Ptr(10),
 		}, {
 			Pause: &v1alpha1.RolloutPause{
-				Duration: int32Ptr(10),
+				Duration: v1alpha1.DurationFromInt(10),
 			},
 		},
 	}
@@ -838,7 +838,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: int32Ptr(int32(3600)), //1 hour
+				Duration: v1alpha1.DurationFromInt(3600), //1 hour
 			},
 		},
 	}
@@ -877,7 +877,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: int32Ptr(5),
+				Duration: v1alpha1.DurationFromInt(5),
 			},
 		}, {
 			Pause: &v1alpha1.RolloutPause{},
@@ -1111,7 +1111,7 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: pointer.Int32Ptr(60),
+				Duration: v1alpha1.DurationFromInt(60),
 			},
 		},
 		{
@@ -1159,7 +1159,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: pointer.Int32Ptr(60),
+				Duration: v1alpha1.DurationFromInt(60),
 			},
 		},
 		{
@@ -1200,7 +1200,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: pointer.Int32Ptr(60),
+				Duration: v1alpha1.DurationFromInt(60),
 			},
 		},
 		{

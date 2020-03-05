@@ -7,3 +7,5 @@ coverage:
     project:
       default:
         threshold: 0.1
+ignore:
+- "pkg/apis/rollouts/v1alpha1"

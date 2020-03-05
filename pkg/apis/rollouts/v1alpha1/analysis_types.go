@@ -198,6 +198,22 @@ type Argument struct {
 	// Value is the value of the argument
 	// +optional
 	Value *string `json:"value,omitempty"`
+	// ValueFrom is a reference to where a secret is stored. This field is one of the fields with valueFrom
+	// +optional
+	ValueFrom *ValueFrom `json:"valueFrom,omitempty"`
+}
+
+type ValueFrom struct {
+	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
+	// +optional
+	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty"`
+}
+
+type SecretKeyRef struct {
+	// Name is the name of the secret
+	Name string `json:"name"`
+	// Key is the key of the secret to select from.
+	Key string `json:"key"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource

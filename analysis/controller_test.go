@@ -9,6 +9,7 @@ import (
 	"github.com/bouk/monkey"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,6 +40,8 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 
+	// Secrets to put in the store.
+	secretRunLister []*corev1.Secret
 	// Objects to put in the store.
 	analysisRunLister []*v1alpha1.AnalysisRun
 	// Actions expected to happen on the client.
@@ -81,10 +84,10 @@ type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
+	f.kubeclient = k8sfake.NewSimpleClientset()
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
-	jobI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 
@@ -92,7 +95,8 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		f.kubeclient,
 		f.client,
 		i.Argoproj().V1alpha1().AnalysisRuns(),
-		jobI.Batch().V1().Jobs(),
+		k8sI.Core().V1().Secrets(),
+		k8sI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
@@ -122,6 +126,10 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
+	}
+
+	for _, s := range f.secretRunLister {
+		k8sI.Core().V1().Secrets().Informer().GetIndexer().Add(s)
 	}
 
 	return c, i, k8sI

@@ -278,8 +278,9 @@ spec:
                           pause:
                             properties:
                               duration:
-                                format: int32
-                                type: integer
+                                anyOf:
+                                - type: integer
+                                - type: string
                             type: object
                           setWeight:
                             format: int32

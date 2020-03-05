@@ -63,7 +63,7 @@ spec:
       - setWeight: 20 
         # Pauses the rollout for an hour
       - pause:
-          duration: 3600 # One hour
+          duration: "1h" # One hour
       - setWeight: 40
         # Sets .spec.paused to true and waits until the field is changed back
       - pause: {} 
