@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -108,12 +109,22 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 			schemaPath = append(schemaPath, "properties", part)
 		}
 	}
-	_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
+	schemaPath = append(schemaPath, "x-kubernetes-list-type")
+	mapType, ok, err := unstructured.NestedString(un.Object, schemaPath...)
 	checkErr(err)
 	if !ok {
 		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
 	}
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
+	if mapType == "map" {
+		schemaPath[len(schemaPath)-1] = "x-kubernetes-list-map-keys"
+		_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
+		checkErr(err)
+		if !ok {
+			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
+		}
+		unstructured.RemoveNestedField(un.Object, schemaPath...)
+	}
 }
 
 // removeDescriptions removes all descriptions which bloats the API spec
@@ -163,26 +174,17 @@ func removeResourceValidation(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
-		removeValidation(un, "spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.requests")
+		removeValidation(un, "spec.template.spec.containers[].ports")
+		removeValidation(un, "spec.template.spec.initContainers[].ports")
+		removeValidation(un, "spec.template.spec.topologySpreadConstraints")
 	case "Experiment":
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		removeValidation(un, "spec.templates[].template.spec.containers[].ports")
+		removeValidation(un, "spec.templates[].template.spec.initContainers[].ports")
+		removeValidation(un, "spec.templates[].template.spec.topologySpreadConstraints")
 	case "AnalysisTemplate", "AnalysisRun":
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].ports")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].ports")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.topologySpreadConstraints")
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}

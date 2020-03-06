@@ -53,7 +53,9 @@ go mod download
 
 The `make controller` command will build the controller.
 
-* `make codegen` - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.
+* `make codegen` - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go 
+and modifies the open-api spec. This command fails if the user has not run `go mod download` to download all the 
+dependencies of the project. 
 
 
 ## Running Tests
@@ -108,6 +110,12 @@ Install the manifests:
 ```bash
 kubectl -n argo-rollouts apply -f manifests/install.yaml
 ```
+
+## Upgrading Kubernetes Libraries
+Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been 
+pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the 
+associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The 
+`./hack/update-k8s-dependencies.sh` updates all the dependencies to the those correct versions.
 
 ## Documentation Changes
 If you need to run the mkdocs server, you will need to do the following:

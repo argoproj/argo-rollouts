@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
+	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"

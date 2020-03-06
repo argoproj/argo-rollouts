@@ -44,7 +44,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	response, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -55,6 +55,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	}
 	newMeasurement.Value = newValue
+	if len(warnings) > 0 {
+		warningMetadata := ""
+		for _, warning := range warnings {
+			warningMetadata = fmt.Sprintf(`%s"%s", `, warningMetadata, warning)
+		}
+		warningMetadata = warningMetadata[:len(warningMetadata)-2]
+		if warningMetadata != "" {
+			newMeasurement.Metadata = map[string]string{"warnings": warningMetadata}
+			p.logCtx.Warnf("Prometheus returned the following warnings: %s", warningMetadata)
+		}
+	}
 
 	newMeasurement.Phase = newStatus
 	finishedTime := metav1.Now()
