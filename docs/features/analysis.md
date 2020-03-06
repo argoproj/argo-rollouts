@@ -361,9 +361,9 @@ completes before then, the Rollout will not create another AnalysisRun and wait 
 ## BlueGreen Post Promotion Analysis
 A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
 run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
-If the `scaleDownDelaySeconds` has passed for the previous ReplicaSet, the AnalysisRun for that ReplicaSet is marked as 
-successful. If the AnalysisRun completes before the `scaleDownDelaySeconds`, the Rollout will not create another 
-AnalysisRun and wait out the rest of `scaleDownDelaySeconds` before scaling down the previous ReplicaSet.
+If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
+scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
+after the AnalysisRun completes (with a minimum of 30 seconds).
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

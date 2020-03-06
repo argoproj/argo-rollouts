@@ -1195,7 +1195,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
-				"currentPrePromotionAnalysisRun": "%s"
+				"prePromotionAnalysisRun": "%s"
 			}
 		}
 	}`, ar.Name)
@@ -1329,7 +1329,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
-	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1366,7 +1366,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 				}
 			],
 			"blueGreen": {
-				"currentPrePromotionAnalysisRun": null
+				"prePromotionAnalysisRun": null
 			}
 		}
 	}`, now, now)
@@ -1388,7 +1388,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
-	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1444,7 +1444,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
-	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1501,7 +1501,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
-	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1547,7 +1547,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseError
-	r2.Status.BlueGreen.CurrentPrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1577,7 +1577,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 			"pauseConditions": null,
 			"controllerPause":null,
 			"blueGreen": {
-				"currentPrePromotionAnalysisRun": null
+				"prePromotionAnalysisRun": null
 			}
 		}
 	}`

@@ -10724,7 +10724,7 @@ spec:
               properties:
                 activeSelector:
                   type: string
-                currentPrePromotionAnalysisRun:
+                prePromotionAnalysisRun:
                   type: string
                 previewSelector:
                   type: string

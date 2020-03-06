@@ -131,7 +131,7 @@ func (cCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun
 	if currPrePromoAr != nil && !cCtx.PauseContext().IsAborted() {
 		switch currPrePromoAr.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			cCtx.newStatus.BlueGreen.CurrentPrePromotionAnalysisRun = currPrePromoAr.Name
+			cCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 		}
 	}
 }

@@ -135,7 +135,7 @@ func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
 		return false
 	}
 
-	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.CurrentPrePromotionAnalysisRun)
+	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.PrePromotionAnalysisRun)
 	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}

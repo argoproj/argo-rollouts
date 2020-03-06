@@ -555,9 +555,9 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"currentPrePromotionAnalysisRun": {
+					"prePromotionAnalysisRun": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentPrePromotionAnalysisRun the current analysis run running before the active service promotion",
+							Description: "PrePromotionAnalysisRun is the current analysis run running before the active service promotion",
 							Type:        []string{"string"},
 							Format:      "",
 						},

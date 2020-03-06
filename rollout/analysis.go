@@ -114,7 +114,7 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.BlueGreen.CurrentPrePromotionAnalysisRun)
+	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.BlueGreen.PrePromotionAnalysisRun)
 	if rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return nil, err

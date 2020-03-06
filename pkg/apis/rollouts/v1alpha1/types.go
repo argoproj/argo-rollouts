@@ -424,8 +424,8 @@ type BlueGreenStatus struct {
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
 	// +optional
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
-	// CurrentPrePromotionAnalysisRun the current analysis run running before the active service promotion
-	CurrentPrePromotionAnalysisRun string `json:"currentPrePromotionAnalysisRun,omitempty"`
+	// PrePromotionAnalysisRun is the current analysis run running before the active service promotion
+	PrePromotionAnalysisRun string `json:"prePromotionAnalysisRun,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
