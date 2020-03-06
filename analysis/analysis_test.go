@@ -424,7 +424,8 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, c.asssessRunStatus(run))
+		status, _ := c.assessRunStatus(run)
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	}
 	{
 		// ensure we take the worst of the completed metrics
@@ -441,7 +442,8 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, c.asssessRunStatus(run))
+		status, _ := c.assessRunStatus(run)
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	}
 }
 
@@ -493,7 +495,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status := c.asssessRunStatus(run)
+	status, _ := c.assessRunStatus(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
 }
@@ -506,8 +508,10 @@ func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	result := v1alpha1.MetricResult{
 		Measurements: nil,
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhasePending, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	statusFalse := assessMetricStatus(metric, result, false)
+	statusTrue := assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, statusTrue)
 }
 func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	// in-flight measurement
@@ -529,8 +533,10 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, true))
+	statusFalse := assessMetricStatus(metric, result, false)
+	statusTrue := assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, statusTrue)
 }
 func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	metric := v1alpha1.Metric{
@@ -548,11 +554,15 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+	statusFalse := assessMetricStatus(metric, result, false)
+	statusTrue := assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, statusTrue)
 	metric.FailureLimit = 3
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	statusFalse = assessMetricStatus(metric, result, false)
+	statusTrue = assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, statusTrue)
 }
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
@@ -571,11 +581,15 @@ func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
+	statusFalse := assessMetricStatus(metric, result, false)
+	statusTrue := assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, statusTrue)
 	metric.InconclusiveLimit = 3
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	statusFalse = assessMetricStatus(metric, result, false)
+	statusTrue = assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, statusTrue)
 }
 
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
@@ -592,11 +606,15 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, true))
+	statusFalse := assessMetricStatus(metric, result, false)
+	statusTrue := assessMetricStatus(metric, result, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, statusFalse)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, statusTrue)
 	result.ConsecutiveError = 4
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	statusTrue = assessMetricStatus(metric, result, true)
+	statusFalse = assessMetricStatus(metric, result, false)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, statusTrue)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, statusFalse)
 }
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
@@ -614,10 +632,12 @@ func TestAssessMetricStatusCountReached(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	status := assessMetricStatus(metric, result, false)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	result.Successful = 5
 	result.Inconclusive = 5
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
+	status = assessMetricStatus(metric, result, false)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
 }
 
 func TestCalculateNextReconcileTimeInterval(t *testing.T) {
