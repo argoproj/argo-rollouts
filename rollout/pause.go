@@ -124,10 +124,6 @@ func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
 		return true
 	}
 
-	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.CurrentPrePromotionAnalysisRun)
-	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-		return true
-	}
 	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
 	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
@@ -136,7 +132,14 @@ func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
 		if now.After(switchDeadline) {
 			return true
 		}
+		return false
 	}
+
+	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.CurrentPrePromotionAnalysisRun)
+	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+		return true
+	}
+
 	return false
 }
 
