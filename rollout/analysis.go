@@ -121,8 +121,10 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 	}
 	roCtx.Log().Info("Reconciling Pre Promotion Analysis")
 
+	activeSelector := rollout.Status.BlueGreen.ActiveSelector
+	currentPodHash := rollout.Status.CurrentPodHash
 	// Do not create an analysis run if the rollout is active promotion happened, the rollout was just created, the newRS is not saturated
-	if rollout.Status.BlueGreen.ActiveSelector == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || !annotations.IsSaturated(rollout, newRS) {
+	if activeSelector == "" || activeSelector == rollout.Status.CurrentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS) {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}

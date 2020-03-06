@@ -1420,6 +1420,8 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"blueGreen": {
 				"activeSelector": "%s"
 			},
+			"pauseConditions": null,
+			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
 	}`, rs2PodHash, rs2PodHash)
@@ -1476,6 +1478,8 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"blueGreen": {
 				"activeSelector": "%s"
 			},
+			"pauseConditions": null,
+			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
 	}`, rs2PodHash, rs2PodHash)

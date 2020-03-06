@@ -143,6 +143,9 @@ func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return true
 	}
+	if activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+		return true
+	}
 	return false
 }
 
@@ -164,6 +167,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	}
 
 	if skipPause(roCtx, activeSvc) {
+		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		return
 	}
 
