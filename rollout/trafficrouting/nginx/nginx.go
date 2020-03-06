@@ -59,43 +59,52 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
 	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.cfg.Rollout)
 
-	desiredCanaryIngress := stableIngress.DeepCopy()
+	// Set up canary ingress resource, we do *not* have to duplicate `spec.tls` in a canary, only
+	// `spec.rules`
+	desiredCanaryIngress := &extensionsv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        canaryIngressName,
+			Annotations: map[string]string{},
+		},
+		Spec: extensionsv1beta1.IngressSpec{
+			Rules: make([]extensionsv1beta1.IngressRule, 0), // We have no way of knowing yet how many rules there will be
+		},
+	}
 
-	// Update ingress name
-	desiredCanaryIngress.SetName(canaryIngressName)
-
-	// Remove Argo CD instance label to avoid the canaryIngress being pruned by Argo CD
-	// TODO: This will not work as intended if `application.instanceLabelKey` was changed from the
-	// default value.
-	delete(desiredCanaryIngress.Labels, "app.kubernetes.io/instance")
-
-	// Delete other annotations we never want
-	delete(desiredCanaryIngress.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	// Must preserve ingress.class on canary ingress, no other annotations matter
+	// See: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary
+	if val, ok := stableIngress.Annotations["kubernetes.io/ingress.class"]; ok {
+		desiredCanaryIngress.Annotations["kubernetes.io/ingress.class"] = val
+	}
 
 	// Ensure canaryIngress is owned by this Rollout for cleanup
 	desiredCanaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(r.cfg.Rollout, r.cfg.ControllerKind)})
 
-	// Change all references to the stable service to point to the canary service instead
-	var hasStableServiceBackendRule bool
-	for ir := 0; ir < len(desiredCanaryIngress.Spec.Rules); ir++ {
-		for ip := 0; ip < len(desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths); ip++ {
-			if desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName == stableServiceName {
+	// Copy only the rules which reference the stableService from the stableIngress to the canaryIngress
+	// and change service backend to canaryService. Rules **not** referencing the stableIngress will be ignored.
+	for ir := 0; ir < len(stableIngress.Spec.Rules); ir++ {
+		var hasStableServiceBackendRule bool
+		ingressRule := stableIngress.Spec.Rules[ir]
+
+		// Update all backends pointing to the stableService to point to the canaryService now
+		for ip := 0; ip < len(ingressRule.HTTP.Paths); ip++ {
+			if ingressRule.HTTP.Paths[ip].Backend.ServiceName == stableServiceName {
 				hasStableServiceBackendRule = true
-				desiredCanaryIngress.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName = canaryServiceName
+				ingressRule.HTTP.Paths[ip].Backend.ServiceName = canaryServiceName
 			}
 		}
+
+		// If this rule was using the specified stableService backend, append it to the canary Ingress spec
+		if hasStableServiceBackendRule {
+			desiredCanaryIngress.Spec.Rules = append(desiredCanaryIngress.Spec.Rules, ingressRule)
+		}
 	}
-	if !hasStableServiceBackendRule {
+
+	if len(desiredCanaryIngress.Spec.Rules) == 0 {
 		return nil, errors.New(fmt.Sprintf("ingress `%s` has no rules using service %s backend", stableIngressName, stableServiceName))
 	}
 
-	if desiredCanaryIngress.Annotations == nil {
-		desiredCanaryIngress.Annotations = map[string]string{}
-	}
-
-	// Process additional annotations, prepend annotationPrefix unless supplied. We are keeping all the annotations
-	// from the stableIngress since the controller automatically ignores most of them anyway:
-	// See: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary
+	// Process additional annotations, would commonly be things like `canary-by-header` or `load-balance`
 	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations {
 		if !strings.HasPrefix(k, annotationPrefix) {
 			k = fmt.Sprintf("%s/%s", annotationPrefix, k)
@@ -165,10 +174,6 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if !canaryIngressExists {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("Creating canary Ingress")
 		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", fmt.Sprintf("Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight))
-		// Remove fields which must never be sent on a Create()
-		desiredCanaryIngress.SetResourceVersion("")
-		desiredCanaryIngress.SetSelfLink("")
-		desiredCanaryIngress.SetUID("")
 		_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Create(desiredCanaryIngress)
 		if err != nil {
 			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
@@ -197,7 +202,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		return nil
 	}
 
-	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", patch).Debug("applying canary Ingress patch")
+	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", string(patch)).Debug("applying canary Ingress patch")
 	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
 	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight))
 
