@@ -419,17 +419,11 @@ func (c *AnalysisController) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha
 					worstStatus = metricStatus
 					_, message := assessMetricFailureInconclusiveOrError(metric, *result)
 					if message != nil {
-						worstMessage = fmt.Sprintf("metric \"%s\" %s due to %s : \" Error Message: %s\"", metric.Name, message[0], message[1], result.Message)
+						worstMessage = fmt.Sprintf("metric \"%s\" %s due to %s", metric.Name, message[0], message[1])
+						if result.Message != "" {
+							worstMessage += fmt.Sprintf(": \"Error Message: %s\"", result.Message)
+						}
 					}
-					//switch worstStatus {
-					//	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
-					//		_, message := assessMetricFailureInconclusiveOrError(metric, *result)
-					//		worstMessage =
-					//
-					//}
-					//worstMessage = result.Message
-					//worstMessage = metricMessage
-					//worstMessage = fmt.Sprintf("%s \"%s Message: %s\"", metricMessage, metricStatus, result.Message)
 				}
 			}
 		}
@@ -465,32 +459,14 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		return v1alpha1.AnalysisPhaseRunning
 	}
 
-	//TODO: Better name
-	phase, message := assessMetricFailureInconclusiveOrError(metric, result)
-	if phase != "" {
+	// Check if metric was considered Failed, Inconclusive, or Error
+	// If true, then return AnalysisRunPhase as Failed, Inconclusive, or Error respectively
+	phaseFailureInconclusiveOrError, message := assessMetricFailureInconclusiveOrError(metric, result)
+	if phaseFailureInconclusiveOrError != "" {
 		log.Infof("metric %s: %s", message[0], message[1])
-		return phase
+		return phaseFailureInconclusiveOrError
 	}
-	//if result.Failed > metric.FailureLimit {
-	//	log.Infof("metric assessed %s: failed (%d) > failureLimit (%d)", v1alpha1.AnalysisPhaseFailed, result.Failed, metric.FailureLimit)
-	//	//message = fmt.Sprintf("metric \"%s\" assessed %s due to failed (%d) > failureLimit (%d)", metric.Name, v1alpha1.AnalysisPhaseFailed, result.Failed, metric.FailureLimit)
-	//	return v1alpha1.AnalysisPhaseFailed
-	//}
-	//if result.Inconclusive > metric.InconclusiveLimit {
-	//	log.Infof("metric assessed %s: inconclusive (%d) > inconclusiveLimit (%d)", v1alpha1.AnalysisPhaseInconclusive, result.Inconclusive, metric.InconclusiveLimit)
-	//	//message = fmt.Sprintf("metric \"%s\" assessed %s due to inconclusive (%d) > inconclusiveLimit (%d)", metric.Name, v1alpha1.AnalysisPhaseInconclusive, result.Inconclusive, metric.InconclusiveLimit)
-	//	return v1alpha1.AnalysisPhaseInconclusive
-	//}
-	//consecutiveErrorLimit := DefaultConsecutiveErrorLimit
-	//if metric.ConsecutiveErrorLimit != nil {
-	//	consecutiveErrorLimit = *metric.ConsecutiveErrorLimit
-	//}
-	//if result.ConsecutiveError > consecutiveErrorLimit {
-	//	log.Infof("metric assessed %s: consecutiveErrors (%d) > consecutiveErrorLimit (%d)", v1alpha1.AnalysisPhaseError, result.ConsecutiveError, consecutiveErrorLimit)
-	//	//message = fmt.Sprintf("metric \"%s\" assessed %s due to consecutiveErrors (%d) > consecutiveErrorLimit (%d)", metric.Name, v1alpha1.AnalysisPhaseError, result.ConsecutiveError, consecutiveErrorLimit)
-	//	return v1alpha1.AnalysisPhaseError
-	//}
-	
+
 	// If a count was specified, and we reached that count, then metric is considered Successful.
 	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
 	// taken into consideration above, and we do not want to fail if failures < failureLimit.
