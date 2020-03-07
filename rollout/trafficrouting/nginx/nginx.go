@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -52,9 +53,8 @@ func (r *Reconciler) Type() string {
 }
 
 // canaryIngress returns the desired state of the canary ingress
-func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, desiredWeight int32) (*extensionsv1beta1.Ingress, error) {
+func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, name string, desiredWeight int32) (*extensionsv1beta1.Ingress, error) {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
-	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
 	stableServiceName := r.cfg.Rollout.Spec.Strategy.Canary.StableService
 	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
 	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.cfg.Rollout)
@@ -63,7 +63,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, des
 	// `spec.rules`
 	desiredCanaryIngress := &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        canaryIngressName,
+			Name:        name,
 			Annotations: map[string]string{},
 		},
 		Spec: extensionsv1beta1.IngressSpec{
@@ -141,7 +141,7 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 // Reconcile modifies Nginx Ingress resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
-	canaryIngressName := fmt.Sprintf("%s-canary", stableIngressName)
+	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
 
 	// Check if stable ingress exists, error if it does not
 	stableIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
@@ -165,7 +165,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	// Construct the desired canary Ingress resource
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, desiredWeight)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, canaryIngressName, desiredWeight)
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
 		return err

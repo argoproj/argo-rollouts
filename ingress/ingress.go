@@ -115,7 +115,7 @@ func (c *Controller) syncIngress(key string) error {
 			return err
 		}
 
-		if !strings.HasSuffix(name, "-canary") {
+		if !strings.HasSuffix(name, ingressutil.CanaryIngressSuffix) {
 			// a primary ingress was deleted, simply ignore the event
 			log.WithField(logutil.IngressKey, key).Warn("primary ingress has been deleted")
 			return nil
