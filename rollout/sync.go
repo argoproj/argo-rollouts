@@ -516,7 +516,12 @@ func (c *RolloutController) calculateRolloutConditions(roCtx rolloutContext, new
 	if !isCompleteRollout {
 		switch {
 		case roCtx.PauseContext().IsAborted():
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, conditions.RolloutAbortedMessage)
+			var condition *v1alpha1.RolloutCondition
+			if roCtx.PauseContext().abortMessage != "" {
+				condition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, roCtx.PauseContext().abortMessage)
+			} else {
+				condition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, conditions.RolloutAbortedMessage)
+			}
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		case conditions.RolloutComplete(r, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that

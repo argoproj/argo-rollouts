@@ -483,7 +483,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	return v1alpha1.AnalysisPhaseRunning
 }
 
-func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, []string){
+func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, []string) {
 	var msg1, msg2 string
 	var phase v1alpha1.AnalysisPhase
 	if result.Failed > metric.FailureLimit {

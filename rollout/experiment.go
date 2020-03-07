@@ -177,7 +177,8 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 		case v1alpha1.AnalysisPhaseInconclusive:
 			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-			roCtx.PauseContext().AddAbort()
+			roCtx.PauseContext().AddAbort(currentEx.Status.Message)
+			//roCtx.PauseContext().AddAbort(currentEx.Status.Message)
 		case v1alpha1.AnalysisPhaseSuccessful:
 			// Do not set current Experiment after successful experiment
 		default:

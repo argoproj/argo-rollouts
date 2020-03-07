@@ -132,7 +132,8 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx *canaryContext)
 	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort()
+		//roCtx.PauseContext().AddAbort()
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
@@ -183,7 +184,8 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx *canaryContext) 
 	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort()
+		//roCtx.PauseContext().AddAbort()
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
 	}
 
 	return currentAr, nil

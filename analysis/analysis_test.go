@@ -1506,5 +1506,3 @@ func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
 	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.Message)
 }
-
-
