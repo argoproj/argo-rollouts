@@ -84,7 +84,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -140,7 +140,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -196,7 +196,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -257,7 +257,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -308,7 +308,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -356,7 +356,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -391,7 +391,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -428,7 +428,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRefWithTemplates(t *tes
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -470,7 +470,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -507,7 +507,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -547,7 +547,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -590,7 +590,7 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -647,7 +647,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -763,7 +763,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false)
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
@@ -822,7 +822,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 			"controllerPause": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
@@ -876,8 +876,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			"controllerPause": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
-
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
@@ -896,7 +895,8 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
-		Phase: v1alpha1.AnalysisPhaseError,
+		Phase:   v1alpha1.AnalysisPhaseError,
+		Message: "Error",
 		MetricResults: []v1alpha1.MetricResult{{
 			Phase: v1alpha1.AnalysisPhaseError,
 		}},
@@ -928,7 +928,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"abort": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, ar.Status.Message)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
@@ -985,7 +985,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"abort": true
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
@@ -1030,7 +1030,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelCurrentAr, ar))
 	patch := f.getPatchedRollout(patchIndex)
-	newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+	newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 	expectedPatch := `{
 		"status": {
 			"canary": {
@@ -1110,7 +1110,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
 	}}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1173,7 +1173,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -1236,7 +1236,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatch(true, conditions.NewRSAvailableReason, rs2, true)
+	newConditions := generateConditionsPatch(true, conditions.NewRSAvailableReason, rs2, true, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1336,7 +1336,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1396,7 +1396,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1454,7 +1454,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
 	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1514,7 +1514,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	}
 	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1554,7 +1554,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}

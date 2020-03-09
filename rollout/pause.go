@@ -37,7 +37,6 @@ func (pCtx *pauseContext) IsAborted() bool {
 	return false
 }
 
-//func (pCtx *pauseContext) AddAbort() {
 func (pCtx *pauseContext) AddAbort(message string) {
 	pCtx.addAbort = true
 	pCtx.abortMessage = message
