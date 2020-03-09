@@ -53,6 +53,17 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 
 }
 
+func TestPrePromotionLabels(t *testing.T) {
+	podHash := "abcd123"
+	expected := map[string]string{
+		v1alpha1.LabelKeyControllerInstanceID: "test",
+		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypePrePromotionLabel,
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+	}
+	generated := PrePromotionLabels(podHash, "test")
+	assert.Equal(t, expected, generated)
+}
+
 func TestStepLabels(t *testing.T) {
 	podHash := "abcd123"
 	expected := map[string]string{

@@ -27,7 +27,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
-	roCtx := newBlueGreenCtx(r, newRS, oldRSs)
+	arList, err := c.getAnalysisRunsForRollout(r)
+	if err != nil {
+		return err
+	}
+
+	roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 	logCtx := roCtx.Log()
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
@@ -54,6 +59,10 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 		return err
 	}
 
+	err = c.reconcileAnalysisRuns(roCtx)
+	if err != nil {
+		return err
+	}
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 }
 
@@ -126,11 +135,15 @@ func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 		return true
 	}
 
-	if defaults.GetAutoPromotionEnabledOrDefault(rollout) {
+	// If a rollout has a PrePromotionAnalysis, the controller only skips the pause after the analysis passes
+	if defaults.GetAutoPromotionEnabledOrDefault(rollout) && completedPrePromotionAnalysis(roCtx) {
 		return true
 	}
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
+		return true
+	}
+	if activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
 		return true
 	}
 	return false
@@ -139,6 +152,10 @@ func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
+
+	if rollout.Status.Abort {
+		return
+	}
 
 	allRSs := roCtx.AllRSs()
 	if !replicasetutil.ReadyForPause(rollout, newRS, allRSs) {
@@ -150,6 +167,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 	}
 
 	if skipPause(roCtx, activeSvc) {
+		roCtx.PauseContext().RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		return
 	}
 
@@ -270,7 +288,7 @@ func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 
-	if reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
+	if r.Status.Abort && reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
 		return false
 	}
 

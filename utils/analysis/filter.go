@@ -18,12 +18,11 @@ func GetCurrentStepAnalysisRun(currentArs []*v1alpha1.AnalysisRun) *v1alpha1.Ana
 	return nil
 }
 
-//GetCurrentBackgroundAnalysisRun filters the currentArs and returns the background based analysis run
-func GetCurrentBackgroundAnalysisRun(currentArs []*v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
+func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string) *v1alpha1.AnalysisRun {
 	for i := range currentArs {
 		ar := currentArs[i]
 		rolloutType, ok := ar.Labels[v1alpha1.RolloutTypeLabel]
-		if ok && rolloutType == v1alpha1.RolloutTypeBackgroundRunLabel {
+		if ok && rolloutType == kind {
 			return ar
 		}
 	}
@@ -37,6 +36,9 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 			return true
 		}
 		if ar.Name == r.Status.Canary.CurrentBackgroundAnalysisRun {
+			return true
+		}
+		if ar.Name == r.Status.BlueGreen.PrePromotionAnalysisRun {
 			return true
 		}
 		return false
