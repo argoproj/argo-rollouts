@@ -3,17 +3,16 @@ package rollout
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 const (
@@ -75,8 +74,23 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if skipPause(roCtx, activeSvc) || roCtx.PauseContext().CompletedBlueGreenPause() {
+	//
+	if skipPause(roCtx, activeSvc) {
 		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+	if roCtx.PauseContext().CompletedBlueGreenPause() && completedPrePromotionAnalysis(roCtx) {
+		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+
+	if r.Status.Abort {
+		currentRevision := int(0)
+		for _, rs := range controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
+			revision := replicasetutil.GetReplicaSetRevision(r, rs)
+			if revision > currentRevision {
+				newPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				currentRevision = revision
+			}
+		}
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, r)

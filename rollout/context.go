@@ -16,6 +16,7 @@ type rolloutContext interface {
 	Rollout() *v1alpha1.Rollout
 	Log() *log.Entry
 	NewRS() *appsv1.ReplicaSet
+	StableRS() *appsv1.ReplicaSet
 	AllRSs() []*appsv1.ReplicaSet
 
 	CurrentAnalysisRuns() []*v1alpha1.AnalysisRun
@@ -25,6 +26,7 @@ type rolloutContext interface {
 
 	PauseContext() *pauseContext
 	NewStatus() v1alpha1.RolloutStatus
+	SetCurrentAnalysisRuns([]*v1alpha1.AnalysisRun)
 }
 
 type blueGreenContext struct {
@@ -32,8 +34,12 @@ type blueGreenContext struct {
 	log     *log.Entry
 
 	newRS    *appsv1.ReplicaSet
+	stableRS *appsv1.ReplicaSet
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
+
+	currentArs []*v1alpha1.AnalysisRun
+	otherArs   []*v1alpha1.AnalysisRun
 
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
@@ -58,14 +64,18 @@ type canaryContext struct {
 	pauseContext *pauseContext
 }
 
-func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) *blueGreenContext {
+func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, arList []*v1alpha1.AnalysisRun) *blueGreenContext {
 	allRSs := append(olderRSs, newRS)
 	logCtx := logutil.WithRollout(r)
+	stableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, r.Status.BlueGreen.ActiveSelector)
+
+	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
 	return &blueGreenContext{
 		rollout: r,
 		log:     logCtx,
 
 		newRS:    newRS,
+		stableRS: stableRS,
 		olderRSs: olderRSs,
 		allRSs:   allRSs,
 
@@ -74,6 +84,9 @@ func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*
 			rollout: r,
 			log:     logCtx,
 		},
+
+		currentArs: currentArs,
+		otherArs:   otherArs,
 	}
 }
 
@@ -89,6 +102,10 @@ func (bgCtx *blueGreenContext) NewRS() *appsv1.ReplicaSet {
 	return bgCtx.newRS
 }
 
+func (bgCtx *blueGreenContext) StableRS() *appsv1.ReplicaSet {
+	return bgCtx.stableRS
+}
+
 func (bgCtx *blueGreenContext) OlderRSs() []*appsv1.ReplicaSet {
 	return bgCtx.olderRSs
 }
@@ -101,11 +118,22 @@ func (bgCtx *blueGreenContext) CurrentExperiment() *v1alpha1.Experiment {
 	return nil
 }
 func (bgCtx *blueGreenContext) CurrentAnalysisRuns() []*v1alpha1.AnalysisRun {
-	return nil
+	return bgCtx.currentArs
 }
 
 func (bgCtx *blueGreenContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
-	return nil
+	return bgCtx.otherArs
+}
+
+func (cCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
+	cCtx.currentArs = ars
+	currPrePromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePrePromotionLabel)
+	if currPrePromoAr != nil && !cCtx.PauseContext().IsAborted() {
+		switch currPrePromoAr.Status.Phase {
+		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
+			cCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
+		}
+	}
 }
 
 func (bgCtx *blueGreenContext) OtherExperiments() []*v1alpha1.Experiment {
@@ -177,14 +205,14 @@ func (cCtx *canaryContext) AllRSs() []*appsv1.ReplicaSet {
 
 func (cCtx *canaryContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
 	cCtx.currentArs = ars
-	currBackgroundAr := analysisutil.GetCurrentBackgroundAnalysisRun(ars)
+	currBackgroundAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypeBackgroundRunLabel)
 	if currBackgroundAr != nil && !cCtx.PauseContext().IsAborted() {
 		switch currBackgroundAr.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
 			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		}
 	}
-	currStepAr := analysisutil.GetCurrentStepAnalysisRun(ars)
+	currStepAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypeStepLabel)
 	if currStepAr != nil && !cCtx.PauseContext().IsAborted() {
 		if !currStepAr.Status.Phase.Completed() {
 			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name

@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+
 	"github.com/prometheus/common/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -56,13 +58,38 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 }
 
+func TestRunSuccessfullyWithWarning(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{
+		value:    newScalar(10),
+		warnings: v1.Warnings([]string{"warning", "warning2"}),
+	}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
 func TestRunWithQueryError(t *testing.T) {
-	e := log.Entry{}
+	e := log.NewEntry(log.New())
 	expectedErr := fmt.Errorf("bad big bug :(")
 	mock := mockAPI{
 		err: expectedErr,
 	}
-	p := NewPrometheusProvider(mock, e)
+	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",

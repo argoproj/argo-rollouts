@@ -740,3 +740,41 @@ func TestReplicaSetsByRevisionNumber(t *testing.T) {
 		assert.Equal(t, expected, replicaSets)
 	})
 }
+
+func TestGetReplicaSetRevision(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ro",
+		},
+	}
+	t.Run("Successful", func(t *testing.T) {
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: "2",
+				},
+			},
+		}
+		assert.Equal(t, 2, GetReplicaSetRevision(ro, rs))
+	})
+	t.Run("No Revision Annotation", func(t *testing.T) {
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: "not-an-int",
+				},
+			},
+		}
+		assert.Equal(t, -1, GetReplicaSetRevision(ro, rs))
+	})
+	t.Run("Invalid Annotation", func(t *testing.T) {
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					annotations.RevisionAnnotation: "not-an-int",
+				},
+			},
+		}
+		assert.Equal(t, -1, GetReplicaSetRevision(ro, rs))
+	})
+}

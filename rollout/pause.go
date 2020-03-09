@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -118,6 +119,33 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 	return nil
 }
 
+// completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully or the rollout passed
+// the auto promote seconds.
+func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
+	rollout := roCtx.Rollout()
+	if rollout.Spec.Strategy.BlueGreen == nil || rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
+		return true
+	}
+
+	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
+	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
+	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
+		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
+		now := metav1.Now()
+		if now.After(switchDeadline) {
+			return true
+		}
+		return false
+	}
+
+	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.PrePromotionAnalysisRun)
+	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+		return true
+	}
+
+	return false
+}
+
 func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
 	rollout := pCtx.rollout
 	if pCtx.HasAddPause() {
@@ -127,7 +155,6 @@ func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
 
 	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
-		//c.checkEnqueueRolloutDuringWait(rollout, cond.StartTime, *autoPromoteActiveServiceDelaySeconds)
 		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
 		now := metav1.Now()
 		if now.After(switchDeadline) {

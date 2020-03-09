@@ -215,9 +215,15 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 	if err != nil {
 		return err
 	}
+
+	arList, err := c.getAnalysisRunsForRollout(r)
+	if err != nil {
+		return err
+	}
+
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if r.Spec.Strategy.BlueGreen != nil {
-		roCtx := newBlueGreenCtx(r, newRS, oldRSs)
+		roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 		if err != nil {
 			return nil
@@ -233,11 +239,6 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 	// If there are no scaling events, the rollout should only sync its status
 	if r.Spec.Strategy.Canary != nil {
 		exList, err := c.getExperimentsForRollout(r)
-		if err != nil {
-			return err
-		}
-
-		arList, err := c.getAnalysisRunsForRollout(r)
 		if err != nil {
 			return err
 		}
