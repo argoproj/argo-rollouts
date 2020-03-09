@@ -440,7 +440,6 @@ func (c *AnalysisController) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha
 // * parameters given by the metric (failureLimit, count, etc...)
 // * whether or not we are terminating (e.g. due to failing run, or termination request)
 func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
-	//var message string
 	if result.Phase.Completed() {
 		return result.Phase
 	}
@@ -448,7 +447,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	if len(result.Measurements) == 0 {
 		if terminating {
 			// we have yet to take a single measurement, but have already been instructed to stop
-			log.Infof(fmt.Sprintf("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful))
+			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
 			return v1alpha1.AnalysisPhaseSuccessful
 		}
 		return v1alpha1.AnalysisPhasePending
