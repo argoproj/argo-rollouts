@@ -491,18 +491,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../features/hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -559,6 +547,54 @@
     <a href="../features/analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../features/kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -719,6 +755,12 @@
 </ul>
 <h2 id="install-argo-rollouts">Install Argo Rollouts<a class="headerlink" href="#install-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts can be installed at a cluster or namespace level. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+</div>
+<p>Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with <strong>v1.13.x</strong> 
+because they have a new field from the v1.14. Adding the <code>--validate=false</code> to the commands below allows the cluster to 
+accept the Argo Rollouts CRDs.</p>
 <h3 id="cluster-level-installation">Cluster-Level installation<a class="headerlink" href="#cluster-level-installation" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
@@ -731,7 +773,10 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 </pre></div>
 
 
-<p>Note: The cluster-level installation assumes that Argo Rollouts is deployed into the <code>argo-rollouts</code> namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the <code>ClusterRoleBinding</code> resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The cluster-level installation assumes that Argo Rollouts is deployed into the <code>argo-rollouts</code> namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the <code>ClusterRoleBinding</code> resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.</p>
+</div>
 <h3 id="namespace-level-installation">Namespace-Level Installation<a class="headerlink" href="#namespace-level-installation" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/namespace-install.yaml
 </pre></div>

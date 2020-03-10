@@ -493,18 +493,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -561,6 +549,54 @@
     <a href="../analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -718,8 +754,10 @@
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>In addition to managing ReplicaSets, the rollout controller will modify a Service resource during the <code>BlueGreenUpdate</code> strategy.  The Rollout spec has users specify a reference to active service and optionally a preview service in the same namespace. The active Service is used to send regular application traffic to the old version, while the preview Service is used as funnel traffic to the new version. The rollout controller ensures proper traffic routing by injecting a unique hash of the ReplicaSet to these services' selectors.  This allows the rollout to define an active and preview stack and a process to migrate replica sets from the preview to the active. </p>
 <p>When there is a change to the <code>.spec.template</code> field of a rollout, the controller will create the new ReplicaSet.  If the active service is not sending traffic to a ReplicaSet, the controller will immediately start sending traffic to the ReplicaSet. Otherwise, the active service will point at the old ReplicaSet while the ReplicaSet becomes available. Once the new ReplicaSet becomes available, the controller will modify the active service to point at the new ReplicaSet. After waiting some time configured by the <code>.spec.strategy.blueGreen.scaleDownDelaySeconds</code>, the controller will scale down the old ReplicaSet.</p>
-<p><strong>Important note</strong>
-When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.</p>
+</div>
 <h2 id="configurable-features">Configurable Features<a class="headerlink" href="#configurable-features" title="Permanent link">&para;</a></h2>
 <p>Here are the optional fields that will change the behavior of BlueGreen deployment:</p>
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>

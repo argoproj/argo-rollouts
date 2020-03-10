@@ -398,18 +398,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -518,6 +506,20 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#bluegreen-pre-promotion-analysis" class="md-nav__link">
+    BlueGreen Pre Promotion Analysis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bluegreen-post-promotion-analysis" class="md-nav__link">
+    BlueGreen Post Promotion Analysis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#failure-conditions" class="md-nav__link">
     Failure Conditions
   </a>
@@ -581,6 +583,54 @@
   
 </nav>
     
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -676,6 +726,20 @@
         <li class="md-nav__item">
   <a href="#analysis-with-multiple-templates" class="md-nav__link">
     Analysis with multiple templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bluegreen-pre-promotion-analysis" class="md-nav__link">
+    BlueGreen Pre Promotion Analysis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bluegreen-post-promotion-analysis" class="md-nav__link">
+    BlueGreen Post Promotion Analysis
   </a>
   
 </li>
@@ -831,8 +895,11 @@ canary steps, the rollout is considered successful and the analysis run is stopp
 </pre></div>
 
 
-<p>Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
-AnalysisTemplate. This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Previously, the analysis section had a field called "templateName" where a user would specify a single
+<code>AnalysisTemplate.</code> This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. </p>
+</div>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -929,8 +996,11 @@ analysis was successful, continues with rollout, otherwise aborts.</p>
 </pre></div>
 
 
-<p>Note: Previously, the analysis section had a field called "templateName" where a user would specify a single
-AnalysisTemplate. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Previously, the analysis section had a field called "templateName" where a user would specify a single
+<code>AnalysisTemplate</code>. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. </p>
+</div>
 <p>In this example, the <code>AnalysisTemplate</code> is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1083,13 +1153,74 @@ templates together. The controller combines the metrics and args fields of all t
 </pre></div>
 
 
-<p>Note: The controller will error when merging the templates if:
-* multiple metrics in the templates have the same name
-* Two arguments with the same name both have values</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The controller will error when merging the templates if:</p>
+<ul>
+<li>multiple metrics in the templates have the same name</li>
+<li>Two arguments with the same name both have values</li>
+</ul>
+</div>
+<h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
+<p>A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
+AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
+failure of the analysis run decides if the Rollout will switch traffic, or abort the Rollout completely.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+
+    <span class="nt">blueGreen</span><span class="p">:</span>
+      <span class="nt">activeService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">active-svc</span>
+      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc</span>
+      <span class="nt">prePromotionAnalysis</span><span class="p">:</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">smoke-tests</span>
+        <span class="nt">args</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
+</pre></div>
+
+
+<p>In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
+Rollout will not switch traffic to the new version until the analysis run finishes successfully. </p>
+<p>Note: if the<code>autoPromotionSeconds</code> field is specified and the Rollout has waited auto promotion seconds amount of time,
+the Rollout marks the AnalysisRun successful and switches the traffic to a new version automatically. If the AnalysisRun
+completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the 
+<code>autoPromotionSeconds</code>.</p>
+<h2 id="bluegreen-post-promotion-analysis">BlueGreen Post Promotion Analysis<a class="headerlink" href="#bluegreen-post-promotion-analysis" title="Permanent link">&para;</a></h2>
+<p>A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
+run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
+If <code>scaleDownDelaySeconds</code> is specified, the controller will cancel any AnalysisRuns at time of <code>scaleDownDelay</code> to 
+scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
+after the AnalysisRun completes (with a minimum of 30 seconds).</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">blueGreen</span><span class="p">:</span>
+      <span class="nt">activeService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">active-svc</span>
+      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc</span>
+      <span class="nt">scaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span> <span class="c1"># 10 minutes</span>
+      <span class="nt">postPromotionAnalysis</span><span class="p">:</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">smoke-tests</span>
+        <span class="nt">args</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
+</pre></div>
+
+
 <h2 id="failure-conditions">Failure Conditions<a class="headerlink" href="#failure-conditions" title="Permanent link">&para;</a></h2>
-<p>As an alternative to measuring success, <code>failureCondition</code> can be used to cause an analysis run to
-fail. The following example continually polls a prometheus server to get the total number of errors
-every 5 minutes, causing the analysis run to fail if 10 or more errors were encountered.</p>
+<p><code>failureCondition</code> can be used to cause an analysis run to fail. The following example continually polls a prometheus 
+server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
+encountered.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">total-errors</span>
     <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
@@ -1423,13 +1554,13 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
           </a>
         
         
-          <a href="../../CONTRIBUTING/" title="Contributing" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../kubectl-plugin/" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Contributing
+                Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

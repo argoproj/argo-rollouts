@@ -398,18 +398,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../features/hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -466,6 +454,54 @@
     <a href="../features/analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../features/kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -539,6 +575,13 @@
         <li class="md-nav__item">
   <a href="#running-local-containers" class="md-nav__link">
     Running Local Containers
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-kubernetes-libraries" class="md-nav__link">
+    Upgrading Kubernetes Libraries
   </a>
   
 </li>
@@ -660,6 +703,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#upgrading-kubernetes-libraries" class="md-nav__link">
+    Upgrading Kubernetes Libraries
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#documentation-changes" class="md-nav__link">
     Documentation Changes
   </a>
@@ -698,11 +748,9 @@
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
 <p>Argo Rollout additionally uses
-* <code>controller-gen</code> binary in order to auto-generate the crd manifest
 * <code>golangci-lint</code> to lint the project.</p>
 <p>Run the following commands to install them:</p>
-<div class="codehilite"><pre><span></span>go get -u github.com/kubernetes-sigs/controller-tools/cmd/controller-gen
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+<div class="codehilite"><pre><span></span>go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 </pre></div>
 
 
@@ -723,11 +771,18 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 </pre></div>
 
 
+<p>Run the following command to download all the dependencies:</p>
+<div class="codehilite"><pre><span></span><span class="k">go</span><span class="w"> </span><span class="k">mod</span><span class="w"> </span><span class="n">download</span><span class="w"></span>
+</pre></div>
+
+
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
 <ul>
-<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</li>
+<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go 
+and modifies the open-api spec. This command fails if the user has not run <code>go mod download</code> to download all the 
+dependencies of the project. </li>
 </ul>
 <h2 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h2>
 <p>To run unit tests:</p>
@@ -770,11 +825,17 @@ make controller
 </pre></div>
 
 
+<h2 id="upgrading-kubernetes-libraries">Upgrading Kubernetes Libraries<a class="headerlink" href="#upgrading-kubernetes-libraries" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been 
+pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the 
+associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The 
+<code>./hack/update-k8s-dependencies.sh</code> updates all the dependencies to the those correct versions.</p>
 <h2 id="documentation-changes">Documentation Changes<a class="headerlink" href="#documentation-changes" title="Permanent link">&para;</a></h2>
 <p>If you need to run the mkdocs server, you will need to do the following:</p>
 <ul>
 <li>Follow the instruction guide to install <a href="https://www.mkdocs.org/#installation">mkDocs</a></li>
 <li>Install the <code>material</code> theme with the <a href="https://squidfunk.github.io/mkdocs-material/#quick-start">following guide</a></li>
+<li>Run <code>make plugin-docs</code> to generate kubectl plugin documentation</li>
 </ul>
 <p>Afterwards, you can run <code>mkdocs serve</code> and access your documentation at <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
 <p>If you don't want to setup mkDocs locally, the following docker command should suffice:</p>
@@ -800,7 +861,7 @@ make controller
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../features/analysis/" title="Analysis" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -809,7 +870,7 @@ make controller
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Analysis
+                Commands
               </span>
             </div>
           </a>

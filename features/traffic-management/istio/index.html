@@ -474,18 +474,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../../kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -542,6 +530,54 @@
     <a href="../../analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -730,7 +766,10 @@
 
 
 <p>When the above Rollout progresses through its steps, the controller changes Virtual Service's <code>stable-svc</code>'s weight to 95 and <code>canary-svc</code>'s to 5, wait 5 minutes, and then scales up the canary ReplicaSet to a full replica count. Once it is entirely healthy, the controller changes <code>stable-svc</code>'s selector to point at the canary ReplicaSet and switch the weight back to 100 to <code>stable-svc</code> and 0 to <code>canary-svc</code>.</p>
-<p>Note: The Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. </p>
+</div>
 <h2 id="integrating-with-gitops">Integrating with GitOps<a class="headerlink" href="#integrating-with-gitops" title="Permanent link">&para;</a></h2>
 <p>The above strategy introduces a problem for users practicing GitOps. The Rollout requires the user-defined Virtual Service to define an HTTP route with both destinations hosts. However, Istio requires routes with multiple destinations to assign a weight to each destination. Since the Argo Rollout controller modifies these Virtual Service's weights as a Rollout progresses through its steps, the Virtual Service becomes out of sync with the Git version.
 Additionally, if a GitOps tool does an apply after the Argo Rollouts controller changes the Virtual Service's weight, the apply would revert the weight to the percentage stored in the Git repo. At best, the user can specify the desired weight of 100% to the stable service and 0% to the canary service. In this case, the Virtual Service is synced with the Git repo when the Rollout completed all the steps. </p>

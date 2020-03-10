@@ -366,6 +366,19 @@
     Example
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pause-duration" class="md-nav__link">
+    Pause Duration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -399,7 +412,7 @@
         
           <li class="md-nav__item">
   <a href="#canaryservice" class="md-nav__link">
-    CanaryService
+    canaryService
   </a>
   
 </li>
@@ -486,18 +499,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../kubectl-plugin/" title="Kubectl Plugin" class="md-nav__link">
-      Kubectl Plugin
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../hpa-support/" title="HPA Support" class="md-nav__link">
       HPA Support
     </a>
@@ -554,6 +555,54 @@
     <a href="../analysis/" title="Analysis" class="md-nav__link">
       Analysis
     </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+    
+    <label class="md-nav__link" for="nav-7">
+      Kubectl Plugin
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Kubectl Plugin
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../kubectl-plugin/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" title="Commands" class="md-nav__link">
+      Commands
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
     
@@ -637,6 +686,19 @@
     Example
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pause-duration" class="md-nav__link">
+    Pause Duration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -670,7 +732,7 @@
         
           <li class="md-nav__item">
   <a href="#canaryservice" class="md-nav__link">
-    CanaryService
+    canaryService
   </a>
   
 </li>
@@ -733,9 +795,30 @@
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span>
-          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span> <span class="c1"># 1 hour</span>
+          <span class="nt">duration</span><span class="p">:</span> <span class="s">&quot;1h&quot;</span> <span class="c1"># 1 hour</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span> <span class="c1"># pause indefinitely</span>
+</pre></div>
+
+
+<h3 id="pause-duration">Pause Duration<a class="headerlink" href="#pause-duration" title="Permanent link">&para;</a></h3>
+<p>Pause duration can be specied with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. </p>
+<div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">steps</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">10</span> <span class="p p-Indicator">}</span>  <span class="c1"># 10 seconds</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">10s</span> <span class="p p-Indicator">}</span> <span class="c1"># 10 seconds</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">10m</span> <span class="p p-Indicator">}</span> <span class="c1"># 10 minutes</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">10h</span> <span class="p p-Indicator">}</span> <span class="c1"># 10 hours</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">-10</span> <span class="p p-Indicator">}</span> <span class="c1"># invalid spec!</span>
+        <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>                <span class="c1"># pause indefinitely</span>
+</pre></div>
+
+
+<p>If no <code>duration</code> specified for a pause step the rollout will be paused indefinitely. To unpause use the <a href="../kubectl-plugin/">argo kubectl plugin</a> <code>promote</code> command. </p>
+<div class="codehilite"><pre><span></span><span class="c1"># promote to the next step</span>
+kubectl argo rollouts promote &lt;rollout&gt;
 </pre></div>
 
 
@@ -756,9 +839,9 @@
 <p><code>maxSurge</code> defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")</p>
 <p>Defaults to "25%".</p>
 <h3 id="maxunavailable">maxUnavailable<a class="headerlink" href="#maxunavailable" title="Permanent link">&para;</a></h3>
-<p>The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
-    // Defaults to 0</p>
-<h3 id="canaryservice">CanaryService<a class="headerlink" href="#canaryservice" title="Permanent link">&para;</a></h3>
+<p>The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.</p>
+<p>Defaults to 0</p>
+<h3 id="canaryservice">canaryService<a class="headerlink" href="#canaryservice" title="Permanent link">&para;</a></h3>
 <p><code>canaryService</code> references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.</p>
 <p>Defaults to an empty string</p>
                 
