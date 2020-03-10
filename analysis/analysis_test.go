@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -424,8 +426,9 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, _ := c.assessRunStatus(run)
+		status, message := c.assessRunStatus(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
+		assert.Equal(t, "", message)
 	}
 	{
 		// ensure we take the worst of the completed metrics
@@ -442,8 +445,9 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, _ := c.assessRunStatus(run)
+		status, message := c.assessRunStatus(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+		assert.Equal(t, "", message)
 	}
 }
 
@@ -1395,9 +1399,9 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 		}},
 	}
 	phase, msg := assessMetricFailureInconclusiveOrError(metric, result)
-	msg0, msg1 := fmt.Sprintf("assessed %s", phase), fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
+	expectedMsg := fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, phase)
-	assert.Equal(t, msg0, msg[0], msg1, msg[1])
+	assert.Equal(t, expectedMsg, msg)
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 
 	result = v1alpha1.MetricResult{
@@ -1407,9 +1411,9 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 		}},
 	}
 	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
-	msg0, msg1 = fmt.Sprintf("assessed %s", phase), fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
+	expectedMsg = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, phase)
-	assert.Equal(t, msg0, msg[0], msg1, msg[1])
+	assert.Equal(t, expectedMsg, msg)
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 
 	result = v1alpha1.MetricResult{
@@ -1419,9 +1423,9 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 		}},
 	}
 	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
-	msg0, msg1 = fmt.Sprintf("assessed %s", phase), fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, metric.ConsecutiveErrorLimit)
+	expectedMsg = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, defaults.DefaultConsecutiveErrorLimit)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
-	assert.Equal(t, msg0, msg[0], msg1, msg[1])
+	assert.Equal(t, expectedMsg, msg)
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 }
 

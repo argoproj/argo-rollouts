@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	util "github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
@@ -21,9 +22,6 @@ const (
 	// DefaultMeasurementHistoryLimit is the default maximum number of measurements to retain per metric,
 	// before trimming the list.
 	DefaultMeasurementHistoryLimit = 10
-	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
-	// erroring the entire metric.
-	DefaultConsecutiveErrorLimit int32 = 4
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval time.Duration = 10 * time.Second
@@ -418,8 +416,8 @@ func (c *AnalysisController) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha
 				if worstStatus == "" || analysisutil.IsWorse(worstStatus, metricStatus) {
 					worstStatus = metricStatus
 					_, message := assessMetricFailureInconclusiveOrError(metric, *result)
-					if message != nil {
-						worstMessage = fmt.Sprintf("metric \"%s\" %s due to %s", metric.Name, message[0], message[1])
+					if message != "" {
+						worstMessage = fmt.Sprintf("metric \"%s\" assessed %s due to %s", metric.Name, metricStatus, message)
 						if result.Message != "" {
 							worstMessage += fmt.Sprintf(": \"Error Message: %s\"", result.Message)
 						}
@@ -462,7 +460,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	// If true, then return AnalysisRunPhase as Failed, Inconclusive, or Error respectively
 	phaseFailureInconclusiveOrError, message := assessMetricFailureInconclusiveOrError(metric, result)
 	if phaseFailureInconclusiveOrError != "" {
-		log.Infof("metric %s: %s", message[0], message[1])
+		log.Infof("metric assessed %s: %s", phaseFailureInconclusiveOrError, message)
 		return phaseFailureInconclusiveOrError
 	}
 
@@ -482,35 +480,26 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	return v1alpha1.AnalysisPhaseRunning
 }
 
-func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, []string) {
-	var msg1, msg2 string
+func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, string) {
+	var message string
 	var phase v1alpha1.AnalysisPhase
 	if result.Failed > metric.FailureLimit {
 		phase = v1alpha1.AnalysisPhaseFailed
-		msg1 = fmt.Sprintf("assessed %s", phase)
-		msg2 = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
-		message := []string{msg1, msg2}
+		message = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
 		return phase, message
 	}
 	if result.Inconclusive > metric.InconclusiveLimit {
 		phase = v1alpha1.AnalysisPhaseInconclusive
-		msg1 = fmt.Sprintf("assessed %s", phase)
-		msg2 = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
-		message := []string{msg1, msg2}
+		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
 		return phase, message
 	}
-	consecutiveErrorLimit := DefaultConsecutiveErrorLimit
-	if metric.ConsecutiveErrorLimit != nil {
-		consecutiveErrorLimit = *metric.ConsecutiveErrorLimit
-	}
+	consecutiveErrorLimit := util.GetConsecutiveErrorLimitOrDefault(&metric)
 	if result.ConsecutiveError > consecutiveErrorLimit {
 		phase = v1alpha1.AnalysisPhaseError
-		msg1 = fmt.Sprintf("assessed %s", phase)
-		msg2 = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)
-		message := []string{msg1, msg2}
+		message = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)
 		return phase, message
 	}
-	return phase, nil
+	return phase, message
 }
 
 // calculateNextReconcileTime calculates the next time that this AnalysisRun should be reconciled,
