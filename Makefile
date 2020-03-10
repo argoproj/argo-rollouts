@@ -9,7 +9,7 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-
+GIT_REMOTE_REPO=upstream
 # build development images
 DEV_IMAGE=false
 
@@ -126,7 +126,7 @@ precheckin: test lint
 
 .PHONY: release-docs
 release-docs: plugin-docs
-	mkdocs gh-deploy
+	mkdocs gh-deploy -r ${GIT_REMOTE_REPO}
 
 .PHONY: release-precheck
 release-precheck: manifests
