@@ -486,18 +486,15 @@ func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alp
 	if result.Failed > metric.FailureLimit {
 		phase = v1alpha1.AnalysisPhaseFailed
 		message = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
-		return phase, message
 	}
 	if result.Inconclusive > metric.InconclusiveLimit {
 		phase = v1alpha1.AnalysisPhaseInconclusive
 		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
-		return phase, message
 	}
 	consecutiveErrorLimit := util.GetConsecutiveErrorLimitOrDefault(&metric)
 	if result.ConsecutiveError > consecutiveErrorLimit {
 		phase = v1alpha1.AnalysisPhaseError
 		message = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)
-		return phase, message
 	}
 	return phase, message
 }
