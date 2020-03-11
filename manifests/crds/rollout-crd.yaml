@@ -92,6 +92,8 @@ spec:
                   properties:
                     activeService:
                       type: string
+                    antiaffinity:
+                      type: boolean
                     autoPromotionEnabled:
                       type: boolean
                     autoPromotionSeconds:

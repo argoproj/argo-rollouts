@@ -601,6 +601,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"antiaffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AntiAffinity enables anti-affinity rules for Blue-Green deployments",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"previewReplicaCount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs",
