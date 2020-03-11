@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	// serviceIndexName is the index by which Service resources are cached
 	serviceIndexName    = "byService"
 	removeSelectorPatch = `[{ "op": "remove", "path": "/spec/selector/%s" }]`
 )

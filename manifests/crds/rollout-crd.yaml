@@ -339,6 +339,19 @@ spec:
                           required:
                           - virtualService
                           type: object
+                        nginx:
+                          properties:
+                            additionalIngressAnnotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            annotationPrefix:
+                              type: string
+                            stableIngress:
+                              type: string
+                          required:
+                          - stableIngress
+                          type: object
                       type: object
                   type: object
               type: object

@@ -15,6 +15,8 @@ const (
 	AnalysisRunKey = "analysisrun"
 	// ServiceKey defines the key for the service field
 	ServiceKey = "service"
+	// IngressKey defines the key for the ingress field
+	IngressKey = "ingress"
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )

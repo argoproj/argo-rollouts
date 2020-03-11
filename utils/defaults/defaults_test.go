@@ -62,6 +62,27 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	assert.Equal(t, intstr.FromInt(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
 }
 
+func TestGetCanaryIngressAnnotationPrefixOrDefault(t *testing.T) {
+	customPrefix := "custom.nginx.ingress.kubernetes.io"
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Nginx: &v1alpha1.NginxTrafficRouting{
+							AnnotationPrefix: customPrefix,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, customPrefix, GetCanaryIngressAnnotationPrefixOrDefault(rolloutNonDefaultValue))
+	rolloutDefaultValue := &v1alpha1.Rollout{}
+	assert.Equal(t, "nginx.ingress.kubernetes.io", GetCanaryIngressAnnotationPrefixOrDefault(rolloutDefaultValue))
+}
+
 func TestGetStrategyType(t *testing.T) {
 	bgRollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{

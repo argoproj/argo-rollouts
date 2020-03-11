@@ -14,9 +14,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
+	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -64,6 +66,7 @@ type RolloutController struct {
 	rolloutsSynced         cache.InformerSynced
 	rolloutsIndexer        cache.Indexer
 	servicesLister         v1.ServiceLister
+	ingressesLister        extensionslisters.IngressLister
 	experimentsLister      listers.ExperimentLister
 	analysisRunLister      listers.AnalysisRunLister
 	analysisTemplateLister listers.AnalysisTemplateLister
@@ -81,6 +84,7 @@ type RolloutController struct {
 	// simultaneously in two different workers.
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
+	ingressWorkqueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder     record.EventRecorder
@@ -98,10 +102,12 @@ func NewRolloutController(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
+	ingressesInformer extensionsinformers.IngressInformer,
 	rolloutsInformer informers.RolloutInformer,
 	resyncPeriod time.Duration,
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	serviceWorkQueue workqueue.RateLimitingInterface,
+	ingressWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
 	recorder record.EventRecorder,
 	defaultIstioVersion string) *RolloutController {
@@ -125,7 +131,9 @@ func NewRolloutController(
 		rolloutsSynced:         rolloutsInformer.Informer().HasSynced,
 		rolloutWorkqueue:       rolloutWorkQueue,
 		serviceWorkqueue:       serviceWorkQueue,
+		ingressWorkqueue:       ingressWorkQueue,
 		servicesLister:         servicesInformer.Lister(),
+		ingressesLister:        ingressesInformer.Lister(),
 		experimentsLister:      experimentInformer.Lister(),
 		analysisRunLister:      analysisRunInformer.Lister(),
 		analysisTemplateLister: analysisTemplateInformer.Lister(),
