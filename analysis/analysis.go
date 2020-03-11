@@ -13,7 +13,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	util "github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
@@ -491,7 +491,7 @@ func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alp
 		phase = v1alpha1.AnalysisPhaseInconclusive
 		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
 	}
-	consecutiveErrorLimit := util.GetConsecutiveErrorLimitOrDefault(&metric)
+	consecutiveErrorLimit := defaults.GetConsecutiveErrorLimitOrDefault(&metric)
 	if result.ConsecutiveError > consecutiveErrorLimit {
 		phase = v1alpha1.AnalysisPhaseError
 		message = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)

@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func timePtr(t metav1.Time) *metav1.Time {
@@ -499,8 +498,9 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status, _ := c.assessRunStatus(run)
+	status, message := c.assessRunStatus(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
+	assert.Equal(t, "", message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
 }
 
