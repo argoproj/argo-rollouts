@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -103,7 +102,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 	}
 
 	if len(desiredCanaryIngress.Spec.Rules) == 0 {
-		return nil, errors.New(fmt.Sprintf("ingress `%s` has no rules using service %s backend", stableIngressName, stableServiceName))
+		return nil, fmt.Errorf("ingress `%s` has no rules using service %s backend", stableIngressName, stableServiceName)
 	}
 
 	// Process additional annotations, would commonly be things like `canary-by-header` or `load-balance`
@@ -149,9 +148,8 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	stableIngress, err := r.cfg.IngressLister.Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName)
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, stableIngressName).WithField("err", err.Error()).Error("error retrieving stableIngress")
-		return errors.New(fmt.Sprintf("error retrieving stableIngress `%s` from cache: %v", stableIngressName, err))
+		return fmt.Errorf("error retrieving stableIngress `%s` from cache: %v", stableIngressName, err)
 	}
-
 	// Check if canary ingress exists (from lister which has a cache), determines whether we later call Create() or Update()
 	canaryIngress, err := r.cfg.IngressLister.Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName)
 
@@ -160,7 +158,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		if !k8serrors.IsNotFound(err) {
 			// An error other than "not found" occurred
 			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error retrieving canary ingress")
-			return errors.New(fmt.Sprintf("error retrieving canary ingress `%s` from cache: %v", canaryIngressName, err))
+			return fmt.Errorf("error retrieving canary ingress `%s` from cache: %v", canaryIngressName, err)
 		}
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("canary ingress not found")
 		canaryIngressExists = false
@@ -183,7 +181,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		if err != nil {
 			if !k8serrors.IsAlreadyExists(err) {
 				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
-				return errors.New(fmt.Sprintf("error creating canary ingress `%s`: %v", canaryIngressName, err))
+				return fmt.Errorf("error creating canary ingress `%s`: %v", canaryIngressName, err)
 			}
 			// Canary ingress was created by a different reconcile call before this one could complete (race)
 			// This means we just read it from the API now (instead of cache) and continue with the normal
@@ -191,7 +189,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 			canaryIngress, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
 			if err != nil {
 				r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-				return errors.New(fmt.Sprintf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err))
+				return fmt.Errorf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err)
 			}
 		}
 	}
@@ -201,7 +199,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	// Only modify canaryIngress if it is controlled by this Rollout
 	if !metav1.IsControlledBy(canaryIngress, r.cfg.Rollout) {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Error("canary ingress controlled by different object")
-		return errors.New(fmt.Sprintf("canary ingress `%s` controlled by different object", canaryIngressName))
+		return fmt.Errorf("canary ingress `%s` controlled by different object", canaryIngressName)
 	}
 
 	// Make patches
@@ -209,7 +207,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error constructing canary ingress patch")
-		return errors.New(fmt.Sprintf("error constructing canary ingress patch for `%s`: %v", canaryIngressName, err))
+		return fmt.Errorf("error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
 	}
 	if !modified {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Info("No changes to canary ingress - skipping patch")
@@ -223,7 +221,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(canaryIngressName, types.MergePatchType, patch)
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error patching canary ingress")
-		return errors.New(fmt.Sprintf("error patching canary ingress `%s`: %v", canaryIngressName, err))
+		return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
 	}
 
 	return nil
