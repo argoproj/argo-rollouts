@@ -9,66 +9,77 @@ import (
 )
 
 type mockAPI struct {
-	value model.Value
-	err   error
+	value    model.Value
+	err      error
+	warnings v1.Warnings
 }
 
 // Query performs a query for the given time.
-func (m mockAPI) Query(ctx context.Context, query string, ts time.Time) (model.Value, error) {
+func (m mockAPI) Query(ctx context.Context, query string, ts time.Time) (model.Value, v1.Warnings, error) {
 	if m.err != nil {
-		return nil, m.err
+		return nil, m.warnings, m.err
 	}
-	return m.value, nil
+	return m.value, m.warnings, nil
 }
 
 // Below methods are not used but required for the interface implementation
 
-func (m mockAPI) AlertManagers(ctx context.Context) (v1.AlertManagersResult, error) {
-	return v1.AlertManagersResult{}, nil
+func (m mockAPI) Metadata(ctx context.Context, metric string, limit string) (map[string][]v1.Metadata, error) {
+	panic("Not used")
 }
 
-// CleanTombstones removes the deleted data from disk and cleans up the existing tombstones.
 func (m mockAPI) CleanTombstones(ctx context.Context) error {
-	return nil
+	panic("Not used")
 }
 
-// Config returns the current Prometheus configuration.
-func (m mockAPI) Config(ctx context.Context) (v1.ConfigResult, error) {
-	return v1.ConfigResult{}, nil
-}
-
-// DeleteSeries deletes data for a selection of series in a time range.
 func (m mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) error {
-	return nil
+	panic("Not used")
 }
 
-// Flags returns the flag values that Prometheus was launched with.
-func (m mockAPI) Flags(ctx context.Context) (v1.FlagsResult, error) {
-	return v1.FlagsResult{}, nil
+func (m mockAPI) LabelNames(ctx context.Context) ([]string, v1.Warnings, error) {
+	panic("Not used")
 }
 
-// LabelValues performs a query for the values of the given label.
-func (m mockAPI) LabelValues(ctx context.Context, label string) (model.LabelValues, error) {
-	return nil, nil
+func (m mockAPI) LabelValues(ctx context.Context, label string) (model.LabelValues, v1.Warnings, error) {
+	panic("Not used")
 }
 
-// QueryRange performs a query for the given range.
-func (m mockAPI) QueryRange(ctx context.Context, query string, r v1.Range) (model.Value, error) {
-	return nil, nil
+func (m mockAPI) QueryRange(ctx context.Context, query string, r v1.Range) (model.Value, v1.Warnings, error) {
+	panic("Not used")
 }
 
-// Series finds series by label matchers.
-func (m mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, error) {
-	return nil, nil
+func (m mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, v1.Warnings, error) {
+	panic("Not used")
 }
 
-// Snapshot creates a snapshot of all current data into snapshots/<datetime>-<rand>
-// under the TSDB's data directory and returns the directory as response.
-func (m mockAPI) Snapshot(ctx context.Context, skipHead bool) (v1.SnapshotResult, error) {
-	return v1.SnapshotResult{}, nil
-}
-
-// Targets returns an overview of the current state of the Prometheus target discovery.
 func (m mockAPI) Targets(ctx context.Context) (v1.TargetsResult, error) {
-	return v1.TargetsResult{}, nil
+	panic("Not used")
+}
+
+func (m mockAPI) Alerts(ctx context.Context) (v1.AlertsResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) AlertManagers(ctx context.Context) (v1.AlertManagersResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) Config(ctx context.Context) (v1.ConfigResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) Flags(ctx context.Context) (v1.FlagsResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) Snapshot(ctx context.Context, skipHead bool) (v1.SnapshotResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) Rules(ctx context.Context) (v1.RulesResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) TargetsMetadata(ctx context.Context, matchTarget string, metric string, limit string) ([]v1.MetricMetadata, error) {
+	panic("Not used")
 }

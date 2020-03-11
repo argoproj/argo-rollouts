@@ -11,34 +11,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func TestGetCurrentBackgroundAnalysisRun(t *testing.T) {
-	arsWithBackground := []*v1alpha1.AnalysisRun{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-				Labels: map[string]string{
-					v1alpha1.RolloutTypeLabel: v1alpha1.RolloutTypeBackgroundRunLabel,
-				},
-			},
-		},
-	}
-	currAr := GetCurrentBackgroundAnalysisRun(arsWithBackground)
-	assert.Equal(t, arsWithBackground[0], currAr)
-	arsWithNoBackground := []*v1alpha1.AnalysisRun{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-				Labels: map[string]string{
-					v1alpha1.RolloutTypeLabel: v1alpha1.RolloutTypeStepLabel,
-				},
-			},
-		},
-	}
-	currAr = GetCurrentBackgroundAnalysisRun(arsWithNoBackground)
-	assert.Nil(t, currAr)
-}
-
-func TestGetCurrentStepAnalysisRun(t *testing.T) {
+func TestGetCurrentnalysisRunByKind(t *testing.T) {
 	arsWithSteps := []*v1alpha1.AnalysisRun{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +22,7 @@ func TestGetCurrentStepAnalysisRun(t *testing.T) {
 			},
 		},
 	}
-	currAr := GetCurrentStepAnalysisRun(arsWithSteps)
+	currAr := GetCurrentAnalysisRunByType(arsWithSteps, v1alpha1.RolloutTypeStepLabel)
 	assert.Equal(t, arsWithSteps[0], currAr)
 	arsWithNoSteps := []*v1alpha1.AnalysisRun{
 		{
@@ -61,7 +34,7 @@ func TestGetCurrentStepAnalysisRun(t *testing.T) {
 			},
 		},
 	}
-	currAr = GetCurrentStepAnalysisRun(arsWithNoSteps)
+	currAr = GetCurrentAnalysisRunByType(arsWithNoSteps, v1alpha1.RolloutTypeStepLabel)
 	assert.Nil(t, currAr)
 }
 
@@ -84,19 +57,35 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		},
 		nil,
 	}
-	r := &v1alpha1.Rollout{
-		Status: v1alpha1.RolloutStatus{
-			Canary: v1alpha1.CanaryStatus{
-				CurrentStepAnalysisRun:       "foo",
-				CurrentBackgroundAnalysisRun: "bar",
+	t.Run("Canary", func(t *testing.T) {
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				Canary: v1alpha1.CanaryStatus{
+					CurrentStepAnalysisRun:       "foo",
+					CurrentBackgroundAnalysisRun: "bar",
+				},
 			},
-		},
-	}
-	currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
-	assert.Len(t, currentArs, 2)
-	assert.Len(t, nonCurrentArs, 1)
-	assert.Contains(t, currentArs, ars[0])
-	assert.Contains(t, currentArs, ars[1])
+		}
+		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
+		assert.Len(t, currentArs, 2)
+		assert.Len(t, nonCurrentArs, 1)
+		assert.Contains(t, currentArs, ars[0])
+		assert.Contains(t, currentArs, ars[1])
+
+	})
+	t.Run("BlueGreen", func(t *testing.T) {
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				BlueGreen: v1alpha1.BlueGreenStatus{
+					PrePromotionAnalysisRun: "foo",
+				},
+			},
+		}
+		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
+		assert.Len(t, currentArs, 1)
+		assert.Len(t, nonCurrentArs, 2)
+		assert.Contains(t, currentArs, ars[0])
+	})
 }
 
 func TestFilterAnalysisRunsByName(t *testing.T) {

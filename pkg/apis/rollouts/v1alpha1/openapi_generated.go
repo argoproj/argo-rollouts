@@ -566,6 +566,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"prePromotionAnalysisRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrePromotionAnalysisRun is the current analysis run running before the active service promotion",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -630,10 +637,18 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"prePromotionAnalysis": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrePromotionAnalysis configuration to run analysis before a selector switch",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"),
+						},
+					},
 				},
 				Required: []string{"activeService"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"},
 	}
 }
 

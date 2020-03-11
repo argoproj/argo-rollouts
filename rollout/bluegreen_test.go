@@ -257,6 +257,50 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
+	t.Run("NoActionsAfterPausedOnInconclusiveRun", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r2 := bumpVersion(r1)
+		r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+				TemplateName: "test",
+			}},
+		}
+
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 1)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
+		now := metav1.Now()
+		r2.Status.PauseConditions = append(r2.Status.PauseConditions, v1alpha1.PauseCondition{
+			Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+			StartTime: now,
+		})
+		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+		previewSvc := newService("preview", 80, previewSelector)
+		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+		activeSvc := newService("active", 80, activeSelector)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+		f.run(getKey(r2, t))
+		patch := f.getPatchedRollout(patchIndex)
+		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	})
+
 	t.Run("NoAutoPromoteBeforeDelayTimePasses", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
@@ -685,7 +729,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
 	rs := newReplicaSetWithStatus(ro, 1, 1)
-	roCtx := newBlueGreenCtx(ro, rs, nil)
+	roCtx := newBlueGreenCtx(ro, rs, nil, nil)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
 
@@ -1111,5 +1155,49 @@ func TestScaleDownLimit(t *testing.T) {
 	updatedRS := f.getUpdatedReplicaSet(updateRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
 	assert.Equal(t, rs1.Name, updatedRS.Name)
+}
 
+// TestBlueGreenAbort Switches active service back to previous ReplicaSet when Rollout is aborted
+func TestBlueGreenAbort(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	r2 := bumpVersion(r1)
+	r2.Status.Abort = true
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	//Setting the scaleDownAt time
+	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	s := newService("bar", 80, serviceSelector)
+	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, 1, 1, 2, 1, false, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.serviceLister = append(f.serviceLister, s)
+
+	f.expectPatchServiceAction(s, rs1PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true)
+	expectedPatch := fmt.Sprintf(`{
+		"status": {
+			"blueGreen": {
+				"activeSelector": "%s"
+			},
+			"conditions": %s,
+			"selector": "foo=bar,rollouts-pod-template-hash=%s"
+		}	
+	}`, rs1PodHash, expectedConditions, rs1PodHash)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
