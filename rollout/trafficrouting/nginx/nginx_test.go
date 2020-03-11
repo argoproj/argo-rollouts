@@ -226,7 +226,7 @@ func TestReconcileStableIngressFound(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 
-	client := fake.NewSimpleClientset(stableIngress)
+	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	r := NewReconciler(ReconcilerConfig{
@@ -252,7 +252,7 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
 	stableIngress := ingress("stable-ingress", 80, "other-service")
 
-	client := fake.NewSimpleClientset(stableIngress)
+	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	r := NewReconciler(ReconcilerConfig{
@@ -273,7 +273,7 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	canaryIngress := ingress("rollout-stable-ingress-canary", 80, "canary-service")
 
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
+	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
@@ -296,7 +296,7 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
 	canaryIngress := ingress("rollout-stable-ingress-canary", 80, "canary-service")
 	setIngressOwnerRef(canaryIngress, otherRollout)
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
+	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
@@ -322,7 +322,7 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 		"nginx.ingress.kubernetes.io/canary-weight": "15",
 	})
 	setIngressOwnerRef(canaryIngress, rollout)
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
+	client := fake.NewSimpleClientset(canaryIngress)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
@@ -354,7 +354,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 		"nginx.ingress.kubernetes.io/canary":        "true",
 		"nginx.ingress.kubernetes.io/canary-weight": "10",
 	})
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
+	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
