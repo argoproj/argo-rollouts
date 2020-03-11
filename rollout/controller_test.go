@@ -245,7 +245,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -254,6 +254,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.Selector = metav1.FormatLabelSelector(selector)
 	newRollout.Status.BlueGreen.ActiveSelector = active
 	newRollout.Status.BlueGreen.PreviewSelector = preview
+	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	if pause {
@@ -346,8 +347,14 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 
 func cleanPatch(expectedPatch string) string {
 	patch := make(map[string]interface{})
-	json.Unmarshal([]byte(expectedPatch), &patch)
-	patchStr, _ := json.Marshal(patch)
+	err := json.Unmarshal([]byte(expectedPatch), &patch)
+	if err != nil {
+		panic(err)
+	}
+	patchStr, err := json.Marshal(patch)
+	if err != nil {
+		panic(err)
+	}
 	return string(patchStr)
 }
 
@@ -1091,6 +1098,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
