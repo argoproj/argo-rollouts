@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -18,6 +16,9 @@ import (
 	fake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
 func ingress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {

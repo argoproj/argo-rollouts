@@ -185,7 +185,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
 				return errors.New(fmt.Sprintf("error creating canary ingress `%s`: %v", canaryIngressName, err))
 			}
-			// Canary ingress was created by a differen reconcile call before this one could complete (race)
+			// Canary ingress was created by a different reconcile call before this one could complete (race)
 			// This means we just read it from the API now (instead of cache) and continue with the normal
 			// flow we take when the canary already existed.
 			canaryIngress, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
