@@ -7,10 +7,10 @@
 ## Install Argo Rollouts
 Argo Rollouts can be installed at a cluster or namespace level. 
 
-!!! note
-Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with **v1.13.x** 
-because they have a new field from the v1.14. Adding the `--validate=false` to the commands below allows the cluster to 
-accept the Argo Rollouts CRDs.
+!!! important
+    Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with **v1.13.x** 
+    because they have a new field from the v1.14. Adding the `--validate=false` to the commands below allows the cluster to 
+    accept the Argo Rollouts CRDs.
 
 ### Cluster-Level installation
 

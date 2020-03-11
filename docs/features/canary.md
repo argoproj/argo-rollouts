@@ -41,7 +41,7 @@ spec:
       - pause: {} # pause indefinitely
 ```
 
-### Pause Duration
+## Pause Duration
 Pause duration can be specied with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. 
 
 ```yaml
@@ -73,10 +73,21 @@ Here are the optional fields that will modify the behavior of canary strategy:
 spec:
   strategy:
     canary:
+      analysis: object
+      canaryService: string
       maxSurge: stringOrInt
       maxUnavailable: stringOrInt
-      canaryService: string
 ```
+
+### analysis
+Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessul the rollout will be aborted.
+
+Default to nil
+
+### canaryService
+`canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.
+
+Defaults to an empty string
 
 ### maxSurge
 `maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")
@@ -88,7 +99,3 @@ The maximum number of pods that can be unavailable during the update. Value can 
 
 Defaults to 0
 
-### canaryService
-`canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.
-
-Defaults to an empty string
