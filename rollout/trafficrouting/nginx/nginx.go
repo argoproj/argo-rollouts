@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -31,6 +32,7 @@ type ReconcilerConfig struct {
 	Client         kubernetes.Interface
 	Recorder       record.EventRecorder
 	ControllerKind schema.GroupVersionKind
+	IngressLister  extensionslisters.IngressLister
 }
 
 // Reconciler holds required fields to reconcile Nginx resources
@@ -84,7 +86,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 	// and change service backend to canaryService. Rules **not** referencing the stableIngress will be ignored.
 	for ir := 0; ir < len(stableIngress.Spec.Rules); ir++ {
 		var hasStableServiceBackendRule bool
-		ingressRule := stableIngress.Spec.Rules[ir]
+		ingressRule := stableIngress.Spec.Rules[ir].DeepCopy()
 
 		// Update all backends pointing to the stableService to point to the canaryService now
 		for ip := 0; ip < len(ingressRule.HTTP.Paths); ip++ {
@@ -96,7 +98,7 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 
 		// If this rule was using the specified stableService backend, append it to the canary Ingress spec
 		if hasStableServiceBackendRule {
-			desiredCanaryIngress.Spec.Rules = append(desiredCanaryIngress.Spec.Rules, ingressRule)
+			desiredCanaryIngress.Spec.Rules = append(desiredCanaryIngress.Spec.Rules, *ingressRule)
 		}
 	}
 
@@ -143,22 +145,22 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
 
-	// Check if stable ingress exists, error if it does not
-	stableIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName, metav1.GetOptions{})
+	// Check if stable ingress exists (from lister, which has a cache), error if it does not
+	stableIngress, err := r.cfg.IngressLister.Ingresses(r.cfg.Rollout.Namespace).Get(stableIngressName)
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, stableIngressName).WithField("err", err.Error()).Error("error retrieving stableIngress")
-		return errors.New(fmt.Sprintf("error retrieving stableIngress `%s`: %v", stableIngressName, err))
+		return errors.New(fmt.Sprintf("error retrieving stableIngress `%s` from cache: %v", stableIngressName, err))
 	}
 
-	// Check if canary ingress exists, determines whether we later call Create() or Update()
-	canaryIngress, err := r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
+	// Check if canary ingress exists (from lister which has a cache), determines whether we later call Create() or Update()
+	canaryIngress, err := r.cfg.IngressLister.Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName)
 
 	canaryIngressExists := true
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			// An error other than "not found" occurred
 			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error retrieving canary ingress")
-			return errors.New(fmt.Sprintf("error retrieving canary ingress `%s`: %v", canaryIngressName, err))
+			return errors.New(fmt.Sprintf("error retrieving canary ingress `%s` from cache: %v", canaryIngressName, err))
 		}
 		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("canary ingress not found")
 		canaryIngressExists = false
@@ -175,11 +177,23 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("Creating canary Ingress")
 		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", fmt.Sprintf("Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight))
 		_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Create(desiredCanaryIngress)
-		if err != nil {
-			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
-			return errors.New(fmt.Sprintf("error creating canary ingress `%s`: %v", canaryIngressName, err))
+		if err == nil {
+			return nil
 		}
-		return nil
+		if err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
+				return errors.New(fmt.Sprintf("error creating canary ingress `%s`: %v", canaryIngressName, err))
+			}
+			// Canary ingress was created by a differen reconcile call before this one could complete (race)
+			// This means we just read it from the API now (instead of cache) and continue with the normal
+			// flow we take when the canary already existed.
+			canaryIngress, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
+			if err != nil {
+				r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+				return errors.New(fmt.Sprintf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err))
+			}
+		}
 	}
 
 	// Canary Ingress already exists, apply a patch if needed

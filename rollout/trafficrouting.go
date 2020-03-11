@@ -29,6 +29,7 @@ func (c *RolloutController) NewTrafficRoutingReconciler(roCtx rolloutContext) Tr
 			Client:         c.kubeclientset,
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
+			IngressLister:  c.ingressesLister,
 		})
 	}
 	return nil
