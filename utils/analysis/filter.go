@@ -41,6 +41,9 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 		if ar.Name == r.Status.BlueGreen.PrePromotionAnalysisRun {
 			return true
 		}
+		if ar.Name == r.Status.BlueGreen.PostPromotionAnalysisRun {
+			return true
+		}
 		return false
 	})
 }

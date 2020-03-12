@@ -11,8 +11,8 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
@@ -192,8 +192,20 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, rollout *v1alpha1.Rollout) (bool, error) {
-	logCtx := logutil.WithRollout(rollout)
+func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, roCtx *blueGreenContext) (bool, error) {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
+	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		logCtx.Infof("Cannot scale down old ReplicaSets while paused with inconclusive Analysis ")
+		return false, nil
+	}
+	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil {
+		currentPostAr := analysisutil.GetCurrentAnalysisRunByType(roCtx.CurrentAnalysisRuns(), v1alpha1.RolloutTypePostPromotionLabel)
+		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			logCtx.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
+			return false, nil
+		}
+	}
 	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
 	hasScaled := false
@@ -270,14 +282,22 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 		}
 	}
 	newStatus.StableRS = r.Status.StableRS
-	setStableRS := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
+	scaledDownPreviousStableRS := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
 	stableRSName := fmt.Sprintf("%s-%s", r.Name, newStatus.StableRS)
 	for _, rs := range oldRSs {
 		if *rs.Spec.Replicas != int32(0) && rs.Name == stableRSName {
-			setStableRS = false
+			scaledDownPreviousStableRS = false
 		}
 	}
-	if setStableRS || newStatus.StableRS == "" {
+	postAnalysisRunFinished := false
+	if r.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+		ars := roCtx.CurrentAnalysisRuns()
+		currentPostPromotionAnalysisRun := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePostPromotionLabel)
+		if currentPostPromotionAnalysisRun != nil {
+			postAnalysisRunFinished = currentPostPromotionAnalysisRun.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
+		}
+	}
+	if scaledDownPreviousStableRS || newStatus.StableRS == "" || postAnalysisRunFinished {
 		newStatus.StableRS = newStatus.CurrentPodHash
 	}
 

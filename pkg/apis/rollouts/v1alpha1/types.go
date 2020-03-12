@@ -336,6 +336,8 @@ const (
 	RolloutTypeBackgroundRunLabel = "Background"
 	// RolloutTypePrePromotionLabel indicates that the analysisRun was created before the active service promotion
 	RolloutTypePrePromotionLabel = "PrePromotion"
+	// RolloutTypePostPromotionLabel indicates that the analysisRun was created after the active service promotion
+	RolloutTypePostPromotionLabel = "PostPromotion"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
 	RolloutCanaryStepIndexLabel = "step-index"
 )

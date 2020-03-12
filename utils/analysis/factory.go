@@ -33,6 +33,19 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 	return arguments
 }
 
+// PostPromotionLabels returns a map[string]string of common labels for the post promotion analysis
+func PostPromotionLabels(podHash, instanceID string) map[string]string {
+	labels := map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypePostPromotionLabel,
+	}
+	if instanceID != "" {
+		labels[v1alpha1.LabelKeyControllerInstanceID] = instanceID
+	}
+	return labels
+
+}
+
 // PrePromotionLabels returns a map[string]string of common labels for the pre promotion analysis
 func PrePromotionLabels(podHash, instanceID string) map[string]string {
 	labels := map[string]string{

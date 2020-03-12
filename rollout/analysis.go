@@ -77,6 +77,13 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx rolloutContext) error {
 		if prePromotionAr != nil {
 			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, prePromotionAr)
 		}
+		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun(roCtx)
+		if err != nil {
+			return err
+		}
+		if postPromotionAr != nil {
+			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, postPromotionAr)
+		}
 	}
 	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
 
@@ -139,7 +146,7 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 		prePromotionLabels := analysisutil.PrePromotionLabels(podHash, instanceID)
 		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis, nil, prePromotionLabels)
 		if err == nil {
-			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
+			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Pre Promotion AnalysisRun")
 		}
 		return currentAr, err
 	}
@@ -151,6 +158,50 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 	}
 	return currentAr, nil
 }
+
+func (c *RolloutController) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
+	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	currentArs := roCtx.CurrentAnalysisRuns()
+	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.BlueGreen.PostPromotionAnalysisRun)
+	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
+		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+		return nil, err
+	}
+	roCtx.Log().Info("Reconciling Post Promotion Analysis")
+
+	currentPodHash := rollout.Status.CurrentPodHash
+	activeSelector := rollout.Status.BlueGreen.ActiveSelector
+	// Do not create an analysis run if the desired ReplicaSet is the stable ReplicaSet, the active service promotion
+	// has not happened, the rollout was just created, or the newRS is not saturated
+	if rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS) {
+		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+		return nil, err
+	}
+
+	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return currentAr, nil
+	}
+
+	if currentAr == nil {
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		instanceID := analysisutil.GetInstanceID(rollout)
+		postPromotionLabels := analysisutil.PostPromotionLabels(podHash, instanceID)
+		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis, nil, postPromotionLabels)
+		if err == nil {
+			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Post Promotion AnalysisRun")
+		}
+		return currentAr, err
+	}
+	switch currentAr.Status.Phase {
+	case v1alpha1.AnalysisPhaseInconclusive:
+		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
+	}
+	return currentAr, nil
+}
+
 
 func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()

@@ -290,7 +290,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", msg)
 			}
 			newStatus.CurrentStepIndex = &stepCount
-
 		}
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()

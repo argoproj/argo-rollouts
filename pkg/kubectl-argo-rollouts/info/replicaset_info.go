@@ -131,7 +131,11 @@ func getReplicaSetCondition(status appsv1.ReplicaSetStatus, condType appsv1.Repl
 
 func (rs ReplicaSetInfo) ScaleDownDelay() string {
 	if deadline, err := time.Parse(time.RFC3339, rs.ScaleDownDeadline); err == nil {
-		return duration.HumanDuration(deadline.Sub(metav1.Now().Time))
+		now := metav1.Now().Time
+		if deadline.Before(now) {
+			return "passed"
+		}
+		return duration.HumanDuration(deadline.Sub(now))
 	}
 	return ""
 }
