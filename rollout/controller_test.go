@@ -1189,3 +1189,18 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
+
+func TestMigrateCanaryStableRS(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.Canary.StableRS = "fakepodhash"
+	index := f.expectUpdateRolloutAction(r)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(index)
+	assert.Equal(t, "fakepodhash", updatedRollout.Status.StableRS)
+	assert.Equal(t, "", updatedRollout.Status.Canary.StableRS)
+}
