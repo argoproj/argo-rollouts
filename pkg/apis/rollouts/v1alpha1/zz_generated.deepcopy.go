@@ -355,6 +355,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(RolloutAnalysis)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PostPromotionAnalysis != nil {
+		in, out := &in.PostPromotionAnalysis, &out.PostPromotionAnalysis
+		*out = new(RolloutAnalysis)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
