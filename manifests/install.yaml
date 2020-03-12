@@ -11380,7 +11380,6 @@ rules:
   - get
   - list
   - watch
-  - update
   - patch
 - apiGroups:
   - ""
@@ -11565,7 +11564,6 @@ rules:
   - get
   - list
   - watch
-  - update
   - patch
 - apiGroups:
   - ""
