@@ -2495,6 +2495,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"stableRS": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StableRS indicates the replicaset that has successfully rolled out",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

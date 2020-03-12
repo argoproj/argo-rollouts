@@ -454,6 +454,9 @@ type RolloutStatus struct {
 	// Selector that identifies the pods that are receiving active traffic
 	// +optional
 	Selector string `json:"selector,omitempty"`
+	// StableRS indicates the replicaset that has successfully rolled out
+	// +optional
+	StableRS string `json:"stableRS,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

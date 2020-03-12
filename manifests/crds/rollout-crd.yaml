@@ -2953,6 +2953,8 @@ spec:
               type: integer
             selector:
               type: string
+            stableRS:
+              type: string
             updatedReplicas:
               format: int32
               type: integer

@@ -260,6 +260,13 @@ func (c *RolloutController) syncHandler(key string) error {
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
 
+	// TODO(dthomson) remove in v0.9.0
+	migrated := c.migrateCanaryStableRS(r)
+	if migrated {
+		logutil.WithRollout(r).Info("Migrated stableRS field")
+		return nil
+	}
+
 	if r.ObjectMeta.DeletionTimestamp != nil {
 		logCtx.Info("No reconciliation as rollout marked for deletion")
 		return nil
@@ -327,6 +334,19 @@ func (c *RolloutController) syncHandler(key string) error {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")
+}
+
+func (c *RolloutController) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
+	if rollout.Status.Canary.StableRS == "" {
+		return false
+	}
+	rollout.Status.StableRS = rollout.Status.Canary.StableRS
+	rollout.Status.Canary.StableRS = ""
+	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+	if err != nil {
+		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS")
+	}
+	return true
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {

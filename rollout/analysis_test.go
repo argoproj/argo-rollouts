@@ -1172,7 +1172,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
@@ -1225,7 +1225,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	s := newService("bar", 80, serviceSelector)
 	f.kubeobjects = append(f.kubeobjects, s)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, 1, 1, 1, 1, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1294,7 +1294,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, 1, 2, 4, 2, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 2, 4, 2, false, true)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector)
@@ -1335,7 +1335,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
@@ -1395,7 +1395,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
@@ -1451,7 +1451,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
@@ -1507,7 +1507,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	inconclusivePauseCondition := v1alpha1.PauseCondition{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
@@ -1553,7 +1553,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 

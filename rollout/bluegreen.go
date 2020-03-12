@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -267,6 +268,17 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 				return err
 			}
 		}
+	}
+	newStatus.StableRS = r.Status.StableRS
+	setStableRS := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
+	stableRSName := fmt.Sprintf("%s-%s", r.Name, newStatus.StableRS)
+	for _, rs := range oldRSs {
+		if *rs.Spec.Replicas != int32(0) && rs.Name == stableRSName {
+			setStableRS = false
+		}
+	}
+	if setStableRS || newStatus.StableRS == "" {
+		newStatus.StableRS = newStatus.CurrentPodHash
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)

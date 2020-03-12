@@ -247,7 +247,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -256,6 +256,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.Selector = metav1.FormatLabelSelector(selector)
 	newRollout.Status.BlueGreen.ActiveSelector = active
 	newRollout.Status.BlueGreen.PreviewSelector = preview
+	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	if pause {
@@ -271,7 +272,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
-	newRollout.Status.Canary.StableRS = stableRS
+	newRollout.Status.StableRS = stableRS
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
@@ -348,8 +349,14 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 
 func cleanPatch(expectedPatch string) string {
 	patch := make(map[string]interface{})
-	json.Unmarshal([]byte(expectedPatch), &patch)
-	patchStr, _ := json.Marshal(patch)
+	err := json.Unmarshal([]byte(expectedPatch), &patch)
+	if err != nil {
+		panic(err)
+	}
+	patchStr, err := json.Marshal(patch)
+	if err != nil {
+		panic(err)
+	}
 	return string(patchStr)
 }
 
@@ -1101,6 +1108,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
@@ -1156,7 +1164,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 
 	r.Status.CurrentPodHash = "fakepodhash"
-	r.Status.Canary.StableRS = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "fakeobservedgeneration"
@@ -1190,4 +1198,19 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	expectedPatch := `{"status":{"observedGeneration":"5d9b7bdbd7"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestMigrateCanaryStableRS(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.Canary.StableRS = "fakepodhash"
+	index := f.expectUpdateRolloutAction(r)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(index)
+	assert.Equal(t, "fakepodhash", updatedRollout.Status.StableRS)
+	assert.Equal(t, "", updatedRollout.Status.Canary.StableRS)
 }

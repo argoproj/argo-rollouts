@@ -478,7 +478,7 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
-	r2.Status.Canary.StableRS = rs1PodHash
+	r2.Status.StableRS = rs1PodHash
 
 	stable, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, err)
