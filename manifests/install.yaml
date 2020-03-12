@@ -8662,6 +8662,19 @@ spec:
                           required:
                           - virtualService
                           type: object
+                        nginx:
+                          properties:
+                            additionalIngressAnnotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            annotationPrefix:
+                              type: string
+                            stableIngress:
+                              type: string
+                          required:
+                          - stableIngress
+                          type: object
                       type: object
                   type: object
               type: object
@@ -11263,6 +11276,8 @@ spec:
               type: integer
             selector:
               type: string
+            stableRS:
+              type: string
             updatedReplicas:
               format: int32
               type: integer
@@ -11358,6 +11373,16 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - patch
 - apiGroups:
   - ""
   resources:
@@ -11532,6 +11557,16 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - patch
 - apiGroups:
   - ""
   resources:

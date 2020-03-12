@@ -163,7 +163,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext)
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if rollout.Status.Canary.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
+	if rollout.Status.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
 		return nil, nil
 	}
 

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"strings"
 
 	"github.com/ghodss/yaml"
 
@@ -51,7 +50,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		obj := objs[i]
 		removeNestedItems(obj)
 		removeDescriptions(obj)
-		removeResourceValidation(obj)
+		removeK8S118Fields(obj)
 		crd := toCRD(obj)
 		crd.Spec.Scope = "Namespaced"
 		crds = append(crds, crd)
@@ -99,49 +98,21 @@ func deleteFile(path string) {
 	checkErr(os.Remove(path))
 }
 
-func removeValidation(un *unstructured.Unstructured, path string) {
-	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
-	for _, part := range strings.Split(path, ".") {
-		if strings.HasSuffix(part, "[]") {
-			part = strings.TrimSuffix(part, "[]")
-			schemaPath = append(schemaPath, "properties", part, "items")
-		} else {
-			schemaPath = append(schemaPath, "properties", part)
-		}
-	}
-	schemaPath = append(schemaPath, "x-kubernetes-list-type")
-	mapType, ok, err := unstructured.NestedString(un.Object, schemaPath...)
-	checkErr(err)
-	if !ok {
-		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
-	}
-	unstructured.RemoveNestedField(un.Object, schemaPath...)
-	if mapType == "map" {
-		schemaPath[len(schemaPath)-1] = "x-kubernetes-list-map-keys"
-		_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
-		checkErr(err)
-		if !ok {
-			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
-		}
-		unstructured.RemoveNestedField(un.Object, schemaPath...)
-	}
-}
-
 // removeDescriptions removes all descriptions which bloats the API spec
 func removeDescriptions(un *unstructured.Unstructured) {
 	validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-	removeDescriptionsHelper(validation)
+	removeFieldHelper(validation, "description")
 	unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 }
 
-func removeDescriptionsHelper(obj map[string]interface{}) {
+func removeFieldHelper(obj map[string]interface{}, fieldName string) {
 	for k, v := range obj {
-		if k == "description" {
+		if k == fieldName {
 			delete(obj, k)
 			continue
 		}
 		if vObj, ok := v.(map[string]interface{}); ok {
-			removeDescriptionsHelper(vObj)
+			removeFieldHelper(vObj, fieldName)
 		}
 	}
 }
@@ -170,21 +141,24 @@ func removeNestedItemsHelper(obj map[string]interface{}) {
 	}
 }
 
-func removeResourceValidation(un *unstructured.Unstructured) {
+func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
-		removeValidation(un, "spec.template.spec.containers[].ports")
-		removeValidation(un, "spec.template.spec.initContainers[].ports")
-		removeValidation(un, "spec.template.spec.topologySpreadConstraints")
+		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
+		removeFieldHelper(validation, "x-kubernetes-list-type")
+		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
+		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "Experiment":
-		removeValidation(un, "spec.templates[].template.spec.containers[].ports")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].ports")
-		removeValidation(un, "spec.templates[].template.spec.topologySpreadConstraints")
+		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
+		removeFieldHelper(validation, "x-kubernetes-list-type")
+		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
+		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "AnalysisTemplate", "AnalysisRun":
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].ports")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].ports")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.topologySpreadConstraints")
+		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
+		removeFieldHelper(validation, "x-kubernetes-list-type")
+		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
+		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}

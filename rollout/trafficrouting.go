@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -21,6 +22,15 @@ func (c *RolloutController) NewTrafficRoutingReconciler(roCtx rolloutContext) Tr
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
 		return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion)
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
+		return nginx.NewReconciler(nginx.ReconcilerConfig{
+			Rollout:        rollout,
+			Client:         c.kubeclientset,
+			Recorder:       c.recorder,
+			ControllerKind: controllerKind,
+			IngressLister:  c.ingressesLister,
+		})
 	}
 	return nil
 }

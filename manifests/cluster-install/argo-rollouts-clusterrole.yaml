@@ -80,6 +80,16 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - patch
+- apiGroups:
   - ""
   resources:
   - events

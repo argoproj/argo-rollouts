@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -66,6 +67,7 @@ type fixture struct {
 	analysisTemplateLister []*v1alpha1.AnalysisTemplate
 	replicaSetLister       []*appsv1.ReplicaSet
 	serviceLister          []*corev1.Service
+	ingressLister          []*extensionsv1beta1.Ingress
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -249,7 +251,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -258,6 +260,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 	newRollout.Status.Selector = metav1.FormatLabelSelector(selector)
 	newRollout.Status.BlueGreen.ActiveSelector = active
 	newRollout.Status.BlueGreen.PreviewSelector = preview
+	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	if pause {
@@ -273,7 +276,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, a
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
-	newRollout.Status.Canary.StableRS = stableRS
+	newRollout.Status.StableRS = stableRS
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
@@ -350,8 +353,14 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 
 func cleanPatch(expectedPatch string) string {
 	patch := make(map[string]interface{})
-	json.Unmarshal([]byte(expectedPatch), &patch)
-	patchStr, _ := json.Marshal(patch)
+	err := json.Unmarshal([]byte(expectedPatch), &patch)
+	if err != nil {
+		panic(err)
+	}
+	patchStr, err := json.Marshal(patch)
+	if err != nil {
+		panic(err)
+	}
 	return string(patchStr)
 }
 
@@ -375,6 +384,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
+	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
 	c := NewRolloutController(
 		metav1.NamespaceAll,
@@ -386,10 +396,12 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
+		k8sI.Extensions().V1beta1().Ingresses(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		resync(),
 		rolloutWorkqueue,
 		serviceWorkqueue,
+		ingressWorkqueue,
 		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
 		&record.FakeRecorder{},
 		"v1alpha3",
@@ -433,6 +445,9 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	}
 	for _, s := range f.serviceLister {
 		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
+	}
+	for _, i := range f.ingressLister {
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
@@ -528,7 +543,7 @@ func checkAction(expected, actual core.Action, t *testing.T) {
 
 // filterInformerActions filters list, and watch actions for testing resources.
 // Since list, and watch don't change resource state we can filter it to lower
-// nose level in our tests.
+// noise level in our tests.
 func filterInformerActions(actions []core.Action) []core.Action {
 	ret := []core.Action{}
 	for _, action := range actions {
@@ -543,7 +558,9 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "replicaSets") ||
 			action.Matches("watch", "replicaSets") ||
 			action.Matches("list", "services") ||
-			action.Matches("watch", "services") {
+			action.Matches("watch", "services") ||
+			action.Matches("list", "ingresses") ||
+			action.Matches("watch", "ingresses") {
 			continue
 		}
 		ret = append(ret, action)
@@ -1095,6 +1112,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Status.CurrentPodHash = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
@@ -1150,7 +1168,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 
 	r.Status.CurrentPodHash = "fakepodhash"
-	r.Status.Canary.StableRS = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "fakeobservedgeneration"
@@ -1184,4 +1202,19 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	expectedPatch := `{"status":{"observedGeneration":"5d9b7bdbd7"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestMigrateCanaryStableRS(t *testing.T) {
+	f := newFixture(t)
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.Canary.StableRS = "fakepodhash"
+	index := f.expectUpdateRolloutAction(r)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(index)
+	assert.Equal(t, "fakepodhash", updatedRollout.Status.StableRS)
+	assert.Equal(t, "", updatedRollout.Status.Canary.StableRS)
 }

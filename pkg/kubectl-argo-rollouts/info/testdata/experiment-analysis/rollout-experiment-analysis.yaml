@@ -47,7 +47,7 @@ status:
   blueGreen: {}
   canary:
     currentExperiment: rollout-experiment-analysis-6f646bf7b7-1-vcv27
-    stableRS: f6db98dff
+  stableRS: f6db98dff
   conditions:
   - lastTransitionTime: "2019-10-30T07:26:49Z"
     lastUpdateTime: "2019-10-30T07:26:49Z"

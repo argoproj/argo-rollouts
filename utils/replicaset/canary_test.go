@@ -442,7 +442,7 @@ func TestGetStableRS(t *testing.T) {
 	noStable := GetStableRS(rollout, &rs1, []*appsv1.ReplicaSet{&rs2, &rs3})
 	assert.Nil(t, noStable)
 
-	rollout.Status.Canary.StableRS = "1"
+	rollout.Status.StableRS = "1"
 	stableNotFound := GetStableRS(rollout, &rs2, []*appsv1.ReplicaSet{&rs3})
 	assert.Nil(t, stableNotFound)
 

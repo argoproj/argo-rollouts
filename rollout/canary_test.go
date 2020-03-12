@@ -304,9 +304,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutStableRS := `{
 		"status": {
-			"canary": {
-				"stableRS": "%s"
-			},
+			"stableRS": "%s",
 			"conditions": %s
 		}
 	}`
@@ -427,9 +425,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status":{
-			"canary":{
-				"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
-			},
+			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s
 		}
@@ -468,9 +464,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithSub := `{
 		"status":{
-			"canary":{
-				"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
-			},
+			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"currentStepIndex":1,
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s
@@ -489,7 +483,7 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
+	r1.Status.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -524,7 +518,7 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 		SetWeight: int32Ptr(40),
 	}}
 	r1 := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.Canary.StableRS = "895c6c4f9"
+	r1.Status.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -553,7 +547,7 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r1.Status.Canary.StableRS = r1.Status.CurrentPodHash
+	r1.Status.StableRS = r1.Status.CurrentPodHash
 
 	r2 := bumpVersion(r1)
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -584,7 +578,7 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = r1.Status.CurrentPodHash
+	r1.Status.StableRS = r1.Status.CurrentPodHash
 
 	r2 := bumpVersion(r1)
 
@@ -884,7 +878,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.Canary.StableRS = "895c6c4f9"
+	r1.Status.StableRS = "895c6c4f9"
 
 	r2 := bumpVersion(r1)
 	rs1 := newReplicaSetWithStatus(r1, 9, 9)
@@ -1020,7 +1014,7 @@ func TestCanaryRolloutWithStableService(t *testing.T) {
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.StableService = stableSvc.Name
-	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rollout.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
@@ -1039,7 +1033,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.StableService = "invalid-stable"
-	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rollout.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
