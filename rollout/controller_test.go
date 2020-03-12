@@ -270,7 +270,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
-	newRollout.Status.Canary.StableRS = stableRS
+	newRollout.Status.StableRS = stableRS
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
@@ -1154,7 +1154,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 
 	r.Status.CurrentPodHash = "fakepodhash"
-	r.Status.Canary.StableRS = "fakepodhash"
+	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "fakeobservedgeneration"

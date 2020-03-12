@@ -469,7 +469,7 @@ func TestRolloutProgressing(t *testing.T) {
 	}
 	canaryStatus := func(current, updated, ready, available int32, stableRS string, index int32, stepHash string) v1alpha1.RolloutStatus {
 		status := rolloutStatus(current, updated, ready, available)
-		status.Canary.StableRS = stableRS
+		status.StableRS = stableRS
 		status.CurrentStepIndex = &index
 		status.CurrentStepHash = stepHash
 		return status
@@ -621,7 +621,7 @@ func TestRolloutComplete(t *testing.T) {
 				Steps: steps,
 			},
 		}
-		r.Status.Canary.StableRS = stableRS
+		r.Status.StableRS = stableRS
 		r.Status.CurrentStepIndex = stepIndex
 		if correctObservedGeneration {
 			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)

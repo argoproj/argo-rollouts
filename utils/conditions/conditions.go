@@ -205,7 +205,7 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 	}
 
 	if rollout.Spec.Strategy.Canary != nil {
-		stableRSChange := newStatus.Canary.StableRS != oldStatus.Canary.StableRS
+		stableRSChange := newStatus.StableRS != oldStatus.StableRS
 		incrementStepIndex := false
 		if newStatus.CurrentStepIndex != nil && oldStatus.CurrentStepIndex != nil {
 			incrementStepIndex = *newStatus.CurrentStepIndex != *oldStatus.CurrentStepIndex
@@ -245,7 +245,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
 			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
 		}
-		currentRSIsStable := newStatus.Canary.StableRS != "" && newStatus.Canary.StableRS == newStatus.CurrentPodHash
+		currentRSIsStable := newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
 		scaleDownOldReplicas := newStatus.Replicas == replicas
 		completedStrategy = executedAllSteps && currentRSIsStable && scaleDownOldReplicas
 	}
