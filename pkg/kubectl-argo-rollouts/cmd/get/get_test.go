@@ -240,7 +240,6 @@ NAME                                        KIND        STATUS        AGE  INFO
 	assertStdout(t, expectedOut, o.IOStreams)
 }
 
-
 func TestGetCanaryRollout(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
 

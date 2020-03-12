@@ -77,7 +77,7 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
 				BlueGreen: v1alpha1.BlueGreenStatus{
-					PrePromotionAnalysisRun: "foo",
+					PrePromotionAnalysisRun:  "foo",
 					PostPromotionAnalysisRun: "bar",
 				},
 			},

@@ -1703,7 +1703,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
-		Reason:v1alpha1.PauseReasonInconclusiveAnalysis,
+		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
 	}}
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")

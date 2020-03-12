@@ -202,7 +202,6 @@ func (c *RolloutController) reconcilePostPromotionAnalysisRun(roCtx rolloutConte
 	return currentAr, nil
 }
 
-
 func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
