@@ -72,6 +72,18 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
   - ""
   resources:
   - events
