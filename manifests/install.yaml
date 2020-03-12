@@ -11382,7 +11382,6 @@ rules:
   - watch
   - update
   - patch
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -11568,7 +11567,6 @@ rules:
   - watch
   - update
   - patch
-  - delete
 - apiGroups:
   - ""
   resources:
