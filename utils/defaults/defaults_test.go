@@ -185,3 +185,14 @@ func TestGetExperimentProgressDeadlineSecondsOrDefault(t *testing.T) {
 	defaultValue := &v1alpha1.Experiment{}
 	assert.Equal(t, DefaultProgressDeadlineSeconds, GetExperimentProgressDeadlineSecondsOrDefault(defaultValue))
 }
+
+func TestGetConsecutiveErrorLimitOrDefault(t *testing.T) {
+	errorLimit := int32(2)
+	metricNonDefaultValue := &v1alpha1.Metric{
+		ConsecutiveErrorLimit: &errorLimit,
+	}
+	assert.Equal(t, errorLimit, GetConsecutiveErrorLimitOrDefault(metricNonDefaultValue))
+
+	metricDefaultValue := &v1alpha1.Metric{}
+	assert.Equal(t, DefaultConsecutiveErrorLimit, GetConsecutiveErrorLimitOrDefault(metricDefaultValue))
+}

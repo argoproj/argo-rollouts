@@ -126,7 +126,7 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 		},
 		Status: v1alpha1.RolloutStatus{},
 	}
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, ro)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, ro, "")
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 	return ro
 }
@@ -138,7 +138,7 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplica
 	return rs
 }
 
-func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha1.RolloutCondition, string) {
+func newProgressingCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""
 	switch resource := resourceObj.(type) {
@@ -201,6 +201,10 @@ func newProgressingCondition(reason string, resourceObj runtime.Object) (v1alpha
 		status = corev1.ConditionUnknown
 	}
 
+	if optionalMessage != "" {
+		msg = optionalMessage
+	}
+
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
@@ -237,9 +241,9 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool) string {
+func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string) string {
 	_, availableCondition := newAvailableCondition(available)
-	_, progressingConditon := newProgressingCondition(progressingReason, progressingResource)
+	_, progressingConditon := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s]", availableCondition, progressingConditon)
 	}
@@ -1027,7 +1031,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 			"conditions": [%s,%s]
 		}
 	}`
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r)
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".Spec.Selector"))
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
@@ -1129,7 +1133,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	rs.Spec.Selector = &selector
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
-	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingConditon)
 
 	podTemplate := corev1.PodTemplate{
@@ -1175,7 +1179,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
-	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs)
+	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingConditon)
 
 	podTemplate := corev1.PodTemplate{

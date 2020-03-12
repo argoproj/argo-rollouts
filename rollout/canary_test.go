@@ -114,7 +114,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 		}
 	}`
 
-	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
@@ -133,7 +133,7 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -163,7 +163,7 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -182,7 +182,7 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
-	_, pausedCondition := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	_, pausedCondition := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"conditions": [%s]
@@ -203,7 +203,7 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
-	progressingCondition, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -223,7 +223,7 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
-	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2)
+	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"conditions": [%s]
@@ -269,7 +269,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 		"currentStepIndex": 1
 	}
 }`
-	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false)
+	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchTemplate, generatedConditions))
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -309,7 +309,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		}
 	}`
 
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, ""))
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -351,7 +351,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 
@@ -392,7 +392,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -431,7 +431,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 		}
 	}`
 
-	newConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false)
+	newConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "")
 
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
@@ -470,7 +470,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false))
+	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, ""))
 
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
@@ -650,7 +650,7 @@ func TestRollBackToStable(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -693,7 +693,7 @@ func TestGradualShiftToNewStable(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -741,7 +741,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	}`
 	newPodHash := controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -779,7 +779,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs3, false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs3, false, "")
 	assert.Equal(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
@@ -806,7 +806,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
@@ -848,7 +848,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -888,7 +888,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	earlier := metav1.Now()
@@ -929,7 +929,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.Selector = ""
 	r2 := bumpVersion(r1)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 4, 4)
@@ -1077,7 +1077,7 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 5, 0, 5, true)
 	r2.Spec.Replicas = pointer.Int32Ptr(10)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1170,7 +1170,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 		StartTime: overAMinuteAgo,
 	}}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
 	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
 	r1.Spec.Paused = true
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -1207,7 +1207,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Replicas = pointer.Int32Ptr(3)
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 3, 0, 3, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1)
+	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -1260,7 +1260,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions)), patch)
 	})
 
@@ -1293,7 +1293,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false)
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false, "")
 		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
 	})
 }

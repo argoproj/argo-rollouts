@@ -77,7 +77,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
