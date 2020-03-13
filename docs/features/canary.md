@@ -80,7 +80,7 @@ spec:
 ```
 
 ### analysis
-Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessul the rollout will be aborted.
+Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
 Default to nil
 
@@ -98,4 +98,3 @@ Defaults to "25%".
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
 Defaults to 0
-
