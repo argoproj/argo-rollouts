@@ -38,6 +38,14 @@ spec:
     blueGreen:
       # Name of the service that the rollout modifies as the active service.
       activeService: active-service
+      # Pre-promotion analysis run
+      prePromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        # template arguments
+        args:
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
       # Name of the service that the rollout modifies as the preview service.
       previewService: preview-service 
       # The number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs +optional
@@ -57,6 +65,14 @@ spec:
       maxUnavailable: 1
       # The maximum number of pods that can be scheduled above the original number of pods. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new RC can be scaled up by 30% immediately when the rolling update starts. Once old pods have been killed, new RC can be scaled up further, ensuring that total number of pods running at any time during the update is atmost 130% of original pods. +optional
       maxSurge: "20%"
+      # Background analysis to run during the rollout
+      analysis:
+        templates:
+        - templateName: success-rate
+        # template arguments
+        args:
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
       # Define the order of phases to execute the canary deployment +optional
       steps:
         # Sets the ratio of new replicasets to 20%
