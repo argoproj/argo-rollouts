@@ -673,7 +673,7 @@
 <li><a href="nginx/">Nginx Ingress Controller</a></li>
 <li>File a ticket <a href="https://github.com/argoproj/argo-rollouts/issues">here</a> if you would like another implementation (or thumbs up it if that issue already exists)</li>
 </ul>
-<p>Regardless of the Service Mesh used, the Rollout object has to set a canary Service and a stable Service in its spec. Here is an example with those fields set:</p>
+<p>Regardless of the Service Mesh used, the Rollout object has to set a canary Service and a stable Service in its spec. Here is an example with those fields set:
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">spec</span><span class="p">:</span>
@@ -684,13 +684,18 @@
       <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
       <span class="nt">trafficRouting</span><span class="p">:</span>
        <span class="l l-Scalar l-Scalar-Plain">...</span>
-</pre></div>
-
-
+</pre></div></p>
 <p>The controller modifies these Services to route traffic to the appropriate canary and stable ReplicaSets as the Rollout progresses. These Services are used by the Service Mesh to define what group of pods should receive the canary and stable traffic.</p>
 <p>Additionally, the Argo Rollouts controller needs to treat the Rollout object differently when using traffic management. In particular, the Stable ReplicaSet owned by the Rollout remains fully scaled up as the Rollout progresses through the Canary steps.</p>
-<p>Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time*. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.</p>
-<p>*The Rollout has to assume that the application can handle 100% of traffic if it is fully scaled up. It should outsource to the HPA to detect if the Rollout needs to more replicas if 100% isn't enough.</p>
+<p>Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>The Rollout has to assume that the application can handle 100% of traffic if it is fully scaled up. It should outsource to the HPA to detect if the Rollout needs to more replicas if 100% isn't enough.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
                 
                   
                 

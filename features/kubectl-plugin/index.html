@@ -713,34 +713,30 @@
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <h3 id="manual">Manual<a class="headerlink" href="#manual" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Install <a href="https://github.com/argoproj/argo-rollouts/releases">Argo Rollouts Kubectl plugin</a> with curl.</li>
-</ol>
-<div class="codehilite"><pre><span></span>curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
-</pre></div>
-
-
+<li>
+<p>Install <a href="https://github.com/argoproj/argo-rollouts/releases">Argo Rollouts Kubectl plugin</a> with curl.
+    <div class="codehilite"><pre><span></span>curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
+</pre></div></p>
 <div class="admonition tip">
-<p class="admonition-title">Tip</p>
 <p>For Linux dist, replace <code>darwin</code> with <code>linux</code></p>
 </div>
-<ol>
-<li>Make the kubectl-argo-rollouts binary executable.</li>
-</ol>
-<div class="codehilite"><pre><span></span><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="p">.</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span><span class="o">-</span><span class="n">darwin</span><span class="o">-</span><span class="n">amd64</span>
+</li>
+<li>
+<p>Make the kubectl-argo-rollouts binary executable.</p>
+<div class="codehilite"><pre><span></span>chmod +x ./kubectl-argo-rollouts-darwin-amd64
 </pre></div>
 
-
-<ol>
-<li>Move the binary into your PATH.</li>
-</ol>
-<div class="codehilite"><pre><span></span><span class="n">sudo</span> <span class="n">mv</span> <span class="p">.</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span><span class="o">-</span><span class="n">darwin</span><span class="o">-</span><span class="n">amd64</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="k">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">kubectl</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">rollouts</span>
+</li>
+<li>
+<p>Move the binary into your PATH.</p>
+<div class="codehilite"><pre><span></span>sudo mv ./kubectl-argo-rollouts-darwin-amd64 /usr/local/bin/kubectl-argo-rollouts
 </pre></div>
 
-
+</li>
+</ol>
 <p>Test to ensure the version you installed is up-to-date:</p>
-<div class="codehilite"><pre><span></span><span class="n">kubectl</span> <span class="n">argo</span> <span class="n">rollouts</span> <span class="k">version</span>
+<div class="codehilite"><pre><span></span>kubectl argo rollouts version
 </pre></div>
-
 
 <h3 id="krew">Krew<a class="headerlink" href="#krew" title="Permanent link">&para;</a></h3>
 <p>Currently not supported, but there are plans to make the Argo Rollouts kubectl a part of <a href="https://github.com/kubernetes-sigs/krew">Krew</a>. Please follow this <a href="https://github.com/argoproj/argo-rollouts/issues/294">issue</a> for the most up-to-date information.</p>

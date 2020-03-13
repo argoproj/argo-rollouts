@@ -366,18 +366,12 @@
     Example
   </a>
   
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pause-duration" class="md-nav__link">
     Pause Duration
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -397,6 +391,20 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#analysis" class="md-nav__link">
+    analysis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canaryservice" class="md-nav__link">
+    canaryService
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#maxsurge" class="md-nav__link">
     maxSurge
   </a>
@@ -406,13 +414,6 @@
           <li class="md-nav__item">
   <a href="#maxunavailable" class="md-nav__link">
     maxUnavailable
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#canaryservice" class="md-nav__link">
-    canaryService
   </a>
   
 </li>
@@ -686,18 +687,12 @@
     Example
   </a>
   
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pause-duration" class="md-nav__link">
     Pause Duration
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -717,6 +712,20 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#analysis" class="md-nav__link">
+    analysis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canaryservice" class="md-nav__link">
+    canaryService
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#maxsurge" class="md-nav__link">
     maxSurge
   </a>
@@ -726,13 +735,6 @@
           <li class="md-nav__item">
   <a href="#maxunavailable" class="md-nav__link">
     maxUnavailable
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#canaryservice" class="md-nav__link">
-    canaryService
   </a>
   
 </li>
@@ -800,8 +802,7 @@
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span> <span class="c1"># pause indefinitely</span>
 </pre></div>
 
-
-<h3 id="pause-duration">Pause Duration<a class="headerlink" href="#pause-duration" title="Permanent link">&para;</a></h3>
+<h2 id="pause-duration">Pause Duration<a class="headerlink" href="#pause-duration" title="Permanent link">&para;</a></h2>
 <p>Pause duration can be specied with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. </p>
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">strategy</span><span class="p">:</span>
@@ -815,35 +816,35 @@
         <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>                <span class="c1"># pause indefinitely</span>
 </pre></div>
 
-
 <p>If no <code>duration</code> specified for a pause step the rollout will be paused indefinitely. To unpause use the <a href="../kubectl-plugin/">argo kubectl plugin</a> <code>promote</code> command. </p>
 <div class="codehilite"><pre><span></span><span class="c1"># promote to the next step</span>
 kubectl argo rollouts promote &lt;rollout&gt;
 </pre></div>
 
-
 <h2 id="mimicking-rolling-update">Mimicking Rolling Update<a class="headerlink" href="#mimicking-rolling-update" title="Permanent link">&para;</a></h2>
 <p>If the steps field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the <code>maxSurge</code> and <code>maxUnavailable</code> fields to configure how the Rollout should progress to the new version.</p>
 <h2 id="other-configurable-features">Other Configurable Features<a class="headerlink" href="#other-configurable-features" title="Permanent link">&para;</a></h2>
-<p>Here are the optional fields that will modify the behavior of canary strategy:</p>
+<p>Here are the optional fields that will modify the behavior of canary strategy:
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">analysis</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">object</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
       <span class="nt">maxSurge</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stringOrInt</span>
       <span class="nt">maxUnavailable</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stringOrInt</span>
-      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
-</pre></div>
-
-
+</pre></div></p>
+<h3 id="analysis">analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h3>
+<p>Configure the background <a href="../analysis/">Analysis</a> to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.</p>
+<p>Default to nil</p>
+<h3 id="canaryservice">canaryService<a class="headerlink" href="#canaryservice" title="Permanent link">&para;</a></h3>
+<p><code>canaryService</code> references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.</p>
+<p>Defaults to an empty string</p>
 <h3 id="maxsurge">maxSurge<a class="headerlink" href="#maxsurge" title="Permanent link">&para;</a></h3>
 <p><code>maxSurge</code> defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")</p>
 <p>Defaults to "25%".</p>
 <h3 id="maxunavailable">maxUnavailable<a class="headerlink" href="#maxunavailable" title="Permanent link">&para;</a></h3>
 <p>The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.</p>
 <p>Defaults to 0</p>
-<h3 id="canaryservice">canaryService<a class="headerlink" href="#canaryservice" title="Permanent link">&para;</a></h3>
-<p><code>canaryService</code> references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.</p>
-<p>Defaults to an empty string</p>
                 
                   
                 

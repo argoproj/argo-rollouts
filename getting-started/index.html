@@ -755,23 +755,21 @@
 </ul>
 <h2 id="install-argo-rollouts">Install Argo Rollouts<a class="headerlink" href="#install-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts can be installed at a cluster or namespace level. </p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
 <p>Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with <strong>v1.13.x</strong> 
 because they have a new field from the v1.14. Adding the <code>--validate=false</code> to the commands below allows the cluster to 
 accept the Argo Rollouts CRDs.</p>
+</div>
 <h3 id="cluster-level-installation">Cluster-Level installation<a class="headerlink" href="#cluster-level-installation" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
 </pre></div>
 
-
 <p>This will create a new namespace, <code>argo-rollouts</code>, where Argo Rollouts controller will live.</p>
 <p>On GKE, you will need grant your account the ability to create new cluster roles:</p>
 <div class="codehilite"><pre><span></span>kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole<span class="o">=</span>cluster-admin --user<span class="o">=</span>YOUREMAIL@gmail.com
 </pre></div>
-
 
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -780,7 +778,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 <h3 id="namespace-level-installation">Namespace-Level Installation<a class="headerlink" href="#namespace-level-installation" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/namespace-install.yaml
 </pre></div>
-
 
 <h2 id="converting-deployment-to-rollout">Converting Deployment to Rollout<a class="headerlink" href="#converting-deployment-to-rollout" title="Permanent link">&para;</a></h2>
 <p>Converting a Deployment to a Rollout simply is a core design principle of Argo Rollouts. There are two key changes:</p>
@@ -819,27 +816,22 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
 </pre></div>
 
-
 <h2 id="updating-the-rollout">Updating the Rollout<a class="headerlink" href="#updating-the-rollout" title="Permanent link">&para;</a></h2>
 <p>The initial creation of the above Rollout will bring up all 5 replicas of the Pod Spec listed. Since the rollout was not in a stable state beforehand (as it was just created), the rollout will skip the steps listed in the <code>.spec.strategy.canary.steps</code> field to first become stable. Once the new ReplicaSet is healthy, updating any field in the <code>spec.template</code> will cause the rollout to create a new ReplicaSet and execute the steps in <code>spec.strategy.canary.steps</code> to transition to the new version.</p>
 <p>To demonstrate this, we will update the rollout to use a new nginx image. You can either run <code>kubectl edit rollout example-rollout</code> and change the image from <code>nginx:1.15.4</code> to <code>nginx:1.15.5</code>, or run the following:</p>
 <div class="codehilite"><pre><span></span>$ kubectl patch rollout example-rollout --type merge -p <span class="s1">&#39;{&quot;spec&quot;: {&quot;template&quot;: { &quot;spec&quot;: { &quot;containers&quot;: [{&quot;name&quot;: &quot;nginx&quot;,&quot;image&quot;: &quot;nginx:1.15.5&quot;}]}}}}&#39;</span>
 </pre></div>
 
-
-<p>Once the patch is applied, you can watch the new replicaset came up as healthy by running </p>
+<p>Once the patch is applied, you can watch the new replicaset came up as healthy by running 
 <div class="codehilite"><pre><span></span>$ kubectl get replicaset -w -o wide
 </pre></div>
-
-
-<p>Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to <code>.status.pauseConditions</code>. The pause condition contains a reason and a pause start time.</p>
+Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to <code>.status.pauseConditions</code>. The pause condition contains a reason and a pause start time.</p>
 <h2 id="promoting-the-rollout">Promoting the rollout<a class="headerlink" href="#promoting-the-rollout" title="Permanent link">&para;</a></h2>
 <p>The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automiated tool) removes the pause conditon.</p>
 <p>Argo Rollouts has a <a href="../features/kubectl-plugin/">kubectl plugin</a> to help automate operations like promoting a rollout through a step. The installation instructions are <a href="../features/kubectl-plugin/#installation">here</a>.</p>
 <p>Once the plugin is installed, the user can run the following command to promote the rollout through the pause step:</p>
 <div class="codehilite"><pre><span></span>kubectl argo rollouts promote example-rollout
 </pre></div>
-
 
 <p>At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat these steps when the Pod Spec Template is changed again.</p>
 <h2 id="going-forward">Going forward<a class="headerlink" href="#going-forward" title="Permanent link">&para;</a></h2>

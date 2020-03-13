@@ -350,6 +350,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configurable-features" class="md-nav__link">
     Configurable Features
   </a>
@@ -358,43 +365,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#previewservice" class="md-nav__link">
-    PreviewService
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#previewreplicacount" class="md-nav__link">
-    PreviewReplicaCount
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#autopromotionenabled" class="md-nav__link">
-    AutoPromotionEnabled
+    autoPromotionEnabled
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#autopromotionseconds" class="md-nav__link">
-    AutoPromotionSeconds
+    autoPromotionSeconds
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepromotionanalysis" class="md-nav__link">
+    prePromotionAnalysis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#previewservice" class="md-nav__link">
+    previewService
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#previewreplicacount" class="md-nav__link">
+    previewReplicaCount
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#scaledowndelayseconds" class="md-nav__link">
-    ScaleDownDelaySeconds
+    scaleDownDelaySeconds
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#scaledowndelayrevisionlimit" class="md-nav__link">
-    ScaleDownDelayRevisionLimit
+    scaleDownDelayRevisionLimit
   </a>
   
 </li>
@@ -676,6 +690,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configurable-features" class="md-nav__link">
     Configurable Features
   </a>
@@ -684,43 +705,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#previewservice" class="md-nav__link">
-    PreviewService
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#previewreplicacount" class="md-nav__link">
-    PreviewReplicaCount
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#autopromotionenabled" class="md-nav__link">
-    AutoPromotionEnabled
+    autoPromotionEnabled
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#autopromotionseconds" class="md-nav__link">
-    AutoPromotionSeconds
+    autoPromotionSeconds
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepromotionanalysis" class="md-nav__link">
+    prePromotionAnalysis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#previewservice" class="md-nav__link">
+    previewService
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#previewreplicacount" class="md-nav__link">
+    previewReplicaCount
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#scaledowndelayseconds" class="md-nav__link">
-    ScaleDownDelaySeconds
+    scaleDownDelaySeconds
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#scaledowndelayrevisionlimit" class="md-nav__link">
-    ScaleDownDelayRevisionLimit
+    scaleDownDelayRevisionLimit
   </a>
   
 </li>
@@ -758,38 +786,78 @@
 <p class="admonition-title">Important</p>
 <p>When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.</p>
 </div>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-bluegreen</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">revisionHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-bluegreen</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-bluegreen</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:blue</span>
+        <span class="nt">imagePullPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Always</span>
+        <span class="nt">ports</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">8080</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">blueGreen</span><span class="p">:</span> 
+      <span class="c1"># activeService specifies the service to update with the new template hash at time of promotion.</span>
+      <span class="c1"># This field is mandatory for the blueGreen update strategy.</span>
+      <span class="nt">activeService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-bluegreen-active</span>
+      <span class="c1"># previewService specifies the service to update with the new template hash before promotion.</span>
+      <span class="c1"># This allows the preview stack to be reachable without serving production traffic.</span>
+      <span class="c1"># This field is optional.</span>
+      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-bluegreen-preview</span>
+      <span class="c1"># autoPromotionEnabled disables automated promotion of the new stack by pausing the rollout</span>
+      <span class="c1"># immediately before the promotion. If omitted, the default behavior is to promote the new</span>
+      <span class="c1"># stack as soon as the ReplicaSet are completely ready/available.</span>
+      <span class="c1"># Rollouts can be resumed using: `kubectl argo rollouts resume ROLLOUT`</span>
+      <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+
 <h2 id="configurable-features">Configurable Features<a class="headerlink" href="#configurable-features" title="Permanent link">&para;</a></h2>
-<p>Here are the optional fields that will change the behavior of BlueGreen deployment:</p>
+<p>Here are the optional fields that will change the behavior of BlueGreen deployment:
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">blueGreen</span><span class="p">:</span>
-      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
-      <span class="nt">previewReplicaCount</span><span class="p">:</span> <span class="nv">*int32</span>
-      <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+      <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">boolean</span>
       <span class="nt">autoPromotionSeconds</span><span class="p">:</span> <span class="nv">*int32</span>
+      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
+      <span class="nt">prePromotionAnalysis</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">object</span>
+      <span class="nt">previewReplicaCount</span><span class="p">:</span> <span class="nv">*int32</span>
       <span class="nt">scaleDownDelaySeconds</span><span class="p">:</span> <span class="nv">*int32</span>
       <span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="nv">*int32</span>
-</pre></div>
-
-
-<h3 id="previewservice">PreviewService<a class="headerlink" href="#previewservice" title="Permanent link">&para;</a></h3>
+</pre></div></p>
+<h3 id="autopromotionenabled">autoPromotionEnabled<a class="headerlink" href="#autopromotionenabled" title="Permanent link">&para;</a></h3>
+<p>The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.</p>
+<p>Defaults to true</p>
+<h3 id="autopromotionseconds">autoPromotionSeconds<a class="headerlink" href="#autopromotionseconds" title="Permanent link">&para;</a></h3>
+<p>The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the <code>AutoPromotionEnabled</code> field is set to true, this field will be ignored</p>
+<p>Defaults to nil</p>
+<h3 id="prepromotionanalysis">prePromotionAnalysis<a class="headerlink" href="#prepromotionanalysis" title="Permanent link">&para;</a></h3>
+<p>Configures the <a href="../analysis/#bluegreen-pre-promotion-analysis">Analysis</a> before it switches traffic to the new version. If the analysis is not successful the rollout will be aborted.</p>
+<p>Default to nil</p>
+<h3 id="previewservice">previewService<a class="headerlink" href="#previewservice" title="Permanent link">&para;</a></h3>
 <p>The PreviewService field references a Service that will be modified to send traffic to the new replicaset before the new one is promoted to receiving traffic from the active service. Once the new replicaset start receives traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.</p>
 <p>This feature is used to provide an endpoint that can be used to test a new version of an application.</p>
 <p>Defaults to an empty string</p>
-<h3 id="previewreplicacount">PreviewReplicaCount<a class="headerlink" href="#previewreplicacount" title="Permanent link">&para;</a></h3>
+<h3 id="previewreplicacount">previewReplicaCount<a class="headerlink" href="#previewreplicacount" title="Permanent link">&para;</a></h3>
 <p>The PreviewReplicaCount will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the <code>spec.replicas</code>. The rollout will not switch over the active service to the new ReplicaSet until it matches the <code>spec.replicas</code> count.</p>
 <p>This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.</p>
 <p>Defaults to nil</p>
-<h3 id="autopromotionenabled">AutoPromotionEnabled<a class="headerlink" href="#autopromotionenabled" title="Permanent link">&para;</a></h3>
-<p>The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.</p>
-<p>Defaults to true</p>
-<h3 id="autopromotionseconds">AutoPromotionSeconds<a class="headerlink" href="#autopromotionseconds" title="Permanent link">&para;</a></h3>
-<p>The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the <code>AutoPromotionEnabled</code> field is set to true, this field will be ignored</p>
-<p>Defaults to nil</p>
-<h3 id="scaledowndelayseconds">ScaleDownDelaySeconds<a class="headerlink" href="#scaledowndelayseconds" title="Permanent link">&para;</a></h3>
+<h3 id="scaledowndelayseconds">scaleDownDelaySeconds<a class="headerlink" href="#scaledowndelayseconds" title="Permanent link">&para;</a></h3>
 <p>The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.</p>
 <p>Defaults to 30</p>
-<h3 id="scaledowndelayrevisionlimit">ScaleDownDelayRevisionLimit<a class="headerlink" href="#scaledowndelayrevisionlimit" title="Permanent link">&para;</a></h3>
+<h3 id="scaledowndelayrevisionlimit">scaleDownDelayRevisionLimit<a class="headerlink" href="#scaledowndelayrevisionlimit" title="Permanent link">&para;</a></h3>
 <p>The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. </p>
 <p>Default to nil</p>
                 

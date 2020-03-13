@@ -110,7 +110,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#canary-analysis-progressive-delivery" tabindex="1" class="md-skip">
+      <a href="#analysis-progressive-delivery" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -500,7 +500,14 @@
       
         <li class="md-nav__item">
   <a href="#analysis-with-multiple-templates" class="md-nav__link">
-    Analysis with multiple templates
+    Analysis with Multiple Templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-template-arguments" class="md-nav__link">
+    Analysis Template Arguments
   </a>
   
 </li>
@@ -549,14 +556,7 @@
       
         <li class="md-nav__item">
   <a href="#run-experiment-indefinitely" class="md-nav__link">
-    Run experiment indefinitely
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#blue-green-automated-rollback" class="md-nav__link">
-    Blue-Green Automated Rollback
+    Run Experiment Indefinitely
   </a>
   
 </li>
@@ -564,6 +564,13 @@
         <li class="md-nav__item">
   <a href="#job-metrics" class="md-nav__link">
     Job Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wavefront-metrics" class="md-nav__link">
+    Wavefront Metrics
   </a>
   
 </li>
@@ -725,7 +732,14 @@
       
         <li class="md-nav__item">
   <a href="#analysis-with-multiple-templates" class="md-nav__link">
-    Analysis with multiple templates
+    Analysis with Multiple Templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-template-arguments" class="md-nav__link">
+    Analysis Template Arguments
   </a>
   
 </li>
@@ -774,14 +788,7 @@
       
         <li class="md-nav__item">
   <a href="#run-experiment-indefinitely" class="md-nav__link">
-    Run experiment indefinitely
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#blue-green-automated-rollback" class="md-nav__link">
-    Blue-Green Automated Rollback
+    Run Experiment Indefinitely
   </a>
   
 </li>
@@ -789,6 +796,13 @@
         <li class="md-nav__item">
   <a href="#job-metrics" class="md-nav__link">
     Job Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wavefront-metrics" class="md-nav__link">
+    Wavefront Metrics
   </a>
   
 </li>
@@ -819,8 +833,8 @@
                   <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/analysis.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="canary-analysis-progressive-delivery">Canary Analysis &amp; Progressive Delivery<a class="headerlink" href="#canary-analysis-progressive-delivery" title="Permanent link">&para;</a></h1>
-<p>Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
+                <h1 id="analysis-progressive-delivery">Analysis &amp; Progressive Delivery<a class="headerlink" href="#analysis-progressive-delivery" title="Permanent link">&para;</a></h1>
+<p>Argo Rollouts provides several ways to perform analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.</p>
 <h2 id="custom-resource-definitions">Custom Resource Definitions<a class="headerlink" href="#custom-resource-definitions" title="Permanent link">&para;</a></h2>
@@ -862,12 +876,15 @@ and the Rollout would be considered in a <code>Degraded</code>. Otherwise, if th
 canary steps, the rollout is considered successful and the analysis run is stopped by the controller.</p>
 <p>This example highlights:</p>
 <ul>
-<li>background analysis style of progressive delivery</li>
-<li>using a prometheus query to perform a measurement</li>
-<li>the ability to parameterize the analysis</li>
+<li>Background analysis style of progressive delivery</li>
+<li>Using a <a href="https://prometheus.io/">Prometheus</a> query to perform a measurement</li>
+<li>The ability to parameterize the analysis</li>
 <li>Delay starting the analysis run until step 3 (Set Weight 40%)</li>
 </ul>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="superfences-tabs">
+<input name="__tabs_1" type="radio" id="__tab_1_0" checked="checked" />
+<label for="__tab_1_0">Rollout</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -892,15 +909,10 @@ canary steps, the rollout is considered successful and the analysis run is stopp
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
-</pre></div>
-
-
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Previously, the analysis section had a field called "templateName" where a user would specify a single
-<code>AnalysisTemplate.</code> This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. </p>
-</div>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</pre></div></div>
+<input name="__tabs_1" type="radio" id="__tab_1_1" />
+<label for="__tab_1_1">AnalysisTemplate</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
@@ -922,49 +934,13 @@ canary steps, the rollout is considered successful and the analysis run is stopp
           <span class="no">sum(irate(</span>
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
-</pre></div>
-
-
-<ul>
-<li>analysis using wavefront query</li>
-</ul>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">args</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
-  <span class="nt">metrics</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
-    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
-    <span class="nt">provider</span><span class="p">:</span>
-      <span class="nt">wavefront</span><span class="p">:</span>
-        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example.wavefront.com</span>
-        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-          <span class="no">sum(rate(</span>
-            <span class="no">5m, ts(&quot;istio.requestcount.count&quot;, response_code!=500 and destination_service=&quot;{{args.service-name}}&quot;</span>
-          <span class="no">))) /</span>
-          <span class="no">sum(rate(</span>
-            <span class="no">5m, ts(&quot;istio.requestcount.count&quot;, reporter=client and destination_service=&quot;{{args.service-name}}&quot;</span>
-          <span class="no">)))</span>
-</pre></div>
-
-
-<p>wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">wavefront-api-tokens</span>
-<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">example1.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token1&gt;</span>
-  <span class="nt">example2.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token2&gt;</span>
-</pre></div>
-
-
+</pre></div></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Previously, the Rollout <code>analysis</code> section had a field called "<code>templateName</code>" where a user would specify a single
+<code>AnalysisTemplate.</code> This field has be depreciated in lieu of the <code>templates</code> field, and the field will be removed in v0.9.0. </p>
+</div>
 <h2 id="analysis-at-a-predefined-step">Analysis at a Predefined Step<a class="headerlink" href="#analysis-at-a-predefined-step" title="Permanent link">&para;</a></h2>
 <p>Analysis can also be performed as a rollout step as a "analysis" step. When analysis is performed
 as a step, an <code>AnalysisRun</code> is started when the step is reached, and blocks the rollout until the
@@ -974,7 +950,7 @@ the next step, or abort the rollout completely.</p>
 analysis was successful, continues with rollout, otherwise aborts.</p>
 <p>This example demonstrates:</p>
 <ul>
-<li>the ability to invoke an analysis in-line as part of steps</li>
+<li>The ability to invoke an analysis in-line as part of steps</li>
 </ul>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
@@ -995,11 +971,10 @@ analysis was successful, continues with rollout, otherwise aborts.</p>
             <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </pre></div>
 
-
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Previously, the analysis section had a field called "templateName" where a user would specify a single
-<code>AnalysisTemplate</code>. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. </p>
+<p>Previously, the Rollout <code>analysis</code> section had a field called "<code>templateName</code>" where a user would specify a single
+<code>AnalysisTemplate.</code> This field has be depreciated in lieu of the <code>templates</code> field, and the field will be removed in v0.9.0.  </p>
 </div>
 <p>In this example, the <code>AnalysisTemplate</code> is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.</p>
@@ -1025,27 +1000,27 @@ no interval is specified, the analysis will perform a single measurement and com
           <span class="no">))</span>
 </pre></div>
 
-
 <p>Multiple measurements can be performed over a longer duration period, by specifying the <code>count</code> and 
 <code>interval</code> fields:</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
     <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
-    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60s</span>
-    <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-    <span class="nt">provider</span><span class="p">:</span>
+<span class="hll">    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60s</span>
+</span><span class="hll">    <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
+</span>    <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </pre></div>
 
-
-<h2 id="analysis-with-multiple-templates">Analysis with multiple templates<a class="headerlink" href="#analysis-with-multiple-templates" title="Permanent link">&para;</a></h2>
+<h2 id="analysis-with-multiple-templates">Analysis with Multiple Templates<a class="headerlink" href="#analysis-with-multiple-templates" title="Permanent link">&para;</a></h2>
 <p>A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
 analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
-templates together. The controller combines the metrics and args fields of all the templates.</p>
-<p>Rollout referencing multiple AnalysisTemplates:</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+templates together. The controller combines the <code>metrics</code> and <code>args</code> fields of all the templates.</p>
+<div class="superfences-tabs">
+<input name="__tabs_2" type="radio" id="__tab_2_0" checked="checked" />
+<label for="__tab_2_0">Rollout</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1060,11 +1035,10 @@ templates together. The controller combines the metrics and args fields of all t
         <span class="nt">args</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
-</pre></div>
-
-
-<p>The AnalysisTemplates:</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</pre></div></div>
+<input name="__tabs_2" type="radio" id="__tab_2_1" />
+<label for="__tab_2_1">AnalysisTemplate</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
@@ -1109,11 +1083,11 @@ templates together. The controller combines the metrics and args fields of all t
           <span class="no">sum(irate(</span>
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
-</pre></div>
-
-
-<p>The controller would create an AnalysisRun with the following yaml:</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</pre></div></div>
+<input name="__tabs_2" type="radio" id="__tab_2_2" />
+<label for="__tab_2_2">AnalysisRun</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="c1"># NOTE: The rollouts controller will create this resource</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-CurrentPodHash-multiple-templates</span>
@@ -1150,17 +1124,79 @@ templates together. The controller combines the metrics and args fields of all t
           <span class="no">sum(irate(</span>
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
-</pre></div>
-
-
+</pre></div></div>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The controller will error when merging the templates if:</p>
 <ul>
-<li>multiple metrics in the templates have the same name</li>
+<li>Multiple metrics in the templates have the same name</li>
 <li>Two arguments with the same name both have values</li>
 </ul>
 </div>
+<h2 id="analysis-template-arguments">Analysis Template Arguments<a class="headerlink" href="#analysis-template-arguments" title="Permanent link">&para;</a></h2>
+<p>AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as <code>{{ args.&lt;name&gt; }}</code>.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">args-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="c1"># required</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">latest-hash</span>
+  <span class="c1"># optional</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">api-url</span>
+    <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://example/measure</span>
+  <span class="c1"># from secret</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">api-token</span>
+    <span class="nt">valueFrom</span><span class="p">:</span>
+      <span class="nt">secretKeyRef</span><span class="p">:</span>
+        <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">token-secret</span>
+        <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apiToken</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">web</span><span class="p">:</span>
+        <span class="c1"># paceholders are resolved when an AnalysisRun is created </span>
+        <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.api-url</span><span class="nv"> </span><span class="s">}}?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">headers</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
+</pre></div>
+
+<p>Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">analysis</span><span class="p">:</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">args-example</span>
+        <span class="nt">args</span><span class="p">:</span>
+        <span class="c1"># required value </span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+        <span class="c1"># override default value</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">api-url</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://other-api</span>
+        <span class="c1"># pod template hash from the stable ReplicaSet</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
+          <span class="nt">valueFrom</span><span class="p">:</span>
+            <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Stable</span>
+        <span class="c1"># pod template hash from the latest ReplicaSet</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">latest-hash</span>
+          <span class="nt">valueFrom</span><span class="p">:</span>
+            <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
+</pre></div>
+
 <h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
 <p>A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
 AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
@@ -1172,7 +1208,6 @@ failure of the analysis run decides if the Rollout will switch traffic, or abort
 <span class="nt">spec</span><span class="p">:</span>
 <span class="nn">...</span>
   <span class="nt">strategy</span><span class="p">:</span>
-
     <span class="nt">blueGreen</span><span class="p">:</span>
       <span class="nt">activeService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">active-svc</span>
       <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc</span>
@@ -1184,7 +1219,6 @@ failure of the analysis run decides if the Rollout will switch traffic, or abort
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </pre></div>
 
-
 <p>In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
 Rollout will not switch traffic to the new version until the analysis run finishes successfully. </p>
 <p>Note: if the<code>autoPromotionSeconds</code> field is specified and the Rollout has waited auto promotion seconds amount of time,
@@ -1192,6 +1226,10 @@ the Rollout marks the AnalysisRun successful and switches the traffic to a new v
 completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the 
 <code>autoPromotionSeconds</code>.</p>
 <h2 id="bluegreen-post-promotion-analysis">BlueGreen Post Promotion Analysis<a class="headerlink" href="#bluegreen-post-promotion-analysis" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Not Implemented</p>
+<p>This feature is not yet implemenated.</p>
+</div>
 <p>A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
 run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
 If <code>scaleDownDelaySeconds</code> is specified, the controller will cancel any AnalysisRuns at time of <code>scaleDownDelay</code> to 
@@ -1216,7 +1254,6 @@ after the AnalysisRun completes (with a minimum of 30 seconds).</p>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </pre></div>
 
-
 <h2 id="failure-conditions">Failure Conditions<a class="headerlink" href="#failure-conditions" title="Permanent link">&para;</a></h2>
 <p><code>failureCondition</code> can be used to cause an analysis run to fail. The following example continually polls a prometheus 
 server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
@@ -1224,8 +1261,8 @@ encountered.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">total-errors</span>
     <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
-    <span class="nt">failureCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 10</span>
-    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="hll">    <span class="nt">failureCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 10</span>
+</span>    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
@@ -1234,7 +1271,6 @@ encountered.</p>
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code~&quot;5.*&quot;}[5m]</span>
           <span class="no">))</span>
 </pre></div>
-
 
 <h2 id="inconclusive-runs">Inconclusive Runs<a class="headerlink" href="#inconclusive-runs" title="Permanent link">&para;</a></h2>
 <p>Analysis runs can also be considered <code>Inconclusive</code>, which indicates the run was neither successful,
@@ -1249,7 +1285,6 @@ could become <code>Inconclusive</code>, is when a metric defines no success or f
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </pre></div>
 
-
 <p><code>Inconclusive</code> analysis runs might also happen when both success and failure conditions are
 specified, but the measurement value did not meet either condition.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
@@ -1262,7 +1297,6 @@ specified, but the measurement value did not meet either condition.</p>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </pre></div>
 
-
 <p>A use case for having <code>Inconclusive</code> analysis runs are to enable Argo Rollouts to automate the execution of analysis runs, and collect the measurement, but still allow human judgement to decide
 whether or not measurement value is acceptable and decide to proceed or abort.</p>
 <h2 id="delay-analysis-runs">Delay Analysis Runs<a class="headerlink" href="#delay-analysis-runs" title="Permanent link">&para;</a></h2>
@@ -1270,18 +1304,16 @@ whether or not measurement value is acceptable and decide to proceed or abort.</
 metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
 can be configured to have a different delay. In additional to the metric specific delays, the rollouts 
 with background analysis can delay creating an analysis run until a certain step is reached</p>
-<p>Delaying a specific analysis metric:</p>
+<p>Delaying a specific analysis metric:
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">initialDelay</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span> <span class="c1"># Do not start this analysis until 5 minutes after the analysis run starts</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.90</span>
+<span class="hll">    <span class="nt">initialDelay</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span> <span class="c1"># Do not start this analysis until 5 minutes after the analysis run starts</span>
+</span>    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.90</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
-</pre></div>
-
-
+</pre></div></p>
 <p>Delaying starting background analysis run until step 3 (Set Weight 40%):</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
@@ -1294,14 +1326,13 @@ with background analysis can delay creating an analysis run until a certain step
       <span class="nt">analysis</span><span class="p">:</span>
         <span class="nt">templates</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-        <span class="nt">startingStep</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
-      <span class="nt">steps</span><span class="p">:</span>
+<span class="hll">        <span class="nt">startingStep</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+</span>      <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
 </pre></div>
-
 
 <h2 id="experimentation-eg-mann-whitney-analysis">Experimentation (e.g. Mann-Whitney Analysis)<a class="headerlink" href="#experimentation-eg-mann-whitney-analysis" title="Permanent link">&para;</a></h2>
 <p>Analysis can also be done as part of an Experiment. </p>
@@ -1310,11 +1341,14 @@ scale down to zero. Call out to Kayenta to perform Mann-Whintney analysis agains
 short-lived experiment and an asynchronous analysis.</p>
 <p>This example demonstrates:</p>
 <ul>
-<li>the ability to start an Experiment as part of rollout steps, which launches multiple ReplicaSets (e.g. baseline &amp; canary)</li>
-<li>the ability to reference and supply pod-template-hash to an AnalysisRun</li>
-<li>kayenta metrics</li>
+<li>The ability to start an <a href="../experiment/">Experiment</a> as part of rollout steps, which launches multiple ReplicaSets (e.g. baseline &amp; canary)</li>
+<li>The ability to reference and supply pod-template-hash to an AnalysisRun</li>
+<li>Kayenta metrics</li>
 </ul>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="superfences-tabs">
+<input name="__tabs_3" type="radio" id="__tab_3_0" checked="checked" />
+<label for="__tab_3_0">Rollout</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1341,10 +1375,10 @@ short-lived experiment and an asynchronous analysis.</p>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
               <span class="nt">valueFrom</span><span class="p">:</span>
                 <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
-</pre></div>
-
-
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</pre></div></div>
+<input name="__tabs_3" type="radio" id="__tab_3_1" />
+<label for="__tab_3_1">AnalysisTemplate</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
@@ -1376,11 +1410,10 @@ short-lived experiment and an asynchronous analysis.</p>
             <span class="nt">step</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
             <span class="nt">start</span><span class="p">:</span> <span class="s">&quot;{{args.start-time}}&quot;</span>
             <span class="nt">end</span><span class="p">:</span> <span class="s">&quot;{{args.end-time}}&quot;</span>
-</pre></div>
-
-
-<p>The above would instantiate the following experiment:</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</pre></div></div>
+<input name="__tabs_3" type="radio" id="__tab_3_2" />
+<label for="__tab_3_2">Experiment</label>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Experiment</span>
 <span class="nt">name</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-6c54544bf9-0</span>
@@ -1406,15 +1439,14 @@ short-lived experiment and an asynchronous analysis.</p>
       <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{experiment.availableAt}}&quot;</span>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">end-time</span>
       <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{experiment.finishedAt}}&quot;</span>
-</pre></div>
-
-
+</pre></div></div>
+</div>
 <p>In order to perform multiple kayenta runs over some time duration, the <code>interval</code> and <code>count</code> fields
 can be supplied. When the <code>start</code> and <code>end</code> fields are omitted from the kayenta scopes, the values
 will be implicitly decided as:</p>
 <ul>
-<li>start: if <code>lookback: true</code> start of analysis, otherwise current time - interval</li>
-<li>end: current time</li>
+<li><code>start</code> = if <code>lookback: true</code> start of analysis, otherwise current time - interval</li>
+<li><code>end</code> = current time</li>
 </ul>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
@@ -1448,25 +1480,9 @@ will be implicitly decided as:</p>
             <span class="nt">step</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
 </pre></div>
 
-
-<h2 id="run-experiment-indefinitely">Run experiment indefinitely<a class="headerlink" href="#run-experiment-indefinitely" title="Permanent link">&para;</a></h2>
+<h2 id="run-experiment-indefinitely">Run Experiment Indefinitely<a class="headerlink" href="#run-experiment-indefinitely" title="Permanent link">&para;</a></h2>
 <p>Experiments can run for an indefinite duration by omitting the duration field. Indefinite
 experiments would be stopped externally, or through the completion of a referenced analysis.</p>
-<h2 id="blue-green-automated-rollback">Blue-Green Automated Rollback<a class="headerlink" href="#blue-green-automated-rollback" title="Permanent link">&para;</a></h2>
-<p>Perform a blue-green deployment. After the cutover, run analysis. If the analysis succeeds, the rollout is successful, otherwise abort the rollout and cut traffic back over to the stable replicaset.</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-<span class="nt">spec</span><span class="p">:</span>
-<span class="nn">...</span>
-  <span class="nt">strategy</span><span class="p">:</span>
-    <span class="nt">blueGreen</span><span class="p">:</span> 
-      <span class="nt">postAnalysis</span><span class="p">:</span>
-        <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-</pre></div>
-
-
 <h2 id="job-metrics">Job Metrics<a class="headerlink" href="#job-metrics" title="Permanent link">&para;</a></h2>
 <p>A Kubernetes Job can be used to run analysis. When a Job is used, the metric is considered
 successful if the Job completes and had an exit code of zero, otherwise it is failed.</p>
@@ -1485,6 +1501,42 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
               <span class="nt">restartPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
 </pre></div>
 
+<h2 id="wavefront-metrics">Wavefront Metrics<a class="headerlink" href="#wavefront-metrics" title="Permanent link">&para;</a></h2>
+<p>A <a href="https://www.wavefront.com/">Wavefront</a> query can be used to obtain measurements for analysis.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">wavefront</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example.wavefront.com</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(rate(</span>
+            <span class="no">5m, ts(&quot;istio.requestcount.count&quot;, response_code!=500 and destination_service=&quot;{{args.service-name}}&quot;</span>
+          <span class="no">))) /</span>
+          <span class="no">sum(rate(</span>
+            <span class="no">5m, ts(&quot;istio.requestcount.count&quot;, reporter=client and destination_service=&quot;{{args.service-name}}&quot;</span>
+          <span class="no">)))</span>
+</pre></div>
+
+<p>Wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">wavefront-api-tokens</span>
+<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">example1.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token1&gt;</span>
+  <span class="nt">example2.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token2&gt;</span>
+</pre></div>
 
 <h2 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h2>
 <p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. </p>
@@ -1496,16 +1548,14 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">timeoutSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span> <span class="c1"># defaults to 10 seconds</span>
         <span class="nt">headers</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Measurement-Token</span>
-            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </pre></div>
-
 
 <p>In this example, the measurement is successful if the json response returns <code>"true"</code> for the nested <code>ok</code> field. </p>
 <div class="codehilite"><pre><span></span><span class="p">{</span> <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&quot;ok&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="nt">&quot;successPercent&quot;</span><span class="p">:</span> <span class="mf">0.95</span> <span class="p">}</span> <span class="p">}</span>
 </pre></div>
-
 
 <p>For success conditions that need to evaluate a numeric return value the <code>asInt</code> or <code>asFloat</code> functions can be used to convert the result value.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
@@ -1515,8 +1565,8 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
       <span class="nt">web</span><span class="p">:</span>
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">headers</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Measurement-Token</span>
-            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.successPercent}&quot;</span> 
 </pre></div>
                 

@@ -749,33 +749,26 @@
 </ul>
 <p>Argo Rollout additionally uses
 * <code>golangci-lint</code> to lint the project.</p>
-<p>Run the following commands to install them:</p>
+<p>Run the following commands to install them:
 <div class="codehilite"><pre><span></span>go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-</pre></div>
-
-
+</pre></div></p>
 <p>Brew users can quickly install the lot:</p>
 <div class="codehilite"><pre><span></span>brew install go kubectl kustomize
 </pre></div>
-
 
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
 <span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
 </pre></div>
 
-
 <p>Checkout the code:</p>
 <div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-rollouts
 <span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
 </pre></div>
 
-
-<p>Run the following command to download all the dependencies:</p>
+<p>Run the following command to download all the dependencies:
 <div class="codehilite"><pre><span></span><span class="k">go</span><span class="w"> </span><span class="k">mod</span><span class="w"> </span><span class="n">download</span><span class="w"></span>
-</pre></div>
-
-
+</pre></div></p>
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
@@ -789,7 +782,6 @@ dependencies of the project. </li>
 <div class="codehilite"><pre><span></span>make <span class="nb">test</span>
 </pre></div>
 
-
 <h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
@@ -797,33 +789,27 @@ make controller
 ./dist/rollouts-controller
 </pre></div>
 
-
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
 <p>Create login to Docker Hub, then login.</p>
 <div class="codehilite"><pre><span></span>docker login
 </pre></div>
 
-
 <p>Add your username as the environment variable, e.g. to your <code>~/.bash_profile</code>:</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj
 </pre></div>
-
 
 <p>Build the images:</p>
 <div class="codehilite"><pre><span></span><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
 </pre></div>
 
-
 <p>Update the manifests:</p>
 <div class="codehilite"><pre><span></span>make manifests
 </pre></div>
 
-
 <p>Install the manifests:</p>
 <div class="codehilite"><pre><span></span>kubectl -n argo-rollouts apply -f manifests/install.yaml
 </pre></div>
-
 
 <h2 id="upgrading-kubernetes-libraries">Upgrading Kubernetes Libraries<a class="headerlink" href="#upgrading-kubernetes-libraries" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been 

@@ -772,7 +772,6 @@
       <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orange</span>
 </pre></div>
 
-
 <h2 id="how-does-it-work">How does it work?<a class="headerlink" href="#how-does-it-work" title="Permanent link">&para;</a></h2>
 <p>The Experiment controller has two primary responsibilities for each Experiment:</p>
 <ol>
@@ -792,7 +791,7 @@
 <p>A rollout using the Canary strategy can create an experiment using the experiment step. The experiment step serves a blocking step for the Rollout as the Rollout does not continue until the Experiment succeeds. The Rollout creates an Experiment using the configuration in the experiment step of the Rollout. The controller generates the Experiment's name by combining the Rollout's name, the PodHash of the new ReplicaSet, the current revision of the Rollout, and the current step-index.</p>
 <p>If the Experiment fails or errors out, the Rollout enters an aborted state. While in the aborted state, the Rollout fully scales up the stable version and resets the current step index back to zero.</p>
 <p>Here is an example of a rollout with an experiment step:</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<p><div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -820,9 +819,7 @@
               <span class="nt">valueFrom</span><span class="p">:</span>
                 <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
 </pre></div>
-
-
-<p>In the example above, the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.</p>
+In the example above, the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.</p>
                 
                   
                 

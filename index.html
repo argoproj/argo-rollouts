@@ -726,12 +726,10 @@
 <p>Deployments resources offer two strategies to deploy changes: <code>RollingUpdate</code> and <code>Recreate</code>. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller. In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable, GitOps-friendly options.</p>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
 <h3 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h3>
-<p>Argo Rollouts can be installed by running the following commands:</p>
+<p>Argo Rollouts can be installed by running the following commands:
 <div class="codehilite"><pre><span></span>$ kubectl create namespace argo-rollouts
 $ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
-</pre></div>
-
-
+</pre></div></p>
 <p>Check out the <a href="getting-started/">getting started guide</a> to walk through creating and then updating a rollout object. </p>
 <h3 id="how-does-it-work">How does it work?<a class="headerlink" href="#how-does-it-work" title="Permanent link">&para;</a></h3>
 <p>Similar to the deployment object, the Argo Rollouts controller will manage the creation, scaling, and deletion of ReplicaSets. These ReplicaSets are defined by the <code>spec.template</code> field, which uses the same pod template as the deployment object. When the <code>spec.template</code> is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the <code>spec.strategy</code> field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet has successfully progressed into the stable version, that Rollout will be marked as the stable ReplicaSet. If another change occurs in the <code>spec.template</code> during a transition from a stable ReplicaSet to a new ReplicaSet. The previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the <code>spec.template</code> field. There is more information on the behaviors of each strategy in the <a href="spec/">spec</a> section.</p>

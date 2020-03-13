@@ -742,7 +742,6 @@
             <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">primary</span> <span class="c1"># At least one route is required</span>
 </pre></div>
 
-
 <p>The controller looks for both the canary and stable service listed as destination hosts within the HTTP routes of the specified Virtual Service and modifies the weights of the destinations as desired. The above Rollout expects that there is a virtual service named <code>rollout-vsvc</code> with an HTTP route named <code>primary</code>. That route should have exactly two destinations:  <code>canary-service</code> and <code>stable-svc</code> Services. The <code>canary-svc</code> and <code>stable-svc</code> are required because they indicate to Istio which Pods are the Stable and Canary pods. Here is a Virtual Service that works with the Rollout specified above:</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
@@ -763,7 +762,6 @@
             <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-svc</span>
           <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
 </pre></div>
-
 
 <p>When the above Rollout progresses through its steps, the controller changes Virtual Service's <code>stable-svc</code>'s weight to 95 and <code>canary-svc</code>'s to 5, wait 5 minutes, and then scales up the canary ReplicaSet to a full replica count. Once it is entirely healthy, the controller changes <code>stable-svc</code>'s selector to point at the canary ReplicaSet and switch the weight back to 100 to <code>stable-svc</code> and 0 to <code>canary-svc</code>.</p>
 <div class="admonition note">
