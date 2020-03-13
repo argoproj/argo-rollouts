@@ -56,7 +56,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 
 		if ro != nil {
 			if ro.Spec.Strategy.Canary != nil && rs.Labels != nil {
-				if ro.Status.Canary.StableRS == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+				if ro.Status.StableRS == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
 					rsInfo.Stable = true
 				} else if ro.Status.CurrentPodHash == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
 					rsInfo.Canary = true

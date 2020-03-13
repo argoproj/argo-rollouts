@@ -21,6 +21,9 @@ const (
 	DefaultScaleDownDelaySeconds = int32(30)
 	// DefaultAutoPromotionEnabled default value for auto promoting a blueGreen strategy
 	DefaultAutoPromotionEnabled = true
+	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
+	// erroring the entire metric.
+	DefaultConsecutiveErrorLimit int32 = 4
 )
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
@@ -55,6 +58,12 @@ func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 	return &defaultValue
 }
 
+func GetCanaryIngressAnnotationPrefixOrDefault(rollout *v1alpha1.Rollout) string {
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AnnotationPrefix != "" {
+		return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AnnotationPrefix
+	}
+	return "nginx.ingress.kubernetes.io"
+}
 func GetStrategyType(rollout *v1alpha1.Rollout) string {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		return "blueGreen"
@@ -99,4 +108,11 @@ func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 		return DefaultAutoPromotionEnabled
 	}
 	return *rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled
+}
+
+func GetConsecutiveErrorLimitOrDefault(metric *v1alpha1.Metric) int32 {
+	if metric.ConsecutiveErrorLimit != nil {
+		return *metric.ConsecutiveErrorLimit
+	}
+	return DefaultConsecutiveErrorLimit
 }

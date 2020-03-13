@@ -66,7 +66,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
@@ -118,7 +118,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
 }
 
@@ -169,7 +169,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
@@ -193,7 +193,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
 	r2.Status.Canary.CurrentExperiment = ex.Name
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -248,7 +248,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 			}
 		}
 	}`
-	generatedConditons := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false)
+	generatedConditons := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditons)), patch)
 }
 
@@ -295,7 +295,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false)
+	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions))
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -424,7 +424,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false)
+	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
 }
@@ -478,7 +478,7 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
-	r2.Status.Canary.StableRS = rs1PodHash
+	r2.Status.StableRS = rs1PodHash
 
 	stable, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, err)

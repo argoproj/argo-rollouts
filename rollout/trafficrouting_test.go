@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -76,7 +77,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -198,5 +199,18 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, istio.Type, networkReconciler.Type())
+	}
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Nginx: &v1alpha1.NginxTrafficRouting{},
+		}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.NotNil(t, networkReconciler)
+		assert.Equal(t, nginx.Type, networkReconciler.Type())
 	}
 }

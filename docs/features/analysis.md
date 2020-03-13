@@ -1,6 +1,6 @@
-# Canary Analysis & Progressive Delivery
+# Analysis & Progressive Delivery
 
-Argo Rollouts provides several ways to perform canary analysis to drive progressive delivery.
+Argo Rollouts provides several ways to perform analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, it's frequency, and occurrence.
 
@@ -28,12 +28,12 @@ canary steps, the rollout is considered successful and the analysis run is stopp
 
 This example highlights:
 
-* background analysis style of progressive delivery
-* using a prometheus query to perform a measurement
-* the ability to parameterize the analysis
+* Background analysis style of progressive delivery
+* Using a [Prometheus](https://prometheus.io/) query to perform a measurement
+* The ability to parameterize the analysis
 * Delay starting the analysis run until step 3 (Set Weight 40%)
 
-```yaml
+```yaml tab="Rollout"
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -61,11 +61,7 @@ spec:
       - pause: {duration: 600}
 ```
 
-!!! note
-    Previously, the analysis section had a field called "templateName" where a user would specify a single
-    `AnalysisTemplate.` This field has be depreciated in lieu of the templates field, and the field will be removed in v0.9.0. 
-
-```yaml
+```yaml tab="AnalysisTemplate"
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -90,45 +86,10 @@ spec:
           ))
 ```
 
-* analysis using wavefront query
+!!! note
+    Previously, the Rollout `analysis` section had a field called "`templateName`" where a user would specify a single
+    `AnalysisTemplate.` This field has be depreciated in lieu of the `templates` field, and the field will be removed in v0.9.0. 
 
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: success-rate
-spec:
-  args:
-  - name: service-name
-  metrics:
-  - name: success-rate
-    interval: 5m
-    successCondition: result >= 0.95
-    failureLimit: 3
-    provider:
-      wavefront:
-        address: example.wavefront.com
-        query: |
-          sum(rate(
-            5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{args.service-name}}"
-          ))) /
-          sum(rate(
-            5m, ts("istio.requestcount.count", reporter=client and destination_service="{{args.service-name}}"
-          )))
-```
-
-wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wavefront-api-tokens
-type: Opaque
-data:
-  example1.wavefront.com: <token1>
-  example2.wavefront.com: <token2>
-```
 
 ## Analysis at a Predefined Step
 
@@ -142,7 +103,7 @@ analysis was successful, continues with rollout, otherwise aborts.
 
 This example demonstrates:
 
-* the ability to invoke an analysis in-line as part of steps
+* The ability to invoke an analysis in-line as part of steps
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -165,8 +126,8 @@ spec:
 ```
 
 !!! note
-    Previously, the analysis section had a field called "templateName" where a user would specify a single
-    `AnalysisTemplate`. This field has be depreciated in lieu of the templates field. and the field will be removed in v0.9.0. 
+    Previously, the Rollout `analysis` section had a field called "`templateName`" where a user would specify a single
+    `AnalysisTemplate.` This field has be depreciated in lieu of the `templates` field, and the field will be removed in v0.9.0.  
 
 In this example, the `AnalysisTemplate` is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.
@@ -197,7 +158,7 @@ spec:
 Multiple measurements can be performed over a longer duration period, by specifying the `count` and 
 `interval` fields:
 
-```yaml
+```yaml hl_lines="4 5"
   metrics:
   - name: success-rate
     successCondition: result >= 0.95
@@ -209,14 +170,14 @@ Multiple measurements can be performed over a longer duration period, by specify
         query: ...
 ```
 
-## Analysis with multiple templates
+## Analysis with Multiple Templates
 A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
 analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
-templates together. The controller combines the metrics and args fields of all the templates.
+templates together. The controller combines the `metrics` and `args` fields of all the templates.
 
 
-Rollout referencing multiple AnalysisTemplates:
-```yaml
+
+```yaml tab="Rollout"
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -233,8 +194,8 @@ spec:
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
 ```
-The AnalysisTemplates:
-```yaml
+
+```yaml tab="AnalysisTemplate"
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -282,8 +243,8 @@ spec:
           ))
 ```
 
-The controller would create an AnalysisRun with the following yaml:
-```yaml
+```yaml tab="AnalysisRun"
+# NOTE: The rollouts controller will create this resource
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisRun
 metadata:
@@ -326,8 +287,76 @@ spec:
 !!! note 
     The controller will error when merging the templates if:
 
-    * multiple metrics in the templates have the same name
+    * Multiple metrics in the templates have the same name
     * Two arguments with the same name both have values
+
+## Analysis Template Arguments
+
+AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as `{{ args.<name> }}`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: args-example
+spec:
+  args:
+  # required
+  - name: service-name
+  - name: stable-hash
+  - name: latest-hash
+  # optional
+  - name: api-url
+    value: http://example/measure
+  # from secret
+  - name: api-token
+    valueFrom:
+      secretKeyRef:
+        name: token-secret
+        key: apiToken
+  metrics:
+  - name: webmetric
+    successCondition: "true"
+    provider:
+      web:
+        # paceholders are resolved when an AnalysisRun is created 
+        url: "{{ args.api-url }}?service={{ args.service-name }}"
+        headers:
+          - key: Authorization
+            value: "Bearer {{ args.api-token }}"
+        jsonPath: "{$.results.ok}" 
+```
+
+Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: args-example
+        args:
+        # required value 
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
+        # override default value
+        - name: api-url
+          value: http://other-api
+        # pod template hash from the stable ReplicaSet
+        - name: stable-hash
+          valueFrom:
+            podTemplateHashValue: Stable
+        # pod template hash from the latest ReplicaSet
+        - name: latest-hash
+          valueFrom:
+            podTemplateHashValue: Latest
+```
 
 ## BlueGreen Pre Promotion Analysis
 A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
@@ -342,7 +371,6 @@ metadata:
 spec:
 ...
   strategy:
-
     blueGreen:
       activeService: active-svc
       previewService: preview-svc
@@ -363,6 +391,10 @@ completes before then, the Rollout will not create another AnalysisRun and wait 
 `autoPromotionSeconds`.
 
 ## BlueGreen Post Promotion Analysis
+
+!!! warning "Not Implemented"
+    This feature is not yet implemenated.
+
 A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
 run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
 If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
@@ -395,7 +427,7 @@ spec:
 server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
 encountered.
 
-```yaml
+```yaml hl_lines="4"
   metrics:
   - name: total-errors
     interval: 5m
@@ -450,7 +482,7 @@ can be configured to have a different delay. In additional to the metric specifi
 with background analysis can delay creating an analysis run until a certain step is reached
 
 Delaying a specific analysis metric:
-```yaml
+```yaml hl_lines="3"
   metrics:
   - name: success-rate
     initialDelay: 5m # Do not start this analysis until 5 minutes after the analysis run starts
@@ -463,7 +495,7 @@ Delaying a specific analysis metric:
 
 Delaying starting background analysis run until step 3 (Set Weight 40%):
 
-```yaml
+```yaml hl_lines="12"
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -493,11 +525,11 @@ short-lived experiment and an asynchronous analysis.
 
 This example demonstrates:
 
-* the ability to start an Experiment as part of rollout steps, which launches multiple ReplicaSets (e.g. baseline & canary)
-* the ability to reference and supply pod-template-hash to an AnalysisRun
-* kayenta metrics
+* The ability to start an [Experiment](experiment.md) as part of rollout steps, which launches multiple ReplicaSets (e.g. baseline & canary)
+* The ability to reference and supply pod-template-hash to an AnalysisRun
+* Kayenta metrics
 
-```yaml
+```yaml tab="Rollout"
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -527,8 +559,7 @@ spec:
                 podTemplateHashValue: Latest
 ```
 
-
-```yaml
+```yaml tab="AnalysisTemplate"
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -563,9 +594,7 @@ spec:
             end: "{{args.end-time}}"
 ```
 
-The above would instantiate the following experiment:
-
-```yaml
+```yaml tab="Experiment"
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 name:
@@ -599,8 +628,8 @@ In order to perform multiple kayenta runs over some time duration, the `interval
 can be supplied. When the `start` and `end` fields are omitted from the kayenta scopes, the values
 will be implicitly decided as:
 
-* start: if `lookback: true` start of analysis, otherwise current time - interval
-* end: current time
+* `start` = if `lookback: true` start of analysis, otherwise current time - interval
+* `end` = current time
 
 
 ```yaml
@@ -636,27 +665,10 @@ spec:
             step: 60
 ```
 
-## Run experiment indefinitely
+## Run Experiment Indefinitely
 
 Experiments can run for an indefinite duration by omitting the duration field. Indefinite
 experiments would be stopped externally, or through the completion of a referenced analysis.
-
-## Blue-Green Automated Rollback
-
-Perform a blue-green deployment. After the cutover, run analysis. If the analysis succeeds, the rollout is successful, otherwise abort the rollout and cut traffic back over to the stable replicaset.
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: guestbook
-spec:
-...
-  strategy:
-    blueGreen: 
-      postAnalysis:
-        templateName: success-rate
-```
 
 
 ## Job Metrics
@@ -680,6 +692,48 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
               restartPolicy: Never
 ```
 
+## Wavefront Metrics
+
+A [Wavefront](https://www.wavefront.com/) query can be used to obtain measurements for analysis.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 5m
+    successCondition: result >= 0.95
+    failureLimit: 3
+    provider:
+      wavefront:
+        address: example.wavefront.com
+        query: |
+          sum(rate(
+            5m, ts("istio.requestcount.count", response_code!=500 and destination_service="{{args.service-name}}"
+          ))) /
+          sum(rate(
+            5m, ts("istio.requestcount.count", reporter=client and destination_service="{{args.service-name}}"
+          )))
+```
+
+Wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wavefront-api-tokens
+type: Opaque
+data:
+  example1.wavefront.com: <token1>
+  example2.wavefront.com: <token2>
+```
+
 ## Web Metrics
 
 A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. 
@@ -693,8 +747,8 @@ A webhook can be used to call out to some external service to obtain the measure
         url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
         timeoutSeconds: 20 # defaults to 10 seconds
         headers:
-          - key: X-Measurement-Token
-            value: "{{ args.token }}"
+          - key: Authorization
+            value: "Bearer {{ args.api-token }}"
         jsonPath: "{$.results.ok}" 
 ```
 
@@ -714,8 +768,8 @@ For success conditions that need to evaluate a numeric return value the `asInt` 
       web:
         url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
         headers:
-          - key: X-Measurement-Token
-            value: "{{ args.token }}"
+          - key: Authorization
+            value: "Bearer {{ args.api-token }}"
         jsonPath: "{$.results.successPercent}" 
 ```
 

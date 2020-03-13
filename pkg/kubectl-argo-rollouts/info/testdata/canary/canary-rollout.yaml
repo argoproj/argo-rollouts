@@ -57,8 +57,8 @@ status:
   HPAReplicas: 6
   availableReplicas: 5
   blueGreen: {}
-  canary:
-    stableRS: 877894d5b
+  canary: {}
+  stableRS: 877894d5b
   conditions:
   - lastTransitionTime: "2019-10-25T06:07:29Z"
     lastUpdateTime: "2019-10-25T06:07:29Z"

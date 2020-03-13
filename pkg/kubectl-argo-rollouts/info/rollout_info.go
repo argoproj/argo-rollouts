@@ -121,7 +121,7 @@ func RolloutStatusString(ro *v1alpha1.Rollout) string {
 			// old replicas are pending termination
 			return "Progressing"
 		}
-		if ro.Status.Canary.StableRS != "" && ro.Status.Canary.StableRS == ro.Status.CurrentPodHash {
+		if ro.Status.StableRS != "" && ro.Status.StableRS == ro.Status.CurrentPodHash {
 			return "Healthy"
 		}
 		// Waiting for rollout to finish steps

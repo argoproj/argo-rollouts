@@ -168,6 +168,20 @@ type CanaryStrategy struct {
 type RolloutTrafficRouting struct {
 	// Istio holds Istio specific configuration to route traffic
 	Istio *IstioTrafficRouting `json:"istio,omitempty"`
+
+	// Nginx holds Istio specific configuration to route traffic
+	Nginx *NginxTrafficRouting `json:"nginx,omitempty"`
+}
+
+// NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
+type NginxTrafficRouting struct {
+	// AnnotationPrefix has to match the configured annotation prefix on the nginx ingress controller
+	// +optional
+	AnnotationPrefix string `json:"annotationPrefix,omitempty"`
+	// StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
+	StableIngress string `json:"stableIngress"`
+	// +optional
+	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -443,6 +457,9 @@ type RolloutStatus struct {
 	// Selector that identifies the pods that are receiving active traffic
 	// +optional
 	Selector string `json:"selector,omitempty"`
+	// StableRS indicates the replicaset that has successfully rolled out
+	// +optional
+	StableRS string `json:"stableRS,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

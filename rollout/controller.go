@@ -14,9 +14,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
+	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -64,6 +66,7 @@ type RolloutController struct {
 	rolloutsSynced         cache.InformerSynced
 	rolloutsIndexer        cache.Indexer
 	servicesLister         v1.ServiceLister
+	ingressesLister        extensionslisters.IngressLister
 	experimentsLister      listers.ExperimentLister
 	analysisRunLister      listers.AnalysisRunLister
 	analysisTemplateLister listers.AnalysisTemplateLister
@@ -81,6 +84,7 @@ type RolloutController struct {
 	// simultaneously in two different workers.
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
+	ingressWorkqueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	recorder     record.EventRecorder
@@ -98,10 +102,12 @@ func NewRolloutController(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
+	ingressesInformer extensionsinformers.IngressInformer,
 	rolloutsInformer informers.RolloutInformer,
 	resyncPeriod time.Duration,
 	rolloutWorkQueue workqueue.RateLimitingInterface,
 	serviceWorkQueue workqueue.RateLimitingInterface,
+	ingressWorkQueue workqueue.RateLimitingInterface,
 	metricsServer *metrics.MetricsServer,
 	recorder record.EventRecorder,
 	defaultIstioVersion string) *RolloutController {
@@ -125,7 +131,9 @@ func NewRolloutController(
 		rolloutsSynced:         rolloutsInformer.Informer().HasSynced,
 		rolloutWorkqueue:       rolloutWorkQueue,
 		serviceWorkqueue:       serviceWorkQueue,
+		ingressWorkqueue:       ingressWorkQueue,
 		servicesLister:         servicesInformer.Lister(),
+		ingressesLister:        ingressesInformer.Lister(),
 		experimentsLister:      experimentInformer.Lister(),
 		analysisRunLister:      analysisRunInformer.Lister(),
 		analysisTemplateLister: analysisTemplateInformer.Lister(),
@@ -252,6 +260,13 @@ func (c *RolloutController) syncHandler(key string) error {
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
 
+	// TODO(dthomson) remove in v0.9.0
+	migrated := c.migrateCanaryStableRS(r)
+	if migrated {
+		logutil.WithRollout(r).Info("Migrated stableRS field")
+		return nil
+	}
+
 	if r.ObjectMeta.DeletionTimestamp != nil {
 		logCtx.Info("No reconciliation as rollout marked for deletion")
 		return nil
@@ -319,6 +334,19 @@ func (c *RolloutController) syncHandler(key string) error {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")
+}
+
+func (c *RolloutController) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
+	if rollout.Status.Canary.StableRS == "" {
+		return false
+	}
+	rollout.Status.StableRS = rollout.Status.Canary.StableRS
+	rollout.Status.Canary.StableRS = ""
+	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+	if err != nil {
+		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS")
+	}
+	return true
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {

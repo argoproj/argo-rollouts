@@ -298,16 +298,16 @@ func GetOlderRSs(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, 
 
 // GetStableRS finds the stable RS using the RS's RolloutUniqueLabelKey and the stored StableRS in the rollout status
 func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
-	if rollout.Status.Canary.StableRS == "" {
+	if rollout.Status.StableRS == "" {
 		return nil
 	}
-	if newRS != nil && newRS.Labels != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
+	if newRS != nil && newRS.Labels != nil && newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.StableRS {
 		return newRS
 	}
 	for i := range rslist {
 		rs := rslist[i]
 		if rs != nil {
-			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.Canary.StableRS {
+			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == rollout.Status.StableRS {
 				return rs
 			}
 		}

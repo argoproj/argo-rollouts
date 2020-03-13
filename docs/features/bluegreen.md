@@ -10,51 +10,96 @@ When there is a change to the `.spec.template` field of a rollout, the controlle
 !!! important
     When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.
 
+## Example
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    blueGreen: 
+      # activeService specifies the service to update with the new template hash at time of promotion.
+      # This field is mandatory for the blueGreen update strategy.
+      activeService: rollout-bluegreen-active
+      # previewService specifies the service to update with the new template hash before promotion.
+      # This allows the preview stack to be reachable without serving production traffic.
+      # This field is optional.
+      previewService: rollout-bluegreen-preview
+      # autoPromotionEnabled disables automated promotion of the new stack by pausing the rollout
+      # immediately before the promotion. If omitted, the default behavior is to promote the new
+      # stack as soon as the ReplicaSet are completely ready/available.
+      # Rollouts can be resumed using: `kubectl argo rollouts resume ROLLOUT`
+      autoPromotionEnabled: false
+```
+
 ## Configurable Features
 Here are the optional fields that will change the behavior of BlueGreen deployment:
 ```yaml
 spec:
   strategy:
     blueGreen:
-      previewService: string
-      previewReplicaCount: *int32
-      autoPromotionEnabled: true
+      autoPromotionEnabled: boolean
       autoPromotionSeconds: *int32
+      previewService: string
+      prePromotionAnalysis: object
+      previewReplicaCount: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
 ```
 
-### PreviewService
+### autoPromotionEnabled
+The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.
+
+Defaults to true
+
+### autoPromotionSeconds
+The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to true, this field will be ignored
+
+Defaults to nil
+
+### prePromotionAnalysis
+Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) before it switches traffic to the new version. If the analysis is not successful the rollout will be aborted.
+
+Default to nil
+
+### previewService
 The PreviewService field references a Service that will be modified to send traffic to the new replicaset before the new one is promoted to receiving traffic from the active service. Once the new replicaset start receives traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.
 
 This feature is used to provide an endpoint that can be used to test a new version of an application.
 
 Defaults to an empty string
 
-### PreviewReplicaCount
+### previewReplicaCount
 The PreviewReplicaCount will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
 
 This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.
 
 Defaults to nil
 
-### AutoPromotionEnabled
-The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.
-
-Defaults to true
-
-### AutoPromotionSeconds
-The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to true, this field will be ignored
-
-Defaults to nil
-
-
-### ScaleDownDelaySeconds
+### scaleDownDelaySeconds
 The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.
 
 Defaults to 30
 
-### ScaleDownDelayRevisionLimit
+### scaleDownDelayRevisionLimit
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
 Default to nil

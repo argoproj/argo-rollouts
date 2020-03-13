@@ -225,12 +225,12 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Status.Canary.StableRS = ""
+		ro.Status.StableRS = ""
 		assert.Equal(t, "Progressing", RolloutStatusString(ro))
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Status.Canary.StableRS = "abc1234"
+		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
 		assert.Equal(t, "Progressing", RolloutStatusString(ro))
 	}
@@ -254,7 +254,7 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.UpdatedReplicas = 1
 		ro.Status.AvailableReplicas = 1
 		ro.Status.ReadyReplicas = 1
-		ro.Status.Canary.StableRS = "abc1234"
+		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
 		assert.Equal(t, "Healthy", RolloutStatusString(ro))
 	}

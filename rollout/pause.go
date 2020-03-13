@@ -20,6 +20,7 @@ type pauseContext struct {
 	clearPauseConditions bool
 	addAbort             bool
 	removeAbort          bool
+	abortMessage         string
 }
 
 func (pCtx *pauseContext) HasAddPause() bool {
@@ -36,8 +37,9 @@ func (pCtx *pauseContext) IsAborted() bool {
 	return false
 }
 
-func (pCtx *pauseContext) AddAbort() {
+func (pCtx *pauseContext) AddAbort(message string) {
 	pCtx.addAbort = true
+	pCtx.abortMessage = message
 }
 
 func (pCtx *pauseContext) RemoveAbort() {

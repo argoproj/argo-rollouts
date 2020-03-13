@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func timePtr(t metav1.Time) *metav1.Time {
@@ -424,7 +425,9 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, c.asssessRunStatus(run))
+		status, message := c.assessRunStatus(run)
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
+		assert.Equal(t, "", message)
 	}
 	{
 		// ensure we take the worst of the completed metrics
@@ -441,7 +444,9 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, c.asssessRunStatus(run))
+		status, message := c.assessRunStatus(run)
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+		assert.Equal(t, "", message)
 	}
 }
 
@@ -493,8 +498,9 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status := c.asssessRunStatus(run)
+	status, message := c.assessRunStatus(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
+	assert.Equal(t, "", message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
 }
 
@@ -509,6 +515,7 @@ func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
+
 func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	// in-flight measurement
 	metric := v1alpha1.Metric{
@@ -1379,4 +1386,110 @@ func TestKeyNotInSecret(t *testing.T) {
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Equal(t, "key 'key-name' does not exist in secret 'secret-name'", err.Error())
+}
+
+// TestAssessMetricFailureInconclusiveOrError verifies that assessMetricFailureInconclusiveOrError returns the correct phases and messages
+// for Failed, Inconclusive, and Error metrics respectively
+func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
+	metric := v1alpha1.Metric{}
+	result := v1alpha1.MetricResult{
+		Failed: 1,
+		Measurements: []v1alpha1.Measurement{{
+			Phase: v1alpha1.AnalysisPhaseFailed,
+		}},
+	}
+	phase, msg := assessMetricFailureInconclusiveOrError(metric, result)
+	expectedMsg := fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, phase)
+	assert.Equal(t, expectedMsg, msg)
+	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+
+	result = v1alpha1.MetricResult{
+		Inconclusive: 1,
+		Measurements: []v1alpha1.Measurement{{
+			Phase: v1alpha1.AnalysisPhaseInconclusive,
+		}},
+	}
+	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
+	expectedMsg = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, phase)
+	assert.Equal(t, expectedMsg, msg)
+	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+
+	result = v1alpha1.MetricResult{
+		ConsecutiveError: 5, //default ConsecutiveErrorLimit for Metrics is 4
+		Measurements: []v1alpha1.Measurement{{
+			Phase: v1alpha1.AnalysisPhaseError,
+		}},
+	}
+	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
+	expectedMsg = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, defaults.DefaultConsecutiveErrorLimit)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
+	assert.Equal(t, expectedMsg, msg)
+	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+}
+
+func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful
+	status, message := c.assessRunStatus(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.Equal(t, "metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0)", message)
+}
+
+// TestAssessRunStatusErrorMessageFromProvider verifies that the message returned by assessRunStatus
+// includes the error message from the provider
+func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful // All metrics must complete, or assessRunStatus will not return message
+
+	providerMessage := "Provider error"
+	run.Status.MetricResults[1].Message = providerMessage
+
+	status, message := c.assessRunStatus(run)
+	expectedMessage := fmt.Sprintf("metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0): \"Error Message: %s\"", providerMessage)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.Equal(t, expectedMessage, message)
+}
+
+// TestAssessRunStatusMultipleFailures verifies that if there are multiple failed metrics, assessRunStatus returns the message
+// from the first failed metric
+func TestAssessRunStatusMultipleFailures(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
+	run.Status.MetricResults[0].Failed = 1
+
+	status, message := c.assessRunStatus(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", message)
+}
+
+// TestAssessRunStatusWorstMessageInReconcileAnalysisRun verifies that the worstMessage returned by assessRunStatus is set as the
+// status of the AnalysisRun returned by reconcileAnalysisRun
+func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
+	run.Status.MetricResults[0].Failed = 1
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
+	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.Message)
 }

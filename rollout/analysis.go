@@ -147,7 +147,7 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort()
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
@@ -163,7 +163,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext)
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if rollout.Status.Canary.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
+	if rollout.Status.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
 		return nil, nil
 	}
 
@@ -185,7 +185,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext)
 	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort()
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
@@ -236,7 +236,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx rolloutContext) 
 	case v1alpha1.AnalysisPhaseInconclusive:
 		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort()
+		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
 	}
 
 	return currentAr, nil

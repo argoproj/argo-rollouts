@@ -15,7 +15,9 @@ To learn more about Argo Rollouts go to the [complete documentation](https://arg
 ## Who uses Argo Rollouts?
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
+1. [ADP](https://www.adp.com)
 1. [Intuit](https://www.intuit.com/)
+1. [Twilio SendGrid](https://sendgrid.com)
 
 ## Community Blogs and Presentations
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
