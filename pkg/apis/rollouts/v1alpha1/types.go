@@ -81,6 +81,9 @@ type RolloutStrategy struct {
 	BlueGreen *BlueGreenStrategy `json:"blueGreen,omitempty"`
 	// +optional
 	Canary *CanaryStrategy `json:"canary,omitempty"`
+	// AntiAffinity enables anti-affinity rules for Rollout strategies
+	// +optional
+	AntiAffinity bool `json:"antiAffinity,omitempty"`
 }
 
 // BlueGreenStrategy defines parameters for Blue Green deployment
@@ -90,9 +93,6 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
 	PreviewService string `json:"previewService,omitempty"`
-	// AntiAffinity enables anti-affinity rules for Blue-Green deployments
-	// +optional
-	AntiAffinity bool `json:"antiaffinity,omitempty"`
 	// PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is
 	// resumed the new replicaset will be full scaled up before the switch occurs
 	// +optional

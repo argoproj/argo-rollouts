@@ -8411,6 +8411,8 @@ spec:
               type: object
             strategy:
               properties:
+                antiAffinity:
+                  type: boolean
                 blueGreen:
                   properties:
                     activeService:

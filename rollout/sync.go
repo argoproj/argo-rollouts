@@ -55,6 +55,10 @@ func (c *RolloutController) getAllReplicaSetsAndSyncRevision(rollout *v1alpha1.R
 // Note that the pod-template-hash will be added to adopted RSes and pods.
 func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, oldRSs []*appsv1.ReplicaSet, createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
 	logCtx := logutil.WithRollout(rollout)
+	// Change FindNewReplicaSet
+
+	// TODO: If flag set, must make sure anti-affinity is set in Template before hash computed
+	//  Create helper to call ComputeHash() and make sure anti-affinity injected - update all calls to ComputeHash()
 	existingNewRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 
 	// Calculate the max revision number among all old RSes
@@ -107,6 +111,33 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 
 	// new ReplicaSet does not exist, create one.
 	newRSTemplate := *rollout.Spec.Template.DeepCopy()
+	// TODO: Add to existing affinity rules (don't override)
+	if rollout.Spec.Strategy.AntiAffinity && rollout.Status.StableRS != "" { //Check if flag set, not relevant for 1st RS
+		antiAffinity := corev1.PodAffinityTerm{ //Create anti-affinity rule for last stable rollout
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{{
+						Key:      "app",
+						Operator: metav1.LabelSelectorOpIn,
+						Values:   []string{rollout.Status.StableRS}, // Most recent stable replicaset
+					}},
+				},
+				Namespaces:    []string{rollout.Namespace},
+				TopologyKey:   "kubernetes.io/hostname",
+		}
+
+		if newRSTemplate.Spec.Affinity == nil {
+			newRSTemplate.Spec.Affinity = &corev1.Affinity{}
+		}
+		if newRSTemplate.Spec.Affinity.PodAntiAffinity == nil {
+			newRSTemplate.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
+		}
+		if newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+			newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{antiAffinity}
+		} else {
+			newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, antiAffinity)
+		}
+	}
+
 	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, rollout.Status.CollisionCount)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(rollout.Spec.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.

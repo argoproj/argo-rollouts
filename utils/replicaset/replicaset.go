@@ -2,6 +2,7 @@ package replicaset
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sort"
 	"strconv"
 
@@ -35,7 +36,8 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
 	// First, attempt to find the replicaset by the replicaset naming formula
-	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
+	//replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
+	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, ComputeHashForReplicaSet(*rollout))
 	for _, rs := range rsList {
 		if rs.Name == replicaSetName {
 			return rs
@@ -55,6 +57,43 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	}
 	// new ReplicaSet does not exist.
 	return nil
+}
+
+// ComputeHashForReplicaSet returns the hash value for a ReplicaSet
+// Checks whether Rollout AntiAffinity flag was set and modifies spec template accordingly before calculating hash
+func ComputeHashForReplicaSet(rollout v1alpha1.Rollout) string {
+	RSTemplate := rollout.Spec.Template.DeepCopy()
+	//Add to existing affinity rules (don't override)
+	if rollout.Spec.Strategy.AntiAffinity { //Check if flag set
+		antiAffinity := corev1.PodAffinityTerm{ //Create anti-affinity rule for last stable rollout
+			LabelSelector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{{
+					Key:      "app",
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   []string{rollout.Status.StableRS}, // Most recent stable replicaset
+				}},
+			},
+			Namespaces:    []string{rollout.Namespace},
+			TopologyKey:   "kubernetes.io/hostname",
+		}
+
+		if RSTemplate.Spec.Affinity == nil {
+			RSTemplate.Spec.Affinity = &corev1.Affinity{
+				PodAntiAffinity: nil,
+			}
+		}
+		if RSTemplate.Spec.Affinity.PodAntiAffinity == nil {
+			RSTemplate.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: nil,
+			}
+		}
+		if RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+			RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{antiAffinity}
+		} else {
+			RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, antiAffinity)
+		}
+	}
+	return controller.ComputeHash(RSTemplate, rollout.Status.CollisionCount)
 }
 
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
