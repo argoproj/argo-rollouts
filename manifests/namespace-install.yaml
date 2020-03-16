@@ -8411,12 +8411,12 @@ spec:
               type: object
             strategy:
               properties:
-                antiAffinity:
-                  type: boolean
                 blueGreen:
                   properties:
                     activeService:
                       type: string
+                    antiAffinity:
+                      type: boolean
                     autoPromotionEnabled:
                       type: boolean
                     autoPromotionSeconds:
@@ -8501,6 +8501,8 @@ spec:
                             type: object
                           type: array
                       type: object
+                    antiAffinity:
+                      type: boolean
                     canaryService:
                       type: string
                     maxSurge:

@@ -81,9 +81,6 @@ type RolloutStrategy struct {
 	BlueGreen *BlueGreenStrategy `json:"blueGreen,omitempty"`
 	// +optional
 	Canary *CanaryStrategy `json:"canary,omitempty"`
-	// AntiAffinity enables anti-affinity rules for Rollout strategies
-	// +optional
-	AntiAffinity bool `json:"antiAffinity,omitempty"`
 }
 
 // BlueGreenStrategy defines parameters for Blue Green deployment
@@ -119,6 +116,9 @@ type BlueGreenStrategy struct {
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty"`
 	// PrePromotionAnalysis configuration to run analysis before a selector switch
 	PrePromotionAnalysis *RolloutAnalysis `json:"prePromotionAnalysis,omitempty"`
+	// AntiAffinity enables anti-affinity rules for Blue Green deployment
+	// +optional
+	AntiAffinity bool `json:"antiAffinity,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -162,6 +162,9 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
 	Analysis *RolloutAnalysisBackground `json:"analysis,omitempty"`
+	// AntiAffinity enables anti-affinity rules for Canary deployment
+	// +optional
+	AntiAffinity bool `json:"antiAffinity,omitempty"`
 }
 
 // RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing

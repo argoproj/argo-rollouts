@@ -643,6 +643,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"),
 						},
 					},
+					"antiAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AntiAffinity enables anti-affinity rules for Blue Green deployment",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"activeService"},
 			},
@@ -789,6 +796,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground"),
+						},
+					},
+					"antiAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AntiAffinity enables anti-affinity rules for Canary deployment",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -2525,13 +2539,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref common.ReferenceCallb
 					"canary": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"),
-						},
-					},
-					"antiAffinity": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AntiAffinity enables anti-affinity rules for Rollout strategies",
-							Type:        []string{"boolean"},
-							Format:      "",
 						},
 					},
 				},
