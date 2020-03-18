@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -212,5 +214,18 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, nginx.Type, networkReconciler.Type())
+	}
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ALB: &v1alpha1.ALBTrafficRouting{},
+		}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.NotNil(t, networkReconciler)
+		assert.Equal(t, alb.Type, networkReconciler.Type())
 	}
 }
