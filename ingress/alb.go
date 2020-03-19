@@ -1,0 +1,92 @@
+package ingress
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/sirupsen/logrus"
+
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+)
+
+func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts []*v1alpha1.Rollout) error {
+
+	managedActions, err := ingressutil.NewManagedALBActions(ingress.Annotations[ingressutil.ManagedActionsAnnotation])
+	if err != nil {
+		return nil
+	}
+	actionHasExistingRollout := map[string]bool{}
+	for i := range rollouts {
+		rollout := rollouts[i]
+		if _, ok := managedActions[rollout.Name]; ok {
+			actionHasExistingRollout[rollout.Name] = true
+			c.enqueueRollout(rollout)
+		}
+	}
+	newIngress := ingress.DeepCopy()
+	modified := false
+	for roName := range managedActions {
+		if _, ok := actionHasExistingRollout[roName]; !ok {
+			modified = true
+			actionKey := managedActions[roName]
+			delete(managedActions, roName)
+			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
+			if err != nil {
+				logrus.WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
+				return nil
+			}
+			newIngress.Annotations[actionKey] = resetALBAction
+		}
+	}
+	if !modified {
+		return nil
+	}
+	newManagedStr := managedActions.String()
+	newIngress.Annotations[ingressutil.ManagedActionsAnnotation] = newManagedStr
+	if newManagedStr == "" {
+		delete(newIngress.Annotations, ingressutil.ManagedActionsAnnotation)
+	}
+	_, err = c.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(newIngress)
+	return err
+}
+
+func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (string, error) {
+	previousActionStr := ingress.Annotations[action]
+	var previousAction ingressutil.ALBAction
+	err := json.Unmarshal([]byte(previousActionStr), &previousAction)
+	if err != nil {
+		return "", fmt.Errorf("unable to unmarshal previous ALB action")
+	}
+
+	service := strings.TrimPrefix(action, ingressutil.ALBActionAnnotationPrefix)
+	var port string
+	for _, tg := range previousAction.ForwardConfig.TargetGroups {
+		if tg.ServiceName == service {
+			port = tg.ServicePort
+		}
+	}
+	if port == "" {
+		return "", fmt.Errorf("unable to reset annotation due to missing port")
+	}
+
+	albAction := ingressutil.ALBAction{
+		Type: "forward",
+		ForwardConfig: ingressutil.ALBForwardConfig{
+			TargetGroups: []ingressutil.ALBTargetGroup{
+				{
+					ServiceName: service,
+					ServicePort: port,
+					Weight:      int64(100),
+				},
+			},
+		},
+	}
+	bytes := jsonutil.MustMarshal(albAction)
+	return string(bytes), nil
+}
