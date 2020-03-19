@@ -299,8 +299,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
-	newRSTemplate := *r.Spec.Template.DeepCopy()
-	podHash := controller.ComputeHash(&newRSTemplate, r.Status.CollisionCount)
+	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 	rsLabels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
@@ -1155,7 +1154,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"54665d4445"}}`
+	expectedPatch := `{"status":{"observedGeneration":"596fdb48c"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1199,7 +1198,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"5d9b7bdbd7"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6c447f567"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
