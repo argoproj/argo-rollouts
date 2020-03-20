@@ -38,6 +38,8 @@ type ControllerConfig struct {
 	RolloutWorkQueue workqueue.RateLimitingInterface
 
 	MetricsServer *metrics.MetricsServer
+	ALBClasses    []string
+	NGINXClasses  []string
 }
 
 // Controller describes an ingress controller
@@ -49,6 +51,8 @@ type Controller struct {
 
 	metricServer   *metrics.MetricsServer
 	enqueueRollout func(obj interface{})
+	albClasses     []string
+	nginxClasses   []string
 }
 
 // NewController returns a new ingress controller
@@ -61,6 +65,8 @@ func NewController(cfg ControllerConfig) *Controller {
 
 		ingressWorkqueue: cfg.IngressWorkQueue,
 		metricServer:     cfg.MetricsServer,
+		albClasses:       cfg.ALBClasses,
+		nginxClasses:     cfg.NGINXClasses,
 	}
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
@@ -133,15 +139,24 @@ func (c *Controller) syncIngress(key string) error {
 	if ingress.Annotations == nil {
 		return nil
 	}
-
-	switch ingress.Annotations["kubernetes.io/ingress.class"] {
-	case "aws-alb":
+	class := ingress.Annotations["kubernetes.io/ingress.class"]
+	switch {
+	case hasClass(c.albClasses, class):
 		return c.syncALBIngress(ingress, rollouts)
-	case "nginx":
+	case hasClass(c.nginxClasses, class):
 		return c.syncNginxIngress(name, namespace, rollouts)
 	default:
 		return nil
 	}
+}
+
+func hasClass(classes []string, class string) bool {
+	for _, str := range classes {
+		if str == class {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Controller) syncNginxIngress(name, namespace string, rollouts []*v1alpha1.Rollout) error {

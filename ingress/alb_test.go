@@ -46,7 +46,7 @@ func newALBIngress(name string, port int, serviceName string, rollout string) *e
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":        "aws-alb",
+				"kubernetes.io/ingress.class":        "alb",
 				albActionKey:                         action,
 				ingressutil.ManagedActionsAnnotation: managedBy,
 			},
