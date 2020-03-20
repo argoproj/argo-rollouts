@@ -132,7 +132,7 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 
 func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32) (map[string]string, error) {
 	desired := current.DeepCopy().Annotations
-	key := ingressutil.ALBActionAnnotationKey(r.Spec.Strategy.Canary.StableService)
+	key := ingressutil.ALBActionAnnotationKey(r)
 	desired[key] = getForwardActionString(r, port, desiredWeight)
 	m, err := ingressutil.NewManagedALBActions(desired[ingressutil.ManagedActionsAnnotation])
 	if err != nil {

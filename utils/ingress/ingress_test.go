@@ -148,6 +148,23 @@ func TestManagedALBActions(t *testing.T) {
 }
 
 func TestALBActionAnnotationKey(t *testing.T) {
-	expected := "alb.ingress.kubernetes.io/actions.svc"
-	assert.Equal(t, expected, ALBActionAnnotationKey("svc"))
+	r := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "svc",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{
+							AnnotationPrefix: "test.annotation",
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{},
+	}
+	assert.Equal(t, "test.annotation/actions.svc", ALBActionAnnotationKey(r))
+	r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix = ""
+	assert.Equal(t, "alb.ingress.kubernetes.io/actions.svc", ALBActionAnnotationKey(r))
+
 }

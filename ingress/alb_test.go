@@ -32,9 +32,13 @@ const actionTemplate = `{
 	}
 }`
 
+func albActionAnnotation(stable string) string {
+	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
+}
+
 func newALBIngress(name string, port int, serviceName string, rollout string) *extensionsv1beta1.Ingress {
 	canaryService := fmt.Sprintf("%s-canary", serviceName)
-	albActionKey := ingressutil.ALBActionAnnotationKey(serviceName)
+	albActionKey := albActionAnnotation(serviceName)
 	managedBy := fmt.Sprintf("%s:%s", rollout, albActionKey)
 	action := fmt.Sprintf(actionTemplate, serviceName, port, canaryService, port)
 	return &extensionsv1beta1.Ingress{
@@ -105,10 +109,21 @@ func TestInvalidManagedALBActions(t *testing.T) {
 	assert.Len(t, enqueuedObjects, 0)
 }
 
-func TestInvalidPreviousALBActionAnnotation(t *testing.T) {
+func TestInvalidPreviousALBActionAnnotationValue(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
-	ing.Annotations[ingressutil.ALBActionAnnotationKey("stable-service")] = "{"
+	ing.Annotations[albActionAnnotation("stable-service")] = "{"
 
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
+
+	err := ctrl.syncIngress("default/test-ingress")
+	assert.Nil(t, err)
+	assert.Len(t, kubeclient.Actions(), 0)
+	assert.Len(t, enqueuedObjects, 0)
+}
+
+func TestInvalidPreviousALBActionAnnotationKey(t *testing.T) {
+	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
+	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-action-key"
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
@@ -119,7 +134,7 @@ func TestInvalidPreviousALBActionAnnotation(t *testing.T) {
 
 func TestResetActionFailureFindNoPort(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
-	ing.Annotations[ingressutil.ALBActionAnnotationKey("stable-service")] = "{}"
+	ing.Annotations[albActionAnnotation("stable-service")] = "{}"
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
 
@@ -162,5 +177,5 @@ func TestALBIngressResetAction(t *testing.T) {
 	annotations := acc.GetAnnotations()
 	assert.NotContains(t, annotations, ingressutil.ManagedActionsAnnotation)
 	expectedAction := `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"stable-service","ServicePort":"80","Weight":100}]}}`
-	assert.Equal(t, expectedAction, annotations[ingressutil.ALBActionAnnotationKey("stable-service")])
+	assert.Equal(t, expectedAction, annotations[albActionAnnotation("stable-service")])
 }

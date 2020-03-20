@@ -14,9 +14,10 @@ const (
 	CanaryIngressSuffix = "-canary"
 	// ManagedActionsAnnotation holds list of ALB actions that are managed by rollouts
 	ManagedActionsAnnotation = "rollouts.argoproj.io/managed-alb-actions"
-	//ALBActionAnnotationPrefix is the prefix annotation that is used to configure a specific action within an
-	// ALB ingress.
-	ALBActionAnnotationPrefix = "alb.ingress.kubernetes.io/actions."
+	//ALBIngressAnnotation is the prefix annotation that is used by the ALB Ingress controller to configure an ALB
+	ALBIngressAnnotation = "alb.ingress.kubernetes.io"
+	// ALBActionPrefix the prefix to specific actions within an ALB ingress.
+	ALBActionPrefix = "/actions."
 )
 
 // ALBAction describes an ALB action that configure the behavior of an ALB. This struct is marshaled into a string
@@ -134,6 +135,10 @@ func NewManagedALBActions(annotation string) (ManagedALBActions, error) {
 }
 
 // ALBActionAnnotationKey returns the annotation key for a specific action
-func ALBActionAnnotationKey(service string) string {
-	return fmt.Sprintf("%s%s", ALBActionAnnotationPrefix, service)
+func ALBActionAnnotationKey(r *v1alpha1.Rollout) string {
+	prefix := ALBIngressAnnotation
+	if r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix != "" {
+		prefix = r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix
+	}
+	return fmt.Sprintf("%s%s%s", prefix, ALBActionPrefix, r.Spec.Strategy.Canary.StableService)
 }

@@ -112,6 +112,13 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"annotationPrefix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"ingress", "servicePort"},
 			},

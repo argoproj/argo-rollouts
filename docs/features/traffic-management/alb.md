@@ -57,9 +57,11 @@ spec:
       trafficRouting:
         alb:
            ingress: ingress  # required
+           annotationPrefix: custom.alb.ingress.kubernetes.io # optional
 ```
 
 The ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires this Ingress to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
 
+Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The Ingress uses that prefix instead of the default `alb.ingress.kubernetes.io` if the field set.
 
 The Rollout adds another annotation called `rollouts.argoproj.io/managed-alb-actions` to the Ingress to help the controller manage the Ingresses. This annotation indicates which actions are being managed by Rollout objects (since multiple Rollouts can reference one Ingress). If a Rollout is deleted, the Argo Rollouts controller uses this annotation to see that this action is no longer managed, and it is reset to only the stable service with 100 weight.

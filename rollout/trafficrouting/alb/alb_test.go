@@ -63,8 +63,12 @@ const actionTemplate = `{
 	}
 }`
 
+func albActionAnnotation(stable string) string {
+	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
+}
+
 func ingress(name string, stableSvc, canarySvc string, port, weight int32, managedBy string) *extensionsv1beta1.Ingress {
-	managedByValue := fmt.Sprintf("%s:%s", managedBy, ingressutil.ALBActionAnnotationKey(stableSvc))
+	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(stableSvc))
 	action := fmt.Sprintf(actionTemplate, stableSvc, port, 100-weight, canarySvc, port, weight)
 	var a ingressutil.ALBAction
 	err := json.Unmarshal([]byte(action), &a)
@@ -77,8 +81,8 @@ func ingress(name string, stableSvc, canarySvc string, port, weight int32, manag
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				ingressutil.ALBActionAnnotationKey(stableSvc): string(jsonutil.MustMarshal(a)),
-				ingressutil.ManagedActionsAnnotation:          managedByValue,
+				albActionAnnotation(stableSvc):       string(jsonutil.MustMarshal(a)),
+				ingressutil.ManagedActionsAnnotation: managedByValue,
 			},
 		},
 		Spec: extensionsv1beta1.IngressSpec{

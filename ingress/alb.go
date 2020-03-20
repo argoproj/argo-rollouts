@@ -57,6 +57,12 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 }
 
 func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (string, error) {
+	parts := strings.Split(action, ingressutil.ALBActionPrefix)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unable to parse action to get the service %s", action)
+	}
+	service := parts[1]
+
 	previousActionStr := ingress.Annotations[action]
 	var previousAction ingressutil.ALBAction
 	err := json.Unmarshal([]byte(previousActionStr), &previousAction)
@@ -64,7 +70,6 @@ func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (st
 		return "", fmt.Errorf("unable to unmarshal previous ALB action")
 	}
 
-	service := strings.TrimPrefix(action, ingressutil.ALBActionAnnotationPrefix)
 	var port string
 	for _, tg := range previousAction.ForwardConfig.TargetGroups {
 		if tg.ServiceName == service {

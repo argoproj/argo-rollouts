@@ -8647,6 +8647,8 @@ spec:
                       properties:
                         alb:
                           properties:
+                            annotationPrefix:
+                              type: string
                             ingress:
                               type: string
                             servicePort:
