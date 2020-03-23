@@ -51,7 +51,7 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 // calculates the desired number of replicas for the new and stable RS using the following equations:
 //
 // newRS Replica count = spec.Replica * (setweight / 100)
-// stableRS Replica count = spec.Replica * ( (1 - setweight) / 100)
+// stableRS Replica count = spec.Replica * (1 - setweight / 100)
 //
 // In both equations, the function rounds the desired replica count up if the math does not divide into whole numbers
 // because the rollout guarantees at least one replica for both the stable and new RS when the setWeight is not 0 or 100.
