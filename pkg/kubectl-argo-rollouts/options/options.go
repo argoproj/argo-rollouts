@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
@@ -33,6 +34,8 @@ type ArgoRolloutsOptions struct {
 
 	Log *log.Logger
 	genericclioptions.IOStreams
+
+	Now func() metav1.Time
 }
 
 // NewArgoRolloutsOptions provides an instance of ArgoRolloutsOptions with default values
@@ -49,6 +52,7 @@ func NewArgoRolloutsOptions(streams genericclioptions.IOStreams) *ArgoRolloutsOp
 		IOStreams:        streams,
 		Log:              logCtx,
 		LogLevel:         log.InfoLevel.String(),
+		Now:              metav1.Now,
 	}
 }
 

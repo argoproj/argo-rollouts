@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/pause"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/terminate"
@@ -53,6 +54,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(list.NewCmdList(o))
 	cmd.AddCommand(pause.NewCmdPause(o))
 	cmd.AddCommand(promote.NewCmdPromote(o))
+	cmd.AddCommand(restart.NewCmdRestart(o))
 	cmd.AddCommand(version.NewCmdVersion(o))
 	cmd.AddCommand(abort.NewCmdAbort(o))
 	cmd.AddCommand(retry.NewCmdRetry(o))
