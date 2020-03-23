@@ -19,7 +19,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -53,7 +53,7 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		// Remove anti-affinity from template.Spec.Affinity before comparing
 		live, desired := rs.Spec.Template.DeepCopy(), rollout.Spec.Template.DeepCopy()
 		RemoveDefaultAntiAffinityRuleIfExists(live, *rollout)
-		RemoveDefaultAntiAffinityRuleIfExists(desired, *rollout)
+		//RemoveDefaultAntiAffinityRuleIfExists(desired, *rollout)
 		if PodTemplateEqualIgnoreHash(live, desired) {
 			logCtx := logutil.WithRollout(rollout)
 			logCtx.Infof("ComputeHash change detected (expected: %s, actual: %s)", replicaSetName, rs.Name)
@@ -64,9 +64,10 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	return nil
 }
 
-func CheckAndCreateDefaultAntiAffinityRule(RSTemplate *corev1.PodTemplateSpec, rollout v1alpha1.Rollout) {
+func CheckAndCreateDefaultAntiAffinityRule(RSTemplate *corev1.PodTemplateSpec, rollout v1alpha1.Rollout) *corev1.Affinity {
 	enableAntiAffinity := (rollout.Spec.Strategy.BlueGreen != nil && rollout.Spec.Strategy.BlueGreen.AntiAffinity) || (rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.AntiAffinity)
-	if enableAntiAffinity && rollout.Status.StableRS != "" && rollout.Status.StableRS != rollout.Status.CurrentPodHash { //Check if flag set, not relevant for 1st RS
+	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if enableAntiAffinity && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash { //Check if flag set, not relevant for 1st RS
 		antiAffinityRule := GetDefaultAntiAffinityRule(rollout)
 		if RSTemplate.Spec.Affinity == nil {
 			RSTemplate.Spec.Affinity = &corev1.Affinity{}
@@ -83,6 +84,7 @@ func CheckAndCreateDefaultAntiAffinityRule(RSTemplate *corev1.PodTemplateSpec, r
 			}
 		}
 	}
+	return RSTemplate.Spec.Affinity
 }
 
 func GetDefaultAntiAffinityRule(rollout v1alpha1.Rollout) corev1.PodAffinityTerm {
@@ -118,10 +120,10 @@ func RemoveDefaultAntiAffinityRuleIfExists(RSTemplate *corev1.PodTemplateSpec, r
 	i := CheckIfDefaultAntiAffinityRuleExists(RSTemplate, rollout)
 	if i >= 0 {
 		RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[:i], RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i+1:]...)
-		if RSTemplate.Spec.Affinity.PodAntiAffinity == (&corev1.PodAntiAffinity{}) { //RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && RSTemplate.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+		if RSTemplate.Spec.Affinity.PodAntiAffinity == (&corev1.PodAntiAffinity{}) {
 			RSTemplate.Spec.Affinity.PodAntiAffinity = nil
 		}
-		if RSTemplate.Spec.Affinity == (&corev1.Affinity{}) { //RSTemplate.Spec.Affinity.PodAntiAffinity == nil && RSTemplate.Spec.Affinity.PodAffinity == nil && RSTemplate.Spec.Affinity.NodeAffinity == nil {
+		if RSTemplate.Spec.Affinity == (&corev1.Affinity{}) {
 			RSTemplate.Spec.Affinity = nil
 		}
 	}
