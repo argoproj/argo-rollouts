@@ -8383,6 +8383,9 @@ spec:
             replicas:
               format: int32
               type: integer
+            restartAt:
+              format: date-time
+              type: string
             revisionHistoryLimit:
               format: int32
               type: integer
@@ -11345,6 +11348,9 @@ spec:
             replicas:
               format: int32
               type: integer
+            restartedAt:
+              format: date-time
+              type: string
             selector:
               type: string
             stableRS:
