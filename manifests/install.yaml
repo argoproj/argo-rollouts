@@ -8420,6 +8420,36 @@ spec:
                     autoPromotionSeconds:
                       format: int32
                       type: integer
+                    postPromotionAnalysis:
+                      properties:
+                        args:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                              valueFrom:
+                                properties:
+                                  podTemplateHashValue:
+                                    type: string
+                                type: object
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        templateName:
+                          type: string
+                        templates:
+                          items:
+                            properties:
+                              templateName:
+                                type: string
+                            required:
+                            - templateName
+                            type: object
+                          type: array
+                      type: object
                     prePromotionAnalysis:
                       properties:
                         args:
@@ -11191,6 +11221,8 @@ spec:
             blueGreen:
               properties:
                 activeSelector:
+                  type: string
+                postPromotionAnalysisRun:
                   type: string
                 prePromotionAnalysisRun:
                   type: string

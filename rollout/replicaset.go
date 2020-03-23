@@ -106,7 +106,8 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 
 	// Scale down old replica sets
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, rollout)
+		bgCtx := roCtx.(*blueGreenContext)
+		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs, bgCtx)
 		if err != nil {
 			return false, nil
 		}

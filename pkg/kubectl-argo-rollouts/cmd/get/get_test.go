@@ -193,6 +193,53 @@ NAME                                        KIND        STATUS        AGE  INFO
 	assertStdout(t, expectedOut, o.IOStreams)
 }
 
+func TestGetBlueGreenRolloutScaleDownDelayPassed(t *testing.T) {
+	rolloutObjs := testdata.NewBlueGreenRollout()
+	anHourAgo := metav1.Now().Add(-1 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = anHourAgo
+	delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	expectedOut := strings.TrimPrefix(`
+Name:            bluegreen-demo
+Namespace:       jesse-test
+Status:          ॥ Paused
+Strategy:        BlueGreen
+Images:          argoproj/rollouts-demo:blue (active)
+                 argoproj/rollouts-demo:green
+Replicas:
+  Desired:       3
+  Current:       6
+  Updated:       3
+  Ready:         6
+  Available:     3
+
+NAME                                        KIND        STATUS        AGE  INFO
+⟳ bluegreen-demo                            Rollout     ॥ Paused      7d
+├──# revision:11
+│  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   delay:passed
+│     ├──□ bluegreen-demo-74b948fccb-5jz59  Pod         ✔ Running     7d   ready:1/1
+│     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
+│     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
+├──# revision:10
+│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   active
+│     ├──□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     7d   ready:1/1
+│     ├──□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     7d   ready:1/1
+│     └──□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     7d   ready:1/1
+└──# revision:8
+   └──⧉ bluegreen-demo-746d5fddf6           ReplicaSet  • ScaledDown  7d
+`, "\n")
+	assertStdout(t, expectedOut, o.IOStreams)
+}
+
 func TestGetCanaryRollout(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
 

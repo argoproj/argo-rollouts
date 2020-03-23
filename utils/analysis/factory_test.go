@@ -64,6 +64,17 @@ func TestPrePromotionLabels(t *testing.T) {
 	assert.Equal(t, expected, generated)
 }
 
+func TestPostPromotionLabels(t *testing.T) {
+	podHash := "abcd123"
+	expected := map[string]string{
+		v1alpha1.LabelKeyControllerInstanceID: "test",
+		v1alpha1.RolloutTypeLabel:             v1alpha1.RolloutTypePostPromotionLabel,
+		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+	}
+	generated := PostPromotionLabels(podHash, "test")
+	assert.Equal(t, expected, generated)
+}
+
 func TestStepLabels(t *testing.T) {
 	podHash := "abcd123"
 	expected := map[string]string{

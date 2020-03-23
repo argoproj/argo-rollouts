@@ -178,19 +178,17 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		if err == nil {
 			return nil
 		}
+		if !k8serrors.IsAlreadyExists(err) {
+			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
+			return fmt.Errorf("error creating canary ingress `%s`: %v", canaryIngressName, err)
+		}
+		// Canary ingress was created by a different reconcile call before this one could complete (race)
+		// This means we just read it from the API now (instead of cache) and continue with the normal
+		// flow we take when the canary already existed.
+		canaryIngress, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
 		if err != nil {
-			if !k8serrors.IsAlreadyExists(err) {
-				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
-				return fmt.Errorf("error creating canary ingress `%s`: %v", canaryIngressName, err)
-			}
-			// Canary ingress was created by a different reconcile call before this one could complete (race)
-			// This means we just read it from the API now (instead of cache) and continue with the normal
-			// flow we take when the canary already existed.
-			canaryIngress, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Get(canaryIngressName, metav1.GetOptions{})
-			if err != nil {
-				r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-				return fmt.Errorf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err)
-			}
+			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+			return fmt.Errorf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err)
 		}
 	}
 
