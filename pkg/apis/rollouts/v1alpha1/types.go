@@ -119,6 +119,8 @@ type BlueGreenStrategy struct {
 	// AntiAffinity enables anti-affinity rules for Blue Green deployment
 	// +optional
 	AntiAffinity bool `json:"antiAffinity,omitempty"`
+	// PostPromotionAnalysis configuration to run analysis after a selector switch
+	PostPromotionAnalysis *RolloutAnalysis `json:"postPromotionAnalysis,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -340,6 +342,8 @@ const (
 	RolloutTypeBackgroundRunLabel = "Background"
 	// RolloutTypePrePromotionLabel indicates that the analysisRun was created before the active service promotion
 	RolloutTypePrePromotionLabel = "PrePromotion"
+	// RolloutTypePostPromotionLabel indicates that the analysisRun was created after the active service promotion
+	RolloutTypePostPromotionLabel = "PostPromotion"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
 	RolloutCanaryStepIndexLabel = "step-index"
 )
@@ -487,6 +491,8 @@ type BlueGreenStatus struct {
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
 	// PrePromotionAnalysisRun is the current analysis run running before the active service promotion
 	PrePromotionAnalysisRun string `json:"prePromotionAnalysisRun,omitempty"`
+	// PostPromotionAnalysisRun is the current analysis run running after the active service promotion
+	PostPromotionAnalysisRun string `json:"postPromotionAnalysisRun,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout

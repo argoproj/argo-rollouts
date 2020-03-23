@@ -239,7 +239,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 		return true
 	}
 	currentArs := roCtx.CurrentAnalysisRuns()
-	currentStepAr := analysisutil.GetCurrentStepAnalysisRun(currentArs)
+	currentStepAr := analysisutil.GetCurrentAnalysisRunByType(currentArs, v1alpha1.RolloutTypeStepLabel)
 	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
 	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
@@ -290,7 +290,6 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 				c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", msg)
 			}
 			newStatus.CurrentStepIndex = &stepCount
-
 		}
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()

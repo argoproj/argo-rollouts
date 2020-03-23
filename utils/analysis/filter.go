@@ -6,18 +6,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-//GetCurrentStepAnalysisRun filters the currentArs and returns the step based analysis run
-func GetCurrentStepAnalysisRun(currentArs []*v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
-	for i := range currentArs {
-		ar := currentArs[i]
-		rolloutType, ok := ar.Labels[v1alpha1.RolloutTypeLabel]
-		if ok && rolloutType == v1alpha1.RolloutTypeStepLabel {
-			return ar
-		}
-	}
-	return nil
-}
-
 func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string) *v1alpha1.AnalysisRun {
 	for i := range currentArs {
 		ar := currentArs[i]
@@ -39,6 +27,9 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 			return true
 		}
 		if ar.Name == r.Status.BlueGreen.PrePromotionAnalysisRun {
+			return true
+		}
+		if ar.Name == r.Status.BlueGreen.PostPromotionAnalysisRun {
 			return true
 		}
 		return false

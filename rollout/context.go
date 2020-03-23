@@ -134,6 +134,13 @@ func (cCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun
 			cCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 		}
 	}
+	currPostPromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePostPromotionLabel)
+	if currPostPromoAr != nil && !cCtx.PauseContext().IsAborted() {
+		switch currPostPromoAr.Status.Phase {
+		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
+			cCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
+		}
+	}
 }
 
 func (bgCtx *blueGreenContext) OtherExperiments() []*v1alpha1.Experiment {

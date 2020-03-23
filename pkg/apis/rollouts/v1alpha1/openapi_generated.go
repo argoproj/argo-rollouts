@@ -573,6 +573,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"postPromotionAnalysisRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PostPromotionAnalysisRun is the current analysis run running after the active service promotion",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -648,6 +655,12 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Description: "AntiAffinity enables anti-affinity rules for Blue Green deployment",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"postPromotionAnalysis": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PostPromotionAnalysis configuration to run analysis after a selector switch",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"),
 						},
 					},
 				},

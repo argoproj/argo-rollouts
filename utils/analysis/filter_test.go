@@ -77,14 +77,16 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
 				BlueGreen: v1alpha1.BlueGreenStatus{
-					PrePromotionAnalysisRun: "foo",
+					PrePromotionAnalysisRun:  "foo",
+					PostPromotionAnalysisRun: "bar",
 				},
 			},
 		}
 		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
-		assert.Len(t, currentArs, 1)
-		assert.Len(t, nonCurrentArs, 2)
+		assert.Len(t, currentArs, 2)
+		assert.Len(t, nonCurrentArs, 1)
 		assert.Contains(t, currentArs, ars[0])
+		assert.Contains(t, currentArs, ars[1])
 	})
 }
 
