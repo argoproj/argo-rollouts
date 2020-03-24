@@ -811,11 +811,26 @@ func TestCheckAndCreateDefaultAntiAffinityRule(t *testing.T) {
 	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
 	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
 
-	// TODO: Create extra affinity rules, test that they aren't overwritten
+	podAffinityTerm := []corev1.PodAffinityTerm{{
+		LabelSelector: &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "xxxx",
+			}},
+		},
+	}}
+	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{
+		PodAffinity: &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
+		},
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
+		},
+	}
 	ro.Status.StableRS = "test"
 	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
 	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
-
+	assert.Equal(t, 2, len(rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 }
 
 func TestGetDefaultAntiAffinityRule(t *testing.T) {
@@ -837,7 +852,7 @@ func TestCheckIfDefaultAntiAffinityRuleExists(t *testing.T) {
 	rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{{
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{{
-				Key:  v1alpha1.DefaultRolloutUniqueLabelKey,
+				Key: v1alpha1.DefaultRolloutUniqueLabelKey,
 			}},
 		},
 	}}
@@ -851,12 +866,28 @@ func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 		AntiAffinity: true,
 	}
-	var emptyAffinity *corev1.Affinity
 	// Create default antiAffinity rule
 	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
 	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
-	// Delete default antiAfffinity rule
+	// Delete default antiAffinity rule
+	podAffinityTerm := []corev1.PodAffinityTerm{{
+		LabelSelector: &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "xxxx",
+			}},
+		},
+	}}
+	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{
+		PodAffinity: &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
+		},
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
+		},
+	}
 	rs.Spec.Template.Spec.Affinity = RemoveDefaultAntiAffinityRuleIfExists(&rs.Spec.Template)
-	assert.Equal(t, emptyAffinity, rs.Spec.Template.Spec.Affinity)
 	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+
 }
