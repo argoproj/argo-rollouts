@@ -659,7 +659,6 @@ func TestResetCurrentStepIndex(t *testing.T) {
 }
 
 func TestReplicaSetsByRevisionNumber(t *testing.T) {
-
 	now := metav1.Now()
 	before := metav1.NewTime(metav1.Now().Add(-5 * time.Second))
 
@@ -777,4 +776,87 @@ func TestGetReplicaSetRevision(t *testing.T) {
 		}
 		assert.Equal(t, -1, GetReplicaSetRevision(ro, rs))
 	})
+}
+
+func TestIsAntiAffinityEnabled(t *testing.T) {
+	ro := generateRollout("nginx")
+	assert.Equal(t, false, IsAntiAffinityEnabled(ro))
+
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: true,
+	}
+	assert.Equal(t, true, IsAntiAffinityEnabled(ro))
+
+	ro.Spec.Strategy.BlueGreen = nil
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		AntiAffinity: true,
+	}
+	assert.Equal(t, true, IsAntiAffinityEnabled(ro))
+}
+
+func TestCheckAndCreateDefaultAntiAffinityRule(t *testing.T) {
+	ro := generateRollout("nginx")
+	rs := generateRS(ro)
+	var emptyAffinity *corev1.Affinity
+	// Anti-Affinity not enabled
+	assert.Equal(t, false, IsAntiAffinityEnabled(ro))
+	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+	// StableRS is nil
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: true,
+	}
+	assert.Equal(t, "", ro.Status.StableRS)
+	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+	// StableRS is equal to CurrentPodHash
+	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
+	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+
+	// TODO: Create extra affinity rules, test that they aren't overwritten
+	ro.Status.StableRS = "test"
+	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
+	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+
+}
+
+func TestGetDefaultAntiAffinityRule(t *testing.T) {
+	ro := generateRollout("nginx")
+	ro.Namespace = metav1.NamespaceDefault
+	ro.Status.StableRS = "test"
+	antiAffinityRule := GetDefaultAntiAffinityRule(ro)
+	assert.Equal(t, ro.Namespace, antiAffinityRule.Namespaces[0])
+	assert.Equal(t, ro.Status.StableRS, antiAffinityRule.LabelSelector.MatchExpressions[0].Values[0])
+}
+
+func TestCheckIfDefaultAntiAffinityRuleExists(t *testing.T) {
+	ro := generateRollout("nginx")
+	rs := generateRS(ro)
+	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+
+	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{}
+	rs.Spec.Template.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
+	rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{{
+		LabelSelector: &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key:  v1alpha1.DefaultRolloutUniqueLabelKey,
+			}},
+		},
+	}}
+	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+}
+
+func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
+	ro := generateRollout("nginx")
+	rs := generateRS(ro)
+	ro.Status.StableRS = "test"
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: true,
+	}
+	var emptyAffinity *corev1.Affinity
+	// Create default antiAffinity rule
+	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
+	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	// Delete default antiAfffinity rule
+	rs.Spec.Template.Spec.Affinity = RemoveDefaultAntiAffinityRuleIfExists(&rs.Spec.Template)
+	assert.Equal(t, emptyAffinity, rs.Spec.Template.Spec.Affinity)
+	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
 }

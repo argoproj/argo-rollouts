@@ -50,7 +50,7 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	for _, rs := range rsList {
 		// Remove anti-affinity from template.Spec.Affinity before comparing
 		live := rs.Spec.Template.DeepCopy()
-		RemoveDefaultAntiAffinityRuleIfExists(live)
+		live.Spec.Affinity = RemoveDefaultAntiAffinityRuleIfExists(live)
 
 		desired := rollout.Spec.Template.DeepCopy()
 		if PodTemplateEqualIgnoreHash(live, desired) {
@@ -76,7 +76,7 @@ func IsAntiAffinityEnabled(rollout v1alpha1.Rollout) bool {
 func CheckAndCreateDefaultAntiAffinityRule(RSTemplate *corev1.PodTemplateSpec, rollout v1alpha1.Rollout) *corev1.Affinity {
 	enableAntiAffinity := IsAntiAffinityEnabled(rollout)
 	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-	if enableAntiAffinity && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash { //Check if flag set, not relevant for 1st RS
+	if enableAntiAffinity && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash {
 		antiAffinityRule := GetDefaultAntiAffinityRule(rollout)
 		if RSTemplate.Spec.Affinity == nil {
 			RSTemplate.Spec.Affinity = &corev1.Affinity{}
@@ -116,25 +116,32 @@ func GetDefaultAntiAffinityRule(rollout v1alpha1.Rollout) corev1.PodAffinityTerm
 func CheckIfDefaultAntiAffinityRuleExists(RSTemplate *corev1.PodTemplateSpec) int {
 	if RSTemplate.Spec.Affinity != nil && RSTemplate.Spec.Affinity.PodAntiAffinity != nil && RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 		for i, podAffinityTerm := range RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-			if podAffinityTerm.TopologyKey == "rollouts-pod-template-hash" {
-				return i
+			for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
+				if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey {
+					return i
+				}
 			}
 		}
 	}
 	return -1
 }
 
-func RemoveDefaultAntiAffinityRuleIfExists(RSTemplate *corev1.PodTemplateSpec) {
+func RemoveDefaultAntiAffinityRuleIfExists(RSTemplate *corev1.PodTemplateSpec) *corev1.Affinity {
 	i := CheckIfDefaultAntiAffinityRuleExists(RSTemplate)
+	newRSTemplate := RSTemplate.DeepCopy()
 	if i >= 0 {
-		RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[:i], RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i+1:]...)
-		if RSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && RSTemplate.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
-			RSTemplate.Spec.Affinity.PodAntiAffinity = nil
+		newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[:i], newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i+1:]...)
+		if len(newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) == 0 {
+			newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
 		}
-		if RSTemplate.Spec.Affinity.PodAntiAffinity == nil && RSTemplate.Spec.Affinity.PodAffinity == nil && RSTemplate.Spec.Affinity.NodeAffinity == nil {
-			RSTemplate.Spec.Affinity = nil
+		if newRSTemplate.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && newRSTemplate.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+			newRSTemplate.Spec.Affinity.PodAntiAffinity = nil
+		}
+		if newRSTemplate.Spec.Affinity.PodAntiAffinity == nil && newRSTemplate.Spec.Affinity.PodAffinity == nil && newRSTemplate.Spec.Affinity.NodeAffinity == nil {
+			newRSTemplate.Spec.Affinity = nil
 		}
 	}
+	return newRSTemplate.Spec.Affinity
 }
 
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
