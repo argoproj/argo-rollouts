@@ -866,10 +866,6 @@ func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 		AntiAffinity: true,
 	}
-	// Create default antiAffinity rule
-	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
-	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
-	// Delete default antiAffinity rule
 	podAffinityTerm := []corev1.PodAffinityTerm{{
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{{
@@ -885,6 +881,10 @@ func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
 		},
 	}
+	// Create default antiAffinity rule
+	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
+	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	// Delete default antiAffinity rule
 	rs.Spec.Template.Spec.Affinity = RemoveDefaultAntiAffinityRuleIfExists(&rs.Spec.Template)
 	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
 	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
