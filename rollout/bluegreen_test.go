@@ -40,8 +40,8 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	previewSvc := newService("preview", 80, nil)
-	activeSvc := newService("active", 80, nil)
+	previewSvc := newService("preview", 80, nil, r)
+	activeSvc := newService("active", 80, nil, r)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
@@ -66,7 +66,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
 
-	assert.True(t, f.verifyPatchedService(servicePatchIndex, rsPodHash))
+	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	updatedProgressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -93,9 +93,9 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
-	previewSvc := newService("preview", 80, nil)
+	previewSvc := newService("preview", 80, nil, r)
 	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
-	activeSvc := newService("active", 80, selector)
+	activeSvc := newService("active", 80, selector, r)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
@@ -103,7 +103,34 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
-	assert.True(t, f.verifyPatchedService(servicePatch, rsPodHash))
+	f.verifyPatchedService(servicePatch, rsPodHash, "")
+}
+
+//TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
+func TestSetServiceManagedBy(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	previewSvc := newService("preview", 80, nil, r)
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
+	activeSvc := newService("active", 80, selector, r)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
+
+	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	f.verifyPatchedService(servicePatch, rsPodHash, "")
 }
 
 func TestBlueGreenHandlePause(t *testing.T) {
@@ -123,9 +150,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 2, 4, 2, false, true)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -153,9 +180,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -200,9 +227,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -242,9 +269,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -286,9 +313,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -321,9 +348,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -360,9 +387,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -414,9 +441,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -450,7 +477,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -475,8 +502,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, generatedConditions, newSelector))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
-		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs2PodHash))
-		assert.True(t, f.verifyPatchedReplicaSet(patchedRSIndex, 10))
+		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
+		f.verifyPatchedReplicaSet(patchedRSIndex, 10)
 
 		rolloutPatch := f.getPatchedRollout(patchIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
@@ -499,7 +526,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -539,7 +566,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		activeSelector := map[string]string{"foo": "bar"}
 
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r1)
 
 		f.objects = append(f.objects, r1)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, rs1)
@@ -565,7 +592,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
 		f.run(getKey(r1, t))
 
-		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs1PodHash))
+		f.verifyPatchedService(servicePatchIndex, rs1PodHash, "")
 
 		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
@@ -591,9 +618,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-		activeSvc := newService("active", 80, activeSelector)
+		activeSvc := newService("active", 80, activeSelector, r2)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-		previewSvc := newService("preview", 80, previewSelector)
+		previewSvc := newService("preview", 80, previewSelector, r2)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -607,8 +634,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
-		assert.True(t, f.verifyPatchedService(servicePatchIndex, rs2PodHash))
-		assert.True(t, f.verifyPatchedReplicaSet(patchedRSIndex, 10))
+		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
+		f.verifyPatchedReplicaSet(patchedRSIndex, 10)
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
 		unpauseConditions := generateConditionsPatch(true, conditions.ResumedRolloutReason, rs2, true, "")
 		expectedUnpausePatch := `{
@@ -649,7 +676,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -663,7 +690,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	patchedRSIndex := f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	assert.True(t, f.verifyPatchedReplicaSet(patchedRSIndex, 10))
+	f.verifyPatchedReplicaSet(patchedRSIndex, 10)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutSubs := `{
@@ -694,8 +721,8 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 0, 0, 0, 0, true, false)
 	r2.Status.Selector = ""
@@ -734,7 +761,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	roCtx := newBlueGreenCtx(ro, rs, nil, nil)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	ro.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""})
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""}, ro)
 
 	progressingCondition, progressingConditionStr := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
@@ -786,8 +813,8 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 1, 1, false, true)
 	f.objects = append(f.objects, r2)
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
@@ -816,7 +843,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 3, 3, 8, 5, false, true)
 		f.rolloutLister = append(f.rolloutLister, r2)
@@ -850,7 +877,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
 		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
@@ -882,7 +909,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
 		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
@@ -915,8 +942,8 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash})
-	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash})
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 1, 1, 1, false, true)
 	// Scaling up the rollout
@@ -948,7 +975,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
@@ -986,7 +1013,7 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = "Abcd123"
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -1023,7 +1050,7 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -1056,7 +1083,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -1095,7 +1122,7 @@ func TestFastRollback(t *testing.T) {
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
@@ -1139,7 +1166,7 @@ func TestScaleDownLimit(t *testing.T) {
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 
@@ -1180,7 +1207,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
