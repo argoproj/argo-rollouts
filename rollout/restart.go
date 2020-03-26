@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"sort"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,11 +14,29 @@ import (
 // RolloutPodRestarter describes the components needed for the controller to restart all the pods of
 // a rollout.
 type RolloutPodRestarter struct {
-	client kubernetes.Interface
+	client       kubernetes.Interface
+	resyncPeriod time.Duration
+	enqueueAfter func(obj interface{}, duration time.Duration)
+}
+
+func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
+	r := roCtx.Rollout()
+	now := nowFn()
+	if r.Spec.RestartAt == nil || now.After(r.Spec.RestartAt.Time) {
+		return
+	}
+	nextResync := now.Add(p.resyncPeriod)
+	// Only enqueue if the Restart time is before the next sync period
+	if nextResync.After(r.Spec.RestartAt.Time) {
+		timeRemaining := r.Spec.RestartAt.Sub(now)
+		roCtx.Log().Infof("Enqueueing Rollout in %s seconds for restart", timeRemaining.String())
+		p.enqueueAfter(r, timeRemaining)
+	}
 }
 
 func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
 	rollout := roCtx.Rollout()
+	p.checkEnqueueRollout(roCtx)
 	if !replicaset.NeedsRestart(rollout) {
 		return nil
 	}

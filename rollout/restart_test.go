@@ -58,6 +58,66 @@ func replicaSet(selector string, replicas, available int32) *appsv1.ReplicaSet {
 	}
 }
 
+func TestCheckEnqueueRollout(t *testing.T) {
+	now := metav1.Now()
+	t.Run(".Spec.Restart not set", func(t *testing.T) {
+		roCtx := &canaryContext{
+			rollout: &v1alpha1.Rollout{},
+		}
+		p := RolloutPodRestarter{
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				assert.Fail(t, "Should not enqueue rollout")
+			},
+		}
+		p.checkEnqueueRollout(roCtx)
+	})
+	t.Run(".Spec.Restart has already past", func(t *testing.T) {
+		ro := rollout(metav1.NewTime(now.Add(-10*time.Minute)), nil)
+		roCtx := &canaryContext{
+			rollout: ro,
+		}
+		p := RolloutPodRestarter{
+			resyncPeriod: 10 * time.Minute,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				assert.Fail(t, "Should not enqueue rollout")
+			},
+		}
+		p.checkEnqueueRollout(roCtx)
+	})
+	t.Run("Enqueue Rollout since before next resync", func(t *testing.T) {
+		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
+		enqueued := false
+		roCtx := &canaryContext{
+			rollout: ro,
+			log:     logrus.WithField("", ""),
+		}
+		p := RolloutPodRestarter{
+			resyncPeriod: 10 * time.Minute,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		p.checkEnqueueRollout(roCtx)
+		assert.True(t, enqueued)
+	})
+	t.Run("Do not enqueue Rollout since after next resync", func(t *testing.T) {
+		enqueued := false
+		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
+		roCtx := &canaryContext{
+			rollout: ro,
+			log:     logrus.WithField("", ""),
+		}
+		p := RolloutPodRestarter{
+			resyncPeriod: 2 * time.Minute,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		p.checkEnqueueRollout(roCtx)
+		assert.False(t, enqueued)
+	})
+}
+
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)))
