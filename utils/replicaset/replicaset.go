@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -196,6 +198,17 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 		}
 	}
 	return false
+}
+
+func NeedsRestart(rollout *v1alpha1.Rollout) bool {
+	now := metav1.Now()
+	if rollout.Spec.RestartAt == nil {
+		return false
+	}
+	if rollout.Status.RestartedAt != nil && rollout.Spec.RestartAt.Equal(rollout.Status.RestartedAt) {
+		return false
+	}
+	return now.After(rollout.Spec.RestartAt.Time)
 }
 
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
