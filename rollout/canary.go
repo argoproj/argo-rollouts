@@ -45,8 +45,13 @@ func (c *RolloutController) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*a
 	}
 
 	roCtx := newCanaryCtx(rollout, newRS, previousRSs, exList, arList)
-	logCtx := roCtx.Log()
 
+	err = c.podRestarter.Reconcile(roCtx)
+	if err != nil {
+		return err
+	}
+
+	logCtx := roCtx.Log()
 	logCtx.Info("Cleaning up old replicasets, experiments, and analysis runs")
 	if err := c.cleanupRollouts(roCtx.OlderRSs(), roCtx); err != nil {
 		return err

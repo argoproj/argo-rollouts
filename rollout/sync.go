@@ -233,6 +233,10 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		if err != nil {
 			return nil
 		}
+		err = c.podRestarter.Reconcile(roCtx)
+		if err != nil {
+			return err
+		}
 		if err := c.reconcileBlueGreenReplicaSets(roCtx, activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
@@ -249,6 +253,10 @@ func (c *RolloutController) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*apps
 		}
 
 		roCtx := newCanaryCtx(r, newRS, oldRSs, exList, arList)
+		err = c.podRestarter.Reconcile(roCtx)
+		if err != nil {
+			return err
+		}
 
 		if isScaling {
 			if _, err := c.reconcileCanaryReplicaSets(roCtx); err != nil {

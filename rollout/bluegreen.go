@@ -35,6 +35,12 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 
 	roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 	logCtx := roCtx.Log()
+
+	err = c.podRestarter.Reconcile(roCtx)
+	if err != nil {
+		return err
+	}
+
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
