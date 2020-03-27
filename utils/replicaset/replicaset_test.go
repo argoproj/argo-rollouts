@@ -28,6 +28,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        image,
 			Annotations: make(map[string]string),
+			Namespace:   metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(1),
@@ -794,22 +795,24 @@ func TestIsAntiAffinityEnabled(t *testing.T) {
 	assert.Equal(t, true, IsAntiAffinityEnabled(ro))
 }
 
-func TestCheckAndCreateDefaultAntiAffinityRule(t *testing.T) {
+func TestGenerateReplicaSetAffinity(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
-	var emptyAffinity *corev1.Affinity
 	// Anti-Affinity not enabled
 	assert.Equal(t, false, IsAntiAffinityEnabled(ro))
-	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+	assert.Nil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
 	// StableRS is nil
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 		AntiAffinity: true,
 	}
 	assert.Equal(t, "", ro.Status.StableRS)
-	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+	assert.Nil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
 	// StableRS is equal to CurrentPodHash
 	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
-	assert.Equal(t, emptyAffinity, CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro))
+	assert.Nil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
+
+	ro.Status.StableRS = "test"
+	assert.NotNil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
 
 	podAffinityTerm := []corev1.PodAffinityTerm{{
 		LabelSelector: &metav1.LabelSelector{
@@ -826,26 +829,23 @@ func TestCheckAndCreateDefaultAntiAffinityRule(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
 		},
 	}
-	ro.Status.StableRS = "test"
-	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
-	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
 	assert.Equal(t, 2, len(rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 }
 
-func TestGetDefaultAntiAffinityRule(t *testing.T) {
+func TestGetInjectedAntiAffinityRule(t *testing.T) {
 	ro := generateRollout("nginx")
-	ro.Namespace = metav1.NamespaceDefault
 	ro.Status.StableRS = "test"
-	antiAffinityRule := GetDefaultAntiAffinityRule(ro)
+	antiAffinityRule := GetInjectedAntiAffinityRule(ro)
 	assert.Equal(t, ro.Namespace, antiAffinityRule.Namespaces[0])
 	assert.Equal(t, ro.Status.StableRS, antiAffinityRule.LabelSelector.MatchExpressions[0].Values[0])
 }
 
-func TestCheckIfDefaultAntiAffinityRuleExists(t *testing.T) {
+func TestHasInjectedAntiAffinityRule(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
-	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	assert.Equal(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
 
 	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{}
 	rs.Spec.Template.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
@@ -856,10 +856,10 @@ func TestCheckIfDefaultAntiAffinityRuleExists(t *testing.T) {
 			}},
 		},
 	}}
-	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
+	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
 }
 
-func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
+func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
 	ro.Status.StableRS = "test"
@@ -873,21 +873,32 @@ func TestRemoveDefaultAntiAffinityRuleIfExists(t *testing.T) {
 			}},
 		},
 	}}
+
+	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
+	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	assert.Nil(t, rs.Spec.Template.Spec.Affinity)
+
 	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		PodAffinity: &corev1.PodAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
 		},
+	}
+	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	assert.Nil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity)
+	assert.NotNil(t, rs.Spec.Template.Spec.Affinity.PodAffinity)
+
+	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight:          1,
+				PodAffinityTerm: podAffinityTerm[0],
+			}},
 		},
 	}
-	// Create default antiAffinity rule
-	rs.Spec.Template.Spec.Affinity = CheckAndCreateDefaultAntiAffinityRule(&rs.Spec.Template, ro)
-	assert.NotEqual(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
-	// Delete default antiAffinity rule
-	rs.Spec.Template.Spec.Affinity = RemoveDefaultAntiAffinityRuleIfExists(&rs.Spec.Template)
-	assert.Equal(t, -1, CheckIfDefaultAntiAffinityRuleExists(&rs.Spec.Template))
-	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
-	assert.Equal(t, 1, len(rs.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
-
+	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	assert.Nil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+	assert.NotNil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
 }
