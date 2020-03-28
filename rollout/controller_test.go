@@ -1154,7 +1154,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"787cf998b7"}}`
+	expectedPatch := `{"status":{"observedGeneration":"d9d46b8c7"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1198,7 +1198,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"6c447f567"}}`
+	expectedPatch := `{"status":{"observedGeneration":"74f6cf89d9"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

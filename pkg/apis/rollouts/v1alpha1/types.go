@@ -131,7 +131,9 @@ type AntiAffinity struct {
 	RequiredDuringSchedulingIgnoredDuringExecution bool `json:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
 }
 
+// PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection
 type PreferredDuringSchedulingIgnoredDuringExecution struct {
+	// Weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
 	Weight int32 `json:"weight,omitempty"`
 }
 
