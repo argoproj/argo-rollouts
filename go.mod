@@ -7,7 +7,6 @@ require (
 	github.com/bouk/monkey v1.0.0
 	github.com/docker/docker v1.4.2-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
-	github.com/emicklei/go-restful v2.12.0+incompatible // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.7
 	github.com/go-openapi/swag v0.19.8 // indirect

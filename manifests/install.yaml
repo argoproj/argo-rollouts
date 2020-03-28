@@ -8416,7 +8416,16 @@ spec:
                     activeService:
                       type: string
                     antiAffinity:
-                      type: boolean
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          properties:
+                            weight:
+                              format: int32
+                              type: integer
+                          type: object
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          type: boolean
+                      type: object
                     autoPromotionEnabled:
                       type: boolean
                     autoPromotionSeconds:
@@ -8532,7 +8541,16 @@ spec:
                           type: array
                       type: object
                     antiAffinity:
-                      type: boolean
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          properties:
+                            weight:
+                              format: int32
+                              type: integer
+                          type: object
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          type: boolean
+                      type: object
                     canaryService:
                       type: string
                     maxSurge:

@@ -779,31 +779,63 @@ func TestGetReplicaSetRevision(t *testing.T) {
 	})
 }
 
-func TestIsAntiAffinityEnabled(t *testing.T) {
+func TestGetAntiAffinityStrategy(t *testing.T) {
 	ro := generateRollout("nginx")
-	assert.Equal(t, false, IsAntiAffinityEnabled(ro))
+	assert.Nil(t, GetAntiAffinityStrategy(ro))
 
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
-		AntiAffinity: true,
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
 	}
-	assert.Equal(t, true, IsAntiAffinityEnabled(ro))
+	assert.Equal(t, ro.Spec.Strategy.BlueGreen.AntiAffinity, GetAntiAffinityStrategy(ro))
 
 	ro.Spec.Strategy.BlueGreen = nil
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
-		AntiAffinity: true,
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{
+				Weight: 1,
+			},
+		},
 	}
-	assert.Equal(t, true, IsAntiAffinityEnabled(ro))
+	assert.Equal(t, ro.Spec.Strategy.Canary.AntiAffinity, GetAntiAffinityStrategy(ro))
+}
+
+func TestIsAntiAffinityEnabled(t *testing.T) {
+	ro := generateRollout("nginx")
+	isAntiAffinityEnabled, _ := IsAntiAffinityEnabled(ro)
+	assert.Equal(t, false, isAntiAffinityEnabled)
+
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
+	}
+	isAntiAffinityEnabled, _ = IsAntiAffinityEnabled(ro)
+	assert.Equal(t, true, isAntiAffinityEnabled)
+
+	ro.Spec.Strategy.BlueGreen = nil
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
+	}
+	isAntiAffinityEnabled, _ = IsAntiAffinityEnabled(ro)
+	assert.Equal(t, true, isAntiAffinityEnabled)
 }
 
 func TestGenerateReplicaSetAffinity(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
 	// Anti-Affinity not enabled
-	assert.Equal(t, false, IsAntiAffinityEnabled(ro))
+	isAntiAffinityEnabled, _ := IsAntiAffinityEnabled(ro)
+	assert.Equal(t, false, isAntiAffinityEnabled)
 	assert.Nil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
 	// StableRS is nil
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
-		AntiAffinity: true,
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
 	}
 	assert.Equal(t, "", ro.Status.StableRS)
 	assert.Nil(t, GenerateReplicaSetAffinity(rs.Spec.Template, ro))
@@ -845,8 +877,13 @@ func TestGetInjectedAntiAffinityRule(t *testing.T) {
 func TestHasInjectedAntiAffinityRule(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
-	assert.Equal(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
+	assert.Equal(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template, ro))
 
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
+	}
 	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{}
 	rs.Spec.Template.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
 	rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{{
@@ -856,7 +893,7 @@ func TestHasInjectedAntiAffinityRule(t *testing.T) {
 			}},
 		},
 	}}
-	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
+	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template, ro))
 }
 
 func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
@@ -864,7 +901,9 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 	rs := generateRS(ro)
 	ro.Status.StableRS = "test"
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
-		AntiAffinity: true,
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: true,
+		},
 	}
 	podAffinityTerm := []corev1.PodAffinityTerm{{
 		LabelSelector: &metav1.LabelSelector{
@@ -875,8 +914,8 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 	}}
 
 	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
-	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template))
-	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	assert.NotEqual(t, -1, HasInjectedAntiAffinityRule(rs.Spec.Template, ro))
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template, ro)
 	assert.Nil(t, rs.Spec.Template.Spec.Affinity)
 
 	rs.Spec.Template.Spec.Affinity = &corev1.Affinity{
@@ -885,7 +924,7 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 		},
 	}
 	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
-	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template, ro)
 	assert.Nil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity)
 	assert.NotNil(t, rs.Spec.Template.Spec.Affinity.PodAffinity)
 
@@ -898,7 +937,7 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 		},
 	}
 	rs.Spec.Template.Spec.Affinity = GenerateReplicaSetAffinity(rs.Spec.Template, ro)
-	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template)
+	rs.Spec.Template.Spec.Affinity = RemoveInjectedAntiAffinityRule(rs.Spec.Template, ro)
 	assert.Nil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
 	assert.NotNil(t, rs.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
 }

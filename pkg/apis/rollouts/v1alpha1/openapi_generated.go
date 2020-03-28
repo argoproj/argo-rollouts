@@ -29,64 +29,66 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                              schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":                      schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":                          schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":                          schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate":                         schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                     schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                     schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                                 schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                        schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":                          schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":                        schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":                             schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":                               schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy":                           schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment":                               schema_pkg_apis_rollouts_v1alpha1_Experiment(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus":              schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef":            schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition":                      schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                           schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                         schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                      schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                      schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                            schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                             schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold":                         schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                              schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                   schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":                           schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                             schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                      schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                           schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                      schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                         schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                  schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis":                          schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates":                 schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                         schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                    schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef": schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                              schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                             schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                              schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                            schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                          schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting":                    schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                              schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretKeyRef":                             schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                             schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                           schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ValueFrom":                                schema_pkg_apis_rollouts_v1alpha1_ValueFrom(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric":                          schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric":                                schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader":                          schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                                     schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":                             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":                                 schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":                                 schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus":                               schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate":                                schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity":                                    schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                                        schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                               schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":                                 schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":                               schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":                                    schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep":                                      schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy":                                  schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment":                                      schema_pkg_apis_rollouts_v1alpha1_Experiment(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus":                     schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef":                   schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition":                             schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentList":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                             schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                       schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                                   schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                                    schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold":                                schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                                     schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                          schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":                                  schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                                    schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                                schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                         schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                       schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplates":                        schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                                schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                           schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef":        schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                       schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                                     schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                                    schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                                     schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                                   schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                                     schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretKeyRef":                                    schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                                    schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                                  schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ValueFrom":                                       schema_pkg_apis_rollouts_v1alpha1_ValueFrom(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric":                                 schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric":                                       schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader":                                 schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref),
 	}
 }
 
@@ -469,6 +471,32 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"preferredDuringSchedulingIgnoredDuringExecution": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution"),
+						},
+					},
+					"requiredDuringSchedulingIgnoredDuringExecution": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -653,8 +681,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 					"antiAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AntiAffinity enables anti-affinity rules for Blue Green deployment",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity"),
 						},
 					},
 					"postPromotionAnalysis": {
@@ -668,7 +695,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"},
 	}
 }
 
@@ -814,15 +841,14 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 					"antiAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AntiAffinity enables anti-affinity rules for Canary deployment",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -1820,6 +1846,24 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"weight": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
 						},
 					},
 				},

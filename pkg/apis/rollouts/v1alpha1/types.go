@@ -118,9 +118,21 @@ type BlueGreenStrategy struct {
 	PrePromotionAnalysis *RolloutAnalysis `json:"prePromotionAnalysis,omitempty"`
 	// AntiAffinity enables anti-affinity rules for Blue Green deployment
 	// +optional
-	AntiAffinity bool `json:"antiAffinity,omitempty"`
+	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 	// PostPromotionAnalysis configuration to run analysis after a selector switch
 	PostPromotionAnalysis *RolloutAnalysis `json:"postPromotionAnalysis,omitempty"`
+}
+
+// AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
+type AntiAffinity struct {
+	// +optional
+	PreferredDuringSchedulingIgnoredDuringExecution *PreferredDuringSchedulingIgnoredDuringExecution `json:"preferredDuringSchedulingIgnoredDuringExecution,omitempty"`
+	// +optional
+	RequiredDuringSchedulingIgnoredDuringExecution bool `json:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
+}
+
+type PreferredDuringSchedulingIgnoredDuringExecution struct {
+	Weight int32 `json:"weight,omitempty"`
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -166,7 +178,7 @@ type CanaryStrategy struct {
 	Analysis *RolloutAnalysisBackground `json:"analysis,omitempty"`
 	// AntiAffinity enables anti-affinity rules for Canary deployment
 	// +optional
-	AntiAffinity bool `json:"antiAffinity,omitempty"`
+	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 }
 
 // RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing
