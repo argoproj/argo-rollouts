@@ -42,30 +42,47 @@ type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provide
 
 // NewProvider creates the correct provider based on the provider type of the Metric
 func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {
-	if metric.Provider.Prometheus != nil {
+	switch provider := Type(metric); provider {
+	case prometheus.ProviderType:
 		api, err := prometheus.NewPrometheusAPI(metric)
 		if err != nil {
 			return nil, err
 		}
 		return prometheus.NewPrometheusProvider(api, logCtx), nil
-	} else if metric.Provider.Job != nil {
+	case job.ProviderType:
 		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
-	} else if metric.Provider.Kayenta != nil {
+	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
-	} else if metric.Provider.Web != nil {
+	case webmetric.ProviderType:
 		c := webmetric.NewWebMetricHttpClient(metric)
 		p, err := webmetric.NewWebMetricJsonParser(metric)
 		if err != nil {
 			return nil, err
 		}
 		return webmetric.NewWebMetricProvider(logCtx, c, p), nil
-	} else if metric.Provider.Wavefront != nil {
+	case wavefront.ProviderType:
 		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
 		if err != nil {
 			return nil, err
 		}
 		return wavefront.NewWavefrontProvider(client, logCtx), nil
+	default:
+		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
-	return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
+}
+
+func Type(metric v1alpha1.Metric) string {
+	if metric.Provider.Prometheus != nil {
+		return prometheus.ProviderType
+	} else if metric.Provider.Job != nil {
+		return job.ProviderType
+	} else if metric.Provider.Kayenta != nil {
+		return kayenta.ProviderType
+	} else if metric.Provider.Web != nil {
+		return webmetric.ProviderType
+	} else if metric.Provider.Wavefront != nil {
+		return wavefront.ProviderType
+	}
+	return "Unknown Provider"
 }

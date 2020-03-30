@@ -386,6 +386,11 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+
 	c := NewRolloutController(
 		metav1.NamespaceAll,
 		f.kubeclient,
@@ -402,7 +407,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		ingressWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+		metricsServer,
 		&record.FakeRecorder{},
 		"v1alpha3",
 	)

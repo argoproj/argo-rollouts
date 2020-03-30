@@ -59,7 +59,10 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
-
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
 	c := NewServiceController(ControllerConfig{
 		Kubeclientset:     kubeclient,
 		Argoprojclientset: client,
@@ -68,7 +71,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 		RolloutWorkqueue:  rolloutWorkqueue,
 		ServiceWorkqueue:  serviceWorkqueue,
 		ResyncPeriod:      0,
-		MetricsServer:     metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+		MetricsServer:     metricsServer,
 	})
 	enqueuedObjects := map[string]int{}
 	c.enqueueRollout = func(obj interface{}) {

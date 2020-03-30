@@ -121,11 +121,13 @@ func NewManager(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
-	metricsServer := metrics.NewMetricsServer(
-		metricsAddr,
-		rolloutsInformer.Lister(),
-		k8sRequestProvider,
-	)
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               metricsAddr,
+		RolloutLister:      rolloutsInformer.Lister(),
+		AnalysisRunLister:  analysisRunInformer.Lister(),
+		ExperimentLister:   experimentsInformer.Lister(),
+		K8SRequestProvider: k8sRequestProvider,
+	})
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")

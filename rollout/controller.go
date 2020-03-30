@@ -282,7 +282,7 @@ func (c *RolloutController) syncHandler(key string) error {
 	}
 	defer func() {
 		duration := time.Since(startTime)
-		c.metricsServer.IncReconcile(r, duration)
+		c.metricsServer.IncRolloutReconcile(r, duration)
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
