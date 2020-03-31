@@ -14,7 +14,7 @@ import (
 
 const (
 	example = `
-	# Restart the current desired ReplicaSet
+	# Restart the pods of a rollout in ten seconds
 	%[1]s restart guestbook --in 10s
 `
 	restartPatch = `{
@@ -64,7 +64,7 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	o.AddKubectlFlags(cmd)
-	cmd.Flags().StringVarP(&in, "in", "i", "", "Set amount of time in the future to do restart. (e.g. 30s, 5m, 1h)")
+	cmd.Flags().StringVarP(&in, "in", "i", "", "Amount of time before a restart. (e.g. 30s, 5m, 1h)")
 
 	return cmd
 }

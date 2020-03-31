@@ -29,6 +29,7 @@ type RolloutPodRestarter struct {
 	enqueueAfter func(obj interface{}, duration time.Duration)
 }
 
+// checkEnqueueRollout enqueues a Rollout if the Rollout's restartedAt is within the next resync
 func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
