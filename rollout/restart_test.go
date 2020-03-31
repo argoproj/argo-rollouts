@@ -63,6 +63,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	t.Run(".Spec.Restart not set", func(t *testing.T) {
 		roCtx := &canaryContext{
 			rollout: &v1alpha1.Rollout{},
+			log:     logrus.WithField("", ""),
 		}
 		p := RolloutPodRestarter{
 			enqueueAfter: func(obj interface{}, duration time.Duration) {
@@ -75,6 +76,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 		ro := rollout(metav1.NewTime(now.Add(-10*time.Minute)), nil)
 		roCtx := &canaryContext{
 			rollout: ro,
+			log:     logrus.WithField("", ""),
 		}
 		p := RolloutPodRestarter{
 			resyncPeriod: 10 * time.Minute,

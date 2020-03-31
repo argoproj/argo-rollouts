@@ -384,6 +384,7 @@ func (c *RolloutController) calculateBaseStatus(roCtx rolloutContext) v1alpha1.R
 	newStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets(allRSs)
 	newStatus.CollisionCount = rollout.Status.CollisionCount
 	newStatus.Conditions = prevStatus.Conditions
+	newStatus.RestartedAt = roCtx.NewStatus().RestartedAt
 	return newStatus
 }
 

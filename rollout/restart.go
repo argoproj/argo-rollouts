@@ -11,6 +11,16 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
+const (
+	// restartPodCheckTime prevents the Rollout from not making any progress with restarting Pods. When pods can be restarted
+	// faster than the old pods can be scaled down, the parent's ReplicaSet's availableReplicas does not change. A rollout
+	// uses changes to the availableReplicas of the ReplicaSet to detect when the controller should requeue and continue
+	// deleting pods. In this situation, the rollout does not renqueue and wont make any more progress restarting pods until
+	// the resync period passes or another change is made to the Rollout. The controller requeue Rollouts with deleted
+	// Pods every 30 seconds to make sure the rollout is not stuck.
+	restartPodCheckTime = 30 * time.Second
+)
+
 // RolloutPodRestarter describes the components needed for the controller to restart all the pods of
 // a rollout.
 type RolloutPodRestarter struct {
@@ -21,6 +31,7 @@ type RolloutPodRestarter struct {
 
 func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
 	r := roCtx.Rollout()
+	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
 	now := nowFn()
 	if r.Spec.RestartAt == nil || now.After(r.Spec.RestartAt.Time) {
 		return
@@ -29,41 +40,43 @@ func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
 	// Only enqueue if the Restart time is before the next sync period
 	if nextResync.After(r.Spec.RestartAt.Time) {
 		timeRemaining := r.Spec.RestartAt.Sub(now)
-		roCtx.Log().Infof("Enqueueing Rollout in %s seconds for restart", timeRemaining.String())
+		logCtx.Infof("Enqueueing Rollout in %s seconds for restart", timeRemaining.String())
 		p.enqueueAfter(r, timeRemaining)
 	}
 }
 
 func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
 	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
 	p.checkEnqueueRollout(roCtx)
 	if !replicaset.NeedsRestart(rollout) {
 		return nil
 	}
-	roCtx.Log().Info("Reconcile pod restarts")
+	logCtx.Info("Reconcile pod restarts")
 	s := NewSortReplicaSetsByPriority(roCtx)
 	for _, rs := range s.allRSs {
 		if rs.Status.AvailableReplicas != *rs.Spec.Replicas {
-			roCtx.Log().WithField("ReplicaSet", rs.Name).Info("cannot restart pods as not all ReplicasSets are fully available")
+			logCtx.WithField("ReplicaSet", rs.Name).Info("cannot restart pods as not all ReplicasSets are fully available")
 			return nil
 		}
 	}
 	sort.Sort(s)
 	for _, rs := range s.allRSs {
-		deletedPod, err := p.reconcilePodsInReplicaSet(roCtx, rs)
+		reconciledReplicaSet, err := p.reconcilePodsInReplicaSet(roCtx, rs)
 		if err != nil {
 			return err
 		}
-		if deletedPod {
+		if reconciledReplicaSet {
 			return nil
 		}
 	}
-	roCtx.Log().Info("all pods have been restarted and setting restartedAt status")
+	logCtx.Info("all pods have been restarted and setting restartedAt status")
 	roCtx.SetRestartedAt()
 	return nil
 }
 
 func (p RolloutPodRestarter) reconcilePodsInReplicaSet(roCtx rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
+	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
 	restartedAt := roCtx.Rollout().Spec.RestartAt
 	pods, err := p.client.CoreV1().Pods(rs.Namespace).List(metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(rs.Spec.Selector),
@@ -71,9 +84,19 @@ func (p RolloutPodRestarter) reconcilePodsInReplicaSet(roCtx rolloutContext, rs 
 	if err != nil {
 		return false, err
 	}
+
 	for _, pod := range pods.Items {
-		if restartedAt.After(pod.CreationTimestamp.Time) {
-			roCtx.Log().WithField("Pod", pod.Name).Info("restarting Pod that's older than restartAt Time")
+		if pod.DeletionTimestamp != nil {
+			logCtx.Info("cannot reconcile any more pods as pod with deletionTimestamp exists")
+			p.enqueueAfter(roCtx.Rollout(), restartPodCheckTime)
+			return true, nil
+		}
+	}
+
+	for _, pod := range pods.Items {
+		if restartedAt.After(pod.CreationTimestamp.Time) && pod.DeletionTimestamp == nil {
+			newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
+			newLogCtx.Info("restarting Pod that's older than restartAt Time")
 			err := p.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
 			return true, err
 		}

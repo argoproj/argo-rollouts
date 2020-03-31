@@ -27,6 +27,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 	return v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        image,
+			Namespace:   metav1.NamespaceDefault,
 			Annotations: make(map[string]string),
 			Namespace:   metav1.NamespaceDefault,
 		},
