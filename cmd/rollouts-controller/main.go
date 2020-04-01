@@ -154,8 +154,8 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
-	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
-	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
+	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
+	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	return &command
 }
 

@@ -36,3 +36,9 @@ The stable Ingress field is a reference to an Ingress in the same namespace of t
 The controller routes traffic to the canary Service by creating a second Ingress with the canary annotations. As the Rollout progresses through the Canary steps, the controller updates the canary Ingress's canary annotations to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
 
 Since the Nginx Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The canary Ingress uses that prefix instead of the default `nginx.ingress.kubernetes.io` if the field set.
+
+
+## Using Argo Rollouts with multiple NGINX ingress controllers
+As a default, the Argo Rollouts controller only operates on ingresses with the `kubernetes.io/ingress.class` annotation set to `nginx`. A user can configure the controller to operate on Ingresses with different `kubernetes.io/ingress.class` values by specifying the `--nginx-ingress-classes` flag. A user can list the `--nginx-ingress-classes` flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different `kubernetes.io/ingress.class` values.
+
+If the user would like the controller to operate on any Ingress without the `kubernetes.io/ingress.class` annotation, a user should add the following `--nginx-ingress-classes ''`.

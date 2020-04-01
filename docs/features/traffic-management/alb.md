@@ -29,7 +29,7 @@ metadata:
             ]
         }
       }
-    kubernetes.io/ingress.class: aws-alb
+    kubernetes.io/ingress.class: alb
   name: ingress
 spec:
   rules:
@@ -65,3 +65,8 @@ The ingress field is a reference to an Ingress in the same namespace of the Roll
 Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The Ingress uses that prefix instead of the default `alb.ingress.kubernetes.io` if the field set.
 
 The Rollout adds another annotation called `rollouts.argoproj.io/managed-alb-actions` to the Ingress to help the controller manage the Ingresses. This annotation indicates which actions are being managed by Rollout objects (since multiple Rollouts can reference one Ingress). If a Rollout is deleted, the Argo Rollouts controller uses this annotation to see that this action is no longer managed, and it is reset to only the stable service with 100 weight.
+
+## Using Argo Rollouts with multiple ALB ingress controllers
+As a default, the Argo Rollouts controller only operates on ingresses with the `kubernetes.io/ingress.class` annotation set to `alb`. A user can configure the controller to operate on Ingresses with different `kubernetes.io/ingress.class` values by specifying the `--alb-ingress-classes` flag. A user can list the `--alb-ingress-classes` flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different `kubernetes.io/ingress.class` values.
+
+If the user would like the controller to operate on any Ingress without the `kubernetes.io/ingress.class` annotation, a user should add the following `--alb-ingress-classes ''`.
