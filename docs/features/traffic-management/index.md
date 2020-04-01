@@ -20,6 +20,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
+- [AWS ALB Ingress Controller](alb.md)
 - File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
 
 Regardless of the Service Mesh used, the Rollout object has to set a canary Service and a stable Service in its spec. Here is an example with those fields set:

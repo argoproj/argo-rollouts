@@ -58,7 +58,7 @@ func fakeRollout(stableSvc, canarySvc, stableIng string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
-			Namespace: "default",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{

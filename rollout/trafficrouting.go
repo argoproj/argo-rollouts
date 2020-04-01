@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -31,6 +32,16 @@ func (c *RolloutController) NewTrafficRoutingReconciler(roCtx rolloutContext) Tr
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
 		})
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
+		return alb.NewReconciler(alb.ReconcilerConfig{
+			Rollout:        rollout,
+			Client:         c.kubeclientset,
+			Recorder:       c.recorder,
+			ControllerKind: controllerKind,
+			IngressLister:  c.ingressesLister,
+		})
+
 	}
 	return nil
 }
