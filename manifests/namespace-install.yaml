@@ -8422,9 +8422,11 @@ spec:
                             weight:
                               format: int32
                               type: integer
+                          required:
+                          - weight
                           type: object
                         requiredDuringSchedulingIgnoredDuringExecution:
-                          type: boolean
+                          type: object
                       type: object
                     autoPromotionEnabled:
                       type: boolean
@@ -8547,9 +8549,11 @@ spec:
                             weight:
                               format: int32
                               type: integer
+                          required:
+                          - weight
                           type: object
                         requiredDuringSchedulingIgnoredDuringExecution:
-                          type: boolean
+                          type: object
                       type: object
                     canaryService:
                       type: string

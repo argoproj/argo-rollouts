@@ -128,14 +128,17 @@ type AntiAffinity struct {
 	// +optional
 	PreferredDuringSchedulingIgnoredDuringExecution *PreferredDuringSchedulingIgnoredDuringExecution `json:"preferredDuringSchedulingIgnoredDuringExecution,omitempty"`
 	// +optional
-	RequiredDuringSchedulingIgnoredDuringExecution bool `json:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
+	RequiredDuringSchedulingIgnoredDuringExecution *RequiredDuringSchedulingIgnoredDuringExecution `json:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
 }
 
 // PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection
 type PreferredDuringSchedulingIgnoredDuringExecution struct {
 	// Weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
-	Weight int32 `json:"weight,omitempty"`
+	Weight int32 `json:"weight"`
 }
+
+// RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
+type RequiredDuringSchedulingIgnoredDuringExecution struct{}
 
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {

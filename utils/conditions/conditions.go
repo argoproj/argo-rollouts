@@ -323,6 +323,12 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
 			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
 		}
+		if rollout.Spec.Strategy.BlueGreen.AntiAffinity != nil {
+			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.BlueGreen.AntiAffinity, "BlueGreen")
+			if reason != "" {
+				return newInvalidSpecRolloutCondition(prevCond, reason, message)
+			}
+		}
 	}
 
 	if rollout.Spec.Strategy.Canary != nil {
@@ -341,6 +347,12 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 			}
 			if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
+			}
+		}
+		if rollout.Spec.Strategy.Canary.AntiAffinity != nil {
+			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.Canary.AntiAffinity, "Canary")
+			if reason != "" {
+				return newInvalidSpecRolloutCondition(prevCond, reason, message)
 			}
 		}
 	}
@@ -383,6 +395,16 @@ func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 		return value
 	}
 	return intOrStringValue.IntValue()
+}
+
+func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) (string, string) {
+	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return InvalidSpecReason, fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
+	}
+	if affinity.PreferredDuringSchedulingIgnoredDuringExecution != nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		return InvalidSpecReason, "Multiple Anti-Affinity Strategies can not be listed"
+	}
+	return "", ""
 }
 
 func invalidMaxSurgeMaxUnavailable(r *v1alpha1.Rollout) bool {

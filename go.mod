@@ -8,17 +8,14 @@ require (
 	github.com/docker/docker v1.4.2-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-openapi/spec v0.19.7
-	github.com/go-openapi/swag v0.19.8 // indirect
+	github.com/go-openapi/spec v0.19.3
 	github.com/golang/groupcache v0.0.0-20181024230925-c65c006176ff // indirect
-	github.com/google/go-cmp v0.4.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/mailru/easyjson v0.7.1 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/pkg/errors v0.8.1
@@ -30,9 +27,6 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasttemplate v1.0.1
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5
-	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
-	golang.org/x/tools v0.0.0-20200310231627-71bfc1b943ce // indirect
-	gonum.org/v1/gonum v0.7.0 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.0
 	k8s.io/apimachinery v0.17.3
@@ -41,14 +35,12 @@ require (
 	k8s.io/client-go v0.17.3
 	k8s.io/code-generator v0.17.3
 	k8s.io/component-base v0.17.3
-	k8s.io/gengo v0.0.0-20200205140755-e0e292d8aa12 // indirect
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20200204173128-addea2498afe
+	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
 	k8s.io/kubectl v0.16.4
 	k8s.io/kubernetes v1.17.3
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 	sigs.k8s.io/controller-tools v0.2.5
-	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (

@@ -63,20 +63,17 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	return nil
 }
 
-func GetAntiAffinityStrategy(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
+func GetRolloutAffinity(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
+	//antiAffinityStrategy := GetAntiAffinityStrategy(rollout)
+	var antiAffinityStrategy *v1alpha1.AntiAffinity
 	if rollout.Spec.Strategy.BlueGreen != nil && rollout.Spec.Strategy.BlueGreen.AntiAffinity != nil {
-		return rollout.Spec.Strategy.BlueGreen.AntiAffinity
+		antiAffinityStrategy = rollout.Spec.Strategy.BlueGreen.AntiAffinity
 	}
 	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.AntiAffinity != nil {
-		return rollout.Spec.Strategy.Canary.AntiAffinity
+		antiAffinityStrategy = rollout.Spec.Strategy.Canary.AntiAffinity
 	}
-	return nil
-}
-
-func IsAntiAffinityEnabled(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
-	antiAffinityStrategy := GetAntiAffinityStrategy(rollout)
 	if antiAffinityStrategy != nil {
-		if antiAffinityStrategy.PreferredDuringSchedulingIgnoredDuringExecution != nil || antiAffinityStrategy.RequiredDuringSchedulingIgnoredDuringExecution {
+		if antiAffinityStrategy.PreferredDuringSchedulingIgnoredDuringExecution != nil || antiAffinityStrategy.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 			return antiAffinityStrategy
 		}
 	}
@@ -84,7 +81,7 @@ func IsAntiAffinityEnabled(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
 }
 
 func GenerateReplicaSetAffinity(rollout v1alpha1.Rollout) *corev1.Affinity {
-	antiAffinityStrategy := IsAntiAffinityEnabled(rollout)
+	antiAffinityStrategy := GetRolloutAffinity(rollout)
 	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	affinitySpec := rollout.Spec.Template.Spec.Affinity
 	if antiAffinityStrategy != nil && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash {
@@ -105,7 +102,6 @@ func GenerateReplicaSetAffinity(rollout v1alpha1.Rollout) *corev1.Affinity {
 				podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{weightedPodAffinityTerm}
 			} else {
 				podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution = append(podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution, weightedPodAffinityTerm)
-
 			}
 		} else {
 			if podAntiAffinitySpec.RequiredDuringSchedulingIgnoredDuringExecution == nil {
@@ -136,12 +132,12 @@ func CreateInjectedAntiAffinityRule(rollout v1alpha1.Rollout) corev1.PodAffinity
 }
 
 func HasInjectedAntiAffinityRule(RSTemplate corev1.PodTemplateSpec, rollout v1alpha1.Rollout) (int, *corev1.PodAffinityTerm) {
-	antiAffinityStrategy := GetAntiAffinityStrategy(rollout)
+	antiAffinityStrategy := GetRolloutAffinity(rollout)
 	if antiAffinityStrategy != nil && RSTemplate.Spec.Affinity != nil && RSTemplate.Spec.Affinity.PodAntiAffinity != nil {
 		podAntiAffinitySpec := RSTemplate.Spec.Affinity.PodAntiAffinity
 		if antiAffinityStrategy.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-			for i, weightedPodAffinityTerm := range podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution {
-				podAffinityTerm := weightedPodAffinityTerm.PodAffinityTerm
+			for i := range podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution {
+				podAffinityTerm := podAntiAffinitySpec.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm
 				for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
 					if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey {
 						return i, &podAffinityTerm
@@ -150,7 +146,8 @@ func HasInjectedAntiAffinityRule(RSTemplate corev1.PodTemplateSpec, rollout v1al
 
 			}
 		} else {
-			for i, podAffinityTerm := range podAntiAffinitySpec.RequiredDuringSchedulingIgnoredDuringExecution {
+			for i := range podAntiAffinitySpec.RequiredDuringSchedulingIgnoredDuringExecution {
+				podAffinityTerm := podAntiAffinitySpec.RequiredDuringSchedulingIgnoredDuringExecution[i]
 				for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
 					if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey {
 						return i, &podAffinityTerm
@@ -165,16 +162,22 @@ func HasInjectedAntiAffinityRule(RSTemplate corev1.PodTemplateSpec, rollout v1al
 
 func RemoveInjectedAntiAffinityRule(RSTemplate corev1.PodTemplateSpec, rollout v1alpha1.Rollout) *corev1.Affinity {
 	i, _ := HasInjectedAntiAffinityRule(RSTemplate, rollout)
-	newRSTemplate := RSTemplate.DeepCopy()
-	affinitySpec := newRSTemplate.Spec.Affinity
+	affinitySpec := RSTemplate.Spec.Affinity
 	if i >= 0 {
-		antiAffinityTerms := affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-		affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(antiAffinityTerms[:i], antiAffinityTerms[i+1:]...)
+		antiAffinityStrategy := GetRolloutAffinity(rollout)
+		if antiAffinityStrategy.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+			antiAffinityTerms := affinitySpec.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			affinitySpec.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(antiAffinityTerms[:i], antiAffinityTerms[i+1:]...)
+		}
+		if antiAffinityStrategy.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			antiAffinityTerms := affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+			affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(antiAffinityTerms[:i], antiAffinityTerms[i+1:]...)
+		}
 		if len(affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) == 0 {
 			affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
 		}
 		if affinitySpec.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && affinitySpec.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
-			newRSTemplate.Spec.Affinity.PodAntiAffinity = nil
+			RSTemplate.Spec.Affinity.PodAntiAffinity = nil
 		}
 		if affinitySpec.PodAntiAffinity == nil && affinitySpec.PodAffinity == nil && affinitySpec.NodeAffinity == nil {
 			affinitySpec = nil
@@ -185,11 +188,12 @@ func RemoveInjectedAntiAffinityRule(RSTemplate corev1.PodTemplateSpec, rollout v
 
 func IfInjectedAntiAffinityRuleNeedsUpdate(RSTemplate corev1.PodTemplateSpec, rollout v1alpha1.Rollout) bool {
 	_, podAffinityTerm := HasInjectedAntiAffinityRule(RSTemplate, rollout)
-	if podAffinityTerm != nil {
-		podAffinityTermValue := podAffinityTerm.LabelSelector.MatchExpressions[0].Values[0]
-		currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-		if rollout.Status.StableRS != currentPodHash && podAffinityTermValue == rollout.Status.StableRS {
-			return true
+	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
+		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
+			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
+				return true
+			}
 		}
 	}
 	return false
