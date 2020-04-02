@@ -14,6 +14,11 @@ const (
   # Abort a rollout
   %[1]s abort guestbook
 `
+	abortUsage = `This command stops progressing the current rollout and reverts all steps. The previous ReplicaSet will be active.
+
+Note the 'spec.template' still represents the new rollout version. If the Rollout leaves the aborted state, it will try to go to the new version. 
+Updating the 'spec.template' back to the previous version will fully revert the rollout.
+`
 )
 
 const (
@@ -23,8 +28,9 @@ const (
 // NewCmdAbort returns a new instance of an `rollouts abort` command
 func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:          "abort ROLLOUT",
+		Use:          "abort ROLLOUT_NAME",
 		Short:        "Abort a rollout",
+		Long:         abortUsage,
 		Example:      o.Example(example),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {

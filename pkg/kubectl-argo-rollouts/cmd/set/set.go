@@ -18,6 +18,7 @@ func NewCmdSet(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "set COMMAND",
 		Short:        "Update various values on resources",
+		Long:         "This command consists of multiple subcommands which can be used to update rollout resources.",
 		Example:      o.Example(example),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {

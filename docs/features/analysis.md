@@ -392,9 +392,6 @@ completes before then, the Rollout will not create another AnalysisRun and wait 
 
 ## BlueGreen Post Promotion Analysis
 
-!!! warning "Not Implemented"
-    This feature is not yet implemenated.
-
 A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
 run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
 If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 

@@ -15,6 +15,15 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 )
 
+const (
+	experimentExample = `
+	# Get an experiment
+	%[1]s get experiment my-experiment
+	
+	# Watch experiment progress
+	%[1]s get experiment my-experiment -w`
+)
+
 // NewCmdGetExperiment returns a new instance of an `rollouts get experiment` command
 func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	getOptions := GetOptions{
@@ -22,13 +31,11 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "experiment EXPERIMENT",
-		Aliases: []string{"exp", "experiments"},
-		Short:   "Get details about an Experiment",
-		Example: o.Example(`
-  # Get an experiment
-  %[1]s get experiment EXPERIMENT
-`),
+		Use:          "experiment EXPERIMENT_NAME",
+		Aliases:      []string{"exp", "experiments"},
+		Short:        "Get details about an Experiment",
+		Long:         "Get details about and visual representation of a experiment. " + getUsageCommon,
+		Example:      o.Example(experimentExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 1 {

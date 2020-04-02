@@ -18,6 +18,7 @@ func NewCmdVersion(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "version",
 		Short:        "Print version",
+		Long:         "Show the version and build information of the Argo Rollouts plugin.",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			PrintVersion(o.Out, short)

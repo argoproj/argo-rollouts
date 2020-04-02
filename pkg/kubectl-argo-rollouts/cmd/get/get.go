@@ -66,6 +66,34 @@ const (
 	FgHiBlue  = 94
 )
 
+const (
+	getExample = `
+	# Get a rollout
+	%[1]s get rollout guestbook
+
+	# Watch a rollouts progress
+	%[1]s get rollout guestbook -w
+  
+	# Get an experiment
+	%[1]s get experiment my-experiment`
+
+	getUsage = `This command consists of multiple subcommands which can be used to get extended information about a rollout or experiment.`
+
+	getUsageCommon = `It returns a bunch of metadata on a resource and a tree view of the child resources created by the parent.
+	
+Tree view icons
+
+| Icon | Kind |
+|:----:|:-----------:|
+| ⟳ | Rollout |
+| Σ | Experiment |
+| α | AnalysisRun |
+| # | Revision |
+| ⧉ | ReplicaSet |
+| □ | Pod |
+| ⊞ | Job |`
+)
+
 type GetOptions struct {
 	Watch   bool
 	NoColor bool
@@ -76,14 +104,10 @@ type GetOptions struct {
 // NewCmdGet returns a new instance of an `rollouts get` command
 func NewCmdGet(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "get <rollout|experiment> RESOURCE",
-		Short: "Get details about rollouts, experiments",
-		Example: o.Example(`
-  # Get a rollout
-  %[1]s get rollout ROLLOUT
-  # Get an experiment
-  %[1]s get experiment EXPERIMENT
-`),
+		Use:          "get <rollout|experiment> RESOURCE_NAME",
+		Short:        "Get details about rollouts and experiments",
+		Long:         getUsage,
+		Example:      o.Example(getExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			return o.UsageErr(c)

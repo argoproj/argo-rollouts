@@ -82,7 +82,7 @@ spec:
 ### analysis
 Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
-Default to nil
+Defaults to nil
 
 ### canaryService
 `canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.

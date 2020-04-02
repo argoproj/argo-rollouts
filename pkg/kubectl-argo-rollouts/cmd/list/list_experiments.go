@@ -13,6 +13,20 @@ import (
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
+const (
+	listExperimentsExample = `
+	# List rollouts
+	%[1]s list experiments
+  
+	# List rollouts from all namespaces
+	%[1]s list experiments --all-namespaces
+  
+	# List rollouts and watch for changes
+	%[1]s list experiments --watch`
+
+	listExperimentsUsage = `This command lists all of the experiments for a specified namespace (uses current namespace context if namespace not specified).`
+)
+
 // NewCmdListExperiments returns a new instance of an `rollouts list experiments` command
 func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 	listOptions := ListOptions{
@@ -20,19 +34,11 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "experiments",
-		Aliases: []string{"exp", "experiment"},
-		Short:   "List experiments",
-		Example: o.Example(`
-  # List rollouts
-  %[1]s list experiments
-
-  # List rollouts from all namespaces
-  %[1]s list experiments --all-namespaces
-
-  # List rollouts and watch for changes
-  %[1]s list experiments --watch
-`),
+		Use:          "experiments",
+		Short:        "List experiments",
+		Long:         listExperimentsUsage,
+		Example:      o.Example(listExperimentsExample),
+		Aliases:      []string{"exp", "experiment"},
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			var namespace string

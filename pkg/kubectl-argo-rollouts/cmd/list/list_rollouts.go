@@ -14,6 +14,20 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
+const (
+	listRolloutsExample = `
+	# List rollouts
+	%[1]s list rollouts
+  
+	# List rollouts from all namespaces
+	%[1]s list rollouts --all-namespaces
+  
+	# List rollouts and watch for changes
+	%[1]s list rollouts --watch`
+
+	listRolloutsUsage = `This command lists all of the rollouts for a specified namespace (uses current namespace context if namespace not specified).`
+)
+
 // NewCmdListRollouts returns a new instance of an `rollouts list rollouts` command
 func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	listOptions := ListOptions{
@@ -21,19 +35,11 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "rollouts",
-		Aliases: []string{"ro", "rollout"},
-		Short:   "List rollouts",
-		Example: o.Example(`
-  # List rollouts
-  %[1]s list rollouts
-
-  # List rollouts from all namespaces
-  %[1]s list rollouts --all-namespaces
-
-  # List rollouts and watch for changes
-  %[1]s list rollouts --watch
-`),
+		Use:          "rollouts",
+		Short:        "List rollouts",
+		Long:         listRolloutsUsage,
+		Aliases:      []string{"ro", "rollout"},
+		Example:      o.Example(listRolloutsExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			var namespace string

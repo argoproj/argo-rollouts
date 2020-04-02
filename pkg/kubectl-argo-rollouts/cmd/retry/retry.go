@@ -10,6 +10,13 @@ import (
 )
 
 const (
+	example = `
+	# Retry an aborted rollout
+	%[1]s retry rollout guestbook
+
+	# Retry a failed experiment
+	%[1]s retry experiment my-experiment
+`
 	retryRolloutPatch    = `{"status":{"abort":false}}`
 	retryExperimentPatch = `{"status":null}`
 )
@@ -17,14 +24,10 @@ const (
 // NewCmdRetry returns a new instance of an `argo rollouts retry` command
 func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "retry <rollout|experiment> RESOURCE",
-		Short: "Retry a rollout or experiment",
-		Example: o.Example(`
-  # Retry an aborted rollout
-  %[1]s retry rollout ROLLOUT
-  # Retry a failed experiment
-  %[1]s retry experiment EXPERIMENT
-`),
+		Use:          "retry <rollout|experiment> RESOURCE_NAME",
+		Short:        "Retry a rollout or experiment",
+		Long:         "This command consists of multiple subcommands which can be used to restart an aborted rollout or a failed experiement.",
+		Example:      o.Example(example),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			return o.UsageErr(c)
@@ -38,12 +41,12 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 // NewCmdRetryRollout returns a new instance of an `argo rollouts retry rollout` command
 func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:     "rollout ROLLOUT",
+		Use:     "rollout ROLLOUT_NAME",
 		Aliases: []string{"ro", "rollouts"},
 		Short:   "Retry an aborted rollout",
 		Example: o.Example(`
   # Retry an aborted rollout
-  %[1]s retry rollout ROLLOUT
+  %[1]s retry rollout guestbook
 `),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -69,12 +72,13 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 // NewCmdRetryExperiment returns a new instance of an `argo rollouts retry experiment` command
 func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:     "experiment EXPERIMENT",
+		Use:     "experiment EXPERIMENT_NAME",
 		Aliases: []string{"exp", "experiments"},
 		Short:   "Retry an experiment",
+		Long:    "Retry a failed experiment.",
 		Example: o.Example(`
   # Retry an experiment
-  %[1]s retry experiment EXPERIMENT
+  %[1]s retry experiment my-experiment
 `),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
