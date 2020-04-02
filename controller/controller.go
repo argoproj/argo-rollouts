@@ -177,14 +177,16 @@ func NewManager(
 		metricsServer,
 		recorder)
 
-	serviceController := service.NewServiceController(
-		kubeclientset,
-		servicesInformer,
-		rolloutsInformer,
-		resyncPeriod,
-		rolloutWorkqueue,
-		serviceWorkqueue,
-		metricsServer)
+	serviceController := service.NewServiceController(service.ControllerConfig{
+		Kubeclientset:     kubeclientset,
+		Argoprojclientset: argoprojclientset,
+		RolloutsInformer:  rolloutsInformer,
+		ServicesInformer:  servicesInformer,
+		RolloutWorkqueue:  rolloutWorkqueue,
+		ServiceWorkqueue:  serviceWorkqueue,
+		ResyncPeriod:      resyncPeriod,
+		MetricsServer:     metricsServer,
+	})
 
 	ingressController := ingress.NewController(ingress.ControllerConfig{
 		IngressInformer:  ingressesInformer,

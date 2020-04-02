@@ -569,7 +569,7 @@ func filterInformerActions(actions []core.Action) []core.Action {
 }
 
 func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) int {
-	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newLabel)
+	patch := fmt.Sprintf(switchSelectorPatch, newLabel)
 	serviceSchema := schema.GroupVersionResource{
 		Resource: "services",
 		Version:  "v1",
@@ -712,7 +712,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) bool {
+func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -720,17 +720,20 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 	}
 	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
-	return string(patchAction.GetPatch()) == patch
+	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
-func (f *fixture) verifyPatchedService(index int, newPodHash string) bool {
+func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newPodHash)
-	return string(patchAction.GetPatch()) == patch
+	patch := fmt.Sprintf(switchSelectorPatch, newPodHash)
+	if managedBy != "" {
+		patch = fmt.Sprintf(switchSelectorAndAddManagedByPatch, managedBy, newPodHash)
+	}
+	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
@@ -890,8 +893,8 @@ func TestAdoptReplicaSet(t *testing.T) {
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	previewSvc := newService("preview", 80, nil)
-	activeSvc := newService("active", 80, nil)
+	previewSvc := newService("preview", 80, nil, r)
+	activeSvc := newService("active", 80, nil, r)
 
 	rs := newReplicaSet(r, 1)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
@@ -1074,7 +1077,7 @@ requests:
 	for _, r := range []*v1alpha1.Rollout{r1, r2} {
 		f := newFixture(t)
 		defer f.Close()
-		activeSvc := newService("active", 80, nil)
+		activeSvc := newService("active", 80, nil, r)
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.serviceLister = append(f.serviceLister, activeSvc)
@@ -1143,7 +1146,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	activeSvc := newService("active", 80, selector.MatchLabels)
+	activeSvc := newService("active", 80, selector.MatchLabels, r)
 
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)

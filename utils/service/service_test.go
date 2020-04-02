@@ -78,3 +78,18 @@ func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 	})
 	assert.ElementsMatch(t, keys, []string{"default/preview-service", "default/active-service"})
 }
+
+func TestHasManagedByAnnotation(t *testing.T) {
+	service := &corev1.Service{}
+	managedBy, exists := HasManagedByAnnotation(service)
+	assert.False(t, exists)
+	assert.Equal(t, "", managedBy)
+
+	service.Annotations = map[string]string{
+		v1alpha1.ManagedByRolloutsKey: "test",
+	}
+	managedBy, exists = HasManagedByAnnotation(service)
+	assert.True(t, exists)
+	assert.Equal(t, "test", managedBy)
+
+}
