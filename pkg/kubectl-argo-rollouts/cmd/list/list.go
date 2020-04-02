@@ -27,7 +27,8 @@ const (
 	# List experiments
 	%[1]s list experiments`
 
-	listUsage = `This command consists of multiple subcommands which can be used to lists all of the rollouts or experiments for a specified namespace (uses current namespace context if namespace not specified).`
+	listUsage = `This command consists of multiple subcommands which can be used to lists all of the 
+rollouts or experiments for a specified namespace (uses current namespace context if namespace not specified).`
 )
 
 // NewCmdList returns a new instance of an `rollouts list` command
@@ -35,6 +36,7 @@ func NewCmdList(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "list <rollout|experiment>",
 		Short:        "List rollouts or experiments",
+		Long:         listUsage,
 		Example:      o.Example(listExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
