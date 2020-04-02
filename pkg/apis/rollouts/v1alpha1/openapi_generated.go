@@ -93,6 +93,41 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ALBTrafficRouting configuration for ALB ingress controller to control traffic routing",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ingress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ingress refers to the name of an `Ingress` resource in the same namepace as the `Rollout`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"servicePort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServicePort refers to the port that the Ingress action should route traffic to",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"annotationPrefix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"ingress", "servicePort"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2635,15 +2670,21 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 					},
 					"nginx": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Nginx holds Istio specific configuration to route traffic",
+							Description: "Nginx holds Nginx Ingress specific configuration to route traffic",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting"),
+						},
+					},
+					"alb": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Nginx holds ALB Ingress specific configuration to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting"},
 	}
 }
 

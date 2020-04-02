@@ -64,7 +64,6 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 }
 
 func GetRolloutAffinity(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
-	//antiAffinityStrategy := GetAntiAffinityStrategy(rollout)
 	var antiAffinityStrategy *v1alpha1.AntiAffinity
 	if rollout.Spec.Strategy.BlueGreen != nil && rollout.Spec.Strategy.BlueGreen.AntiAffinity != nil {
 		antiAffinityStrategy = rollout.Spec.Strategy.BlueGreen.AntiAffinity

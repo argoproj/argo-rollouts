@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
+	"k8s.io/client-go/kubernetes"
 	extentionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -29,6 +30,7 @@ const (
 
 // ControllerConfig describes the data required to instantiate a new ingress controller
 type ControllerConfig struct {
+	Client           kubernetes.Interface
 	IngressInformer  extensionsinformers.IngressInformer
 	IngressWorkQueue workqueue.RateLimitingInterface
 
@@ -36,27 +38,35 @@ type ControllerConfig struct {
 	RolloutWorkQueue workqueue.RateLimitingInterface
 
 	MetricsServer *metrics.MetricsServer
+	ALBClasses    []string
+	NGINXClasses  []string
 }
 
 // Controller describes an ingress controller
 type Controller struct {
+	client           kubernetes.Interface
 	rolloutsIndexer  cache.Indexer
 	ingressLister    extentionslisters.IngressLister
 	ingressWorkqueue workqueue.RateLimitingInterface
 
 	metricServer   *metrics.MetricsServer
 	enqueueRollout func(obj interface{})
+	albClasses     []string
+	nginxClasses   []string
 }
 
 // NewController returns a new ingress controller
 func NewController(cfg ControllerConfig) *Controller {
 
 	controller := &Controller{
+		client:          cfg.Client,
 		rolloutsIndexer: cfg.RolloutsInformer.Informer().GetIndexer(),
 		ingressLister:   cfg.IngressInformer.Lister(),
 
 		ingressWorkqueue: cfg.IngressWorkQueue,
 		metricServer:     cfg.MetricsServer,
+		albClasses:       cfg.ALBClasses,
+		nginxClasses:     cfg.NGINXClasses,
 	}
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
@@ -108,7 +118,7 @@ func (c *Controller) syncIngress(key string) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.ingressLister.Ingresses(namespace).Get(name)
+	ingress, err := c.ingressLister.Ingresses(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			// Unknown error occurred
@@ -121,12 +131,38 @@ func (c *Controller) syncIngress(key string) error {
 			return nil
 		}
 	}
+	rollouts, err := c.getRolloutsByIngress(ingress.Namespace, ingress.Name)
+	if err != nil {
+		return nil
+	}
+	// An ingress without annotations cannot be a alb or nginx ingress
+	if ingress.Annotations == nil {
+		return nil
+	}
+	class := ingress.Annotations["kubernetes.io/ingress.class"]
+	switch {
+	case hasClass(c.albClasses, class):
+		return c.syncALBIngress(ingress, rollouts)
+	case hasClass(c.nginxClasses, class):
+		return c.syncNginxIngress(name, namespace, rollouts)
+	default:
+		return nil
+	}
+}
 
-	if rollouts, err := c.getRolloutsByIngress(namespace, name); err == nil {
-		for i := range rollouts {
-			// reconciling the Rollout will ensure the canaryIngress is updated or created
-			c.enqueueRollout(rollouts[i])
+func hasClass(classes []string, class string) bool {
+	for _, str := range classes {
+		if str == class {
+			return true
 		}
+	}
+	return false
+}
+
+func (c *Controller) syncNginxIngress(name, namespace string, rollouts []*v1alpha1.Rollout) error {
+	for i := range rollouts {
+		// reconciling the Rollout will ensure the canaryIngress is updated or created
+		c.enqueueRollout(rollouts[i])
 	}
 	return nil
 }

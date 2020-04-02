@@ -378,6 +378,19 @@ spec:
                       type: array
                     trafficRouting:
                       properties:
+                        alb:
+                          properties:
+                            annotationPrefix:
+                              type: string
+                            ingress:
+                              type: string
+                            servicePort:
+                              format: int32
+                              type: integer
+                          required:
+                          - ingress
+                          - servicePort
+                          type: object
                         istio:
                           properties:
                             virtualService:

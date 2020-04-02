@@ -30,8 +30,7 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argo-rollouts"
-
+	cliName             = "argo-rollouts"
 	defaultIstioVersion = "v1alpha3"
 )
 
@@ -49,6 +48,8 @@ func newCommand() *cobra.Command {
 		serviceThreads      int
 		ingressThreads      int
 		istioVersion        string
+		albIngressClasses   []string
+		nginxIngressClasses []string
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -121,7 +122,9 @@ func newCommand() *cobra.Command {
 				instanceID,
 				metricsPort,
 				k8sRequestProvider,
-				defaultIstioVersion)
+				defaultIstioVersion,
+				nginxIngressClasses,
+				albIngressClasses)
 
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
@@ -135,6 +138,10 @@ func newCommand() *cobra.Command {
 			return nil
 		},
 	}
+
+	defaultALBIngressClass := []string{"alb"}
+	defaultNGINXIngressClass := []string{"nginx"}
+
 	clientConfig = addKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
@@ -147,6 +154,8 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
+	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
+	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	return &command
 }
 

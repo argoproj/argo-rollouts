@@ -186,13 +186,25 @@ type CanaryStrategy struct {
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 }
 
+// ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
+type ALBTrafficRouting struct {
+	// Ingress refers to the name of an `Ingress` resource in the same namepace as the `Rollout`
+	Ingress string `json:"ingress"`
+	// ServicePort refers to the port that the Ingress action should route traffic to
+	ServicePort int32 `json:"servicePort"`
+	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
+	// +optional
+	AnnotationPrefix string `json:"annotationPrefix,omitempty"`
+}
+
 // RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing
 type RolloutTrafficRouting struct {
 	// Istio holds Istio specific configuration to route traffic
 	Istio *IstioTrafficRouting `json:"istio,omitempty"`
-
-	// Nginx holds Istio specific configuration to route traffic
+	// Nginx holds Nginx Ingress specific configuration to route traffic
 	Nginx *NginxTrafficRouting `json:"nginx,omitempty"`
+	// Nginx holds ALB Ingress specific configuration to route traffic
+	ALB *ALBTrafficRouting `json:"alb,omitempty"`
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
