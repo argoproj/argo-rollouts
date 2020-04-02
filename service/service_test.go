@@ -36,22 +36,40 @@ func newService(name string, port int, selector map[string]string) *corev1.Servi
 	}
 }
 
-func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*ServiceController, *k8sfake.Clientset, map[string]int) {
+func TestGenerateRemovePatch(t *testing.T) {
+	svc := &corev1.Service{}
+	assert.Equal(t, removeSelectorPatch, generateRemovePatch(svc))
+	svc.Annotations = map[string]string{
+		v1alpha1.ManagedByRolloutsKey: "test",
+	}
+	assert.Equal(t, removeSelectorAndManagedByPatch, generateRemovePatch(svc))
+}
+
+func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*ServiceController, *k8sfake.Clientset, *fake.Clientset, map[string]int) {
 	client := fake.NewSimpleClientset()
+	if rollout != nil {
+		client = fake.NewSimpleClientset(rollout)
+	}
 	kubeclient := k8sfake.NewSimpleClientset()
+	if svc != nil {
+		kubeclient = k8sfake.NewSimpleClientset(svc)
+	}
 	i := informers.NewSharedInformerFactory(client, 0)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 
-	c := NewServiceController(kubeclient,
-		k8sI.Core().V1().Services(),
-		i.Argoproj().V1alpha1().Rollouts(),
-		0,
-		rolloutWorkqueue,
-		serviceWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}))
+	c := NewServiceController(ControllerConfig{
+		Kubeclientset:     kubeclient,
+		Argoprojclientset: client,
+		RolloutsInformer:  i.Argoproj().V1alpha1().Rollouts(),
+		ServicesInformer:  k8sI.Core().V1().Services(),
+		RolloutWorkqueue:  rolloutWorkqueue,
+		ServiceWorkqueue:  serviceWorkqueue,
+		ResyncPeriod:      0,
+		MetricsServer:     metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+	})
 	enqueuedObjects := map[string]int{}
 	c.enqueueRollout = func(obj interface{}) {
 		var key string
@@ -73,12 +91,24 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 	if rollout != nil {
 		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(rollout)
 	}
-	return c, kubeclient, enqueuedObjects
+	return c, kubeclient, client, enqueuedObjects
 }
 
 func TestSyncMissingService(t *testing.T) {
-	ctrl, _, _ := newFakeServiceController(nil, nil)
+	ctrl, _, _, _ := newFakeServiceController(nil, nil)
 
+	err := ctrl.syncService("default/test-service")
+	assert.NoError(t, err)
+}
+
+// TestSyncMissingServiceInCache confirms that the controller does not return an error when a patch fails because the
+// service does not exist anymore
+func TestSyncMissingServiceInCache(t *testing.T) {
+	svc := newService("test-service", 80, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
+	})
+	ctrl, _, _, _ := newFakeServiceController(svc, nil)
+	ctrl.kubeclientset = k8sfake.NewSimpleClientset()
 	err := ctrl.syncService("default/test-service")
 	assert.NoError(t, err)
 }
@@ -88,7 +118,7 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
 	})
 
-	ctrl, kubeclient, _ := newFakeServiceController(svc, nil)
+	ctrl, kubeclient, _, _ := newFakeServiceController(svc, nil)
 
 	err := ctrl.syncService("default/test-service")
 	assert.NoError(t, err)
@@ -96,7 +126,30 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 	assert.Len(t, actions, 1)
 	patch, ok := actions[0].(k8stesting.PatchAction)
 	assert.True(t, ok)
-	assert.Equal(t, string(patch.GetPatch()), `[{ "op": "remove", "path": "/spec/selector/rollouts-pod-template-hash" }]`)
+	assert.Equal(t, string(patch.GetPatch()), removeSelectorPatch)
+}
+func TestSyncServiceWithManagedBy(t *testing.T) {
+	svc := newService("test-service", 80, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
+	})
+	svc.Annotations = map[string]string{
+		v1alpha1.ManagedByRolloutsKey: "test",
+	}
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+
+	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
+
+	err := ctrl.syncService("default/test-service")
+	assert.NoError(t, err)
+	actions := kubeclient.Actions()
+	assert.Len(t, actions, 0)
+	argoActions := client.Actions()
+	assert.Len(t, argoActions, 1)
 }
 
 func TestSyncServiceReferencedByRollout(t *testing.T) {
@@ -119,7 +172,7 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 		},
 	}
 
-	ctrl, kubeclient, enqueuedObjects := newFakeServiceController(svc, rollout)
+	ctrl, kubeclient, _, enqueuedObjects := newFakeServiceController(svc, rollout)
 
 	err := ctrl.syncService("default/test-service")
 	assert.NoError(t, err)

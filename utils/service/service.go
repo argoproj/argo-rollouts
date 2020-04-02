@@ -43,3 +43,11 @@ func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 	}
 	return services
 }
+
+func HasManagedByAnnotation(service *corev1.Service) (string, bool) {
+	if service.Annotations == nil {
+		return "", false
+	}
+	annotation, exists := service.Annotations[v1alpha1.ManagedByRolloutsKey]
+	return annotation, exists
+}

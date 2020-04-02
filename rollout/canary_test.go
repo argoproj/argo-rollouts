@@ -960,8 +960,8 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	canarySvc := newService("canary", 80, nil)
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	canarySvc := newService("canary", 80, nil, rollout)
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.CanaryService = canarySvc.Name
 
@@ -979,8 +979,8 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	canarySvc := newService("invalid-canary", 80, make(map[string]string))
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	canarySvc := newService("invalid-canary", 80, make(map[string]string), rollout)
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.CanaryService = canarySvc.Name
 
@@ -1010,8 +1010,8 @@ func TestCanaryRolloutWithStableService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	stableSvc := newService("stable", 80, nil)
 	rollout := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	stableSvc := newService("stable", 80, nil, rollout)
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.StableService = stableSvc.Name
 	rollout.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

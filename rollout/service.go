@@ -13,27 +13,49 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
 const (
 	switchSelectorPatch = `{
 	"spec": {
 		"selector": {
-			"%s": "%s"
+			"` + v1alpha1.DefaultRolloutUniqueLabelKey + `": "%s"
+		}
+	}
+}`
+	switchSelectorAndAddManagedByPatch = `{
+	"metadata": {
+		"annotations": {
+			"` + v1alpha1.ManagedByRolloutsKey + `": "%s"
+		}
+	},
+	"spec": {
+		"selector": {
+			"` + v1alpha1.DefaultRolloutUniqueLabelKey + `": "%s"
 		}
 	}
 }`
 )
+
+func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) string {
+	if _, ok := service.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
+		return fmt.Sprintf(switchSelectorAndAddManagedByPatch, r.Name, newRolloutUniqueLabelValue)
+	}
+	return fmt.Sprintf(switchSelectorPatch, newRolloutUniqueLabelValue)
+}
 
 // switchSelector switch the selector on an existing service to a new value
 func (c RolloutController) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
-	if oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && oldPodHash == newRolloutUniqueLabelValue {
+	_, hasManagedRollout := serviceutil.HasManagedByAnnotation(service)
+	oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if ok && oldPodHash == newRolloutUniqueLabelValue && hasManagedRollout {
 		return nil
 	}
-	patch := fmt.Sprintf(switchSelectorPatch, v1alpha1.DefaultRolloutUniqueLabelKey, newRolloutUniqueLabelValue)
+	patch := generatePatch(service, newRolloutUniqueLabelValue, r)
 	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
 	if err != nil {
 		return err
@@ -74,7 +96,6 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//
 	if skipPause(roCtx, activeSvc) {
 		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
@@ -112,6 +133,15 @@ func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceNam
 			c.patchCondition(r, newStatus, cond)
 		}
 		return nil, err
+	}
+	rolloutManagingService, exists := serviceutil.HasManagedByAnnotation(svc)
+	if exists && rolloutManagingService != r.Name {
+		msg := fmt.Sprintf(conditions.ServiceReferencingManagedService, serviceName)
+		c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+		newStatus := r.Status.DeepCopy()
+		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceReferenceReason, msg)
+		c.patchCondition(r, newStatus, cond)
+		return nil, fmt.Errorf(msg)
 	}
 	return svc, nil
 }

@@ -1180,9 +1180,9 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	previewSvc := newService("preview", 80, previewSelector)
+	previewSvc := newService("preview", 80, previewSelector, r2)
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -1225,7 +1225,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	s := newService("bar", 80, serviceSelector)
+	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
@@ -1265,7 +1265,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	activeSvc := newService("active", 80, nil)
+	activeSvc := newService("active", 80, nil, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
@@ -1300,9 +1300,9 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 2, 4, 2, false, true)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	previewSvc := newService("preview", 80, previewSelector)
+	previewSvc := newService("preview", 80, previewSelector, r2)
 
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -1343,7 +1343,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1403,7 +1403,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1461,7 +1461,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1521,7 +1521,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1561,7 +1561,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1609,7 +1609,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1656,7 +1656,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 1, 1, false, true)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1710,7 +1710,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -1759,7 +1759,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
-	activeSvc := newService("active", 80, activeSelector)
+	activeSvc := newService("active", 80, activeSelector, r2)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)

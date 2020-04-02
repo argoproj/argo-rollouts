@@ -69,7 +69,8 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
-
+	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
+	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
 	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"

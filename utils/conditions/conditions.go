@@ -133,6 +133,10 @@ const (
 	ServiceNotFoundReason = "ServiceNotFound"
 	// ServiceNotFoundMessage is added in a rollout when the service defined in the spec is not found
 	ServiceNotFoundMessage = "Service %q is not found"
+	// ServiceReferenceReason is added to a Rollout when there is an error with a Service reference
+	ServiceReferenceReason = "ServiceReferenceError"
+	// MultipleRolloutsMangingServiceMessage is added in a rollout when the multiple rollouts reference a Rollout
+	ServiceReferencingManagedService = "Service %q is managed by another Rollout"
 )
 
 // NewRolloutCondition creates a new rollout condition.

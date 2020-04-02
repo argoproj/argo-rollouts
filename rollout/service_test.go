@@ -14,8 +14,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
-func newService(name string, port int, selector map[string]string) *corev1.Service {
-	return &corev1.Service{
+func newService(name string, port int, selector map[string]string, ro *v1alpha1.Rollout) *corev1.Service {
+	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
@@ -29,17 +29,28 @@ func newService(name string, port int, selector map[string]string) *corev1.Servi
 			}},
 		},
 	}
+	if ro != nil {
+		s.Annotations = map[string]string{
+			v1alpha1.ManagedByRolloutsKey: ro.Name,
+		}
+	}
+	return s
 }
 
 func TestGetPreviewAndActiveServices(t *testing.T) {
 
 	f := newFixture(t)
 	defer f.Close()
-	expActive := newService("active", 80, nil)
-	expPreview := newService("preview", 80, nil)
-	f.kubeobjects = append(f.kubeobjects, expActive)
-	f.kubeobjects = append(f.kubeobjects, expPreview)
-	f.serviceLister = append(f.serviceLister, expActive, expPreview)
+	expActive := newService("active", 80, nil, nil)
+	expPreview := newService("preview", 80, nil, nil)
+	otherRo := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "other-ro",
+		},
+	}
+	otherRoSvc := newService("other-svc", 80, nil, otherRo)
+	f.kubeobjects = append(f.kubeobjects, expActive, expPreview, otherRoSvc)
+	f.serviceLister = append(f.serviceLister, expActive, expPreview, otherRoSvc)
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -82,6 +93,13 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
 	})
+	t.Run("Invalid Spec: Service reference different rollout", func(t *testing.T) {
+		noActiveSvcRollout := rollout.DeepCopy()
+		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "other-svc"
+		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "Service \"other-svc\" is managed by another Rollout")
+	})
 
 }
 
@@ -93,8 +111,8 @@ func TestActiveServiceNotFound(t *testing.T) {
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	previewSvc := newService("preview-svc", 80, nil)
-	notUsedActiveSvc := newService("active-svc", 80, nil)
+	previewSvc := newService("preview-svc", 80, nil, r)
+	notUsedActiveSvc := newService("active-svc", 80, nil, nil)
 	f.kubeobjects = append(f.kubeobjects, previewSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
@@ -119,8 +137,8 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	activeSvc := newService("active-svc", 80, nil)
-	notUsedPreviewSvc := newService("preview-svc", 80, nil)
+	activeSvc := newService("active-svc", 80, nil, nil)
+	notUsedPreviewSvc := newService("preview-svc", 80, nil, nil)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister)
 
