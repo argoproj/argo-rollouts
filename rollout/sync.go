@@ -72,7 +72,7 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		// Set existing new replica set's annotation
 		annotationsUpdated := annotations.SetNewReplicaSetAnnotations(rollout, rsCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != rollout.Spec.MinReadySeconds
-		affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template, *rollout)
+		affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *rollout)
 
 		if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 			rsCopy.Spec.MinReadySeconds = rollout.Spec.MinReadySeconds
