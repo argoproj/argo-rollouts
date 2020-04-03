@@ -4,10 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/log"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	registry "k8s.io/component-base/metrics/legacyregistry"
 
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
@@ -15,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/log"
 )
 
 type MetricsServer struct {
@@ -55,8 +55,6 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	mux := http.NewServeMux()
 
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	reg.MustRegister(prometheus.NewGoCollector())
 	reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister))
 	reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
@@ -119,7 +117,12 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	)
 	reg.MustRegister(errorAnalysisRunCounter)
 
-	mux.Handle(MetricsPath, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
+		// contains app controller specific metrics
+		reg,
+		// contains process, golang and controller workqueues metrics
+		registry.DefaultGatherer,
+	}, promhttp.HandlerOpts{}))
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    cfg.Addr,

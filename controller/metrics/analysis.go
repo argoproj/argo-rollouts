@@ -1,20 +1,20 @@
 package metrics
 
 import (
-	"github.com/argoproj/argo-rollouts/metricproviders"
-	"github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
 var (
 	descAnalysisRunInfo = prometheus.NewDesc(
 		"analysis_run_info",
-		"Information about analysis runs.",
+		"Information about analysis run.",
 		descDefaultLabels,
 		nil,
 	)
