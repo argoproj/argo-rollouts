@@ -817,10 +817,12 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
 	assert.Nil(t, GenerateReplicaSetAffinity(ro))
 
+	// Injects anti-affinity rule with RequiredDuringSchedulingIgnoredDuringExecution into empty RS Affinity object
 	ro.Status.StableRS = "test"
 	affinity := GenerateReplicaSetAffinity(ro)
 	assert.Len(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
 
+	// Tests that anti-affinity injection for RequiredDuringSchedulingIgnoredDuringExecution does not override existing RS Affinity rules
 	podAffinityTerm := []corev1.PodAffinityTerm{{
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{{
@@ -841,6 +843,7 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 	assert.Len(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 2)
 	assert.Nil(t, affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
 
+	// Tests that anti-affinity injection for PreferredDuringSchedulingIgnoredDuringExecution does not override existing RS Affinity rules
 	ro.Spec.Strategy.BlueGreen = nil
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		AntiAffinity: &v1alpha1.AntiAffinity{
@@ -849,11 +852,6 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 			},
 		},
 	}
-	ro.Status.StableRS = "test"
-	affinity = GenerateReplicaSetAffinity(ro)
-	assert.Len(t, affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, 1)
-	assert.Len(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
-
 	ro.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
 			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
