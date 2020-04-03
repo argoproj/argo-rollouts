@@ -27,6 +27,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasttemplate v1.0.1
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5
+	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.0
 	k8s.io/apimachinery v0.17.3
