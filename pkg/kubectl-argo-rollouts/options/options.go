@@ -86,7 +86,7 @@ func (o *ArgoRolloutsOptions) PersistentPreRunE(c *cobra.Command, args []string)
 
 // AddKubectlFlags adds kubectl related flags to the command
 func (o *ArgoRolloutsOptions) AddKubectlFlags(cmd *cobra.Command) {
-	flags := cmd.Flags()
+	flags := cmd.PersistentFlags()
 	o.ConfigFlags.AddFlags(flags)
 	flags.IntVarP(&o.KlogLevel, "kloglevel", "v", 0, "Log level for kubernetes client library")
 	flags.StringVar(&o.LogLevel, "loglevel", log.InfoLevel.String(), "Log level for kubectl argo rollouts")

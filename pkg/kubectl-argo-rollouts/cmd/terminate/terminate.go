@@ -61,7 +61,6 @@ func NewCmdTerminateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	return cmd
 }
 
@@ -92,6 +91,5 @@ func NewCmdTerminateExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	return cmd
 }

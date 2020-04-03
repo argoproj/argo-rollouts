@@ -24,7 +24,6 @@ func NewCmdSet(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return o.UsageErr(c)
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.AddCommand(NewCmdSetImage(o))
 	return cmd
 }

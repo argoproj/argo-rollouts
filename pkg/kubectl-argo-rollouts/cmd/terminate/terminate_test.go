@@ -80,6 +80,7 @@ func TestTerminateAnalysisRunCmd(t *testing.T) {
 	})
 
 	cmd := NewCmdTerminateAnalysisRun(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "-n", "test"})
 	err := cmd.Execute()
@@ -96,6 +97,7 @@ func TestTerminateAnalysisRunCmdError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.AnalysisRun{})
 	defer tf.Cleanup()
 	cmd := NewCmdTerminateAnalysisRun(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
 	err := cmd.Execute()
@@ -128,6 +130,7 @@ func TestTerminateExperimentCmd(t *testing.T) {
 	})
 
 	cmd := NewCmdTerminateExperiment(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "-n", "test"})
 	err := cmd.Execute()
@@ -144,6 +147,7 @@ func TestTerminateExperimentCmdError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.AnalysisRun{})
 	defer tf.Cleanup()
 	cmd := NewCmdTerminateExperiment(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
 	err := cmd.Execute()

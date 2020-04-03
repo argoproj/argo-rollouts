@@ -43,6 +43,5 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	return cmd
 }

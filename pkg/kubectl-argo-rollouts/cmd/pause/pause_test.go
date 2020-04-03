@@ -66,6 +66,7 @@ func TestPauseCmdError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
 	defer tf.Cleanup()
 	cmd := NewCmdPause(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist", "-n", "test"})
 	err := cmd.Execute()

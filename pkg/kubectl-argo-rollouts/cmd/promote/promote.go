@@ -77,10 +77,8 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().BoolVarP(&skipCurrentStep, "skip-current-step", "c", false, "Skip current step")
 	cmd.Flags().BoolVarP(&skipAllSteps, "skip-all-steps", "a", false, "Skip remaining steps")
-
 	return cmd
 }
 

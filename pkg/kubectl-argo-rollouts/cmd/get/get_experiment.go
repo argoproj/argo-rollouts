@@ -57,7 +57,6 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
 	cmd.Flags().BoolVar(&getOptions.NoColor, "no-color", false, "Do not colorize output")
 	return cmd
