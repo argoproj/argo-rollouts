@@ -72,8 +72,11 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 		// Set existing new replica set's annotation
 		annotationsUpdated := annotations.SetNewReplicaSetAnnotations(rollout, rsCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != rollout.Spec.MinReadySeconds
-		if annotationsUpdated || minReadySecondsNeedsUpdate {
+		affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *rollout)
+
+		if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 			rsCopy.Spec.MinReadySeconds = rollout.Spec.MinReadySeconds
+			rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*rollout)
 			return c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(rsCopy)
 		}
 
@@ -107,7 +110,9 @@ func (c *RolloutController) getNewReplicaSet(rollout *v1alpha1.Rollout, rsList, 
 
 	// new ReplicaSet does not exist, create one.
 	newRSTemplate := *rollout.Spec.Template.DeepCopy()
-	podTemplateSpecHash := controller.ComputeHash(&newRSTemplate, rollout.Status.CollisionCount)
+	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
+	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*rollout)
+	podTemplateSpecHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(rollout.Spec.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)

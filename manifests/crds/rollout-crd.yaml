@@ -92,6 +92,19 @@ spec:
                   properties:
                     activeService:
                       type: string
+                    antiAffinity:
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          properties:
+                            weight:
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          type: object
+                      type: object
                     autoPromotionEnabled:
                       type: boolean
                     autoPromotionSeconds:
@@ -205,6 +218,19 @@ spec:
                             - templateName
                             type: object
                           type: array
+                      type: object
+                    antiAffinity:
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          properties:
+                            weight:
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          type: object
                       type: object
                     canaryService:
                       type: string

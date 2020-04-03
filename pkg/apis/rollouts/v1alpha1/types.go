@@ -117,9 +117,29 @@ type BlueGreenStrategy struct {
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty"`
 	// PrePromotionAnalysis configuration to run analysis before a selector switch
 	PrePromotionAnalysis *RolloutAnalysis `json:"prePromotionAnalysis,omitempty"`
+	// AntiAffinity enables anti-affinity rules for Blue Green deployment
+	// +optional
+	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 	// PostPromotionAnalysis configuration to run analysis after a selector switch
 	PostPromotionAnalysis *RolloutAnalysis `json:"postPromotionAnalysis,omitempty"`
 }
+
+// AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
+type AntiAffinity struct {
+	// +optional
+	PreferredDuringSchedulingIgnoredDuringExecution *PreferredDuringSchedulingIgnoredDuringExecution `json:"preferredDuringSchedulingIgnoredDuringExecution,omitempty"`
+	// +optional
+	RequiredDuringSchedulingIgnoredDuringExecution *RequiredDuringSchedulingIgnoredDuringExecution `json:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
+}
+
+// PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection
+type PreferredDuringSchedulingIgnoredDuringExecution struct {
+	// Weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
+	Weight int32 `json:"weight"`
+}
+
+// RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
+type RequiredDuringSchedulingIgnoredDuringExecution struct{}
 
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
@@ -162,6 +182,9 @@ type CanaryStrategy struct {
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
 	Analysis *RolloutAnalysisBackground `json:"analysis,omitempty"`
+	// AntiAffinity enables anti-affinity rules for Canary deployment
+	// +optional
+	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing

@@ -843,3 +843,52 @@ func TestComputeStepHash(t *testing.T) {
 	assert.Equal(t, baseline, roWithSameStepsHash)
 	assert.NotEqual(t, baseline, roNoStepsHash)
 }
+
+func TestInvalidAntiAffinity(t *testing.T) {
+	affinity := v1alpha1.AntiAffinity{}
+	reason, message := invalidAntiAffinity(affinity, "BlueGreen")
+	expectedMsg := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.BlueGreen.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution")
+	assert.Equal(t, InvalidSpecReason, reason)
+	assert.Equal(t, expectedMsg, message)
+
+	affinity = v1alpha1.AntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution:  &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
+		PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{Weight: 1},
+	}
+	reason, message = invalidAntiAffinity(affinity, "Canary")
+	assert.Equal(t, InvalidSpecReason, reason)
+	assert.Equal(t, "Multiple Anti-Affinity Strategies can not be listed", message)
+}
+
+func TestVerifyRolloutSpecAntiAffinity(t *testing.T) {
+	affinity := &v1alpha1.AntiAffinity{}
+	invalidRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"key": "value"},
+			},
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					PreviewService: "preview",
+					ActiveService:  "active",
+					AntiAffinity:   affinity,
+				},
+			},
+		},
+	}
+	cond := VerifyRolloutSpec(invalidRollout, nil)
+	message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.BlueGreen.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution")
+	assert.Equal(t, InvalidSpecReason, cond.Reason)
+	assert.Equal(t, message, cond.Message)
+
+	invalidRollout.Spec.Strategy.BlueGreen = nil
+	invalidRollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{AntiAffinity: &v1alpha1.AntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{
+			Weight: 1,
+		},
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
+	}}
+	cond = VerifyRolloutSpec(invalidRollout, nil)
+	assert.Equal(t, InvalidSpecReason, cond.Reason)
+	assert.Equal(t, "Multiple Anti-Affinity Strategies can not be listed", cond.Message)
+}
