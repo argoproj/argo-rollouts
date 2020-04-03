@@ -42,22 +42,6 @@ var (
 	descDefaultLabels = []string{"namespace", "name"}
 )
 
-const (
-
-	// InvalidSpec means the rollout had an InvalidSpec during reconciliation
-	InvalidSpec RolloutPhase = "InvalidSpec"
-	// Completed means the rollout finished the reconciliation with no remaining work
-	Completed RolloutPhase = "Completed"
-	// Progressing means the rollout finished the reconciliation with remaining work
-	Progressing RolloutPhase = "Progressing"
-	// Paused means the rollout finished the reconciliation with a paused status
-	Paused RolloutPhase = "Paused"
-	// Timeout means the rollout finished the reconciliation with an timeout message
-	Timeout RolloutPhase = "Timeout"
-	// Error means the rollout finished the reconciliation with an error
-	Error RolloutPhase = "Error"
-)
-
 type ServerConfig struct {
 	Addr               string
 	RolloutLister      rolloutlister.RolloutLister

@@ -41,6 +41,24 @@ var (
 // RolloutPhase the phases of a reconcile can have
 type RolloutPhase string
 
+const (
+
+	// RolloutInvalidSpec means the rollout had an invalid spec during reconciliation
+	RolloutInvalidSpec RolloutPhase = "InvalidSpec"
+	// RolloutCompleted means the rollout finished the reconciliation with no remaining work
+	RolloutCompleted RolloutPhase = "Completed"
+	// RolloutProgressing means the rollout finished the reconciliation with remaining work
+	RolloutProgressing RolloutPhase = "Progressing"
+	// RolloutPaused means the rollout finished the reconciliation with a paused status
+	RolloutPaused RolloutPhase = "Paused"
+	// RolloutTimeout means the rollout finished the reconciliation with an timeout message
+	RolloutTimeout RolloutPhase = "Timeout"
+	// RolloutError means the rollout finished the reconciliation with an error
+	RolloutError RolloutPhase = "Error"
+	// RolloutAbort means the rollout finished the reconciliation in an aborted state
+	RolloutAbort RolloutPhase = "Abort"
+)
+
 type rolloutCollector struct {
 	store rolloutlister.RolloutLister
 }
@@ -70,27 +88,30 @@ func (c *rolloutCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// calculatePhase calculates where a Rollout is in a Completed, Paused, Error, Timeout, or InvalidSpec phase
+// calculatePhase calculates where a Rollout is in a RolloutCompleted, Paused, Error, Timeout, InvalidSpec, or ABorted phase
 func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
-	phase := Progressing
+	phase := RolloutProgressing
 	progressing := conditions.GetRolloutCondition(rollout.Status, v1alpha1.RolloutProgressing)
 	if progressing != nil {
 		if progressing.Reason == conditions.NewRSAvailableReason {
-			phase = Completed
+			phase = RolloutCompleted
 		}
 		if progressing.Reason == conditions.PausedRolloutReason {
-			phase = Paused
+			phase = RolloutPaused
 		}
 		if progressing.Reason == conditions.ServiceNotFoundReason || progressing.Reason == conditions.FailedRSCreateReason {
-			phase = Error
+			phase = RolloutError
 		}
 		if progressing.Reason == conditions.TimedOutReason {
-			phase = Timeout
+			phase = RolloutTimeout
+		}
+		if progressing.Reason == conditions.RolloutAbortedReason {
+			phase = RolloutAbort
 		}
 	}
 	invalidSpec := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	if invalidSpec != nil {
-		phase = InvalidSpec
+		phase = RolloutInvalidSpec
 	}
 	return phase
 }
@@ -110,10 +131,10 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 	addGauge(descRolloutCreated, float64(rollout.CreationTimestamp.Unix()))
 
 	calculatedPhase := calculatePhase(rollout)
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Completed), string(Completed))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Progressing), string(Progressing))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Paused), string(Paused))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Timeout), string(Timeout))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == Error), string(Error))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == InvalidSpec), string(InvalidSpec))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutCompleted), string(RolloutCompleted))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutProgressing), string(RolloutProgressing))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutPaused), string(RolloutPaused))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutTimeout), string(RolloutTimeout))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutError), string(RolloutError))
+	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutAbort), string(RolloutAbort))
 }
