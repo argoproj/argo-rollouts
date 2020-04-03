@@ -12,12 +12,15 @@ Deployments resources offer two strategies to deploy changes: `RollingUpdate` an
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
 
+> Do not install argo-rollouts from the master branch install.yaml.  This manifest uses the `latest` tag for the image which may be unstable.  Make sure to use the `stable` branch for all installations unless testing the latest iteration.
+
 ## Who uses Argo Rollouts?
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [ADP](https://www.adp.com)
 1. [Intuit](https://www.intuit.com/)
 1. [Twilio SendGrid](https://sendgrid.com)
+1. [Blackbook](https://blackbook.com)
 
 ## Community Blogs and Presentations
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
