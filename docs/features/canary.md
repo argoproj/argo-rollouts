@@ -75,8 +75,10 @@ spec:
     canary:
       analysis: object
       canaryService: string
+      stableService: string
       maxSurge: stringOrInt
       maxUnavailable: stringOrInt
+      trafficRouting: object
 ```
 
 ### analysis
@@ -89,6 +91,11 @@ Defaults to nil
 
 Defaults to an empty string
 
+### stableService
+`stableService` the name of a Service which selects pods with stable version and don't select any pods with canary version. This allows users to only hit the stable ReplicaSet.
+
+Defaults to an empty string
+
 ### maxSurge
 `maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")
 
@@ -98,3 +105,8 @@ Defaults to "25%".
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
 Defaults to 0
+
+### trafficRouting
+The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
+
+Defaults to nil
