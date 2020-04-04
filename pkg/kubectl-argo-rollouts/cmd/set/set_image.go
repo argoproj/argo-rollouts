@@ -16,8 +16,7 @@ import (
 const (
 	setImageExample = `
   # Set rollout image
-  %[1]s set image my-rollout www=image:v2
-`
+  %[1]s set image my-rollout www=image:v2`
 )
 
 const (

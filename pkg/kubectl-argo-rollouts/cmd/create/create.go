@@ -49,12 +49,11 @@ const (
 	%[1]s create -f my-experiment.yaml -w`
 
 	createAnalysisRunExample = `
-  # Create an AnalysisRun from a local template file
-  %[1]s create analysisrun --from-file my-analysis-template.yaml
+  	# Create an AnalysisRun from a local template file
+  	%[1]s create analysisrun --from-file my-analysis-template.yaml
   
-  # Create an AnalysisRun from a template in the cluster
-  %[1]s create analysisrun --from my-analysis-template
-`
+  	# Create an AnalysisRun from a template in the cluster
+  	%[1]s create analysisrun --from my-analysis-template`
 )
 
 // NewCmdCreate returns a new instance of an `rollouts create` command

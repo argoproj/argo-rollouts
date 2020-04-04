@@ -10,6 +10,15 @@ import (
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
 
+const (
+	versionExample = `
+	# Get full version info
+	%[1]s version
+	
+	# Get just plugin version number
+	%[1]s version --short`
+)
+
 // NewCmdVersion returns a new instance of an `rollouts version` command
 func NewCmdVersion(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var (
@@ -19,6 +28,7 @@ func NewCmdVersion(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Use:          "version",
 		Short:        "Print version",
 		Long:         "Show the version and build information of the Argo Rollouts plugin.",
+		Example:      o.Example(versionExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			PrintVersion(o.Out, short)

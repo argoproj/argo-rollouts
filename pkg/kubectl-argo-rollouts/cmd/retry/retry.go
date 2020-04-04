@@ -10,15 +10,25 @@ import (
 )
 
 const (
-	example = `
+	retryRolloutPatch    = `{"status":{"abort":false}}`
+	retryExperimentPatch = `{"status":null}`
+)
+
+const (
+	retryExample = `
 	# Retry an aborted rollout
 	%[1]s retry rollout guestbook
 
 	# Retry a failed experiment
-	%[1]s retry experiment my-experiment
-`
-	retryRolloutPatch    = `{"status":{"abort":false}}`
-	retryExperimentPatch = `{"status":null}`
+	%[1]s retry experiment my-experiment`
+
+	retryRolloutExample = `
+	# Retry an aborted rollout
+	%[1]s retry rollout guestbook`
+
+	retryExperimentExample = `
+	# Retry an experiment
+	%[1]s retry experiment my-experiment`
 )
 
 // NewCmdRetry returns a new instance of an `argo rollouts retry` command
@@ -27,7 +37,7 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Use:          "retry <rollout|experiment> RESOURCE_NAME",
 		Short:        "Retry a rollout or experiment",
 		Long:         "This command consists of multiple subcommands which can be used to restart an aborted rollout or a failed experiement.",
-		Example:      o.Example(example),
+		Example:      o.Example(retryExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			return o.UsageErr(c)
@@ -41,13 +51,10 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 // NewCmdRetryRollout returns a new instance of an `argo rollouts retry rollout` command
 func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:     "rollout ROLLOUT_NAME",
-		Aliases: []string{"ro", "rollouts"},
-		Short:   "Retry an aborted rollout",
-		Example: o.Example(`
-  # Retry an aborted rollout
-  %[1]s retry rollout guestbook
-`),
+		Use:          "rollout ROLLOUT_NAME",
+		Aliases:      []string{"ro", "rollouts"},
+		Short:        "Retry an aborted rollout",
+		Example:      o.Example(retryRolloutExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -72,14 +79,11 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 // NewCmdRetryExperiment returns a new instance of an `argo rollouts retry experiment` command
 func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:     "experiment EXPERIMENT_NAME",
-		Aliases: []string{"exp", "experiments"},
-		Short:   "Retry an experiment",
-		Long:    "Retry a failed experiment.",
-		Example: o.Example(`
-  # Retry an experiment
-  %[1]s retry experiment my-experiment
-`),
+		Use:          "experiment EXPERIMENT_NAME",
+		Aliases:      []string{"exp", "experiments"},
+		Short:        "Retry an experiment",
+		Long:         "Retry a failed experiment.",
+		Example:      o.Example(retryExperimentExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {

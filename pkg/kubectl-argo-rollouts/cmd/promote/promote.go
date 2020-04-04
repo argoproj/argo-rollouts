@@ -13,19 +13,20 @@ import (
 )
 
 const (
-	example = `
+	promoteExample = `
 	# Promote a paused rollout
 	%[1]s promote guestbook
 
 	# Promote a canary rollout and skip all remaining stpes
-	%[1]s promote guestbook --skip-all-steps
-`
+	%[1]s promote guestbook --skip-all-steps`
+
 	promoteUsage = `Unpause a Canary or BlueGreen rollout or skip Canary rollout steps.
 
 If a Canary rollout has more steps the rollout will proceed to the next step in the rollout. Use '--skip-all-steps' to skip and remaining steps. 
-If not on a pause step use '--skip-current-step' to progress to the next step in the rollout.
-`
+If not on a pause step use '--skip-current-step' to progress to the next step in the rollout.`
+)
 
+const (
 	setCurrentStepIndex = `{
 	"status": {
 		"currentStepIndex": %d
@@ -55,7 +56,7 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Use:          "promote ROLLOUT_NAME",
 		Short:        "Promote a rollout",
 		Long:         promoteUsage,
-		Example:      o.Example(example),
+		Example:      o.Example(promoteExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 1 {

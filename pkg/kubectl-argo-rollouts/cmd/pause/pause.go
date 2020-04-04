@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	example = `
+	pauseExample = `
   # Pause a rollout
   %[1]s pause guestbook`
 )
@@ -21,7 +21,7 @@ func NewCmdPause(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Use:          "pause ROLLOUT_NAME",
 		Short:        "Pause a rollout",
 		Long:         "Set the rollout paused state to 'true'",
-		Example:      o.Example(example),
+		Example:      o.Example(pauseExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
