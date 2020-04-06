@@ -282,6 +282,7 @@ func (c *RolloutController) syncRolloutStatusCanary(roCtx *canaryContext) error 
 		}
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
+		roCtx.SetRestartedAt()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}

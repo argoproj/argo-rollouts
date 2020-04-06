@@ -36,16 +36,17 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 	logCtx := roCtx.Log()
 
-	err = c.podRestarter.Reconcile(roCtx)
-	if err != nil {
-		return err
-	}
-
 	if reconcileBlueGreenTemplateChange(roCtx) {
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
+		roCtx.SetRestartedAt()
 		logCtx.Infof("New pod template or template change detected")
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
+	}
+
+	err = c.podRestarter.Reconcile(roCtx)
+	if err != nil {
+		return err
 	}
 
 	err = c.reconcileBlueGreenReplicaSets(roCtx, activeSvc)
@@ -264,6 +265,7 @@ func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Servic
 	if replicasetutil.CheckPodSpecChange(r, newRS) {
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
+		roCtx.SetRestartedAt()
 	}
 
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
