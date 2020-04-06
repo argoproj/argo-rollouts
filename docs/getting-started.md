@@ -1,4 +1,4 @@
-d# Getting Started
+# Getting Started
 
 ## Requirements
 - Installed kubectl command-line tool

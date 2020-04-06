@@ -59,7 +59,7 @@ type RolloutSpec struct {
 	// Note that progress will not be estimated during the time a rollout is paused.
 	// Defaults to 600s.
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
-	//RestartAt indicates when all the pods of a Rollout should be restarted
+	// RestartAt indicates when all the pods of a Rollout should be restarted
 	RestartAt *metav1.Time `json:"restartAt,omitempty"`
 }
 
