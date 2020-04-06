@@ -199,7 +199,7 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 }
 
 func NeedsRestart(rollout *v1alpha1.Rollout) bool {
-	now := metav1.Now()
+	now := metav1.Now().UTC()
 	if rollout.Spec.RestartAt == nil {
 		return false
 	}

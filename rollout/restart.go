@@ -33,7 +33,7 @@ type RolloutPodRestarter struct {
 func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
-	now := nowFn()
+	now := nowFn().UTC()
 	if r.Spec.RestartAt == nil || now.After(r.Spec.RestartAt.Time) {
 		return
 	}

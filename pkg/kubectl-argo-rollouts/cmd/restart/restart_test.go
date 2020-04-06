@@ -35,6 +35,7 @@ func TestRestartInvalidIn(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	cmd := NewCmdRestart(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "--in", "not-valid-time"})
 	assert.Panics(t, func() {
@@ -59,7 +60,7 @@ func TestRestartCmdSuccessSetNow(t *testing.T) {
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
 	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == fmt.Sprintf(restartPatch, now.Format(time.RFC3339)) {
+			if string(patchAction.GetPatch()) == fmt.Sprintf(restartPatch, now.UTC().Format(time.RFC3339)) {
 				ro.Spec.RestartAt = now.DeepCopy()
 			}
 		}
@@ -68,11 +69,13 @@ func TestRestartCmdSuccessSetNow(t *testing.T) {
 
 	cmd := NewCmdRestart(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
+	o.AddKubectlFlags(cmd)
 	cmd.SetArgs([]string{"guestbook"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
-	assert.True(t, ro.Spec.RestartAt.Equal(&now))
+	expectedTime := metav1.NewTime(now.UTC())
+	assert.True(t, ro.Spec.RestartAt.Equal(&expectedTime))
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "rollout 'guestbook' restarts in 0s\n", stdout)
@@ -97,7 +100,7 @@ func TestRestartCmdSuccessSetIn10Minutes(t *testing.T) {
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
 	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == fmt.Sprintf(restartPatch, expectedTime.Format(time.RFC3339)) {
+			if string(patchAction.GetPatch()) == fmt.Sprintf(restartPatch, expectedTime.UTC().Format(time.RFC3339)) {
 				ro.Spec.RestartAt = expectedTime.DeepCopy()
 			}
 		}
@@ -105,6 +108,7 @@ func TestRestartCmdSuccessSetIn10Minutes(t *testing.T) {
 	})
 
 	cmd := NewCmdRestart(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "--in", "10m"})
 	err := cmd.Execute()
@@ -128,6 +132,7 @@ func TestRestartCmdPatchError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
 	defer tf.Cleanup()
 	cmd := NewCmdRestart(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook"})
 	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
@@ -147,6 +152,7 @@ func TestRestartCmdNotFoundError(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(&v1alpha1.Rollout{})
 	defer tf.Cleanup()
 	cmd := NewCmdRestart(o)
+	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"doesnotexist"})
 	err := cmd.Execute()

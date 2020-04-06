@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	example = `
+	restartExample = `
+	# Restart the pods of a rollout in now
+	%[1]s restart ROLLOUT_NAME
+
 	# Restart the pods of a rollout in ten seconds
-	%[1]s restart guestbook --in 10s
-`
+	%[1]s restart ROLLOUT_NAME --in 10s`
+
 	restartPatch = `{
 	"spec": {
 		"restartAt": "%s"
@@ -31,19 +34,19 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "restart ROLLOUT",
 		Short:        "Restart the pods of a rollout",
-		Example:      o.Example(example),
+		Example:      o.Example(restartExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return o.UsageErr(c)
 			}
-			restartIn := o.Now()
+			restartIn := o.Now().UTC()
 			if in != "" {
 				duration, err := v1alpha1.DurationString(in).Duration()
 				if err != nil {
 					panic(err)
 				}
-				restartIn = metav1.NewTime(restartIn.Add(duration))
+				restartIn = restartIn.Add(duration)
 			}
 			name := args[0]
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
@@ -63,8 +66,6 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().StringVarP(&in, "in", "i", "", "Amount of time before a restart. (e.g. 30s, 5m, 1h)")
-
 	return cmd
 }
