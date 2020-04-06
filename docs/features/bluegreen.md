@@ -60,6 +60,7 @@ spec:
       autoPromotionSeconds: *int32
       previewService: string
       prePromotionAnalysis: object
+      postPromotionAnalysis: object
       previewReplicaCount: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
@@ -76,9 +77,20 @@ The AutoPromotionSeconds will make the rollout automatically promote the new Rep
 Defaults to nil
 
 ### prePromotionAnalysis
-Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) before it switches traffic to the new version. If the analysis is not successful the rollout will be aborted.
+Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) before it switches traffic to the new version. The
+AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
+failure of the analysis run decides if the Rollout will switch traffic, or abort the Rollout completely.
 
-Default to nil
+Defaults to nil
+
+### postPromotionAnalysis
+Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) after the traffic switch to new version. If the analysis
+run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
+If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
+scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
+after the AnalysisRun completes (with a minimum of 30 seconds).
+
+Defaults to nil
 
 ### previewService
 The PreviewService field references a Service that will be modified to send traffic to the new replicaset before the new one is promoted to receiving traffic from the active service. Once the new replicaset start receives traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.
@@ -102,4 +114,4 @@ Defaults to 30
 ### scaleDownDelayRevisionLimit
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
-Default to nil
+Defaults to nil

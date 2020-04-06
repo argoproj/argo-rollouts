@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
@@ -22,52 +25,117 @@ func main() {
 	cmd := cmd.NewCmdArgoRollouts(o)
 	os.RemoveAll("./docs/generated/kubectl-argo-rollouts")
 	os.MkdirAll("./docs/generated/kubectl-argo-rollouts/", 0755)
-	err := GenMarkdownTree(cmd, "./docs/generated/kubectl-argo-rollouts")
+	files, err := GenMarkdownTree(cmd, "./docs/generated/kubectl-argo-rollouts")
 	if err != nil {
 		log.Fatal(err)
 	}
+	if files != nil {
+		if e := updateMkDocsNav(files); e != nil {
+			log.Fatal(e)
+		}
+	}
 }
 
-// the following is a custom markdown generator based on the default cobra/md_docs.go
+func updateMkDocsNav(files []string) error {
+	trimPrefixes(files, "docs/")
+	sort.Strings(files)
+	data, err := ioutil.ReadFile("mkdocs.yml")
+	if err != nil {
+		return err
+	}
+	var mkdocs mkDocs
+	if e := yaml.Unmarshal(data, &mkdocs); e != nil {
+		return e
+	}
+	navitem, _ := findNavItem(mkdocs.Nav, "Kubectl Plugin")
+	if navitem == nil {
+		return errors.New("Can't find 'Kubectl Plugin' nav item in mkdoc.yml")
+	}
+	navitemmap := navitem.(map[interface{}]interface{})
+	subnav := navitemmap["Kubectl Plugin"].([]interface{})
+	subnav = removeNavItem(subnav, "Commands")
+	commands := make(map[string]interface{})
+	commands["Commands"] = files
+	navitemmap["Kubectl Plugin"] = append(subnav, commands)
+
+	newmkdocs, err := yaml.Marshal(mkdocs)
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
+	return nil
+}
+
+func findNavItem(nav []interface{}, key string) (interface{}, int) {
+	for i, item := range nav {
+		o, ismap := item.(map[interface{}]interface{})
+		if ismap {
+			if _, ok := o[key]; ok {
+				return o, i
+			}
+		}
+	}
+	return nil, -1
+}
+
+func removeNavItem(nav []interface{}, key string) []interface{} {
+	_, i := findNavItem(nav, key)
+	if i != -1 {
+		nav = append(nav[:i], nav[i+1:]...)
+	}
+	return nav
+}
+
+func trimPrefixes(files []string, prefix string) {
+	for i, f := range files {
+		files[i] = strings.TrimPrefix(f, prefix)
+	}
+}
+
+// GenMarkdownTree the following is a custom markdown generator based on the default cobra/md_docs.go
 // https://github.com/spf13/cobra/blob/master/doc/md_docs.go
-func GenMarkdownTree(cmd *cobra.Command, dir string) error {
+func GenMarkdownTree(cmd *cobra.Command, dir string) ([]string, error) {
+	files := []string{}
 	for _, c := range cmd.Commands() {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
-		if err := GenMarkdownTree(c, dir); err != nil {
-			return err
+		tree, err := GenMarkdownTree(c, dir)
+		if err != nil {
+			return nil, err
 		}
+		files = append(files, tree...)
 	}
 
 	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + ".md"
 	filename := filepath.Join(dir, basename)
 	f, err := os.Create(filename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
 	if err := GenMarkdown(cmd, f); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	files = append(files, filename)
+	return files, nil
 }
 
+// GenMarkdown write command markdown to writer
 func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
 	cmd.InitDefaultHelpCmd()
 	cmd.InitDefaultHelpFlag()
 
 	buf := new(bytes.Buffer)
-	name := normalizeKubectlCmd(cmd.CommandPath())
+	title := strings.Title(commandName(cmd.CommandPath()))
 
 	short := cmd.Short
 	long := cmd.Long
 	if len(long) == 0 {
 		long = short
 	}
-
-	buf.WriteString("# " + name + "\n\n")
+	buf.WriteString("# " + title + "\n\n")
 	buf.WriteString(short + "\n\n")
 	buf.WriteString("## Synopsis\n\n")
 	buf.WriteString(long + "\n\n")
@@ -79,6 +147,10 @@ func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
 	if len(cmd.Example) > 0 {
 		buf.WriteString("## Examples\n\n")
 		buf.WriteString(fmt.Sprintf("```shell\n%s\n```\n\n", trimLeadingSpace(cmd.Example)))
+	}
+
+	if err := printOptions(buf, cmd); err != nil {
+		return err
 	}
 
 	if hasAvailableCommands(cmd) {
@@ -93,13 +165,9 @@ func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
 			cname := cmd.CommandPath() + " " + child.Name()
 			link := cname + ".md"
 			link = strings.Replace(link, " ", "_", -1)
-			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", normalizeKubectlCmd(cname), link, child.Short))
+			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", commandName(cname), link, child.Short))
 		}
 		buf.WriteString("\n")
-	}
-
-	if err := printOptions(buf, cmd); err != nil {
-		return err
 	}
 
 	if cmd.HasParent() {
@@ -109,7 +177,7 @@ func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
 			pname := parent.CommandPath()
 			link := pname + ".md"
 			link = strings.Replace(link, " ", "_", -1)
-			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", normalizeKubectlCmd(pname), link, parent.Short))
+			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", commandName(pname), link, parent.Short))
 			cmd.VisitParents(func(c *cobra.Command) {
 				if c.DisableAutoGenTag {
 					cmd.DisableAutoGenTag = c.DisableAutoGenTag
@@ -163,8 +231,24 @@ func normalizeKubectlCmd(cmd string) string {
 	return strings.Replace(cmd, "kubectl-argo-rollouts", "kubectl argo rollouts", 1)
 }
 
+func commandName(cmd string) string {
+	return strings.Replace(cmd, "kubectl-argo-", "", 1)
+}
+
 type byName []*cobra.Command
 
 func (s byName) Len() int           { return len(s) }
 func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
+
+// mkDocs config struct to keep output order
+type mkDocs struct {
+	SiteName           string                 `yaml:"site_name,omitempty"`
+	RepoURL            string                 `yaml:"repo_url,omitempty"`
+	Strict             bool                   `yaml:"strict,omitempty"`
+	Theme              map[string]interface{} `yaml:"theme,omitempty"`
+	GoogleAnalytics    []string               `yaml:"google_analytics,omitempty"`
+	MarkdownExtensions []interface{}          `yaml:"markdown_extensions,omitempty"`
+	Plugins            []interface{}          `yaml:"plugins,omitempty"`
+	Nav                []interface{}          `yaml:"nav,omitempty"`
+}

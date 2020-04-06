@@ -16,8 +16,7 @@ import (
 const (
 	setImageExample = `
   # Set rollout image
-  %[1]s set image my-rollout www=image:v2
-`
+  %[1]s set image my-rollout www=image:v2`
 )
 
 const (
@@ -27,7 +26,7 @@ const (
 // NewCmdSetImage returns a new instance of an `rollouts set image` command
 func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:          "image ROLLOUT CONTAINER=IMAGE",
+		Use:          "image ROLLOUT_NAME CONTAINER=IMAGE",
 		Short:        "Update the image of a rollout",
 		Example:      o.Example(setImageExample),
 		SilenceUsage: true,

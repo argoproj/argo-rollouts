@@ -15,20 +15,27 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 )
 
-// NewCmdGet returns a new instance of an `rollouts get rollout` command
+const (
+	getRolloutExample = `
+	# Get a rollout
+	%[1]s get rollout guestbook
+
+	# Watch progress of a rollout
+  	%[1]s get rollout guestbook -w`
+)
+
+// NewCmdGetRollout returns a new instance of an `rollouts get rollout` command
 func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	getOptions := GetOptions{
 		ArgoRolloutsOptions: *o,
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "rollout ROLLOUT",
-		Aliases: []string{"ro", "rollouts"},
-		Short:   "Get details about a rollout",
-		Example: o.Example(`
-  # Get a rollout
-  %[1]s get ROLLOUT
-`),
+		Use:          "rollout ROLLOUT_NAME",
+		Short:        "Get details about a rollout",
+		Long:         "Get details about and visual representation of a rollout. " + getUsageCommon,
+		Aliases:      []string{"ro", "rollouts"},
+		Example:      o.Example(getRolloutExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 1 {

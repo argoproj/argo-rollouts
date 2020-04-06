@@ -75,17 +75,24 @@ spec:
     canary:
       analysis: object
       canaryService: string
+      stableService: string
       maxSurge: stringOrInt
       maxUnavailable: stringOrInt
+      trafficRouting: object
 ```
 
 ### analysis
 Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
-Default to nil
+Defaults to nil
 
 ### canaryService
 `canaryService` references a Service that will be modified to send traffic to only the canary ReplicaSet. This allows users to only hit the canary ReplicaSet.
+
+Defaults to an empty string
+
+### stableService
+`stableService` the name of a Service which selects pods with stable version and don't select any pods with canary version. This allows users to only hit the stable ReplicaSet.
 
 Defaults to an empty string
 
@@ -98,3 +105,8 @@ Defaults to "25%".
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
 Defaults to 0
+
+### trafficRouting
+The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
+
+Defaults to nil

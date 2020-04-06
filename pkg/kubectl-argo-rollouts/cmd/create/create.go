@@ -43,18 +43,29 @@ type CreateAnalysisRunOptions struct {
 	FromFile     string
 }
 
+const (
+	createExample = `
+	# Create an experiement and watch it
+	%[1]s create -f my-experiment.yaml -w`
+
+	createAnalysisRunExample = `
+  	# Create an AnalysisRun from a local template file
+  	%[1]s create analysisrun --from-file my-analysis-template.yaml
+  
+  	# Create an AnalysisRun from a template in the cluster
+  	%[1]s create analysisrun --from my-analysis-template`
+)
+
 // NewCmdCreate returns a new instance of an `rollouts create` command
 func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
 	createOptions := CreateOptions{
 		ArgoRolloutsOptions: *o,
 	}
 	var cmd = &cobra.Command{
-		Use:   "create -f my-experiment.yaml",
-		Short: "Create a rollout resource",
-		Example: o.Example(`
-  # Create a resource and watch it
-  %[1]s create -f my-experiment.yaml -w
-`),
+		Use:          "create",
+		Short:        "Create a Rollout, Experiment, AnalysisTemplate, or AnalysisRun resource",
+		Long:         "This command creates a new Rollout, Experiment, AnalysisTemplate, or AnalysisRun resource from a file.",
+		Example:      o.Example(createExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(createOptions.Files) == 0 {
@@ -190,15 +201,11 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 		ArgoRolloutsOptions: *o,
 	}
 	var cmd = &cobra.Command{
-		Use:     "analysisrun",
-		Aliases: []string{"ar"},
-		Short:   "Create an AnalysisRun from a template",
-		Example: o.Example(`
-  # Create an AnalysisRun from a local template file
-  %[1]s create analysisrun --from-file my-analysis-template.yaml
-  # Create an AnalysisRun from a template in the cluster
-  %[1]s create analysisrun --from my-analysis-template
-`),
+		Use:          "analysisrun",
+		Aliases:      []string{"ar"},
+		Short:        "Create an AnalysisRun from a template",
+		Long:         "This command creates a new AnalysisRun from an existing AnalysisTemplate resources or from an AnalysisTemplate file.",
+		Example:      o.Example(createAnalysisRunExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			froms := 0
