@@ -5,6 +5,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -14,10 +15,10 @@ import (
 const (
 	// restartPodCheckTime prevents the Rollout from not making any progress with restarting Pods. When pods can be restarted
 	// faster than the old pods can be scaled down, the parent's ReplicaSet's availableReplicas does not change. A rollout
-	// uses changes to the availableReplicas of the ReplicaSet to detect when the controller should requeue and continue
+	// relies on changes to the availableReplicas of the ReplicaSet to detect when the controller should requeue and continue
 	// deleting pods. In this situation, the rollout does not renqueue and wont make any more progress restarting pods until
 	// the resync period passes or another change is made to the Rollout. The controller requeue Rollouts with deleted
-	// Pods every 30 seconds to make sure the rollout is not stuck.
+	// Polls every 30 seconds to make sure the rollout is not stuck.
 	restartPodCheckTime = 30 * time.Second
 )
 
@@ -63,11 +64,11 @@ func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
 	}
 	sort.Sort(s)
 	for _, rs := range s.allRSs {
-		reconciledReplicaSet, err := p.reconcilePodsInReplicaSet(roCtx, rs)
+		finishedRestartingPods, err := p.restartReplicaSetPod(roCtx, rs)
 		if err != nil {
 			return err
 		}
-		if reconciledReplicaSet {
+		if !finishedRestartingPods {
 			return nil
 		}
 	}
@@ -76,33 +77,54 @@ func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
 	return nil
 }
 
-func (p RolloutPodRestarter) reconcilePodsInReplicaSet(roCtx rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
-	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
-	restartedAt := roCtx.Rollout().Spec.RestartAt
+func (p RolloutPodRestarter) getPodsOwnedByReplicaSet(rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
 	pods, err := p.client.CoreV1().Pods(rs.Namespace).List(metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(rs.Spec.Selector),
 	})
 	if err != nil {
+		return nil, err
+	}
+	var podOwnedByRS []*corev1.Pod
+	for i := range pods.Items {
+		pod := pods.Items[i]
+		if metav1.IsControlledBy(&pod, rs) {
+			podOwnedByRS = append(podOwnedByRS, &pod)
+		}
+	}
+	return podOwnedByRS, nil
+}
+
+// restartReplicaSetPod gets all the pods for a ReplicaSet and confirms that they are all newer than the restartAt time.
+// If all the pods do not have a deletion timestamp and are newer than the restartAt time, the method returns true
+// indicating that the ReplicaSet's pods needs no more restarts. If any of the pods have a deletion timestamp, the
+// restarter cannot restart any more pods since it needs to wait for the current pod finish its deletion. In this case,
+// the restarter enqueues itself to check if the pod has been deleted and returns false. If the restarter deletes
+// a pod, it returns false as the restarter needs to make sure the pod is deleted before marking the ReplicaSet done.
+func (p RolloutPodRestarter) restartReplicaSetPod(roCtx rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
+	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
+	restartedAt := roCtx.Rollout().Spec.RestartAt
+	pods, err := p.getPodsOwnedByReplicaSet(rs)
+	if err != nil {
 		return false, err
 	}
 
-	for _, pod := range pods.Items {
+	for _, pod := range pods {
 		if pod.DeletionTimestamp != nil {
 			logCtx.Info("cannot reconcile any more pods as pod with deletionTimestamp exists")
 			p.enqueueAfter(roCtx.Rollout(), restartPodCheckTime)
-			return true, nil
+			return false, nil
 		}
 	}
 
-	for _, pod := range pods.Items {
+	for _, pod := range pods {
 		if restartedAt.After(pod.CreationTimestamp.Time) && pod.DeletionTimestamp == nil {
 			newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
 			newLogCtx.Info("restarting Pod that's older than restartAt Time")
 			err := p.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
-			return true, err
+			return false, err
 		}
 	}
-	return false, nil
+	return true, nil
 }
 
 func NewSortReplicaSetsByPriority(roCtx rolloutContext) SortReplicaSetsByPriority {

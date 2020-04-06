@@ -30,12 +30,16 @@ func rollout(restartAt metav1.Time, restartedAt *metav1.Time) *v1alpha1.Rollout 
 	}
 }
 
-func pod(selector string, time metav1.Time) *corev1.Pod {
+func pod(selector string, time metav1.Time, rs *appsv1.ReplicaSet) *corev1.Pod {
+	rsKind := appsv1.SchemeGroupVersion.WithKind("ReplicaSets")
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			CreationTimestamp: time,
 			Labels: map[string]string{
 				"test": selector,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(rs, rsKind),
 			},
 		},
 	}
@@ -121,9 +125,9 @@ func TestCheckEnqueueRollout(t *testing.T) {
 
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
-	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)))
-	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)))
 	rs := replicaSet("test", 1, 1)
+	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)), rs)
 
 	t.Run("No Restart Needed", func(t *testing.T) {
 		client := fake.NewSimpleClientset()
@@ -202,22 +206,22 @@ func TestReconcile(t *testing.T) {
 	})
 }
 
-func TestReconcilePodsInReplicaSet(t *testing.T) {
+func TestRestartReplicaSetPod(t *testing.T) {
 	now := metav1.Now()
 	ro := rollout(now, nil)
 	roCtx := &canaryContext{
 		rollout: ro,
 		log:     log.WithRollout(ro),
 	}
-	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)))
-	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)))
-	differentSelector := pod("test2", metav1.NewTime(now.Add(-10*time.Second)))
 	rs := replicaSet("test", 1, 1)
+	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)), rs)
+	differentSelector := pod("test2", metav1.NewTime(now.Add(-10*time.Second)), rs)
 	t.Run("Finds no pods to delete to due to different label selector", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, differentSelector)
 		r := RolloutPodRestarter{client: client}
-		deletedPod, err := r.reconcilePodsInReplicaSet(roCtx, rs)
-		assert.False(t, deletedPod)
+		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
+		assert.True(t, finishReplicaSet)
 		assert.Nil(t, err)
 		// Client uses list API but not the delete API
 		assert.Len(t, client.Actions(), 1)
@@ -226,8 +230,8 @@ func TestReconcilePodsInReplicaSet(t *testing.T) {
 	t.Run("Delete Pod successfully", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
 		r := RolloutPodRestarter{client: client}
-		deletedPod, err := r.reconcilePodsInReplicaSet(roCtx, rs)
-		assert.True(t, deletedPod)
+		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
+		assert.False(t, finishReplicaSet)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		// Client uses list and delete API
@@ -238,8 +242,8 @@ func TestReconcilePodsInReplicaSet(t *testing.T) {
 	t.Run("No Pod Deletion required", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, newerPod)
 		r := RolloutPodRestarter{client: client}
-		deletedPod, err := r.reconcilePodsInReplicaSet(roCtx, rs)
-		assert.False(t, deletedPod)
+		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
+		assert.True(t, finishReplicaSet)
 		assert.Nil(t, err)
 		// Client uses list API but not the delete API
 		assert.Len(t, client.Actions(), 1)
@@ -256,9 +260,20 @@ func TestReconcilePodsInReplicaSet(t *testing.T) {
 			rollout: ro,
 			log:     log.WithRollout(ro),
 		}
-		deletedPod, err := r.reconcilePodsInReplicaSet(roCtx, rs)
-		assert.False(t, deletedPod)
+		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
+		assert.False(t, finishReplicaSet)
 		assert.Error(t, err, expectedErrMsg)
+	})
+	t.Run("Do not delete pod owned by other RS", func(t *testing.T) {
+		otherRS := replicaSet("other-rs", 1, 1)
+		podOwnedByOtherRS := pod("test2", metav1.NewTime(now.Add(-10*time.Second)), otherRS)
+		client := fake.NewSimpleClientset(otherRS, podOwnedByOtherRS)
+		r := RolloutPodRestarter{client: client}
+		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
+		assert.True(t, finishReplicaSet)
+		assert.Nil(t, err)
+		// Client uses list API but not the delete API
+		assert.Len(t, client.Actions(), 1)
 	})
 
 }
