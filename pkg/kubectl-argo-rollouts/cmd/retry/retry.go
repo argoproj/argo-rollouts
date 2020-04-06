@@ -72,7 +72,6 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	return cmd
 }
 
@@ -101,6 +100,5 @@ func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	return cmd
 }

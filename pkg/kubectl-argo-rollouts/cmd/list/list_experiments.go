@@ -60,7 +60,6 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
 	return cmd
 }

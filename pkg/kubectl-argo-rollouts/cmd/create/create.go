@@ -101,8 +101,6 @@ func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(NewCmdCreateAnalysisRun(o))
-
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().StringArrayVarP(&createOptions.Files, "filename", "f", []string{}, "Files to use to create the resource")
 	cmd.Flags().BoolVarP(&createOptions.Watch, "watch", "w", false, "Watch live updates to the resource after creating")
 	cmd.Flags().BoolVar(&createOptions.NoColor, "no-color", false, "Do not colorize output")
@@ -253,7 +251,6 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().StringVar(&createOptions.Name, "name", "", "Use the specified name for the run")
 	cmd.Flags().StringVar(&createOptions.GenerateName, "generate-name", "", "Use the specified generateName for the run")
 	cmd.Flags().StringVar(&createOptions.InstanceID, "instance-id", "", "Instance-ID for the AnalysisRun")

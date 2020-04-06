@@ -68,7 +68,6 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	o.AddKubectlFlags(cmd)
 	cmd.Flags().StringVar(&listOptions.name, "name", "", "Only show rollout with specified name")
 	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
 	cmd.Flags().BoolVarP(&listOptions.watch, "watch", "w", false, "Watch for changes")
