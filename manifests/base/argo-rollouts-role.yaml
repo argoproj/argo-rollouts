@@ -90,10 +90,17 @@ rules:
   - update
   - patch
 - apiGroups:
-    - ""
+  - ""
   resources:
-    - secrets
+  - secrets
   verbs:
-    - get
-    - list
-    - watch
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - delete
