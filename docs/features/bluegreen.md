@@ -64,6 +64,7 @@ spec:
       previewReplicaCount: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
+      antiAffinityBetweenVersion: bool
 ```
 
 ### autoPromotionEnabled
@@ -114,4 +115,13 @@ Defaults to 30
 ### scaleDownDelayRevisionLimit
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
+<<<<<<< HEAD:docs/features/bluegreen.md
 Defaults to nil
+=======
+Default to nil
+
+
+### AntiAffinityBetweenVersion
+
+Check out the [Blue Green Anti Affinity document](anti-affinity/anti-affinity.md) document for more information
+>>>>>>> 329d61446ccd01c512dd560f014fcec25790cb6e:docs/features/blue-green/index.md
