@@ -23,13 +23,6 @@ var (
 		nil,
 	)
 
-	descRolloutCreated = prometheus.NewDesc(
-		"rollout_created_time",
-		"Creation time in unix timestamp for an rollout.",
-		descRolloutWithStrategyLabels,
-		nil,
-	)
-
 	descRolloutPhaseLabels = prometheus.NewDesc(
 		"rollout_phase",
 		"Information on the state of the rollout",
@@ -73,7 +66,6 @@ func NewRolloutCollector(rolloutLister rolloutlister.RolloutLister) prometheus.C
 // Describe implements the prometheus.Collector interface
 func (c *rolloutCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descRolloutInfo
-	ch <- descRolloutCreated
 }
 
 // Collect implements the prometheus.Collector interface
@@ -127,8 +119,6 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 	}
 
 	addGauge(descRolloutInfo, 1)
-
-	addGauge(descRolloutCreated, float64(rollout.CreationTimestamp.Unix()))
 
 	calculatedPhase := calculatePhase(rollout)
 	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutCompleted), string(RolloutCompleted))

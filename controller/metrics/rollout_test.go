@@ -49,10 +49,9 @@ spec:
       previewService: preview-service
 `
 )
-const expectedResponse = `# HELP rollout_created_time Creation time in unix timestamp for an rollout.
-# TYPE rollout_created_time gauge
-rollout_created_time{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} -6.21355968e+10
-`
+const expectedResponse = `# HELP rollout_info Information about rollout.
+# TYPE rollout_info gauge
+rollout_info{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1`
 
 func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
 	var rollout v1alpha1.Rollout

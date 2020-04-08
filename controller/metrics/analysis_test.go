@@ -50,10 +50,7 @@ status:
   startedAt: "2020-03-16T20:02:15Z"
 `
 )
-const expectedAnalysisRunResponse = `# HELP analysis_run_created_time Creation time in unix timestamp for an Analysis Run.
-# TYPE analysis_run_created_time gauge
-analysis_run_created_time{name="http-benchmark-test-tr8rn",namespace="jesse-test"} 1.584388873e+09
-# HELP analysis_run_info Information about analysis run.
+const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about analysis run.
 # TYPE analysis_run_info gauge
 analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run

@@ -19,13 +19,6 @@ var (
 		nil,
 	)
 
-	descAnalysisRunCreated = prometheus.NewDesc(
-		"analysis_run_created_time",
-		"Creation time in unix timestamp for an Analysis Run.",
-		descDefaultLabels,
-		nil,
-	)
-
 	descAnalysisRunPhaseLabels = append(descDefaultLabels, "phase")
 
 	descAnalysisRunMetricLabels = append(descDefaultLabels, "metric", "type")
@@ -68,7 +61,6 @@ func NewAnalysisRunCollector(analysisRunLister rolloutlister.AnalysisRunLister) 
 // Describe implements the prometheus.Collector interface
 func (c *analysisRunCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descAnalysisRunInfo
-	ch <- descAnalysisRunCreated
 }
 
 // Collect implements the prometheus.Collector interface
@@ -94,7 +86,6 @@ func collectAnalysisRuns(ch chan<- prometheus.Metric, ar *v1alpha1.AnalysisRun) 
 	}
 
 	addGauge(descAnalysisRunInfo, 1)
-	addGauge(descAnalysisRunCreated, float64(ar.CreationTimestamp.Unix()))
 
 	calculatedPhase := ar.Status.Phase
 	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string(v1alpha1.AnalysisPhasePending))

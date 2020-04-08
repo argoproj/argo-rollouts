@@ -96,10 +96,7 @@ status:
     updatedReplicas: 0
 `
 )
-const expectedExperimentResponse = `# HELP experiment_created_time Creation time in unix timestamp for an experiment.
-# TYPE experiment_created_time gauge
-experiment_created_time{name="experiment-with-analysis",namespace="argo-rollouts"} 1.580843523e+09
-# HELP experiment_info Information about Experiment.
+const expectedExperimentResponse = `# HELP experiment_info Information about Experiment.
 # TYPE experiment_info gauge
 experiment_info{name="experiment-with-analysis",namespace="argo-rollouts"} 1
 # HELP experiment_phase Information on the state of the experiment

@@ -17,13 +17,6 @@ var (
 		nil,
 	)
 
-	descExperimentCreated = prometheus.NewDesc(
-		"experiment_created_time",
-		"Creation time in unix timestamp for an experiment.",
-		descDefaultLabels,
-		nil,
-	)
-
 	descExperimentPhaseLabels = append(descDefaultLabels, "phase")
 
 	descExperimentPhase = prometheus.NewDesc(
@@ -48,7 +41,6 @@ func NewExperimentCollector(experimentLister rolloutlister.ExperimentLister) pro
 // Describe implements the prometheus.Collector interface
 func (c *experimentCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descExperimentInfo
-	ch <- descExperimentCreated
 }
 
 // Collect implements the prometheus.Collector interface
@@ -74,8 +66,6 @@ func collectExperiments(ch chan<- prometheus.Metric, ex *v1alpha1.Experiment) {
 	}
 
 	addGauge(descExperimentInfo, 1)
-
-	addGauge(descExperimentCreated, float64(ex.CreationTimestamp.Unix()))
 
 	calculatedPhase := ex.Status.Phase
 	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string("Pending"))
