@@ -40,8 +40,12 @@ RUN cd ${GOPATH}/src/dummy && \
 FROM golang:1.13.1 as argo-rollouts-build
 
 
-# Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
+# Copy only go.mod and go.sum files. This way on subsequent docker builds if the
+# dependencies didn't change it won't re-download the dependencies for nothing.
+COPY go.mod go.sum ./
+RUN go mod download
+# Perform the build
 COPY . .
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
