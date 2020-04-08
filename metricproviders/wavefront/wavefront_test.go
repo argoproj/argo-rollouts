@@ -7,7 +7,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
-	wavefront_api "github.com/spaceapegames/go-wavefront"
+	wavefrontapi "github.com/spaceapegames/go-wavefront"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,32 +22,32 @@ func newAnalysisRun() *v1alpha1.AnalysisRun {
 
 func TestType(t *testing.T) {
 	e := log.Entry{}
-	mockSeries := wavefront_api.TimeSeries{
-		DataPoints: []wavefront_api.DataPoint{
+	mockSeries := wavefrontapi.TimeSeries{
+		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, 10},
 		},
 	}
 	mock := mockAPI{
-		response: &wavefront_api.QueryResponse{
-			TimeSeries: []wavefront_api.TimeSeries{mockSeries},
+		response: &wavefrontapi.QueryResponse{
+			TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
 		}}
 	p := NewWavefrontProvider(mock, e)
 	assert.Equal(t, ProviderType, p.Type())
 }
 
 func TestRunSuccessfully(t *testing.T) {
-	e := log.Entry{}
-	mockSeries := wavefront_api.TimeSeries{
-		DataPoints: []wavefront_api.DataPoint{
+	e := log.WithField("", "")
+	mockSeries := wavefrontapi.TimeSeries{
+		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, 10},
 		},
 	}
 	mock := mockAPI{
-		response: &wavefront_api.QueryResponse{
-			TimeSeries: []wavefront_api.TimeSeries{mockSeries},
+		response: &wavefrontapi.QueryResponse{
+			TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
 		}}
 
-	p := NewWavefrontProvider(&mock, e)
+	p := NewWavefrontProvider(&mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -93,8 +93,9 @@ func TestRunWithQueryError(t *testing.T) {
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{
-		response: &wavefront_api.QueryResponse{
-			TimeSeries: []wavefront_api.TimeSeries{},
+		response: &wavefrontapi.QueryResponse{
+			TimeSeries: []wavefrontapi.TimeSeries{},
+			Warnings:   "No query provided",
 		}}
 	p := NewWavefrontProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -109,6 +110,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	}
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "No TimeSeries found in response from Wavefront", measurement.Message)
+	assert.Equal(t, "No query provided", measurement.Metadata["warnings"])
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -170,20 +172,21 @@ func TestProcessNaNResponse(t *testing.T) {
 		FailureCondition: "false",
 	}
 
-	mockSeries := wavefront_api.TimeSeries{
-		DataPoints: []wavefront_api.DataPoint{
+	mockSeries := wavefrontapi.TimeSeries{
+		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, math.NaN()},
 		},
 	}
 
-	response := &wavefront_api.QueryResponse{
-		TimeSeries: []wavefront_api.TimeSeries{mockSeries},
+	response := &wavefrontapi.QueryResponse{
+		TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
 	}
 
-	value, status, err := p.processResponse(metric, response)
+	result, err := p.processResponse(metric, response, metav1.Unix(13000, 0))
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
-	assert.Equal(t, "NaN", value)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, result.newStatus)
+	assert.Equal(t, "NaN", result.newValue)
+	assert.Equal(t, "NaN", result.newValue)
 
 }
 
@@ -197,23 +200,23 @@ func TestProcessMutipleTimeseriesResponse(t *testing.T) {
 		FailureCondition: "len(result) != 2",
 	}
 
-	mockSeries1 := wavefront_api.TimeSeries{
-		DataPoints: []wavefront_api.DataPoint{
+	mockSeries1 := wavefrontapi.TimeSeries{
+		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, 10},
 		},
 	}
-	mockSeries2 := wavefront_api.TimeSeries{
-		DataPoints: []wavefront_api.DataPoint{
+	mockSeries2 := wavefrontapi.TimeSeries{
+		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, 11},
 		},
 	}
-	response := &wavefront_api.QueryResponse{
-		TimeSeries: []wavefront_api.TimeSeries{mockSeries1, mockSeries2},
+	response := &wavefrontapi.QueryResponse{
+		TimeSeries: []wavefrontapi.TimeSeries{mockSeries1, mockSeries2},
 	}
-	value, status, err := p.processResponse(metric, response)
+	result, err := p.processResponse(metric, response, metav1.Unix(12000, 0))
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
-	assert.Equal(t, "[10.00,11.00]", value)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, result.newStatus)
+	assert.Equal(t, "[10.00,11.00]", result.newValue)
 
 }
 
@@ -245,4 +248,42 @@ func TestNewWavefrontAPI(t *testing.T) {
 	metric.Provider.Wavefront.Address = "example.wavefront.com"
 	_, err = NewWavefrontAPI(metric, fakeClient)
 	assert.Nil(t, err)
+}
+
+func TestFindDataPointValue(t *testing.T) {
+	e := log.WithField("", "")
+	mock := mockAPI{}
+	p := NewWavefrontProvider(mock, *e)
+	dp := func(time, value float64) []float64 {
+		return []float64{time, value}
+	}
+	t.Run("Choose earlier but closer point", func(t *testing.T) {
+		dataPoints := []wavefrontapi.DataPoint{
+			dp(0, 1),
+			dp(5, 2),
+		}
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		assert.Equal(t, float64(1), value)
+		assert.Equal(t, "0", epoch)
+	})
+
+	t.Run("Choose later but closer point", func(t *testing.T) {
+		dataPoints := []wavefrontapi.DataPoint{
+			dp(0, 1),
+			dp(5, 2),
+		}
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
+		assert.Equal(t, float64(2), value)
+		assert.Equal(t, "5", epoch)
+	})
+
+	t.Run("Choose exact point", func(t *testing.T) {
+		dataPoints := []wavefrontapi.DataPoint{
+			dp(0, 1),
+			dp(5, 2),
+		}
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
+		assert.Equal(t, float64(1), value)
+		assert.Equal(t, "0", epoch)
+	})
 }
