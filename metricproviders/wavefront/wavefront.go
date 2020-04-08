@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	wavefront_api "github.com/spaceapegames/go-wavefront"
+	wavefrontapi "github.com/spaceapegames/go-wavefront"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -37,27 +37,33 @@ func (p *Provider) Type() string {
 }
 
 type WavefrontClientAPI interface {
-	NewQuery(params *wavefront_api.QueryParams) WavefrontQueryAPI
+	NewQuery(params *wavefrontapi.QueryParams) WavefrontQueryAPI
 }
 
 type WavefrontClient struct {
-	*wavefront_api.Client
+	*wavefrontapi.Client
 }
 
-func (wc *WavefrontClient) NewQuery(params *wavefront_api.QueryParams) WavefrontQueryAPI {
+func (wc *WavefrontClient) NewQuery(params *wavefrontapi.QueryParams) WavefrontQueryAPI {
 	return &WavefrontQuery{Query: wc.Client.NewQuery(params)}
 }
 
 type WavefrontQueryAPI interface {
-	Execute() (*wavefront_api.QueryResponse, error)
+	Execute() (*wavefrontapi.QueryResponse, error)
 }
 
 type WavefrontQuery struct {
-	*wavefront_api.Query
+	*wavefrontapi.Query
 }
 
-func (wq *WavefrontQuery) Execute() (*wavefront_api.QueryResponse, error) {
+func (wq *WavefrontQuery) Execute() (*wavefrontapi.QueryResponse, error) {
 	return wq.Query.Execute()
+}
+
+type wavefrontResponse struct {
+	newValue   string
+	newStatus  v1alpha1.AnalysisPhase
+	epochsUsed string
 }
 
 // Run queries with wavefront provider for the metric
@@ -67,9 +73,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	queryParams := &wavefront_api.QueryParams{
+	queryParams := &wavefrontapi.QueryParams{
 		QueryString:             metric.Provider.Wavefront.Query,
 		StartTime:               strconv.FormatInt(time.Now().Unix()*1000, 10),
+		EndTime:                 strconv.FormatInt(time.Now().Unix()*1000, 10),
 		MaxPoints:               "1",
 		Granularity:             "s",
 		SeriesOutsideTimeWindow: false,
@@ -79,13 +86,14 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
-	newValue, newStatus, err := p.processResponse(metric, response)
+	result, err := p.processResponse(metric, response, startTime)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 
 	}
-	newMeasurement.Value = newValue
-	newMeasurement.Phase = newStatus
+	newMeasurement.Value = result.newValue
+	newMeasurement.Phase = result.newStatus
+	newMeasurement.Metadata = map[string]string{"epochs-used": result.epochsUsed}
 	finishedTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement
@@ -108,39 +116,68 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefront_api.QueryResponse) (string, v1alpha1.AnalysisPhase, error) {
+func findDataPointValue(datapoints []wavefrontapi.DataPoint, startTime metav1.Time) (float64, string) {
+	currentValue := float64(0)
+	currentTime := float64(0)
+	delta := math.Inf(1)
+	startTimeEpoch := float64(startTime.Unix())
+	for _, dp := range datapoints {
+		newDelta := math.Abs(startTimeEpoch - dp[0])
+		if newDelta < delta {
+			currentValue = dp[1]
+			currentTime = dp[0]
+			delta = newDelta
+		}
+	}
+	return currentValue, fmt.Sprintf("%.0f", currentTime)
+}
 
+func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontapi.QueryResponse, startTime metav1.Time) (wavefrontResponse, error) {
+	wavefrontResponse := wavefrontResponse{}
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
-		result := series.DataPoints[0][1] // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
-		if math.IsNaN(result) {
-			return fmt.Sprintf("%.2f", result), v1alpha1.AnalysisPhaseInconclusive, nil
+		value, time := findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
+		wavefrontResponse.newValue = fmt.Sprintf("%.2f", value)
+		wavefrontResponse.epochsUsed = time
+		if math.IsNaN(value) {
+			wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
+			return wavefrontResponse, nil
 		}
-		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
-		return fmt.Sprintf("%.2f", result), newStatus, nil
+		wavefrontResponse.newStatus = evaluate.EvaluateResult(value, metric, p.logCtx)
+		return wavefrontResponse, nil
 
 	} else if len(response.TimeSeries) > 1 {
 		results := make([]float64, 0, len(response.TimeSeries))
 		valueStr := "["
+		epochsStr := "["
 		for _, series := range response.TimeSeries {
-			value := series.DataPoints[0][1]
+			value, epoch := findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
 			valueStr = valueStr + fmt.Sprintf("%.2f", value) + ","
+			epochsStr = epochsStr + epoch + ","
 			results = append(results, value)
 		}
 		if len(valueStr) > 1 {
 			valueStr = valueStr[:len(valueStr)-1]
 		}
 		valueStr = valueStr + "]"
+		if len(epochsStr) > 1 {
+			epochsStr = epochsStr[:len(epochsStr)-1]
+		}
+		epochsStr = epochsStr + "]"
+		wavefrontResponse.newValue = valueStr
+		wavefrontResponse.epochsUsed = epochsStr
 		for _, result := range results {
 			if math.IsNaN(result) {
-				return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+				wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
+				return wavefrontResponse, nil
 			}
 		}
-		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		wavefrontResponse.newStatus = evaluate.EvaluateResult(results, metric, p.logCtx)
+		return wavefrontResponse, nil
 
 	} else {
-		return "", v1alpha1.AnalysisPhaseFailed, fmt.Errorf("No TimeSeries found in response from Wavefront")
+		wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseFailed
+		return wavefrontResponse, fmt.Errorf("No TimeSeries found in response from Wavefront")
 	}
 }
 
@@ -159,10 +196,10 @@ func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface)
 	if err != nil {
 		return nil, err
 	}
-	var wf_client *wavefront_api.Client
+	var wf_client *wavefrontapi.Client
 	for source, token := range secret.Data {
 		if source == metric.Provider.Wavefront.Address {
-			wf_client, _ = wavefront_api.NewClient(&wavefront_api.Config{
+			wf_client, _ = wavefrontapi.NewClient(&wavefrontapi.Config{
 				Address: source,
 				Token:   string(token),
 			})
