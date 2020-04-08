@@ -25,6 +25,8 @@ spec:
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+      securityContext:
+        runAsNonRoot: true
       volumes:
       - name: tmp
         emptyDir: {}
