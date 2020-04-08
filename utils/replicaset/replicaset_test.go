@@ -27,8 +27,8 @@ func generateRollout(image string) v1alpha1.Rollout {
 	return v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        image,
-			Annotations: make(map[string]string),
 			Namespace:   metav1.NamespaceDefault,
+			Annotations: make(map[string]string),
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(1),
@@ -992,4 +992,41 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 		}}
 
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+}
+
+func TestNeedsRestart(t *testing.T) {
+	t.Run("No RestartAt set", func(t *testing.T) {
+		ro := &v1alpha1.Rollout{}
+		assert.False(t, NeedsRestart(ro))
+	})
+	t.Run("No Restart if .status.RestartedAt is same as .spec.RestartAt", func(t *testing.T) {
+		now := metav1.Now()
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				RestartAt: &now,
+			},
+			Status: v1alpha1.RolloutStatus{
+				RestartedAt: &now,
+			},
+		}
+		assert.False(t, NeedsRestart(ro))
+	})
+	t.Run("No RestartAt for 10 seconds", func(t *testing.T) {
+		inTheFuture := metav1.NewTime(metav1.Now().Add(10 * time.Second))
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				RestartAt: &inTheFuture,
+			},
+		}
+		assert.False(t, NeedsRestart(ro))
+	})
+	t.Run("RestartAt 10 seconds Ago", func(t *testing.T) {
+		inThePast := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				RestartAt: &inThePast,
+			},
+		}
+		assert.True(t, NeedsRestart(ro))
+	})
 }

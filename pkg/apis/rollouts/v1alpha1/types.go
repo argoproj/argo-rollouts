@@ -59,6 +59,8 @@ type RolloutSpec struct {
 	// Note that progress will not be estimated during the time a rollout is paused.
 	// Defaults to 600s.
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
+	// RestartAt indicates when all the pods of a Rollout should be restarted
+	RestartAt *metav1.Time `json:"restartAt,omitempty"`
 }
 
 const (
@@ -71,6 +73,9 @@ const (
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
 	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
 	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
+	// DefaultReplicaSetRestartAnnotationKey indicates that the ReplicaSet with this annotation was restarted at the
+	// time listed in the value
+	DefaultReplicaSetRestartAnnotationKey = "argo-rollouts.argoproj.io/restarted-after"
 	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
@@ -497,6 +502,8 @@ type RolloutStatus struct {
 	// StableRS indicates the replicaset that has successfully rolled out
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
+	// RestartedAt indicates last time a Rollout was restarted
+	RestartedAt *metav1.Time `json:"restartedAt,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

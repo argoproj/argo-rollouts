@@ -72,6 +72,8 @@ type RolloutController struct {
 	analysisTemplateLister listers.AnalysisTemplateLister
 	metricsServer          *metrics.MetricsServer
 
+	podRestarter RolloutPodRestarter
+
 	// used for unit testing
 	enqueueRollout              func(obj interface{})
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
@@ -117,6 +119,14 @@ func NewRolloutController(
 		Recorder:   recorder,
 	}
 
+	podRestarter := RolloutPodRestarter{
+		client:       kubeclientset,
+		resyncPeriod: resyncPeriod,
+		enqueueAfter: func(obj interface{}, duration time.Duration) {
+			controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
+		},
+	}
+
 	controller := &RolloutController{
 		namespace:              namespace,
 		kubeclientset:          kubeclientset,
@@ -140,6 +150,7 @@ func NewRolloutController(
 		recorder:               recorder,
 		resyncPeriod:           resyncPeriod,
 		metricsServer:          metricsServer,
+		podRestarter:           podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)

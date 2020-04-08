@@ -27,6 +27,7 @@ type rolloutContext interface {
 	PauseContext() *pauseContext
 	NewStatus() v1alpha1.RolloutStatus
 	SetCurrentAnalysisRuns([]*v1alpha1.AnalysisRun)
+	SetRestartedAt()
 }
 
 type blueGreenContext struct {
@@ -79,7 +80,9 @@ func newBlueGreenCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, olderRSs []*
 		olderRSs: olderRSs,
 		allRSs:   allRSs,
 
-		newStatus: v1alpha1.RolloutStatus{},
+		newStatus: v1alpha1.RolloutStatus{
+			RestartedAt: r.Status.RestartedAt,
+		},
 		pauseContext: &pauseContext{
 			rollout: r,
 			log:     logCtx,
@@ -155,6 +158,10 @@ func (bgCtx *blueGreenContext) NewStatus() v1alpha1.RolloutStatus {
 	return bgCtx.newStatus
 }
 
+func (bgCtx *blueGreenContext) SetRestartedAt() {
+	bgCtx.newStatus.RestartedAt = bgCtx.rollout.Spec.RestartAt
+}
+
 func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, otherRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *canaryContext {
 	allRSs := append(otherRSs, newRS)
 	stableRS := replicasetutil.GetStableRS(r, newRS, otherRSs)
@@ -178,7 +185,9 @@ func newCanaryCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, otherRSs []*app
 		currentEx: currentEx,
 		otherExs:  otherExs,
 
-		newStatus: v1alpha1.RolloutStatus{},
+		newStatus: v1alpha1.RolloutStatus{
+			RestartedAt: r.Status.RestartedAt,
+		},
 		pauseContext: &pauseContext{
 			rollout: r,
 			log:     logCtx,
@@ -261,4 +270,8 @@ func (cCtx *canaryContext) PauseContext() *pauseContext {
 
 func (cCtx *canaryContext) NewStatus() v1alpha1.RolloutStatus {
 	return cCtx.newStatus
+}
+
+func (cCtx *canaryContext) SetRestartedAt() {
+	cCtx.newStatus.RestartedAt = cCtx.rollout.Spec.RestartAt
 }
