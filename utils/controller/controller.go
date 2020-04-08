@@ -153,8 +153,9 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
 		if err := runSyncHandler(); err != nil {
-			metricsServer.IncError(namespace, name)
-			// Put the item back on the workqueue to handle any transient errors.
+			metricsServer.IncError(namespace, name, objType)
+			// Put the item back on
+			// the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
 			return err
 		}
