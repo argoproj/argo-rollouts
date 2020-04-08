@@ -51,12 +51,6 @@ ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
 
-RUN groupadd -g 999 argo-rollouts && \
-    useradd -r -u 999 -g argo-rollouts argo-rollouts && \
-    mkdir -p /home/argo-rollouts && \
-    chown argo-rollouts:argo-rollouts /home/argo-rollouts
-
-
 ####################################################################################################
 # Final image
 ####################################################################################################
@@ -65,10 +59,9 @@ FROM scratch
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Import the user and group files from the builder.
-COPY --from=argo-rollouts-build /etc/passwd /etc/passwd
-
-USER argo-rollouts
+# Use numeric user, allows kubernetes to identify this user as being
+# non-root when we use a security context with runAsNonRoot: true
+USER 999
 
 WORKDIR /home/argo-rollouts
 
