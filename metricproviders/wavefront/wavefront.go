@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	wavefrontapi "github.com/spaceapegames/go-wavefront"
@@ -76,8 +75,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	queryParams := &wavefrontapi.QueryParams{
 		QueryString:             metric.Provider.Wavefront.Query,
-		StartTime:               strconv.FormatInt(time.Now().Unix()*1000, 10),
-		EndTime:                 strconv.FormatInt(time.Now().Unix()*1000, 10),
+		StartTime:               strconv.FormatInt(startTime.Unix()*1000, 10),
+		EndTime:                 strconv.FormatInt(startTime.Unix()*1000, 10),
 		MaxPoints:               "1",
 		Granularity:             "s",
 		SeriesOutsideTimeWindow: false,
@@ -97,7 +96,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 	newMeasurement.Value = result.newValue
 	newMeasurement.Phase = result.newStatus
-	newMeasurement.Metadata["epochs-used"] = result.epochsUsed
+	newMeasurement.Metadata["timestamps"] = result.epochsUsed
 	finishedTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement
