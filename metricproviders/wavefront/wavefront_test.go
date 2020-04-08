@@ -95,6 +95,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	mock := mockAPI{
 		response: &wavefrontapi.QueryResponse{
 			TimeSeries: []wavefrontapi.TimeSeries{},
+			Warnings:   "No query provided",
 		}}
 	p := NewWavefrontProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -109,6 +110,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	}
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "No TimeSeries found in response from Wavefront", measurement.Message)
+	assert.Equal(t, "No query provided", measurement.Metadata["warnings"])
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)

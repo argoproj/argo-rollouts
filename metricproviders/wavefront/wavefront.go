@@ -71,6 +71,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	startTime := metav1.Now()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
+		Metadata:  map[string]string{},
 	}
 
 	queryParams := &wavefrontapi.QueryParams{
@@ -83,6 +84,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	response, err := p.api.NewQuery(queryParams).Execute()
+	if response != nil && response.Warnings != "" {
+		newMeasurement.Metadata["warnings"] = response.Warnings
+	}
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -93,7 +97,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 	newMeasurement.Value = result.newValue
 	newMeasurement.Phase = result.newStatus
-	newMeasurement.Metadata = map[string]string{"epochs-used": result.epochsUsed}
+	newMeasurement.Metadata["epochs-used"] = result.epochsUsed
 	finishedTime := metav1.Now()
 	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement
