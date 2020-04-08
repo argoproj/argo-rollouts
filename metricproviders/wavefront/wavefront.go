@@ -120,7 +120,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func findDataPointValue(datapoints []wavefrontapi.DataPoint, startTime metav1.Time) (float64, string) {
+func (p *Provider) findDataPointValue(datapoints []wavefrontapi.DataPoint, startTime metav1.Time) (float64, string) {
 	currentValue := float64(0)
 	currentTime := float64(0)
 	delta := math.Inf(1)
@@ -133,6 +133,7 @@ func findDataPointValue(datapoints []wavefrontapi.DataPoint, startTime metav1.Ti
 			delta = newDelta
 		}
 	}
+	p.logCtx.Infof("Selected Timestamp has drift of %.0f seconds", delta)
 	return currentValue, fmt.Sprintf("%.0f", currentTime)
 }
 
@@ -140,7 +141,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 	wavefrontResponse := wavefrontResponse{}
 	if len(response.TimeSeries) == 1 {
 		series := response.TimeSeries[0]
-		value, time := findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
+		value, time := p.findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
 		wavefrontResponse.newValue = fmt.Sprintf("%.2f", value)
 		wavefrontResponse.epochsUsed = time
 		if math.IsNaN(value) {
@@ -155,7 +156,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 		valueStr := "["
 		epochsStr := "["
 		for _, series := range response.TimeSeries {
-			value, epoch := findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
+			value, epoch := p.findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
 			valueStr = valueStr + fmt.Sprintf("%.2f", value) + ","
 			epochsStr = epochsStr + epoch + ","
 			results = append(results, value)

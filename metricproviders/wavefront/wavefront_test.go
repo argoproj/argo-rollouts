@@ -36,7 +36,7 @@ func TestType(t *testing.T) {
 }
 
 func TestRunSuccessfully(t *testing.T) {
-	e := log.Entry{}
+	e := log.WithField("", "")
 	mockSeries := wavefrontapi.TimeSeries{
 		DataPoints: []wavefrontapi.DataPoint{
 			[]float64{12000, 10},
@@ -47,7 +47,7 @@ func TestRunSuccessfully(t *testing.T) {
 			TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
 		}}
 
-	p := NewWavefrontProvider(&mock, e)
+	p := NewWavefrontProvider(&mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -251,6 +251,9 @@ func TestNewWavefrontAPI(t *testing.T) {
 }
 
 func TestFindDataPointValue(t *testing.T) {
+	e := log.WithField("", "")
+	mock := mockAPI{}
+	p := NewWavefrontProvider(mock, *e)
 	dp := func(time, value float64) []float64 {
 		return []float64{time, value}
 	}
@@ -259,7 +262,7 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
 		assert.Equal(t, float64(1), value)
 		assert.Equal(t, "0", epoch)
 	})
@@ -269,7 +272,7 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := findDataPointValue(dataPoints, metav1.Unix(4, 0))
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
 		assert.Equal(t, float64(2), value)
 		assert.Equal(t, "5", epoch)
 	})
@@ -279,7 +282,7 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := findDataPointValue(dataPoints, metav1.Unix(0, 0))
+		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
 		assert.Equal(t, float64(1), value)
 		assert.Equal(t, "0", epoch)
 	})
