@@ -29,13 +29,25 @@ import (
 const (
 	// serviceIndexName is the index by which Service resources are cached
 	serviceIndexName    = "byService"
-	removeSelectorPatch = `[
-		{ "op": "remove", "path": "/spec/selector/` + v1alpha1.DefaultRolloutUniqueLabelKey + `" }
-	]`
-	removeSelectorAndManagedByPatch = `[
-		{ "op": "remove", "path": "/spec/selector/` + v1alpha1.DefaultRolloutUniqueLabelKey + `" },
-		{ "op": "remove", "path": "/annotations/` + v1alpha1.ManagedByRolloutsKey + `" }
-	]`
+	removeSelectorPatch = `{
+	"metadata": {
+		"annotations": {
+			"` + v1alpha1.ManagedByRolloutsKey + `": null
+		}
+	}
+}`
+	removeSelectorAndManagedByPatch = `{
+	"metadata": {
+		"annotations": {
+			"` + v1alpha1.ManagedByRolloutsKey + `": null
+		}
+	},
+	"spec": {
+		"selector": {
+			"` + v1alpha1.DefaultRolloutUniqueLabelKey + `": null
+		}
+	}
+}`
 )
 
 type ControllerConfig struct {
@@ -162,7 +174,7 @@ func (c *ServiceController) syncService(key string) error {
 	}
 	updatedSvc := svc.DeepCopy()
 	patch := generateRemovePatch(updatedSvc)
-	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.JSONPatchType, []byte(patch))
+	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.MergePatchType, []byte(patch))
 	if errors.IsNotFound(err) {
 		return nil
 	}
