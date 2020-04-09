@@ -58,12 +58,14 @@ spec:
     blueGreen:
       autoPromotionEnabled: boolean
       autoPromotionSeconds: *int32
+      antiAffinity: object
       previewService: string
       prePromotionAnalysis: object
       postPromotionAnalysis: object
       previewReplicaCount: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
+      antiAffinityBetweenVersion: bool
 ```
 
 ### autoPromotionEnabled
@@ -73,6 +75,11 @@ Defaults to true
 
 ### autoPromotionSeconds
 The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to true, this field will be ignored
+
+Defaults to nil
+
+### antiAffinity
+Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 
