@@ -74,6 +74,7 @@ spec:
   strategy:
     canary:
       analysis: object
+      antiAffinity: object
       canaryService: string
       stableService: string
       maxSurge: stringOrInt
@@ -83,6 +84,11 @@ spec:
 
 ### analysis
 Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
+
+Defaults to nil
+
+### antiAffinity
+Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 
