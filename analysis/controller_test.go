@@ -91,6 +91,11 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
 
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+
 	c := NewAnalysisController(
 		f.kubeclient,
 		f.client,
@@ -99,7 +104,7 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		k8sI.Batch().V1().Jobs(),
 		resync(),
 		analysisRunWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+		metricsServer,
 		&record.FakeRecorder{})
 
 	c.enqueueAnalysis = func(obj interface{}) {

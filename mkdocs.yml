@@ -34,6 +34,7 @@ nav:
     - AWS ALB: features/traffic-management/alb.md
   - HPA Support: features/hpa-support.md
   - Kustomize Support: features/kustomize.md
+  - Restarting Rollouts: features/restart.md
   - Controller Metrics: features/controller-metrics.md
 - Experiments: features/experiment.md
 - Analysis: features/analysis.md
@@ -65,4 +66,3 @@ nav:
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/
-

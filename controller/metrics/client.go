@@ -16,7 +16,7 @@ type K8sRequestsCountProvider struct {
 	k8sRequestsCount *prometheus.CounterVec
 }
 
-func (f *K8sRequestsCountProvider) Register(registerer prometheus.Registerer) {
+func (f *K8sRequestsCountProvider) MustRegister(registerer prometheus.Registerer) {
 	f.k8sRequestsCount = k8sRequestsCount
 	registerer.MustRegister(f.k8sRequestsCount)
 }

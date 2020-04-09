@@ -385,6 +385,11 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+
 	c := NewRolloutController(
 		metav1.NamespaceAll,
 		f.kubeclient,
@@ -401,7 +406,7 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		rolloutWorkqueue,
 		serviceWorkqueue,
 		ingressWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+		metricsServer,
 		&record.FakeRecorder{},
 		"v1alpha3",
 	)
@@ -1157,7 +1162,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"d9d46b8c7"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6b7b7b5769"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1201,7 +1206,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"74f6cf89d9"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7b5dfb6cd5"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

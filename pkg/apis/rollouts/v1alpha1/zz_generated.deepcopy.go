@@ -1334,6 +1334,10 @@ func (in *RolloutSpec) DeepCopyInto(out *RolloutSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.RestartAt != nil {
+		in, out := &in.RestartAt, &out.RestartAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
@@ -1376,6 +1380,10 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 	}
 	out.Canary = in.Canary
 	in.BlueGreen.DeepCopyInto(&out.BlueGreen)
+	if in.RestartedAt != nil {
+		in, out := &in.RestartedAt, &out.RestartedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

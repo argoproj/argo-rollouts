@@ -73,10 +73,12 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 
 		RolloutsInformer: i.Argoproj().V1alpha1().Rollouts(),
 		RolloutWorkQueue: rolloutWorkqueue,
-
-		MetricsServer: metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
-		ALBClasses:    []string{"alb"},
-		NGINXClasses:  []string{"nginx"},
+		ALBClasses:       []string{"alb"},
+		NGINXClasses:     []string{"nginx"},
+		MetricsServer: metrics.NewMetricsServer(metrics.ServerConfig{
+			Addr:               "localhost:8080",
+			K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+		}),
 	})
 	enqueuedObjects := map[string]int{}
 	var enqueuedObjectsLock sync.Mutex

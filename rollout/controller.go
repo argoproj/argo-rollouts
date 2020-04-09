@@ -72,6 +72,8 @@ type RolloutController struct {
 	analysisTemplateLister listers.AnalysisTemplateLister
 	metricsServer          *metrics.MetricsServer
 
+	podRestarter RolloutPodRestarter
+
 	// used for unit testing
 	enqueueRollout              func(obj interface{})
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
@@ -117,6 +119,14 @@ func NewRolloutController(
 		Recorder:   recorder,
 	}
 
+	podRestarter := RolloutPodRestarter{
+		client:       kubeclientset,
+		resyncPeriod: resyncPeriod,
+		enqueueAfter: func(obj interface{}, duration time.Duration) {
+			controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
+		},
+	}
+
 	controller := &RolloutController{
 		namespace:              namespace,
 		kubeclientset:          kubeclientset,
@@ -140,6 +150,7 @@ func NewRolloutController(
 		recorder:               recorder,
 		resyncPeriod:           resyncPeriod,
 		metricsServer:          metricsServer,
+		podRestarter:           podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)
@@ -282,7 +293,7 @@ func (c *RolloutController) syncHandler(key string) error {
 	}
 	defer func() {
 		duration := time.Since(startTime)
-		c.metricsServer.IncReconcile(r, duration)
+		c.metricsServer.IncRolloutReconcile(r, duration)
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 

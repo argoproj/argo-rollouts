@@ -312,6 +312,11 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")
 
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+
 	c := NewExperimentController(f.kubeclient, f.client,
 		k8sI.Apps().V1().ReplicaSets(),
 		i.Argoproj().V1alpha1().Experiments(),
@@ -320,7 +325,7 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		resync(),
 		rolloutWorkqueue,
 		experimentWorkqueue,
-		metrics.NewMetricsServer("localhost:8080", i.Argoproj().V1alpha1().Rollouts().Lister(), &metrics.K8sRequestsCountProvider{}),
+		metricsServer,
 		&record.FakeRecorder{})
 
 	var enqueuedObjectsLock sync.Mutex

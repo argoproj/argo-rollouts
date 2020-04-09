@@ -225,8 +225,7 @@ func (ec *ExperimentController) syncHandler(key string) error {
 
 	defer func() {
 		duration := time.Since(startTime)
-		//TODO(dthomson) Add metrics for experiments
-		//ec.metricsServer.IncReconcile(r, duration)
+		ec.metricsServer.IncExperimentReconcile(experiment, duration)
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 

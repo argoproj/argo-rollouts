@@ -198,6 +198,17 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 	return false
 }
 
+func NeedsRestart(rollout *v1alpha1.Rollout) bool {
+	now := metav1.Now().UTC()
+	if rollout.Spec.RestartAt == nil {
+		return false
+	}
+	if rollout.Status.RestartedAt != nil && rollout.Spec.RestartAt.Equal(rollout.Status.RestartedAt) {
+		return false
+	}
+	return now.After(rollout.Spec.RestartAt.Time)
+}
+
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
 func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
 	var allRSs []*appsv1.ReplicaSet
