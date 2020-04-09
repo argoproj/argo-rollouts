@@ -14,7 +14,7 @@ Argo Rollouts does not require a service mesh or ingress controller to be used. 
 ### Which deployment strategies does Argo Rollouts support?
 Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.
 
-### How does BlueGreen rollback works?
+### How does BlueGreen rollback work?
 A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or the value of the scaleDownDelaySeconds. The controller tracks the remaining time before scaling down by adding an annotation called `argo-rollouts.argoproj.io/scale-down-deadline` to the old ReplicaSet. If the user applies the old Rollout manifest before the old ReplicaSet before it scales down, the controller does something called a fast rollback. The controller immediately switches the active service’s selector back to the old ReplicaSet’s rollout-pod-template-hash and removes the scaled down annotation from that ReplicaSet. The controller does not do any of the normal operations when trying to introduce a new version since it is trying to revert as fast as possible. A non-fast-track rollback occurs when the scale down annotation has past and the old ReplicaSet has been scaled down. In this case, the Rollout treats the ReplicaSet like any other new ReplicaSet and follows the usual procedure for deploying a new ReplicaSet.
 
 ### What is the `argo-rollouts.argoproj.io/managed-by-rollouts` annotation?
