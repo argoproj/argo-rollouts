@@ -36,7 +36,7 @@
     
     
       
-        <title>Getting Started - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
+        <title>FAQ - Argo Rollouts - Advanced Kubernetes Deployment Controller</title>
       
     
     
@@ -110,7 +110,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#getting-started" tabindex="1" class="md-skip">
+      <a href="#faq" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -136,7 +136,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Getting Started
+                FAQ
               
             </span>
           
@@ -269,6 +269,18 @@
       
       
 
+
+  <li class="md-nav__item">
+    <a href="../getting-started/" title="Getting Started" class="md-nav__link">
+      Getting Started
+    </a>
+  </li>
+
+    
+      
+      
+      
+
   
 
 
@@ -280,11 +292,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="__toc">
-        Getting Started
+        FAQ
       </label>
     
-    <a href="./" title="Getting Started" class="md-nav__link md-nav__link--active">
-      Getting Started
+    <a href="./" title="FAQ" class="md-nav__link md-nav__link--active">
+      FAQ
     </a>
     
       
@@ -298,30 +310,23 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    Requirements
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-argo-rollouts" class="md-nav__link">
-    Install Argo Rollouts
+  <a href="#general" class="md-nav__link">
+    General
   </a>
   
     <nav class="md-nav">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cluster-level-installation" class="md-nav__link">
-    Cluster-Level installation
+  <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
+    How does Argo Rollouts integrate with Argo CD?
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#namespace-level-installation" class="md-nav__link">
-    Namespace-Level Installation
+  <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
+    Does Argo Rollout require a Service Mesh like Istio?
   </a>
   
 </li>
@@ -332,30 +337,83 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#converting-deployment-to-rollout" class="md-nav__link">
-    Converting Deployment to Rollout
+  <a href="#rollouts" class="md-nav__link">
+    Rollouts
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-deployment-strategies-does-argo-rollouts-support" class="md-nav__link">
+    Which deployment strategies does Argo Rollouts support?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-does-bluegreen-rollback-work" class="md-nav__link">
+    How does BlueGreen rollback work?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" class="md-nav__link">
+    What is the argo-rollouts.argoproj.io/managed-by-rollouts annotation?
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#updating-the-rollout" class="md-nav__link">
-    Updating the Rollout
+  <a href="#experiments" class="md-nav__link">
+    Experiments
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-experiment-end" class="md-nav__link">
+    Why doesn't my Experiment end?
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#promoting-the-rollout" class="md-nav__link">
-    Promoting the rollout
+  <a href="#analysis" class="md-nav__link">
+    Analysis
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-analysisrun-end" class="md-nav__link">
+    Why doesn't my AnalysisRun end?
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#going-forward" class="md-nav__link">
-    Going forward
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-difference-between-failures-and-errors" class="md-nav__link">
+    What is the difference between failures and errors?
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -367,18 +425,6 @@
   
 </nav>
     
-  </li>
-
-    
-      
-      
-      
-
-
-  <li class="md-nav__item">
-    <a href="../FAQ/" title="FAQ" class="md-nav__link">
-      FAQ
-    </a>
   </li>
 
     
@@ -991,30 +1037,23 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    Requirements
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-argo-rollouts" class="md-nav__link">
-    Install Argo Rollouts
+  <a href="#general" class="md-nav__link">
+    General
   </a>
   
     <nav class="md-nav">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cluster-level-installation" class="md-nav__link">
-    Cluster-Level installation
+  <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
+    How does Argo Rollouts integrate with Argo CD?
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#namespace-level-installation" class="md-nav__link">
-    Namespace-Level Installation
+  <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
+    Does Argo Rollout require a Service Mesh like Istio?
   </a>
   
 </li>
@@ -1025,30 +1064,83 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#converting-deployment-to-rollout" class="md-nav__link">
-    Converting Deployment to Rollout
+  <a href="#rollouts" class="md-nav__link">
+    Rollouts
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-deployment-strategies-does-argo-rollouts-support" class="md-nav__link">
+    Which deployment strategies does Argo Rollouts support?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-does-bluegreen-rollback-work" class="md-nav__link">
+    How does BlueGreen rollback work?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" class="md-nav__link">
+    What is the argo-rollouts.argoproj.io/managed-by-rollouts annotation?
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#updating-the-rollout" class="md-nav__link">
-    Updating the Rollout
+  <a href="#experiments" class="md-nav__link">
+    Experiments
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-experiment-end" class="md-nav__link">
+    Why doesn't my Experiment end?
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#promoting-the-rollout" class="md-nav__link">
-    Promoting the rollout
+  <a href="#analysis" class="md-nav__link">
+    Analysis
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-analysisrun-end" class="md-nav__link">
+    Why doesn't my AnalysisRun end?
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#going-forward" class="md-nav__link">
-    Going forward
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-difference-between-failures-and-errors" class="md-nav__link">
+    What is the difference between failures and errors?
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1068,98 +1160,34 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/FAQ.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Installed kubectl command-line tool</li>
-<li>Have a kubeconfig file (default location is ~/.kube/config).</li>
-</ul>
-<h2 id="install-argo-rollouts">Install Argo Rollouts<a class="headerlink" href="#install-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts can be installed at a cluster or namespace level. </p>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with <strong>v1.13.x</strong> 
-because they have a new field from the v1.14. Adding the <code>--validate=false</code> to the commands below allows the cluster to 
-accept the Argo Rollouts CRDs.</p>
-</div>
-<h3 id="cluster-level-installation">Cluster-Level installation<a class="headerlink" href="#cluster-level-installation" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span>kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
-</pre></div>
-
-<p>This will create a new namespace, <code>argo-rollouts</code>, where Argo Rollouts controller will live.</p>
-<p>On GKE, you will need grant your account the ability to create new cluster roles:</p>
-<div class="codehilite"><pre><span></span>kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole<span class="o">=</span>cluster-admin --user<span class="o">=</span>YOUREMAIL@gmail.com
-</pre></div>
-
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The cluster-level installation assumes that Argo Rollouts is deployed into the <code>argo-rollouts</code> namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the <code>ClusterRoleBinding</code> resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.</p>
-</div>
-<h3 id="namespace-level-installation">Namespace-Level Installation<a class="headerlink" href="#namespace-level-installation" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/namespace-install.yaml
-</pre></div>
-
-<h2 id="converting-deployment-to-rollout">Converting Deployment to Rollout<a class="headerlink" href="#converting-deployment-to-rollout" title="Permanent link">&para;</a></h2>
-<p>Converting a Deployment to a Rollout simply is a core design principle of Argo Rollouts. There are two key changes:</p>
-<ol>
-<li>Changing the <code>apiVersion</code> value to <code>argoproj.io/v1alpha1</code> and changing the <code>kind</code> value from <code>Deployment</code> to <code>Rollout</code></li>
-<li>Adding a new deployment strategy to the new Rollout. You can read up on the available strategies at <a href="..">Argo Rollouts section</a></li>
-</ol>
-<p>Below is an example of a Rollout YAML using the Canary strategy.</p>
-<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span> <span class="c1"># Changed from apps/v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span> <span class="c1"># Changed from Deployment</span>
-<span class="c1"># ----- Everything below this comment is the same as a deployment -----</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-rollout</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-  <span class="nt">selector</span><span class="p">:</span>
-    <span class="nt">matchLabels</span><span class="p">:</span>
-      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
-  <span class="nt">template</span><span class="p">:</span>
-    <span class="nt">metadata</span><span class="p">:</span>
-      <span class="nt">labels</span><span class="p">:</span>
-        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
-    <span class="nt">spec</span><span class="p">:</span>
-      <span class="nt">containers</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
-        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx:1.15.4</span>
-        <span class="nt">ports</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
-  <span class="nt">minReadySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
-  <span class="nt">revisionHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
-  <span class="nt">strategy</span><span class="p">:</span>
-  <span class="c1"># ----- Everything above this comment are the same as a deployment -----</span>
-    <span class="nt">canary</span><span class="p">:</span> <span class="c1"># A new field that used to provide configurable options for a Canary strategy</span>
-      <span class="nt">steps</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
-</pre></div>
-
-<h2 id="updating-the-rollout">Updating the Rollout<a class="headerlink" href="#updating-the-rollout" title="Permanent link">&para;</a></h2>
-<p>The initial creation of the above Rollout will bring up all 5 replicas of the Pod Spec listed. Since the rollout was not in a stable state beforehand (as it was just created), the rollout will skip the steps listed in the <code>.spec.strategy.canary.steps</code> field to first become stable. Once the new ReplicaSet is healthy, updating any field in the <code>spec.template</code> will cause the rollout to create a new ReplicaSet and execute the steps in <code>spec.strategy.canary.steps</code> to transition to the new version.</p>
-<p>To demonstrate this, we will update the rollout to use a new nginx image. You can either run <code>kubectl edit rollout example-rollout</code> and change the image from <code>nginx:1.15.4</code> to <code>nginx:1.15.5</code>, or run the following:</p>
-<div class="codehilite"><pre><span></span>$ kubectl patch rollout example-rollout --type merge -p <span class="s1">&#39;{&quot;spec&quot;: {&quot;template&quot;: { &quot;spec&quot;: { &quot;containers&quot;: [{&quot;name&quot;: &quot;nginx&quot;,&quot;image&quot;: &quot;nginx:1.15.5&quot;}]}}}}&#39;</span>
-</pre></div>
-
-<p>Once the patch is applied, you can watch the new replicaset came up as healthy by running 
-<div class="codehilite"><pre><span></span>$ kubectl get replicaset -w -o wide
-</pre></div>
-Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to <code>.status.pauseConditions</code>. The pause condition contains a reason and a pause start time.</p>
-<h2 id="promoting-the-rollout">Promoting the rollout<a class="headerlink" href="#promoting-the-rollout" title="Permanent link">&para;</a></h2>
-<p>The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automiated tool) removes the pause conditon.</p>
-<p>Argo Rollouts has a <a href="../features/kubectl-plugin/">kubectl plugin</a> to help automate operations like promoting a rollout through a step. The installation instructions are <a href="../features/kubectl-plugin/#installation">here</a>.</p>
-<p>Once the plugin is installed, the user can run the following command to promote the rollout through the pause step:</p>
-<div class="codehilite"><pre><span></span>kubectl argo rollouts promote example-rollout
-</pre></div>
-
-<p>At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat these steps when the Pod Spec Template is changed again.</p>
-<h2 id="going-forward">Going forward<a class="headerlink" href="#going-forward" title="Permanent link">&para;</a></h2>
-<p>Check out the <a href="../features/">features page</a> for more configuration options for a rollout.</p>
+                <h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
+<h2 id="general">General<a class="headerlink" href="#general" title="Permanent link">&para;</a></h2>
+<h3 id="how-does-argo-rollouts-integrate-with-argo-cd">How does Argo Rollouts integrate with Argo CD?<a class="headerlink" href="#how-does-argo-rollouts-integrate-with-argo-cd" title="Permanent link">&para;</a></h3>
+<p>Argo CD understands the health of Argo Rollouts resources via Argo CD’s <a href="https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md">Lua health check</a>. These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).</p>
+<p>As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress.</p>
+<h3 id="does-argo-rollout-require-a-service-mesh-like-istio">Does Argo Rollout require a Service Mesh like Istio?<a class="headerlink" href="#does-argo-rollout-require-a-service-mesh-like-istio" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets.</p>
+<h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
+<h3 id="which-deployment-strategies-does-argo-rollouts-support">Which deployment strategies does Argo Rollouts support?<a class="headerlink" href="#which-deployment-strategies-does-argo-rollouts-support" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.</p>
+<h3 id="how-does-bluegreen-rollback-work">How does BlueGreen rollback work?<a class="headerlink" href="#how-does-bluegreen-rollback-work" title="Permanent link">&para;</a></h3>
+<p>A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or the value of the scaleDownDelaySeconds. The controller tracks the remaining time before scaling down by adding an annotation called <code>argo-rollouts.argoproj.io/scale-down-deadline</code> to the old ReplicaSet. If the user applies the old Rollout manifest before the old ReplicaSet before it scales down, the controller does something called a fast rollback. The controller immediately switches the active service’s selector back to the old ReplicaSet’s rollout-pod-template-hash and removes the scaled down annotation from that ReplicaSet. The controller does not do any of the normal operations when trying to introduce a new version since it is trying to revert as fast as possible. A non-fast-track rollback occurs when the scale down annotation has past and the old ReplicaSet has been scaled down. In this case, the Rollout treats the ReplicaSet like any other new ReplicaSet and follows the usual procedure for deploying a new ReplicaSet.</p>
+<h3 id="what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation">What is the <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation?<a class="headerlink" href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts adds an <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.</p>
+<h2 id="experiments">Experiments<a class="headerlink" href="#experiments" title="Permanent link">&para;</a></h2>
+<h3 id="why-doesnt-my-experiment-end">Why doesn't my Experiment end?<a class="headerlink" href="#why-doesnt-my-experiment-end" title="Permanent link">&para;</a></h3>
+<p>An Experiment’s duration is controlled by the <code>.spec.duration</code> field and the analyses created for the Experiment. The <code>.spec.duration</code> indicates how long the ReplicaSets created by the Experiment should run. Once the duration passes, the experiment scales down the ReplicaSets it created and marks the AnalysisRuns successful unless the <code>requiredForCompletion</code> field is used in the Experiment. If enabled, the ReplicaSets are still scaled-down, but the Experiment does not finish until the Analysis Run finishes.</p>
+<p>Additionally, the <code>.spec.duration</code> is an optional field. If it’s left unset, and the Experiment creates no AnalysisRuns, the ReplicaSets run indefinitely. The Experiment creates AnalysisRuns without the <code>requiredForCompletion</code> field, the Experiment fails only when the AnalysisRun created fails or errors out. If the <code>requiredForCompletion</code> field is set, the Experiment only marks itself as Successful and scales down the created ReplicaSets when the AnalysisRun finishes Successfully.</p>
+<p>Additionally, an Experiment ends if the <code>.spec.terminate</code> field is set to true regardless of the state of the Experiment.</p>
+<h2 id="analysis">Analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h2>
+<h3 id="why-doesnt-my-analysisrun-end">Why doesn't my AnalysisRun end?<a class="headerlink" href="#why-doesnt-my-analysisrun-end" title="Permanent link">&para;</a></h3>
+<p>The AnalysisRun’s duration is controlled by the metrics specified. Each Metric can specify an interval, count, and various limits (ConsecutiveErrorLimit, InconclusiveLimit, FailureLimit). If the interval is omitted, the AnalysisRun takes a single measurement. The count indicates how many measurements should be taken and causes the AnalysisRun to run indefinitely if omitted. The ConsecutiveErrorLimit, InconclusiveLimit, and FailureLimit define the thresholds allowed before putting the rollout into a completed state.</p>
+<p>Additionally, an AnalysisRun ends if the <code>.spec.terminate</code> field is set to true regardless of the state of the AnalysisRun.</p>
+<h3 id="what-is-the-difference-between-failures-and-errors">What is the difference between failures and errors?<a class="headerlink" href="#what-is-the-difference-between-failures-and-errors" title="Permanent link">&para;</a></h3>
+<p>Failures are when the failure condition evaluates to true or an AnalysisRun without a failure condition evaluates the success condition to false. Errors are when the controller has any kind of issue with taking a measurement (i.e. invalid Prometheus URL).</p>
                 
                   
                 
@@ -1180,7 +1208,7 @@ Once that replicaset is healthy, the rollout will enter a paused state by adding
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../deployment-concepts/" title="Concepts" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../getting-started/" title="Getting Started" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1189,19 +1217,19 @@ Once that replicaset is healthy, the rollout will enter a paused state by adding
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Concepts
+                Getting Started
               </span>
             </div>
           </a>
         
         
-          <a href="../FAQ/" title="FAQ" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../features/" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                FAQ
+                Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
