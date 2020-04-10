@@ -22,6 +22,7 @@ nav:
 - Overview: index.md
 - Concepts: deployment-concepts.md
 - Getting Started: getting-started.md
+- FAQ: FAQ.md
 - Features:
   - features/index.md
   - BlueGreen: features/bluegreen.md
@@ -53,6 +54,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout.md

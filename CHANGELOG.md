@@ -1,5 +1,79 @@
 # Changelog
 
+# v0.8.0
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.0/manifests/install.yaml
+
+## Breaking Changes
+* The metric `rollout_created_time` is being removed.
+* The `.status.canary.stableRS` is being deprecated for `.status.stableRS`. This release has the code to handle the migration, and the Rollout spec will updated to remove `.status.stableRS` in a future release.
+
+## Contributors
+Thank you to the following contributors for their work in this release!
+* cronik
+* dthomson25
+* duboisf
+* jessesuen
+* khhirani
+* moensch
+* nghialv
+  
+## Changes since v0.7.2
+### General
+* feat: Improve Prometheus metrics (#461)
+* feat: Add metrics on queues and go client http calls (#416)
+* feat: Add patchMergeKey and patchStrategy struct tags and comments (#386)
+* feat: Improve removing k8s 1.18 fields (#436)
+* fix: Reduce log from error to warning (#394)
+* chore: Download go deps explicitly in Dockerfile (#464)
+* chore: Standardize controller-gen to v0.2.5 (#431)
+* chore: Migrate from dep to go modules (#331)
+* chore: Add auto generated sites/ to gitignore (#398)
+* docs: Add remote name to 'make release-docs' (#435)
+* docs: Documentation cleanup (#437)
+* docs: Add Go mod download command to contributor docs (#425)
+* docs: Corrected HPA doc (#396)
+* docs: Remove extra comma in docs
+* docs: Update README.md (#411)
+
+### Rollouts
+* feat: Introduce Anti-Affinity option to rollout strategies (#445)
+* feat: Add ability to restart Pods (#453)
+* feat: Add ALB Ingress controller support (#444)
+* feat: Add Nginx canary traffic management (#426)
+* feat: Add BlueGreen Pre Promotion Analysis (#415)
+* feat: Add BlueGreen Post Promotion Analysis (#442)
+* feat: Allow Rollout to specify multiples templates (#409)
+* feat: Make pause duration as string with time unit (#423)
+* feat: Use managed-by annotation (#448)
+* refactor: Refactor BlueGreen Strategy (#388)
+* fix: Update Role/ClusterRole for Ingress access (#439)
+* fix: rollout transformer for pod affinity. add new v0.7 name references and testing (#399)
+* chore: Add StableRS to rollout status (#441)
+* chore: Fix wrong comment about the formula of calculating the replica number (#447)
+
+### Analysis
+* feat: Improve wavefront provider (#465)
+* feat: Allow AnalysisTemplates to reference secrets (#420)
+* improvement: Surface failure reasons for Rollouts/AnalysisRuns (#434)
+* refactor: Perform arg substitution in Analysis controller (#407)
+* docs: Use correct podTemplateHashValue attribute for valueFrom (#417)
+* docs: Update web metrics section (#381)
+* docs: Use correct magic value in Analysis docs (#378)
+
+### Experiments
+* feat: Experiments passed duration succeed with running analysis (#392)
+* feat: Allow ex to use availableAt and finishedAt as args (#400)
+* refactor: Refactor Experiment handling of pod hashes (#385)
+
+### Kubectl plugin
+* feat: Show scale down time for Blue Green ReplicaSets (#370) (#382)
+* feat: Add more command aliases in kubectl plugin (#414)
+* chore: Set kubectl flags on root command (#456)
+* docs: Generate kubectl plugin docs (#422)
+* docs: Plugin command enhancements (#454)
+
 # v0.7.2
 ## Quick Start
 kubectl create namespace argo-rollouts
