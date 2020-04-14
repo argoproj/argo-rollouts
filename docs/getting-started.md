@@ -90,7 +90,7 @@ $ kubectl get replicaset -w -o wide
 Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to `.status.pauseConditions`. The pause condition contains a reason and a pause start time.
 
 ## Promoting the rollout
-The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automiated tool) removes the pause conditon.
+The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automated tool) removes the pause conditon.
 
 Argo Rollouts has a [kubectl plugin](features/kubectl-plugin.md) to help automate operations like promoting a rollout through a step. The installation instructions are [here](features/kubectl-plugin.md#installation).
 
