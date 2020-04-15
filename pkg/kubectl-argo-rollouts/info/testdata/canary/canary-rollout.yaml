@@ -28,13 +28,13 @@ spec:
       - pause: {}
       - setWeight: 40
       - pause:
-          duration: 10
+          duration: 10s
       - setWeight: 60
       - pause:
-          duration: 10
+          duration: 10s
       - setWeight: 80
       - pause:
-          duration: 10
+          duration: 10s
   template:
     metadata:
       creationTimestamp: null

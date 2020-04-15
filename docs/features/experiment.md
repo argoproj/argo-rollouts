@@ -21,7 +21,7 @@ kind: Experiment
 metadata:
   name: example-experiment
 spec:
-  duration: 60 # How long to run the Experiment once the ReplicaSets created from the templates are healthy
+  duration: 1m # How long to run the Experiment once the ReplicaSets created from the templates are healthy
   progressDeadlineSeconds: 30
   templates:
   - name: purple # (required) Unique name for the template that gets used as a part of the ReplicaSet name.
@@ -118,7 +118,7 @@ spec:
     canary: 
       steps:
       - experiment:
-          duration: 3600
+          duration: 1h
           templates:
           - name: baseline
           specRef: stable

@@ -39,7 +39,7 @@ spec:
       steps:
       - setWeight: 10
       - pause:
-          duration: "1h" # 1 hour
+          duration: 1h # 1 hour
       - setWeight: 20
       - pause: {} # pause indefinitely
 ```

@@ -30,8 +30,8 @@ spec:
       # Rollouts can be manually resumed by running `kubectl argo rollouts resume ROLLOUT`
       - pause: {}
       - setWeight: 40
-      - pause: {duration: 40}
+      - pause: {duration: 40s}
       - setWeight: 60
-      - pause: {duration: 20}
+      - pause: {duration: 20s}
       - setWeight: 80
-      - pause: {duration: 20}
+      - pause: {duration: 20s}
