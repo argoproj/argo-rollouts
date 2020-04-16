@@ -44,8 +44,8 @@ const (
 	virtualServiceIndexName = "byVirtualService"
 )
 
-// RolloutController is the controller implementation for Rollout resources
-type RolloutController struct {
+// Controller is the controller implementation for Rollout resources
+type Controller struct {
 	// namespace which namespace(s) operates on
 	namespace string
 	// rsControl is used for adopting/releasing replica sets.
@@ -93,76 +93,80 @@ type RolloutController struct {
 	resyncPeriod time.Duration
 }
 
-// NewRolloutController returns a new rollout controller
-func NewRolloutController(
-	namespace string,
-	kubeclientset kubernetes.Interface,
-	argoprojclientset clientset.Interface,
-	dynamicclientset dynamic.Interface,
-	experimentInformer informers.ExperimentInformer,
-	analysisRunInformer informers.AnalysisRunInformer,
-	analysisTemplateInformer informers.AnalysisTemplateInformer,
-	replicaSetInformer appsinformers.ReplicaSetInformer,
-	servicesInformer coreinformers.ServiceInformer,
-	ingressesInformer extensionsinformers.IngressInformer,
-	rolloutsInformer informers.RolloutInformer,
-	resyncPeriod time.Duration,
-	rolloutWorkQueue workqueue.RateLimitingInterface,
-	serviceWorkQueue workqueue.RateLimitingInterface,
-	ingressWorkQueue workqueue.RateLimitingInterface,
-	metricsServer *metrics.MetricsServer,
-	recorder record.EventRecorder,
-	defaultIstioVersion string) *RolloutController {
+// ControllerConfig describes the data required to instantiate a new rollout controller
+type ControllerConfig struct {
+	Namespace                string
+	KubeClientSet            kubernetes.Interface
+	ArgoProjClientset        clientset.Interface
+	DynamicClientSet         dynamic.Interface
+	ExperimentInformer       informers.ExperimentInformer
+	AnalysisRunInformer      informers.AnalysisRunInformer
+	AnalysisTemplateInformer informers.AnalysisTemplateInformer
+	ReplicaSetInformer       appsinformers.ReplicaSetInformer
+	ServicesInformer         coreinformers.ServiceInformer
+	IngressInformer          extensionsinformers.IngressInformer
+	RolloutsInformer         informers.RolloutInformer
+	ResyncPeriod             time.Duration
+	RolloutWorkQueue         workqueue.RateLimitingInterface
+	ServiceWorkQueue         workqueue.RateLimitingInterface
+	IngressWorkQueue         workqueue.RateLimitingInterface
+	MetricsServer            *metrics.MetricsServer
+	Recorder                 record.EventRecorder
+	DefaultIstioVersion      string
+}
+
+// NewController returns a new rollout controller
+func NewController(cfg ControllerConfig) *Controller {
 
 	replicaSetControl := controller.RealRSControl{
-		KubeClient: kubeclientset,
-		Recorder:   recorder,
+		KubeClient: cfg.KubeClientSet,
+		Recorder:   cfg.Recorder,
 	}
 
 	podRestarter := RolloutPodRestarter{
-		client:       kubeclientset,
-		resyncPeriod: resyncPeriod,
+		client:       cfg.KubeClientSet,
+		resyncPeriod: cfg.ResyncPeriod,
 		enqueueAfter: func(obj interface{}, duration time.Duration) {
-			controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
+			controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 		},
 	}
 
-	controller := &RolloutController{
-		namespace:              namespace,
-		kubeclientset:          kubeclientset,
-		argoprojclientset:      argoprojclientset,
-		dynamicclientset:       dynamicclientset,
-		defaultIstioVersion:    defaultIstioVersion,
+	controller := &Controller{
+		namespace:              cfg.Namespace,
+		kubeclientset:          cfg.KubeClientSet,
+		argoprojclientset:      cfg.ArgoProjClientset,
+		dynamicclientset:       cfg.DynamicClientSet,
+		defaultIstioVersion:    cfg.DefaultIstioVersion,
 		replicaSetControl:      replicaSetControl,
-		replicaSetLister:       replicaSetInformer.Lister(),
-		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
-		rolloutsIndexer:        rolloutsInformer.Informer().GetIndexer(),
-		rolloutsLister:         rolloutsInformer.Lister(),
-		rolloutsSynced:         rolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:       rolloutWorkQueue,
-		serviceWorkqueue:       serviceWorkQueue,
-		ingressWorkqueue:       ingressWorkQueue,
-		servicesLister:         servicesInformer.Lister(),
-		ingressesLister:        ingressesInformer.Lister(),
-		experimentsLister:      experimentInformer.Lister(),
-		analysisRunLister:      analysisRunInformer.Lister(),
-		analysisTemplateLister: analysisTemplateInformer.Lister(),
-		recorder:               recorder,
-		resyncPeriod:           resyncPeriod,
-		metricsServer:          metricsServer,
+		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
+		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:        cfg.RolloutsInformer.Informer().GetIndexer(),
+		rolloutsLister:         cfg.RolloutsInformer.Lister(),
+		rolloutsSynced:         cfg.RolloutsInformer.Informer().HasSynced,
+		rolloutWorkqueue:       cfg.RolloutWorkQueue,
+		serviceWorkqueue:       cfg.ServiceWorkQueue,
+		ingressWorkqueue:       cfg.IngressWorkQueue,
+		servicesLister:         cfg.ServicesInformer.Lister(),
+		ingressesLister:        cfg.IngressInformer.Lister(),
+		experimentsLister:      cfg.ExperimentInformer.Lister(),
+		analysisRunLister:      cfg.AnalysisRunInformer.Lister(),
+		analysisTemplateLister: cfg.AnalysisTemplateInformer.Lister(),
+		recorder:               cfg.Recorder,
+		resyncPeriod:           cfg.ResyncPeriod,
+		metricsServer:          cfg.MetricsServer,
 		podRestarter:           podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
-		controllerutil.EnqueueRateLimited(obj, rolloutWorkQueue)
+		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
 	}
 	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
-		controllerutil.EnqueueAfter(obj, duration, rolloutWorkQueue)
+		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
-	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.RolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueRollout,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueRollout(new)
@@ -176,7 +180,7 @@ func NewRolloutController(
 		},
 	})
 
-	util.CheckErr(rolloutsInformer.Informer().AddIndexers(cache.Indexers{
+	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
 			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
 				return istio.GetRolloutVirtualServiceKeys(rollout), nil
@@ -185,7 +189,7 @@ func NewRolloutController(
 		},
 	}))
 
-	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
@@ -204,7 +208,7 @@ func NewRolloutController(
 		},
 	})
 
-	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
@@ -228,7 +232,7 @@ func NewRolloutController(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *RolloutController) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Rollout workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
@@ -249,7 +253,7 @@ func (c *RolloutController) Run(threadiness int, stopCh <-chan struct{}) error {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
-func (c *RolloutController) syncHandler(key string) error {
+func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -347,7 +351,7 @@ func (c *RolloutController) syncHandler(key string) error {
 	return fmt.Errorf("no rollout strategy selected")
 }
 
-func (c *RolloutController) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
+func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.Canary.StableRS == "" {
 		return false
 	}

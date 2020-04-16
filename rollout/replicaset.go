@@ -23,7 +23,7 @@ const (
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
 )
 
-func (c *RolloutController) removeScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
+func (c *Controller) removeScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
 	logCtx := roCtx.Log()
 	logCtx.Infof("Removing '%s' annotation on RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
@@ -31,7 +31,7 @@ func (c *RolloutController) removeScaleDownDelay(roCtx rolloutContext, rs *appsv
 	return err
 }
 
-func (c *RolloutController) addScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
+func (c *Controller) addScaleDownDelay(roCtx rolloutContext, rs *appsv1.ReplicaSet) error {
 	logCtx := roCtx.Log()
 	logCtx.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(roCtx.Rollout()))
@@ -41,7 +41,7 @@ func (c *RolloutController) addScaleDownDelay(roCtx rolloutContext, rs *appsv1.R
 	return err
 }
 
-func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
+func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimReplicaSets().
 	rsList, err := c.replicaSetLister.ReplicaSets(r.Namespace).List(labels.Everything())
@@ -68,7 +68,7 @@ func (c *RolloutController) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*a
 	return cm.ClaimReplicaSets(rsList)
 }
 
-func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, error) {
+func (c *Controller) reconcileNewReplicaSet(roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	if newRS == nil {
@@ -84,7 +84,7 @@ func (c *RolloutController) reconcileNewReplicaSet(roCtx rolloutContext) (bool, 
 	return scaled, err
 }
 
-func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
+func (c *Controller) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) (bool, error) {
 	rollout := roCtx.Rollout()
 
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
@@ -117,7 +117,7 @@ func (c *RolloutController) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet,
 }
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (c *RolloutController) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) ([]*appsv1.ReplicaSet, bool, error) {
+func (c *Controller) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet, roCtx rolloutContext) ([]*appsv1.ReplicaSet, bool, error) {
 	logCtx := roCtx.Log()
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order

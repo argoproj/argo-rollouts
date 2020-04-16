@@ -31,7 +31,7 @@ const (
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
-func (c *ExperimentController) getReplicaSetsForExperiment(experiment *v1alpha1.Experiment) (map[string]*appsv1.ReplicaSet, error) {
+func (c *Controller) getReplicaSetsForExperiment(experiment *v1alpha1.Experiment) (map[string]*appsv1.ReplicaSet, error) {
 	rsList, err := c.replicaSetLister.ReplicaSets(experiment.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err

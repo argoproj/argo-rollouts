@@ -185,7 +185,7 @@ func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	return false
 }
 
-func (c *RolloutController) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Rollout, startTime metav1.Time, durationInSeconds int32) {
+func (c *Controller) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Rollout, startTime metav1.Time, durationInSeconds int32) {
 	logCtx := logutil.WithRollout(rollout)
 	now := metav1.Now()
 	expiredTime := startTime.Add(time.Duration(durationInSeconds) * time.Second)

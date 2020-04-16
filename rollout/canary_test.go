@@ -54,7 +54,7 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	fake := fake.Clientset{}
 	k8sfake := k8sfake.Clientset{}
-	controller := &RolloutController{
+	controller := &Controller{
 		argoprojclientset: &fake,
 		kubeclientset:     &k8sfake,
 		recorder:          &record.FakeRecorder{},

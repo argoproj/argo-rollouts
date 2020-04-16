@@ -45,7 +45,7 @@ func TestGenerateRemovePatch(t *testing.T) {
 	assert.Equal(t, removeSelectorAndManagedByPatch, generateRemovePatch(svc))
 }
 
-func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*ServiceController, *k8sfake.Clientset, *fake.Clientset, map[string]int) {
+func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*Controller, *k8sfake.Clientset, *fake.Clientset, map[string]int) {
 	client := fake.NewSimpleClientset()
 	if rollout != nil {
 		client = fake.NewSimpleClientset(rollout)
@@ -63,7 +63,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
-	c := NewServiceController(ControllerConfig{
+	c := NewController(ControllerConfig{
 		Kubeclientset:     kubeclient,
 		Argoprojclientset: client,
 		RolloutsInformer:  i.Argoproj().V1alpha1().Rollouts(),

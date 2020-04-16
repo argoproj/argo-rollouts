@@ -156,7 +156,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			bgCtx := newBlueGreenCtx(rollout, newRS, nil, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			controller := &RolloutController{
+			controller := &Controller{
 				argoprojclientset: &fake,
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},

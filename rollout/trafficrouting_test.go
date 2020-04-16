@@ -163,7 +163,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 }
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
-	rc := RolloutController{}
+	rc := Controller{}
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: pointer.Int32Ptr(10),
