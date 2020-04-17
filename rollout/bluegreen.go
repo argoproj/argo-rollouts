@@ -18,7 +18,7 @@ import (
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
-func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
+func (c *Controller) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) error {
 	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (c *RolloutController) rolloutBlueGreen(r *v1alpha1.Rollout, rsList []*apps
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc, roCtx)
 }
 
-func (c *RolloutController) reconcileStableReplicaSet(roCtx *blueGreenContext, activeSvc *corev1.Service) error {
+func (c *Controller) reconcileStableReplicaSet(roCtx *blueGreenContext, activeSvc *corev1.Service) error {
 	rollout := roCtx.Rollout()
 
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
@@ -99,7 +99,7 @@ func (c *RolloutController) reconcileStableReplicaSet(roCtx *blueGreenContext, a
 	return err
 }
 
-func (c *RolloutController) reconcileBlueGreenReplicaSets(roCtx *blueGreenContext, activeSvc *corev1.Service) error {
+func (c *Controller) reconcileBlueGreenReplicaSets(roCtx *blueGreenContext, activeSvc *corev1.Service) error {
 	logCtx := roCtx.Log()
 	oldRSs := roCtx.OlderRSs()
 	err := c.reconcileStableReplicaSet(roCtx, activeSvc)
@@ -157,7 +157,7 @@ func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 	return false
 }
 
-func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) {
+func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service, roCtx *blueGreenContext) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 
@@ -199,7 +199,7 @@ func (c *RolloutController) reconcileBlueGreenPause(activeSvc, previewSvc *corev
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
-func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, roCtx *blueGreenContext) (bool, error) {
+func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, roCtx *blueGreenContext) (bool, error) {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
@@ -255,7 +255,7 @@ func (c *RolloutController) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1
 	return hasScaled, nil
 }
 
-func (c *RolloutController) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, activeSvc *corev1.Service, roCtx *blueGreenContext) error {
+func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, activeSvc *corev1.Service, roCtx *blueGreenContext) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	oldRSs := roCtx.OlderRSs()

@@ -190,7 +190,7 @@ func TestCleanupRollouts(t *testing.T) {
 			roCtx := newBlueGreenCtx(r, nil, test.replicaSets, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			c := &RolloutController{
+			c := &Controller{
 				argoprojclientset: &fake,
 				kubeclientset:     &k8sfake,
 				recorder:          &record.FakeRecorder{},

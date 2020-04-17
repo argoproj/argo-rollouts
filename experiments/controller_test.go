@@ -305,7 +305,7 @@ func getKey(experiment *v1alpha1.Experiment, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(resync resyncFunc) (*ExperimentController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -317,16 +317,19 @@ func (f *fixture) newController(resync resyncFunc) (*ExperimentController, infor
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
 
-	c := NewExperimentController(f.kubeclient, f.client,
-		k8sI.Apps().V1().ReplicaSets(),
-		i.Argoproj().V1alpha1().Experiments(),
-		i.Argoproj().V1alpha1().AnalysisRuns(),
-		i.Argoproj().V1alpha1().AnalysisTemplates(),
-		resync(),
-		rolloutWorkqueue,
-		experimentWorkqueue,
-		metricsServer,
-		&record.FakeRecorder{})
+	c := NewController(ControllerConfig{
+		KubeClientSet:            f.kubeclient,
+		ArgoProjClientset:        f.client,
+		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
+		ExperimentsInformer:      i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ResyncPeriod:             resync(),
+		RolloutWorkQueue:         rolloutWorkqueue,
+		ExperimentWorkQueue:      experimentWorkqueue,
+		MetricsServer:            metricsServer,
+		Recorder:                 &record.FakeRecorder{},
+	})
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueExperiment = func(obj interface{}) {
@@ -377,7 +380,7 @@ func (f *fixture) runExpectError(experimentName string, startInformers bool) {
 	f.runController(experimentName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runController(experimentName string, startInformers bool, expectError bool, c *ExperimentController, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *ExperimentController {
+func (f *fixture) runController(experimentName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)

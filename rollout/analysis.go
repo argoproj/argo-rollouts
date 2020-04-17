@@ -27,7 +27,7 @@ const (
 )
 
 // getAnalysisRunsForRollout get all analysisRuns owned by the Rollout
-func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, error) {
+func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, error) {
 	analysisRuns, err := c.analysisRunLister.AnalysisRuns(rollout.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func (c *RolloutController) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout)
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileAnalysisRuns(roCtx rolloutContext) error {
+func (c *Controller) reconcileAnalysisRuns(roCtx rolloutContext) error {
 	otherArs := roCtx.OtherAnalysisRuns()
 	if roCtx.PauseContext().IsAborted() {
 		allArs := append(roCtx.CurrentAnalysisRuns(), otherArs...)
@@ -117,7 +117,7 @@ func (c *RolloutController) reconcileAnalysisRuns(roCtx rolloutContext) error {
 	return nil
 }
 
-func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -159,7 +159,7 @@ func (c *RolloutController) reconcilePrePromotionAnalysisRun(roCtx rolloutContex
 	return currentAr, nil
 }
 
-func (c *RolloutController) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -202,7 +202,7 @@ func (c *RolloutController) reconcilePostPromotionAnalysisRun(roCtx rolloutConte
 	return currentAr, nil
 }
 
-func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
@@ -240,7 +240,7 @@ func (c *RolloutController) reconcileBackgroundAnalysisRun(roCtx rolloutContext)
 	return currentAr, nil
 }
 
-func (c *RolloutController) createAnalysisRun(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) createAnalysisRun(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()
 	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS)
@@ -256,7 +256,7 @@ func (c *RolloutController) createAnalysisRun(roCtx rolloutContext, rolloutAnaly
 	return analysisutil.CreateWithCollisionCounter(roCtx.Log(), analysisRunIf, *ar)
 }
 
-func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) reconcileStepBasedAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
 	rollout := roCtx.Rollout()
 	currentArs := roCtx.CurrentAnalysisRuns()
 	newRS := roCtx.NewRS()
@@ -292,7 +292,7 @@ func (c *RolloutController) reconcileStepBasedAnalysisRun(roCtx rolloutContext) 
 	return currentAr, nil
 }
 
-func (c *RolloutController) cancelAnalysisRuns(roCtx rolloutContext, analysisRuns []*v1alpha1.AnalysisRun) error {
+func (c *Controller) cancelAnalysisRuns(roCtx rolloutContext, analysisRuns []*v1alpha1.AnalysisRun) error {
 	logctx := roCtx.Log()
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
@@ -313,7 +313,7 @@ func (c *RolloutController) cancelAnalysisRuns(roCtx rolloutContext, analysisRun
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *RolloutController) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	r := roCtx.Rollout()
 	logctx := roCtx.Log()
 	revision := r.Annotations[annotations.RevisionAnnotation]
@@ -366,7 +366,7 @@ func (c *RolloutController) newAnalysisRunFromRollout(roCtx rolloutContext, roll
 	return run, nil
 }
 
-func (c *RolloutController) deleteAnalysisRuns(roCtx rolloutContext, ars []*v1alpha1.AnalysisRun) error {
+func (c *Controller) deleteAnalysisRuns(roCtx rolloutContext, ars []*v1alpha1.AnalysisRun) error {
 	for i := range ars {
 		ar := ars[i]
 		if ar.DeletionTimestamp != nil {

@@ -46,7 +46,7 @@ func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r
 }
 
 // switchSelector switch the selector on an existing service to a new value
-func (c RolloutController) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
+func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
@@ -67,7 +67,7 @@ func (c RolloutController) switchServiceSelector(service *corev1.Service, newRol
 	return err
 }
 
-func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) error {
+func (c *Controller) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
@@ -85,7 +85,7 @@ func (c *RolloutController) reconcilePreviewService(roCtx *blueGreenContext, pre
 	return nil
 }
 
-func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) error {
+func (c *Controller) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	allRSs := roCtx.AllRSs()
@@ -122,7 +122,7 @@ func (c *RolloutController) reconcileActiveService(roCtx *blueGreenContext, prev
 }
 
 // getReferencedService returns service references in rollout spec and sets warning condition if service does not exist
-func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
+func (c *Controller) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
 	svc, err := c.servicesLister.Services(r.Namespace).Get(serviceName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -146,7 +146,7 @@ func (c *RolloutController) getReferencedService(r *v1alpha1.Rollout, serviceNam
 	return svc, nil
 }
 
-func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
@@ -167,7 +167,7 @@ func (c *RolloutController) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*c
 	return previewSvc, activeSvc, nil
 }
 
-func (c *RolloutController) reconcileStableAndCanaryService(roCtx *canaryContext) error {
+func (c *Controller) reconcileStableAndCanaryService(roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	stableRS := roCtx.StableRS()

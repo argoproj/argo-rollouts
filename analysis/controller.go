@@ -26,8 +26,8 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// AnalysisController is the controller implementation for Analysis resources
-type AnalysisController struct {
+// Controller is the controller implementation for Analysis resources
+type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// analysisclientset is a clientset for our own API group
@@ -61,45 +61,49 @@ type AnalysisController struct {
 	resyncPeriod time.Duration
 }
 
-// NewAnalysisController returns a new analysis controller
-func NewAnalysisController(
-	kubeclientset kubernetes.Interface,
-	argoProjClientset clientset.Interface,
-	analysisRunInformer informers.AnalysisRunInformer,
-	secretInformer coreinformers.SecretInformer,
-	jobInformer batchinformers.JobInformer,
-	resyncPeriod time.Duration,
-	analysisRunWorkQueue workqueue.RateLimitingInterface,
-	metricsServer *metrics.MetricsServer,
-	recorder record.EventRecorder) *AnalysisController {
+// ControllerConfig describes the data required to instantiate a new analysis controller
+type ControllerConfig struct {
+	KubeClientSet        kubernetes.Interface
+	ArgoProjClientset    clientset.Interface
+	AnalysisRunInformer  informers.AnalysisRunInformer
+	SecretInformer       coreinformers.SecretInformer
+	JobInformer          batchinformers.JobInformer
+	ResyncPeriod         time.Duration
+	AnalysisRunWorkQueue workqueue.RateLimitingInterface
+	MetricsServer        *metrics.MetricsServer
+	Recorder             record.EventRecorder
+}
 
-	controller := &AnalysisController{
-		kubeclientset:        kubeclientset,
-		argoProjClientset:    argoProjClientset,
-		analysisRunLister:    analysisRunInformer.Lister(),
-		metricsServer:        metricsServer,
-		analysisRunWorkQueue: analysisRunWorkQueue,
-		secretLister:         secretInformer.Lister(),
-		jobInformer:          jobInformer,
-		analysisRunSynced:    analysisRunInformer.Informer().HasSynced,
-		recorder:             recorder,
-		resyncPeriod:         resyncPeriod,
+// NewController returns a new analysis controller
+func NewController(cfg ControllerConfig) *Controller {
+
+	controller := &Controller{
+		kubeclientset:        cfg.KubeClientSet,
+		argoProjClientset:    cfg.ArgoProjClientset,
+		analysisRunLister:    cfg.AnalysisRunInformer.Lister(),
+		metricsServer:        cfg.MetricsServer,
+		analysisRunWorkQueue: cfg.AnalysisRunWorkQueue,
+		secretLister:         cfg.SecretInformer.Lister(),
+		jobInformer:          cfg.JobInformer,
+		analysisRunSynced:    cfg.AnalysisRunInformer.Informer().HasSynced,
+		recorder:             cfg.Recorder,
+		resyncPeriod:         cfg.ResyncPeriod,
 	}
 
 	controller.enqueueAnalysis = func(obj interface{}) {
-		controllerutil.Enqueue(obj, analysisRunWorkQueue)
+		controllerutil.Enqueue(obj, cfg.AnalysisRunWorkQueue)
 	}
 	controller.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
-		controllerutil.EnqueueAfter(obj, duration, analysisRunWorkQueue)
+		controllerutil.EnqueueAfter(obj, duration, cfg.AnalysisRunWorkQueue)
 	}
 
 	providerFactory := metricproviders.ProviderFactory{
 		KubeClient: controller.kubeclientset,
-		JobLister:  jobInformer.Lister(),
+		JobLister:  cfg.JobInformer.Lister(),
 	}
 	controller.newProvider = providerFactory.NewProvider
 
-	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.JobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controller.enqueueIfCompleted(obj)
 		},
@@ -113,7 +117,7 @@ func NewAnalysisController(
 
 	log.Info("Setting up analysis event handlers")
 	// Set up an event handler for when analysis resources change
-	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueAnalysis,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueAnalysis(new)
@@ -123,7 +127,7 @@ func NewAnalysisController(
 	return controller
 }
 
-func (c *AnalysisController) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting analysis workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
@@ -137,7 +141,7 @@ func (c *AnalysisController) Run(threadiness int, stopCh <-chan struct{}) error 
 	return nil
 }
 
-func (c *AnalysisController) syncHandler(key string) error {
+func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -169,7 +173,7 @@ func (c *AnalysisController) syncHandler(key string) error {
 	return c.persistAnalysisRunStatus(run, newRun.Status)
 }
 
-func (c *AnalysisController) enqueueIfCompleted(obj interface{}) {
+func (c *Controller) enqueueIfCompleted(obj interface{}) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok {
 		return

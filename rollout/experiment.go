@@ -116,7 +116,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 
 // getExperimentsForRollout get all experiments owned by the Rollout
 // changing steps in the Rollout Spec would cause multiple experiments to exist which is why it returns an array
-func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.Experiment, error) {
+func (c *Controller) getExperimentsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.Experiment, error) {
 	experiments, err := c.experimentsLister.Experiments(rollout.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (c *RolloutController) getExperimentsForRollout(rollout *v1alpha1.Rollout) 
 	return ownedByRollout, nil
 }
 
-func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
+func (c *Controller) reconcileExperiments(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
 	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
@@ -205,7 +205,7 @@ func (c *RolloutController) reconcileExperiments(roCtx *canaryContext) error {
 
 // createExperimentWithCollisionHandling creates the given experiment, but with a new name
 // in the event that an experiment with the same name already exists
-func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryContext, newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+func (c *Controller) createExperimentWithCollisionHandling(roCtx *canaryContext, newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
 	collisionCount := 1
 	baseName := newEx.Name
 	for {
@@ -234,7 +234,7 @@ func (c *RolloutController) createExperimentWithCollisionHandling(roCtx *canaryC
 	}
 }
 
-func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {
+func (c *Controller) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {
 	for i := range exs {
 		ex := exs[i]
 		if ex == nil {
@@ -251,7 +251,7 @@ func (c *RolloutController) cancelExperiments(roCtx *canaryContext, exs []*v1alp
 	return nil
 }
 
-func (c *RolloutController) deleteExperiments(roCtx rolloutContext, exs []*v1alpha1.Experiment) error {
+func (c *Controller) deleteExperiments(roCtx rolloutContext, exs []*v1alpha1.Experiment) error {
 	for i := range exs {
 		ex := exs[i]
 		if ex.DeletionTimestamp != nil {

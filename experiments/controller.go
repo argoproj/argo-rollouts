@@ -29,8 +29,8 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// ExperimentController is the controller implementation for Experiment resources
-type ExperimentController struct {
+// Controller is the controller implementation for Experiment resources
+type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// experimentsclientset is a clientset for our own API group
@@ -68,55 +68,59 @@ type ExperimentController struct {
 	resyncPeriod time.Duration
 }
 
-// NewExperimentController returns a new experiment controller
-func NewExperimentController(
-	kubeclientset kubernetes.Interface,
-	argoProjClientset clientset.Interface,
-	replicaSetInformer appsinformers.ReplicaSetInformer,
-	experimentsInformer informers.ExperimentInformer,
-	analysisRunInformer informers.AnalysisRunInformer,
-	analysisTemplateInformer informers.AnalysisTemplateInformer,
-	resyncPeriod time.Duration,
-	rolloutWorkQueue workqueue.RateLimitingInterface,
-	experimentWorkQueue workqueue.RateLimitingInterface,
-	metricsServer *metrics.MetricsServer,
-	recorder record.EventRecorder) *ExperimentController {
+// ControllerConfig describes the data required to instantiate a new analysis controller
+type ControllerConfig struct {
+	KubeClientSet            kubernetes.Interface
+	ArgoProjClientset        clientset.Interface
+	ReplicaSetInformer       appsinformers.ReplicaSetInformer
+	ExperimentsInformer      informers.ExperimentInformer
+	AnalysisRunInformer      informers.AnalysisRunInformer
+	AnalysisTemplateInformer informers.AnalysisTemplateInformer
+	ResyncPeriod             time.Duration
+	RolloutWorkQueue         workqueue.RateLimitingInterface
+	ExperimentWorkQueue      workqueue.RateLimitingInterface
+	MetricsServer            *metrics.MetricsServer
+	Recorder                 record.EventRecorder
+}
+
+// NewController returns a new experiment controller
+func NewController(cfg ControllerConfig) *Controller {
 
 	replicaSetControl := controller.RealRSControl{
-		KubeClient: kubeclientset,
-		Recorder:   recorder,
+		KubeClient: cfg.KubeClientSet,
+		Recorder:   cfg.Recorder,
 	}
 
-	controller := &ExperimentController{
-		kubeclientset:          kubeclientset,
-		argoProjClientset:      argoProjClientset,
+	controller := &Controller{
+		kubeclientset:          cfg.KubeClientSet,
+		argoProjClientset:      cfg.ArgoProjClientset,
 		replicaSetControl:      replicaSetControl,
-		replicaSetLister:       replicaSetInformer.Lister(),
-		experimentsLister:      experimentsInformer.Lister(),
-		analysisTemplateLister: analysisTemplateInformer.Lister(),
-		analysisRunLister:      analysisRunInformer.Lister(),
-		metricsServer:          metricsServer,
-		rolloutWorkqueue:       rolloutWorkQueue,
-		experimentWorkqueue:    experimentWorkQueue,
+		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
+		experimentsLister:      cfg.ExperimentsInformer.Lister(),
+		analysisTemplateLister: cfg.AnalysisTemplateInformer.Lister(),
+		analysisRunLister:      cfg.AnalysisRunInformer.Lister(),
+		metricsServer:          cfg.MetricsServer,
+		rolloutWorkqueue:       cfg.RolloutWorkQueue,
+		experimentWorkqueue:    cfg.ExperimentWorkQueue,
 
-		replicaSetSynced:       replicaSetInformer.Informer().HasSynced,
-		experimentSynced:       experimentsInformer.Informer().HasSynced,
-		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced: analysisTemplateInformer.Informer().HasSynced,
-		recorder:               recorder,
-		resyncPeriod:           resyncPeriod,
+		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,
+		experimentSynced:       cfg.ExperimentsInformer.Informer().HasSynced,
+		analysisRunSynced:      cfg.AnalysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced: cfg.AnalysisTemplateInformer.Informer().HasSynced,
+		recorder:               cfg.Recorder,
+		resyncPeriod:           cfg.ResyncPeriod,
 	}
 
 	controller.enqueueExperiment = func(obj interface{}) {
-		controllerutil.Enqueue(obj, experimentWorkQueue)
+		controllerutil.Enqueue(obj, cfg.ExperimentWorkQueue)
 	}
 	controller.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
-		controllerutil.EnqueueAfter(obj, duration, experimentWorkQueue)
+		controllerutil.EnqueueAfter(obj, duration, cfg.ExperimentWorkQueue)
 	}
 
 	log.Info("Setting up experiments event handlers")
 	// Set up an event handler for when experiment resources change
-	experimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueExperiment,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueExperiment(new)
@@ -124,10 +128,10 @@ func NewExperimentController(
 		DeleteFunc: controller.enqueueExperiment,
 	})
 
-	experimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			enqueueRollout := func(obj interface{}) {
-				controllerutil.Enqueue(obj, rolloutWorkQueue)
+				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
@@ -140,19 +144,19 @@ func NewExperimentController(
 				return
 			}
 			enqueueRollout := func(obj interface{}) {
-				controllerutil.Enqueue(obj, rolloutWorkQueue)
+				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, enqueueRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
 			enqueueRollout := func(obj interface{}) {
-				controllerutil.Enqueue(obj, rolloutWorkQueue)
+				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
 	})
 
-	replicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
@@ -178,7 +182,7 @@ func NewExperimentController(
 		},
 	})
 
-	analysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controller.enqueueIfCompleted(obj)
 		},
@@ -192,7 +196,8 @@ func NewExperimentController(
 	return controller
 }
 
-func (ec *ExperimentController) Run(threadiness int, stopCh <-chan struct{}) error {
+// Run starts the controller threads
+func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Experiment workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
@@ -206,7 +211,7 @@ func (ec *ExperimentController) Run(threadiness int, stopCh <-chan struct{}) err
 	return nil
 }
 
-func (ec *ExperimentController) syncHandler(key string) error {
+func (ec *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -271,7 +276,7 @@ func (ec *ExperimentController) syncHandler(key string) error {
 	return ec.persistExperimentStatus(experiment, newStatus)
 }
 
-func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
+func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
 	logCtx := logutil.WithExperiment(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Experiment{
@@ -299,12 +304,12 @@ func (ec *ExperimentController) persistExperimentStatus(orig *v1alpha1.Experimen
 }
 
 // enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
-func (c *ExperimentController) enqueueIfCompleted(obj interface{}) {
+func (ec *Controller) enqueueIfCompleted(obj interface{}) {
 	run, ok := obj.(*v1alpha1.AnalysisRun)
 	if !ok {
 		return
 	}
 	if run.Status.Phase.Completed() {
-		controllerutil.EnqueueParentObject(run, register.ExperimentKind, c.enqueueExperiment)
+		controllerutil.EnqueueParentObject(run, register.ExperimentKind, ec.enqueueExperiment)
 	}
 }

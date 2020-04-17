@@ -61,10 +61,10 @@ const (
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	metricsServer        *metrics.MetricsServer
-	rolloutController    *rollout.RolloutController
-	experimentController *experiments.ExperimentController
-	analysisController   *analysis.AnalysisController
-	serviceController    *service.ServiceController
+	rolloutController    *rollout.Controller
+	experimentController *experiments.Controller
+	analysisController   *analysis.Controller
+	serviceController    *service.Controller
 	ingressController    *ingress.Controller
 
 	rolloutSynced          cache.InformerSynced
@@ -135,51 +135,54 @@ func NewManager(
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
-	rolloutController := rollout.NewRolloutController(
-		namespace,
-		kubeclientset,
-		argoprojclientset,
-		dynamicclientset,
-		experimentsInformer,
-		analysisRunInformer,
-		analysisTemplateInformer,
-		replicaSetInformer,
-		servicesInformer,
-		ingressesInformer,
-		rolloutsInformer,
-		resyncPeriod,
-		rolloutWorkqueue,
-		serviceWorkqueue,
-		ingressWorkqueue,
-		metricsServer,
-		recorder,
-		defaultIstioVersion)
+	rolloutController := rollout.NewController(rollout.ControllerConfig{
+		Namespace:                namespace,
+		KubeClientSet:            kubeclientset,
+		ArgoProjClientset:        argoprojclientset,
+		DynamicClientSet:         dynamicclientset,
+		ExperimentInformer:       experimentsInformer,
+		AnalysisRunInformer:      analysisRunInformer,
+		AnalysisTemplateInformer: analysisTemplateInformer,
+		ReplicaSetInformer:       replicaSetInformer,
+		ServicesInformer:         servicesInformer,
+		IngressInformer:          ingressesInformer,
+		RolloutsInformer:         rolloutsInformer,
+		ResyncPeriod:             resyncPeriod,
+		RolloutWorkQueue:         rolloutWorkqueue,
+		ServiceWorkQueue:         serviceWorkqueue,
+		IngressWorkQueue:         ingressWorkqueue,
+		MetricsServer:            metricsServer,
+		Recorder:                 recorder,
+		DefaultIstioVersion:      defaultIstioVersion,
+	})
 
-	experimentController := experiments.NewExperimentController(
-		kubeclientset,
-		argoprojclientset,
-		replicaSetInformer,
-		experimentsInformer,
-		analysisRunInformer,
-		analysisTemplateInformer,
-		resyncPeriod,
-		rolloutWorkqueue,
-		experimentWorkqueue,
-		metricsServer,
-		recorder)
+	experimentController := experiments.NewController(experiments.ControllerConfig{
+		KubeClientSet:            kubeclientset,
+		ArgoProjClientset:        argoprojclientset,
+		ReplicaSetInformer:       replicaSetInformer,
+		ExperimentsInformer:      experimentsInformer,
+		AnalysisRunInformer:      analysisRunInformer,
+		AnalysisTemplateInformer: analysisTemplateInformer,
+		ResyncPeriod:             resyncPeriod,
+		RolloutWorkQueue:         rolloutWorkqueue,
+		ExperimentWorkQueue:      experimentWorkqueue,
+		MetricsServer:            metricsServer,
+		Recorder:                 recorder,
+	})
 
-	analysisController := analysis.NewAnalysisController(
-		kubeclientset,
-		argoprojclientset,
-		analysisRunInformer,
-		secretInformer,
-		jobInformer,
-		resyncPeriod,
-		analysisRunWorkqueue,
-		metricsServer,
-		recorder)
+	analysisController := analysis.NewController(analysis.ControllerConfig{
+		KubeClientSet:        kubeclientset,
+		ArgoProjClientset:    argoprojclientset,
+		AnalysisRunInformer:  analysisRunInformer,
+		SecretInformer:       secretInformer,
+		JobInformer:          jobInformer,
+		ResyncPeriod:         resyncPeriod,
+		AnalysisRunWorkQueue: analysisRunWorkqueue,
+		MetricsServer:        metricsServer,
+		Recorder:             recorder,
+	})
 
-	serviceController := service.NewServiceController(service.ControllerConfig{
+	serviceController := service.NewController(service.ControllerConfig{
 		Kubeclientset:     kubeclientset,
 		Argoprojclientset: argoprojclientset,
 		RolloutsInformer:  rolloutsInformer,

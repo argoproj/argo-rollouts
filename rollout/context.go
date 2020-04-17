@@ -128,20 +128,20 @@ func (bgCtx *blueGreenContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 	return bgCtx.otherArs
 }
 
-func (cCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
-	cCtx.currentArs = ars
+func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
+	bgCtx.currentArs = ars
 	currPrePromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePrePromotionLabel)
-	if currPrePromoAr != nil && !cCtx.PauseContext().IsAborted() {
+	if currPrePromoAr != nil && !bgCtx.PauseContext().IsAborted() {
 		switch currPrePromoAr.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			cCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
+			bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 		}
 	}
 	currPostPromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePostPromotionLabel)
-	if currPostPromoAr != nil && !cCtx.PauseContext().IsAborted() {
+	if currPostPromoAr != nil && !bgCtx.PauseContext().IsAborted() {
 		switch currPostPromoAr.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			cCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
+			bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
 		}
 	}
 }

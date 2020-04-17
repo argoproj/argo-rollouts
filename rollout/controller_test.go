@@ -374,7 +374,7 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(resync resyncFunc) (*RolloutController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
@@ -390,26 +390,26 @@ func (f *fixture) newController(resync resyncFunc) (*RolloutController, informer
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
 
-	c := NewRolloutController(
-		metav1.NamespaceAll,
-		f.kubeclient,
-		f.client,
-		nil,
-		i.Argoproj().V1alpha1().Experiments(),
-		i.Argoproj().V1alpha1().AnalysisRuns(),
-		i.Argoproj().V1alpha1().AnalysisTemplates(),
-		k8sI.Apps().V1().ReplicaSets(),
-		k8sI.Core().V1().Services(),
-		k8sI.Extensions().V1beta1().Ingresses(),
-		i.Argoproj().V1alpha1().Rollouts(),
-		resync(),
-		rolloutWorkqueue,
-		serviceWorkqueue,
-		ingressWorkqueue,
-		metricsServer,
-		&record.FakeRecorder{},
-		"v1alpha3",
-	)
+	c := NewController(ControllerConfig{
+		Namespace:                metav1.NamespaceAll,
+		KubeClientSet:            f.kubeclient,
+		ArgoProjClientset:        f.client,
+		DynamicClientSet:         nil,
+		ExperimentInformer:       i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
+		ServicesInformer:         k8sI.Core().V1().Services(),
+		IngressInformer:          k8sI.Extensions().V1beta1().Ingresses(),
+		RolloutsInformer:         i.Argoproj().V1alpha1().Rollouts(),
+		ResyncPeriod:             resync(),
+		RolloutWorkQueue:         rolloutWorkqueue,
+		ServiceWorkQueue:         serviceWorkqueue,
+		IngressWorkQueue:         ingressWorkqueue,
+		MetricsServer:            metricsServer,
+		Recorder:                 &record.FakeRecorder{},
+		DefaultIstioVersion:      "v1alpha3",
+	})
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
@@ -473,7 +473,7 @@ func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *RolloutController, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *RolloutController {
+func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)

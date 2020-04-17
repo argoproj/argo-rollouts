@@ -40,7 +40,7 @@ type metricTask struct {
 	incompleteMeasurement *v1alpha1.Measurement
 }
 
-func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
+func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
 	if origRun.Status.Phase.Completed() {
 		return origRun
 	}
@@ -109,7 +109,7 @@ func (c *AnalysisController) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun)
 // resolveMetricArgs resolves args for single metric in AnalysisRun
 // Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
-func (c *AnalysisController) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
+func (c *Controller) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
 	metricBytes, err := json.Marshal(metric)
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
-func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
+func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
 	//create set of secret values for redaction
 	secretSet := map[string]bool{}
 	for i, arg := range args {
@@ -262,7 +262,7 @@ func (c *AnalysisController) resolveArgs(tasks []metricTask, args []v1alpha1.Arg
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
+func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
@@ -376,7 +376,7 @@ func (c *AnalysisController) runMeasurements(run *v1alpha1.AnalysisRun, tasks []
 // assessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func (c *AnalysisController) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.AnalysisPhase, string) {
+func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.AnalysisPhase, string) {
 	var worstStatus v1alpha1.AnalysisPhase
 	var worstMessage string
 	terminating := analysisutil.IsTerminating(run)
@@ -574,7 +574,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 }
 
 // garbageCollectMeasurements trims the measurement history to the specified limit and GCs old measurements
-func (c *AnalysisController) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int) error {
+func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int) error {
 	var errors []error
 
 	metricsByName := make(map[string]v1alpha1.Metric)

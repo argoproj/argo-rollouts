@@ -82,7 +82,7 @@ func getKey(analysisRun *v1alpha1.AnalysisRun, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset()
 
@@ -96,16 +96,17 @@ func (f *fixture) newController(resync resyncFunc) (*AnalysisController, informe
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
 
-	c := NewAnalysisController(
-		f.kubeclient,
-		f.client,
-		i.Argoproj().V1alpha1().AnalysisRuns(),
-		k8sI.Core().V1().Secrets(),
-		k8sI.Batch().V1().Jobs(),
-		resync(),
-		analysisRunWorkqueue,
-		metricsServer,
-		&record.FakeRecorder{})
+	c := NewController(ControllerConfig{
+		KubeClientSet:        f.kubeclient,
+		ArgoProjClientset:    f.client,
+		AnalysisRunInformer:  i.Argoproj().V1alpha1().AnalysisRuns(),
+		SecretInformer:       k8sI.Core().V1().Secrets(),
+		JobInformer:          k8sI.Batch().V1().Jobs(),
+		ResyncPeriod:         resync(),
+		AnalysisRunWorkQueue: analysisRunWorkqueue,
+		MetricsServer:        metricsServer,
+		Recorder:             &record.FakeRecorder{},
+	})
 
 	c.enqueueAnalysis = func(obj interface{}) {
 		var key string
@@ -150,7 +151,7 @@ func (f *fixture) runExpectError(analysisRunName string, startInformers bool) {
 	f.runController(analysisRunName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runController(analysisRunName string, startInformers bool, expectError bool, c *AnalysisController, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *AnalysisController {
+func (f *fixture) runController(analysisRunName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)

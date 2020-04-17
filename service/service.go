@@ -50,6 +50,7 @@ const (
 }`
 )
 
+// ControllerConfig describes the data required to instantiate a new service controller
 type ControllerConfig struct {
 	Kubeclientset     kubernetes.Interface
 	Argoprojclientset clientset.Interface
@@ -65,7 +66,8 @@ type ControllerConfig struct {
 	MetricsServer *metrics.MetricsServer
 }
 
-type ServiceController struct {
+// Controller describes a service controller
+type Controller struct {
 	kubeclientset     kubernetes.Interface
 	argoprojclientset clientset.Interface
 	rolloutsIndexer   cache.Indexer
@@ -80,10 +82,10 @@ type ServiceController struct {
 	enqueueRollout func(obj interface{})
 }
 
-// NewServiceController returns a new service controller
-func NewServiceController(cfg ControllerConfig) *ServiceController {
+// NewController returns a new service controller
+func NewController(cfg ControllerConfig) *Controller {
 
-	controller := &ServiceController{
+	controller := &Controller{
 		kubeclientset:     cfg.Kubeclientset,
 		argoprojclientset: cfg.Argoprojclientset,
 		rolloutsIndexer:   cfg.RolloutsInformer.Informer().GetIndexer(),
@@ -124,7 +126,8 @@ func NewServiceController(cfg ControllerConfig) *ServiceController {
 	return controller
 }
 
-func (c *ServiceController) Run(threadiness int, stopCh <-chan struct{}) error {
+// Run starts the controller threads
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Service workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
@@ -139,7 +142,7 @@ func (c *ServiceController) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *ServiceController) syncService(key string) error {
+func (c *Controller) syncService(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -189,7 +192,7 @@ func generateRemovePatch(svc *corev1.Service) string {
 }
 
 // getRolloutsByService returns all rollouts which are referencing specified service
-func (c *ServiceController) getRolloutsByService(namespace string, serviceName string) ([]*v1alpha1.Rollout, error) {
+func (c *Controller) getRolloutsByService(namespace string, serviceName string) ([]*v1alpha1.Rollout, error) {
 	objs, err := c.rolloutsIndexer.ByIndex(serviceIndexName, fmt.Sprintf("%s/%s", namespace, serviceName))
 	if err != nil {
 		return nil, err
