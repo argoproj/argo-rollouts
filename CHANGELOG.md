@@ -1,5 +1,20 @@
 # Changelog
 
+# v0.8.1
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.1/manifests/install.yaml
+
+## Changes since v0.8.0
+### General
+* fix: Remove validation for limits and requests (#480)
+
+### Rollouts
+* fix: Duplicate StableRS to canary.StableRS (#483)
+
+### Kubectl plugin
+* fix: Make kubectl plugin backwards compat with canary.stableRS (#482)
+
 # v0.8.0
 ## Quick Start
 kubectl create namespace argo-rollouts
