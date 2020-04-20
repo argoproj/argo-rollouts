@@ -52,13 +52,13 @@ spec:
           value: guestbook-svc.default.svc.cluster.local
       steps:
       - setWeight: 20
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
       - setWeight: 40
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
       - setWeight: 60
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
       - setWeight: 80
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
 ```
 
 ```yaml tab="AnalysisTemplate"
@@ -116,7 +116,7 @@ spec:
     canary: 
       steps:
       - setWeight: 20
-      - pause: {duration: 300}
+      - pause: {duration: 5m}
       - analysis:
           templates:
           - templateName: success-rate
@@ -507,9 +507,9 @@ spec:
         startingStep: 2
       steps:
       - setWeight: 20
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
       - setWeight: 40
-      - pause: {duration: 600}
+      - pause: {duration: 10m}
 ```
 
 ## Experimentation (e.g. Mann-Whitney Analysis)
@@ -539,7 +539,7 @@ spec:
     canary: 
       steps:
       - experiment:
-          duration: 3600
+          duration: 1h
           templates:
           - name: baseline
             specRef: stable
@@ -597,7 +597,7 @@ kind: Experiment
 name:
   name: guestbook-6c54544bf9-0
 spec:
-  duration: 3600
+  duration: 1h
   templates:
   - name: baseline
     replicas: 1
