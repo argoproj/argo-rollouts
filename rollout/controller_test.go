@@ -277,6 +277,8 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.StableRS = stableRS
+	//TODO(dthomson) Remove in v0.9
+	newRollout.Status.Canary.StableRS = stableRS
 	if pause {
 		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
@@ -1176,6 +1178,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 
 	r.Status.CurrentPodHash = "fakepodhash"
 	r.Status.StableRS = "fakepodhash"
+	r.Status.Canary.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "fakeobservedgeneration"
@@ -1212,16 +1215,30 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 }
 
 func TestMigrateCanaryStableRS(t *testing.T) {
-	f := newFixture(t)
+	t.Run("Copy canary.stableRS to stableRS", func(t *testing.T) {
+		f := newFixture(t)
 
-	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	r.Status.Canary.StableRS = "fakepodhash"
-	index := f.expectUpdateRolloutAction(r)
-	f.rolloutLister = append(f.rolloutLister, r)
-	f.objects = append(f.objects, r)
+		r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Status.Canary.StableRS = "fakepodhash"
+		index := f.expectUpdateRolloutAction(r)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
 
-	f.run(getKey(r, t))
-	updatedRollout := f.getUpdatedRollout(index)
-	assert.Equal(t, "fakepodhash", updatedRollout.Status.StableRS)
-	assert.Equal(t, "", updatedRollout.Status.Canary.StableRS)
+		f.run(getKey(r, t))
+		updatedRollout := f.getUpdatedRollout(index)
+		assert.Equal(t, "fakepodhash", updatedRollout.Status.StableRS)
+	})
+	t.Run("Copy StableRS to canary.stableRS", func(t *testing.T) {
+		f := newFixture(t)
+
+		r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Status.StableRS = "fakepodhash"
+		index := f.expectUpdateRolloutAction(r)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
+		f.run(getKey(r, t))
+		updatedRollout := f.getUpdatedRollout(index)
+		assert.Equal(t, "fakepodhash", updatedRollout.Status.Canary.StableRS)
+	})
 }

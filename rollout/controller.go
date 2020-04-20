@@ -348,14 +348,24 @@ func (c *RolloutController) syncHandler(key string) error {
 }
 
 func (c *RolloutController) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
-	if rollout.Status.Canary.StableRS == "" {
+	if rollout.Spec.Strategy.Canary == nil {
 		return false
 	}
-	rollout.Status.StableRS = rollout.Status.Canary.StableRS
-	rollout.Status.Canary.StableRS = ""
+	if rollout.Status.StableRS == "" && rollout.Status.Canary.StableRS == "" {
+		return false
+	}
+	if rollout.Status.StableRS != "" && rollout.Status.Canary.StableRS != "" {
+		return false
+	}
+	stableRS := rollout.Status.StableRS
+	if rollout.Status.Canary.StableRS != "" {
+		stableRS = rollout.Status.Canary.StableRS
+	}
+	rollout.Status.Canary.StableRS = stableRS
+	rollout.Status.StableRS = stableRS
 	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
 	if err != nil {
-		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS")
+		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS: %s", err.Error())
 	}
 	return true
 }
