@@ -305,11 +305,14 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	expectedPatchWithoutStableRS := `{
 		"status": {
 			"stableRS": "%s",
+			"canary": {
+				"stableRS": "%s"
+			},
 			"conditions": %s
 		}
 	}`
 
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, ""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, ""))
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -426,6 +429,9 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	expectedPatch := `{
 		"status":{
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
+			"canary": {
+				"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
+			},
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s
 		}
@@ -465,6 +471,9 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	expectedPatchWithSub := `{
 		"status":{
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
+			"canary": {
+				"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `"
+			},
 			"currentStepIndex":1,
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s
@@ -484,6 +493,7 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -519,6 +529,7 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Status.StableRS = "895c6c4f9"
+	r1.Status.Canary.StableRS = "895c6c4f9"
 	r2 := bumpVersion(r1)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -548,6 +559,7 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Status.StableRS = r1.Status.CurrentPodHash
+	r1.Status.Canary.StableRS = r1.Status.CurrentPodHash
 
 	r2 := bumpVersion(r1)
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -579,6 +591,7 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.StableRS = r1.Status.CurrentPodHash
+	r1.Status.Canary.StableRS = r1.Status.CurrentPodHash
 
 	r2 := bumpVersion(r1)
 
@@ -1015,6 +1028,7 @@ func TestCanaryRolloutWithStableService(t *testing.T) {
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.StableService = stableSvc.Name
 	rollout.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
@@ -1034,6 +1048,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	rs := newReplicaSetWithStatus(rollout, 0, 0)
 	rollout.Spec.Strategy.Canary.StableService = "invalid-stable"
 	rollout.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rollout.Status.Canary.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
