@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/ghodss/yaml"
 
@@ -19,6 +20,24 @@ var crdPaths = map[string]string{
 	"Experiment":       "manifests/crds/experiment-crd.yaml",
 	"AnalysisTemplate": "manifests/crds/analysis-template-crd.yaml",
 	"AnalysisRun":      "manifests/crds/analysis-run-crd.yaml",
+}
+
+func removeValidation(un *unstructured.Unstructured, path string) {
+	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
+	for _, part := range strings.Split(path, ".") {
+		if strings.HasSuffix(part, "[]") {
+			part = strings.TrimSuffix(part, "[]")
+			schemaPath = append(schemaPath, "properties", part, "items")
+		} else {
+			schemaPath = append(schemaPath, "properties", part)
+		}
+	}
+	_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
+	checkErr(err)
+	if !ok {
+		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
+	}
+	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
@@ -145,16 +164,34 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
+		removeValidation(un, "spec.template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "Experiment":
+		removeValidation(un, "spec.templates[].template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "AnalysisTemplate", "AnalysisRun":
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
