@@ -236,6 +236,12 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
+		ro.Status.Canary.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "def5678"
+		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+	}
+	{
+		ro := newCanaryRollout()
 		ro.Status.BlueGreen.ActiveSelector = ""
 		assert.Equal(t, "Progressing", RolloutStatusString(ro))
 	}
