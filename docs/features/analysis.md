@@ -316,7 +316,7 @@ spec:
         key: apiToken
   metrics:
   - name: webmetric
-    successCondition: "true"
+    successCondition: result == 'true'
     provider:
       web:
         # paceholders are resolved when an AnalysisRun is created 
@@ -733,12 +733,12 @@ data:
 
 ## Web Metrics
 
-A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. 
+A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the `jsonPath` expression will be assigned to the `result` variable that can be referenced in the `successCondition` and `failureCondition` expressions.
 
 ```yaml
   metrics:
   - name: webmetric
-    successCondition: "true"
+    successCondition: result == 'true'
     provider:
       web:
         url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
@@ -749,7 +749,7 @@ A webhook can be used to call out to some external service to obtain the measure
         jsonPath: "{$.results.ok}" 
 ```
 
-In this example, the measurement is successful if the json response returns `"true"` for the nested `ok` field. 
+In this example, the measurement is successful if the json response returns `"true"` for the nested `ok` field.  
 
 ```json
 { "results": { "ok": "true", "successPercent": 0.95 } }
