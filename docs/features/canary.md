@@ -2,7 +2,7 @@
 A canary rollout is a deployment strategy where the operator releases a new version of their application to a small percentage of the production traffic. 
 
 ## Overview
-Since there is no agreed upon standard for a canary deployment, the rollouts controller allows users to outline how they want to run their canary deployment. Users can define a list of steps the controller uses to manipulate the RepliaSets where there is a change to the `.spec.template`. Each step will be evaluated before the new ReplicaSet is promoted to the stable version, and the old version is completely scaled down.
+Since there is no agreed upon standard for a canary deployment, the rollouts controller allows users to outline how they want to run their canary deployment. Users can define a list of steps the controller uses to manipulate the ReplicaSets where there is a change to the `.spec.template`. Each step will be evaluated before the new ReplicaSet is promoted to the stable version, and the old version is completely scaled down.
 
 Each step can have one of two fields. The `setWeight` field dictates the percentage of traffic that should be sent to the canary, and the `pause` struct instructs the rollout to pause.  When the controller reaches a `pause` step for a rollout, it will set adds a PauseCondition struct to the `.status.PauseConditions` field. If the `duration` field within the `pause` struct is set, the rollout will not progress to the next step until it has waited for the value of the `duration` field. Otherwise, the rollout will wait indefinitely until that Pause condition is removed. By using the `setWeight` and the `pause` fields, a user can declarative describe how they want to progress to the new version. Below is an example of a canary strategy.
 
