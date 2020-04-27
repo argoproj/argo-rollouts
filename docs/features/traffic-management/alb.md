@@ -57,10 +57,11 @@ spec:
       trafficRouting:
         alb:
            ingress: ingress  # required
+           servicePort: 443 # required
            annotationPrefix: custom.alb.ingress.kubernetes.io # optional
 ```
 
-The ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires this Ingress to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
+The ingress field is a reference to an Ingress in the same namespace of the Rollout, and the servicePort field refers a port of a service. The Rollout requires the Ingress and servicePort to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
 
 Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The Ingress uses that prefix instead of the default `alb.ingress.kubernetes.io` if the field set.
 
