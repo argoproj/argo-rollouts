@@ -1039,7 +1039,7 @@
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-experiment</span>
 <span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span> <span class="c1"># How long to run the Experiment once the ReplicaSets created from the templates are healthy</span>
+  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1m</span> <span class="c1"># How long to run the Experiment once the ReplicaSets created from the templates are healthy</span>
   <span class="nt">progressDeadlineSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
   <span class="nt">templates</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span> <span class="c1"># (required) Unique name for the template that gets used as a part of the ReplicaSet name.</span>
@@ -1126,7 +1126,7 @@
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">experiment</span><span class="p">:</span>
-          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span>
+          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
           <span class="nt">templates</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
           <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>

@@ -1151,7 +1151,7 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 </pre></div>
 Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to <code>.status.pauseConditions</code>. The pause condition contains a reason and a pause start time.</p>
 <h2 id="promoting-the-rollout">Promoting the rollout<a class="headerlink" href="#promoting-the-rollout" title="Permanent link">&para;</a></h2>
-<p>The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automiated tool) removes the pause conditon.</p>
+<p>The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automated tool) removes the pause conditon.</p>
 <p>Argo Rollouts has a <a href="../features/kubectl-plugin/">kubectl plugin</a> to help automate operations like promoting a rollout through a step. The installation instructions are <a href="../features/kubectl-plugin/#installation">here</a>.</p>
 <p>Once the plugin is installed, the user can run the following command to promote the rollout through the pause step:</p>
 <div class="codehilite"><pre><span></span>kubectl argo rollouts promote example-rollout

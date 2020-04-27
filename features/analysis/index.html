@@ -1226,13 +1226,13 @@ canary steps, the rollout is considered successful and the analysis run is stopp
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
 </pre></div></div>
 <input name="__tabs_1" type="radio" id="__tab_1_1" />
 <label for="__tab_1_1">AnalysisTemplate</label>
@@ -1286,7 +1286,7 @@ analysis was successful, continues with rollout, otherwise aborts.</p>
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">300</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">5m</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">analysis</span><span class="p">:</span>
           <span class="nt">templates</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
@@ -1481,7 +1481,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
         <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apiToken</span>
   <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == &#39;true&#39;</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">web</span><span class="p">:</span>
         <span class="c1"># paceholders are resolved when an AnalysisRun is created </span>
@@ -1649,9 +1649,9 @@ with background analysis can delay creating an analysis run until a certain step
 <span class="hll">        <span class="nt">startingStep</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
 </span>      <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">600</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
 </pre></div>
 
 <h2 id="experimentation-eg-mann-whitney-analysis">Experimentation (e.g. Mann-Whitney Analysis)<a class="headerlink" href="#experimentation-eg-mann-whitney-analysis" title="Permanent link">&para;</a></h2>
@@ -1680,7 +1680,7 @@ short-lived experiment and an asynchronous analysis.</p>
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">steps</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">experiment</span><span class="p">:</span>
-          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span>
+          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
           <span class="nt">templates</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
             <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
@@ -1738,7 +1738,7 @@ short-lived experiment and an asynchronous analysis.</p>
 <span class="nt">name</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-6c54544bf9-0</span>
 <span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span>
+  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
   <span class="nt">templates</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
     <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
@@ -1859,10 +1859,10 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 </pre></div>
 
 <h2 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h2>
-<p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response should return JSON content. </p>
+<p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced in the <code>successCondition</code> and <code>failureCondition</code> expressions.</p>
 <div class="codehilite"><pre><span></span>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == &#39;true&#39;</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">web</span><span class="p">:</span>
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
@@ -1873,7 +1873,7 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </pre></div>
 
-<p>In this example, the measurement is successful if the json response returns <code>"true"</code> for the nested <code>ok</code> field. </p>
+<p>In this example, the measurement is successful if the json response returns <code>"true"</code> for the nested <code>ok</code> field.  </p>
 <div class="codehilite"><pre><span></span><span class="p">{</span> <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&quot;ok&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="nt">&quot;successPercent&quot;</span><span class="p">:</span> <span class="mf">0.95</span> <span class="p">}</span> <span class="p">}</span>
 </pre></div>
 
