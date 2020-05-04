@@ -1,0 +1,111 @@
+# This example demonstrates a Rollout using the canary update strategy with the SMI traffic
+# management. The prescribed steps initially sets a canary weight of 5%, then pauses indefinitely.
+# The controller creates a trafficSplit to enforce 5% to the canary version.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-linkerd
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-linkerd
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+      labels:
+        app: rollout-linkerd
+    spec:
+      containers:
+      - name: rollouts-demo
+        # Uncomment block below to include an error rate of 50 on a new version
+#        env:
+#        - name: ERROR_RATE
+#          value: "50"
+        image: argoproj/rollouts-demo:blue # change to green
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      stableService: rollout-linkerd-stable
+      canaryService: rollout-linkerd-canary
+      trafficManagement:
+        smi:
+          rootService: rollout-linkerd
+      steps:
+      - setWeight: 5
+      # The following pause step will pause the rollout indefinitely until manually resumed.
+      # Rollouts can be manually resumed by running `kubectl argo rollouts resume ROLLOUT`
+      - pause: {}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-linkerd
+spec:
+  selector:
+    app: rollout-linkerd
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-linkerd-stable
+spec:
+  selector:
+    app: rollout-linkerd
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-linkerd-canary
+spec:
+  selector:
+    app: rollout-linkerd
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: load-test
+spec:
+  args:
+    - name: namespace
+    - name: linkerd-enabled
+      value: enabled
+  metrics:
+    - name: pass
+      interval: 5s
+      failureLimit: 1
+      provider:
+        job:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  linkerd.io/inject: {{args.linkerd-enabled}}
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: load-tester
+                    image: argoproj/load-tester:latest
+                    command: [sh, -c, -x, -e]
+                    args:
+                      - |
+                        wrk -t10 -c40 -d45s -s report.lua http://rollout-linkerd.{{ args.namespace }}.svc/color
+                        jq -e '.errors_ratio <= 0.35 and .latency_avg_ms < 100' report.json
