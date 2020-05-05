@@ -16,6 +16,9 @@ $ kubectl create namespace argo-rollouts
 $ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
 ```
 
+!!! important
+    When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
+
 Check out the [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
 
 ### How does it work?
