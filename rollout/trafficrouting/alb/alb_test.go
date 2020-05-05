@@ -224,6 +224,14 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	assert.Len(t, client.Actions(), 1)
 }
 
+// TestGetForwardActionStringMarshalsZeroCorrectly ensures that the annotation does not omit default value zero when marshalling
+// the forward action
+func TestGetForwardActionStringMarshalsZeroCorrectly(t *testing.T) {
+	r := fakeRollout("stable", "canary", "ingress", 443)
+	forwardAction := getForwardActionString(r, 443, 0)
+	assert.Contains(t, forwardAction, `"Weight":0`)
+}
+
 func TestErrorPatching(t *testing.T) {
 	ro := fakeRollout("stable-svc", "canary-svc", "ingress", 443)
 	i := ingress("ingress", "stable-svc", "canary-svc", 443, 5, ro.Name)
@@ -248,7 +256,3 @@ func TestErrorPatching(t *testing.T) {
 	assert.Error(t, err, "some error occurred")
 	assert.Len(t, client.Actions(), 1)
 }
-
-/*
-	TestInvalidDesiredAnnotations (invalidManagedALBActions
-*/

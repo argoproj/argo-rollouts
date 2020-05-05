@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/diff"
@@ -117,11 +118,11 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 				{
 					ServiceName: stableService,
 					ServicePort: portStr,
-					Weight:      100 - int64(desiredWeight),
+					Weight:      pointer.Int64Ptr(100 - int64(desiredWeight)),
 				}, {
 					ServiceName: canaryService,
 					ServicePort: portStr,
-					Weight:      int64(desiredWeight),
+					Weight:      pointer.Int64Ptr(int64(desiredWeight)),
 				},
 			},
 		},
