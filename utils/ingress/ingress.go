@@ -39,7 +39,7 @@ type ALBTargetGroup struct {
 	// the K8s service port
 	ServicePort string `json:"ServicePort,omitempty"`
 	// The weight. The range is 0 to 999.
-	Weight int64 `json:"Weight,omitempty"`
+	Weight *int64 `json:"Weight,omitempty"`
 }
 
 // GetRolloutIngressKeys returns ingresses keys (namespace/ingressName) which are referenced by specified rollout
