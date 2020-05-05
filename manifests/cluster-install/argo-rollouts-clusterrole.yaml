@@ -105,3 +105,10 @@ rules:
   - watch
   - get
   - update
+- apiGroups:
+    - ""
+  resources:
+    - pods
+  verbs:
+    - list
+    - delete
