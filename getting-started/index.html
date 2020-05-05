@@ -1081,9 +1081,7 @@
 <p>Argo Rollouts can be installed at a cluster or namespace level. </p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Since the API server rejects CRD manifests with unknown fields, the Argo Rollout's CRDs do not work with <strong>v1.13.x</strong> 
-because they have a new field from the v1.14. Adding the <code>--validate=false</code> to the commands below allows the cluster to 
-accept the Argo Rollouts CRDs.</p>
+<p>When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.</p>
 </div>
 <h3 id="cluster-level-installation">Cluster-Level installation<a class="headerlink" href="#cluster-level-installation" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>kubectl create namespace argo-rollouts
