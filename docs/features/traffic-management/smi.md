@@ -30,13 +30,13 @@ spec:
       stableService: stable-svc # required
       trafficRouting:
         smi:
-         rootService: root-svc # required
+         rootService: root-svc # optional
          trafficSplitName: rollout-example-traffic-split # optional
 ```
 
 ![alt text](smi-diagram.jpg)
 
-With the above configuration, the controller can automate dynamic traffic splitting. First, the controller manipulates the canary and stable Service listed in the Rollout to make them only receive traffic from the respective canary and stable ReplicaSets. The controller achieves this by adding the ReplicaSet's unique pod template hash to that Service's selector. With the stable and canary Services configured, the controller creates a TrafficSplit using these Services in the backend, and the weights of the backend are dynamically configured from the current desired weight of the Rollout's canary steps. The controller sets the root service of the TrafficSplit to the rootService listed in the Rollout. This configured TrafficSplit along with the Service and Rollout resources enable fine-grained percentages of traffic between two versions of an application. Optionally, the user can specify a name for the traffic split. If there is no name listed in the Rollout, the controller uses the Rollout's name for the TrafficSplit. If a TrafficSplit with that name already exists and isn't owned by that Rollout, the controller marks the Rollout as an error state.
+With the above configuration, the controller can automate dynamic traffic splitting. First, the controller manipulates the canary and stable Service listed in the Rollout to make them only receive traffic from the respective canary and stable ReplicaSets. The controller achieves this by adding the ReplicaSet's unique pod template hash to that Service's selector. With the stable and canary Services configured, the controller creates a TrafficSplit using these Services in the backend, and the weights of the backend are dynamically configured from the current desired weight of the Rollout's canary steps. The controller sets the TrafficSplit's root service to the stableService unless the Rollout has the rootService field specified. This configured TrafficSplit along with the Service and Rollout resources enable fine-grained percentages of traffic between two versions of an application. Optionally, the user can specify a name for the traffic split. If there is no name listed in the Rollout, the controller uses the Rollout's name for the TrafficSplit. If a TrafficSplit with that name already exists and isn't owned by that Rollout, the controller marks the Rollout as an error state.
 
 Here is the TrafficSplit created from the above Rollout:
 
@@ -46,7 +46,7 @@ kind: TrafficSplit
 metadata:
   name: rollout-example-traffic-split
 spec:
-  service: root-svc
+  service: root-svc # controller uses the stableService if Rollout does not specify the rootService field
   backends:
   - service: stable-svc
     weight: 95
