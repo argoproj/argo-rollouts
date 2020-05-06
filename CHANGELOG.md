@@ -1,5 +1,15 @@
 # Changelog
 
+# v0.8.2
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.2/manifests/install.yaml
+
+## Changes since v0.8.1
+### Rollouts
+* fix: Ensure ALB action with weight 0 marshalls correctly (#493)
+* fix: Add missing clusterrole for deleting pods (#490)
+
 # v0.8.1
 ## Quick Start
 kubectl create namespace argo-rollouts
