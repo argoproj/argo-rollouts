@@ -1,0 +1,29 @@
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: load-test
+spec:
+  args:
+    - name: namespace
+  metrics:
+    - name: pass
+      interval: 5s
+      failureLimit: 1
+      provider:
+        job:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  linkerd.io/inject: enabled
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: load-tester
+                    image: argoproj/load-tester:latest
+                    command: [sh, -c, -x, -e]
+                    args:
+                      - |
+                        wrk -t10 -c40 -d45s -s report.lua http://rollout-linkerd.{{ args.namespace }}.svc/color
+                        jq -e '.errors_ratio <= 0.35 and .latency_avg_ms < 100' report.json
+---
