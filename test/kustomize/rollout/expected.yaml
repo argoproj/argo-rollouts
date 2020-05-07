@@ -1,4 +1,13 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-robot
+---
+apiVersion: v1
 data:
   FOO: BAR
 kind: ConfigMap
@@ -56,6 +65,73 @@ spec:
     foo: bar
 ---
 apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-random-fail
+spec:
+  metrics:
+  - failureLimit: 1
+    interval: 5s
+    name: random-fail
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - command:
+                - ping my-guestbook-stable-svc
+                image: alpine:3.8
+                name: sleep
+              restartPolicy: Never
+              serviceAccountName: my-robot
+              volumes:
+              - configMap:
+                  name: my-guestbook-cm-bt8kmct6gk
+                name: config-volume
+              - name: secret-volume
+                secret:
+                  secretName: my-guestbook-secret-t95h96m85d
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-experiment
+spec:
+  analyses:
+  - name: random-fail
+    templateName: my-random-fail
+  templates:
+  - metadata:
+      labels:
+        app: guestbook
+    name: foo
+    template:
+      spec:
+        containers:
+        - command:
+          - ping my-guestbook-stable-svc
+          image: guestbook:v2
+          name: guestbook
+        serviceAccountName: my-robot
+        volumes:
+        - configMap:
+            name: my-guestbook-cm-bt8kmct6gk
+          name: config-volume
+        - name: secret-volume
+          secret:
+            secretName: my-guestbook-secret-t95h96m85d
+---
+apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
@@ -71,14 +147,32 @@ spec:
       foo: bar
   strategy:
     canary:
+      analysis:
+        templates:
+        - name: my-random-fail
       canaryService: my-guestbook-canary-svc
       stableService: my-guestbook-stable-svc
+      steps:
+      - experiment:
+          analyses:
+          - name: random-fail
+            templateName: my-random-fail
+          templates:
+          - name: canary
+            specRef: canary
+      - analysis:
+          templates:
+          - name: my-random-fail
       trafficRouting:
+        alb:
+          ingress: my-networking-ingress
         istio:
           virtualService:
             name: my-guestbook-vsvc
             routes:
             - primary
+        nginx:
+          stableIngress: my-extensions-ingress
   template:
     metadata:
       annotations:
@@ -120,6 +214,7 @@ spec:
           name: config-volume
         - mountPath: /etc/secrets
           name: secret-volume
+      serviceAccountName: my-robot
       volumes:
       - configMap:
           name: my-guestbook-cm-bt8kmct6gk
@@ -127,6 +222,44 @@ spec:
       - name: secret-volume
         secret:
           secretName: my-guestbook-secret-t95h96m85d
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-hpa
+spec:
+  maxReplicas: 3
+  metrics:
+  - resource:
+      name: cpu
+      targetAverageUtilization: 50
+    type: Resource
+  minReplicas: 3
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: my-guestbook
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-extensions-ingress
+spec:
+  rules:
+  - host: www.mysite.com
+    http:
+      paths:
+      - backend:
+          serviceName: website
+          servicePort: 80
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -150,3 +283,20 @@ spec:
     - destination:
         host: guestbook-canary-svc
       weight: 0
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-networking-ingress
+spec:
+  rules:
+  - host: www.mysite.com
+    http:
+      paths:
+      - backend:
+          serviceName: website
+          servicePort: 80
