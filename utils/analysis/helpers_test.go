@@ -542,6 +542,7 @@ func TestMergeArgs(t *testing.T) {
 		assert.Equal(t, "foo", args[0].Name)
 		assert.Equal(t, "bar", *args[0].Value)
 		assert.Equal(t, "my-secret", args[1].Name)
+		assert.NotNil(t, args[1].ValueFrom)
 	}
 	{
 		// overwrite defaults
