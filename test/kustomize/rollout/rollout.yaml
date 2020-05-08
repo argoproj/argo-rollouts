@@ -11,6 +11,7 @@ spec:
       labels:
         app: guestbook
     spec:
+      serviceAccountName: robot
       volumes:
       - name: config-volume
         configMap:
@@ -60,6 +61,54 @@ spec:
             name: guestbook-vsvc
             routes:
               - primary
+        nginx:
+          stableIngress: extensions-ingress
+        alb:
+          ingress: networking-ingress
+      analysis:
+        templates:
+        - name: random-fail
+      steps:
+      - experiment:
+          templates:
+          - name: canary
+            specRef: canary
+          analyses:
+          - name: random-fail
+            templateName: random-fail
+      - analysis:
+          templates:
+          - name: random-fail
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment
+spec:
+  templates:
+  - name: foo
+    metadata:
+      labels:
+        app: guestbook
+    template:
+      spec:
+        serviceAccountName: robot
+        volumes:
+        - name: config-volume
+          configMap:
+            name: guestbook-cm
+        - name: secret-volume
+          secret:
+            secretName: guestbook-secret
+        containers:
+        - name: guestbook
+          image: guestbook:v1
+          command:
+          - ping $(SERVICE_NAME)
+  analyses:
+  - name: random-fail
+    templateName: random-fail
 
 ---
 apiVersion: networking.istio.io/v1alpha3
@@ -106,3 +155,86 @@ spec:
   - protocol: TCP
     port: 80
     targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: networking-ingress
+spec:
+  rules:
+  - host: www.mysite.com
+    http:
+      paths:
+      - backend:
+          serviceName: website
+          servicePort: 80
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: extensions-ingress
+spec:
+  rules:
+  - host: www.mysite.com
+    http:
+      paths:
+      - backend:
+          serviceName: website
+          servicePort: 80
+
+---
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: random-fail
+spec:
+  metrics:
+  - name: random-fail
+    interval: 5s
+    failureLimit: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              serviceAccountName: robot
+              volumes:
+              - name: config-volume
+                configMap:
+                  name: guestbook-cm
+              - name: secret-volume
+                secret:
+                  secretName: guestbook-secret
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [ping $(SERVICE_NAME)]
+              restartPolicy: Never
+          backoffLimit: 0
+
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa
+spec:
+  minReplicas: 3
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 50
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: guestbook
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: robot
+  
