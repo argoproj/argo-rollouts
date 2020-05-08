@@ -141,12 +141,20 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 	newArgs := append(templateArgs[:0:0], templateArgs...)
 	for _, arg := range incomingArgs {
 		i := findArg(arg.Name, newArgs)
-		if i >= 0 && arg.Value != nil {
-			newArgs[i].Value = arg.Value
+		//if i >= 0 && arg.Value != nil {
+		//	newArgs[i].Value = arg.Value
+		if i >= 0 {
+			if arg.Value != nil {
+				newArgs[i].Value = arg.Value
+			} else if arg.ValueFrom != nil {
+				newArgs[i].ValueFrom = arg.ValueFrom
+			}
 		}
 	}
 	for _, arg := range newArgs {
-		if arg.Value == nil {
+
+		//if arg.Value == nil {
+		if arg.Value == nil && arg.ValueFrom == nil {
 			return nil, fmt.Errorf("args.%s was not resolved", arg.Name)
 		}
 	}

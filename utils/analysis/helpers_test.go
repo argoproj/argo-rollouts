@@ -454,6 +454,9 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 				{
 					Name: "my-arg",
 				},
+				{
+					Name: "my-secret",
+				},
 			},
 		},
 	}}
@@ -461,6 +464,15 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 		{
 			Name:  "my-arg",
 			Value: pointer.StringPtr("my-val"),
+		},
+		{
+			Name: "my-secret",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name: "name",
+					Key:  "key",
+				},
+			},
 		},
 	}
 	run, err := NewAnalysisRunFromTemplates(templates, args, "foo-run", "foo-run-generate-", "my-ns")
@@ -470,6 +482,8 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	assert.Equal(t, "my-ns", run.Namespace)
 	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
 	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
+	assert.Equal(t, "my-secret", run.Spec.Args[1].Name)
+	assert.NotNil(t, *run.Spec.Args[1].ValueFrom.SecretKeyRef)
 
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
@@ -513,11 +527,21 @@ func TestMergeArgs(t *testing.T) {
 					Name:  "foo",
 					Value: pointer.StringPtr("bar"),
 				},
+				{
+					Name: "my-secret",
+					ValueFrom: &v1alpha1.ValueFrom{
+						SecretKeyRef: &v1alpha1.SecretKeyRef{
+							Name: "name",
+							Key:  "key",
+						},
+					},
+				},
 			})
 		assert.NoError(t, err)
-		assert.Len(t, args, 1)
+		assert.Len(t, args, 2)
 		assert.Equal(t, "foo", args[0].Name)
 		assert.Equal(t, "bar", *args[0].Value)
+		assert.Equal(t, "my-secret", args[1].Name)
 	}
 	{
 		// overwrite defaults
