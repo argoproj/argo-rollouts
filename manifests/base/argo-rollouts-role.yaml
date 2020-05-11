@@ -41,6 +41,12 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - rollouts/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - argoproj.io
+  resources:
   - analysisruns
   - experiments
   verbs:
@@ -51,6 +57,12 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns/finalizers
+  verbs:
+  - update
 - apiGroups:
   - argoproj.io
   resources:
