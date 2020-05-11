@@ -513,7 +513,7 @@ spec:
 ```
 ## Referencing Secrets
 
-AnalysisTemplates and AnalysisRuns can reference secret objects in `spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
+AnalysisTemplates and AnalysisRuns can reference secret objects in `.spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
 
 An AnalysisRun can only reference secrets from the same namespace as it's running in. This is only relevant for AnalysisRuns, since AnalysisTemplates do not resolve the secret.
 
