@@ -511,6 +511,38 @@ spec:
       - setWeight: 40
       - pause: {duration: 10m}
 ```
+## Referencing Secrets
+
+AnalysisTemplates and AnalysisRuns can reference secret objects in `.spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
+
+An AnalysisRun can only reference secrets from the same namespace as it's running in. This is only relevant for AnalysisRuns, since AnalysisTemplates do not resolve the secret.
+
+In the following example, an AnalysisTemplate references an API token and passes it to a Web metric provider.
+
+This example demonstrates:
+
+* The ability to reference a secret in the AnalysisTemplate `.spec.args`
+* The ability to pass secret arguments to Metric Providers
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+spec:
+  args:
+  - name: api-token
+    valueFrom:
+      secretKeyRef:
+        name: token-secret
+        key: apiToken
+  metrics:
+  - name: webmetric
+    provider:
+      web:
+        ...
+        headers:
+          - key: Authorization
+            value: "Bearer {{ args.api-token }}" 
+```
 
 ## Experimentation (e.g. Mann-Whitney Analysis)
 
