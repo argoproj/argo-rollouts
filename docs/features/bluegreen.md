@@ -65,7 +65,6 @@ spec:
       previewReplicaCount: *int32
       scaleDownDelaySeconds: *int32
       scaleDownDelayRevisionLimit: *int32
-      antiAffinityBetweenVersion: bool
 ```
 
 ### autoPromotionEnabled
