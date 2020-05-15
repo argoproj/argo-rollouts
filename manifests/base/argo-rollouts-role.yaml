@@ -61,6 +61,7 @@ rules:
   - argoproj.io
   resources:
   - analysisruns/finalizers
+  - experiments/finalizers
   verbs:
   - update
 - apiGroups:
