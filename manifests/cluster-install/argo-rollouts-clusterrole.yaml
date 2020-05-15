@@ -112,3 +112,9 @@ rules:
   verbs:
     - list
     - delete
+- apiGroups:
+  - "*"
+  resources:
+  - "*/finalizers"
+  verbs:
+  - "*"
