@@ -51,3 +51,13 @@ func HasManagedByAnnotation(service *corev1.Service) (string, bool) {
 	annotation, exists := service.Annotations[v1alpha1.ManagedByRolloutsKey]
 	return annotation, exists
 }
+
+// CheckRolloutForService Checks to if the Rollout references that service
+func CheckRolloutForService(rollout *v1alpha1.Rollout, svc *corev1.Service) bool {
+	for _, service := range GetRolloutServiceKeys(rollout) {
+		if service == fmt.Sprintf("%s/%s", svc.Namespace, svc.Name) {
+			return true
+		}
+	}
+	return false
+}

@@ -165,6 +165,11 @@ func NewRolloutController(
 	rolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueRollout,
 		UpdateFunc: func(old, new interface{}) {
+			if r, ok := old.(*v1alpha1.Rollout); ok {
+				for _, s := range serviceutil.GetRolloutServiceKeys(r) {
+					controller.serviceWorkqueue.AddRateLimited(s)
+				}
+			}
 			controller.enqueueRollout(new)
 		},
 		DeleteFunc: func(obj interface{}) {

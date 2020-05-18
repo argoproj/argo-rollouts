@@ -93,3 +93,38 @@ func TestHasManagedByAnnotation(t *testing.T) {
 	assert.Equal(t, "test", managedBy)
 
 }
+
+func TestCheckRolloutForService(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					PreviewService: "preview-service",
+					ActiveService:  "active-service",
+				},
+			},
+		},
+	}
+
+	t.Run("Rollout does not reference service", func(t *testing.T) {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: metav1.NamespaceDefault,
+				Name:      "no-existing-service",
+			},
+		}
+		assert.False(t, CheckRolloutForService(ro, service))
+	})
+	t.Run("Rollout references Service", func(t *testing.T) {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: metav1.NamespaceDefault,
+				Name:      "active-service",
+			},
+		}
+		assert.True(t, CheckRolloutForService(ro, service))
+	})
+}
