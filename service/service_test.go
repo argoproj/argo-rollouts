@@ -131,7 +131,42 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, string(patch.GetPatch()), removeSelectorPatch)
 }
-func TestSyncServiceWithManagedBy(t *testing.T) {
+
+// TestSyncServiceWithNoManagedBy ensures a Rollout without a managed-by but has a Rollout referencing it
+// does not have the controller delete the hash selector
+func TestSyncServiceWithNoManagedBy(t *testing.T) {
+	svc := newService("test-service", 80, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
+	})
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					ActiveService: "test-service",
+				},
+			},
+		},
+	}
+
+	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
+
+	err := ctrl.syncService("default/test-service")
+	assert.NoError(t, err)
+	actions := kubeclient.Actions()
+	assert.Len(t, actions, 0)
+	// No argo api call since the controller reads from the indexer
+	argoActions := client.Actions()
+	assert.Len(t, argoActions, 0)
+}
+
+// TestSyncServiceWithManagedByWithNoRolloutReference ensures the service controller removes the
+// pod template service and managed-by annotation if the rollout listed doesn't have reference
+// the service.
+func TestSyncServiceWithManagedByWithNoRolloutReference(t *testing.T) {
 	svc := newService("test-service", 80, map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
 	})
@@ -150,7 +185,10 @@ func TestSyncServiceWithManagedBy(t *testing.T) {
 	err := ctrl.syncService("default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
+	patch, ok := actions[0].(k8stesting.PatchAction)
+	assert.True(t, ok)
+	assert.Equal(t, string(patch.GetPatch()), removeSelectorAndManagedByPatch)
+	assert.Len(t, actions, 1)
 	argoActions := client.Actions()
 	assert.Len(t, argoActions, 1)
 }
@@ -159,7 +197,9 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 	svc := newService("test-service", 80, map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: "abc",
 	})
-
+	svc.Annotations = map[string]string{
+		v1alpha1.ManagedByRolloutsKey: "rollout",
+	}
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",

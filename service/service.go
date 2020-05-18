@@ -155,26 +155,37 @@ func (c *Controller) syncService(key string) error {
 	if err != nil {
 		return err
 	}
-	rollouts, err := c.getRolloutsByService(svc.Namespace, svc.Name)
-	if err != nil {
-		return nil
-	}
 
-	for i := range rollouts {
-		c.enqueueRollout(rollouts[i])
-	}
-	// Return early if the svc does not have a hash selector or there is a rollout with matching this service
-	if _, hasHashSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !hasHashSelector || len(rollouts) > 0 {
+	// Return early if the svc does not have a hash selector
+	if _, hasHashSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !hasHashSelector {
 		return nil
 	}
-	// Handles case where the controller is not watching all Rollouts in the cluster due to instance-ids.
+	// Handles case where the controller is not watching all Rollouts in the cluster due to instance-ids by making an
+	// API call to get Rollout and confirm it references the service.
 	rolloutName, hasManagedBy := serviceutil.HasManagedByAnnotation(svc)
 	if hasManagedBy {
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(svc.Namespace).Get(rolloutName, metav1.GetOptions{})
+		rollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(svc.Namespace).Get(rolloutName, metav1.GetOptions{})
 		if err == nil {
-			return nil
+			if serviceutil.CheckRolloutForService(rollout, svc) {
+				c.enqueueRollout(rollout)
+				return nil
+			}
+		}
+	} else {
+		// Checks if a service without a managed-by but has a hash selector doesn't have any rollouts reference it. If
+		// not, the controller removes the hash selector. This protects against case where users upgrade from a version
+		// of Argo Rollouts without managed-by. Otherwise, the has selector would just be removed.
+		rollouts, err := c.getRolloutsByService(svc.Namespace, svc.Name)
+		if err == nil {
+			for i := range rollouts {
+				if serviceutil.CheckRolloutForService(rollouts[i], svc) {
+					c.enqueueRollout(rollouts[i])
+					return nil
+				}
+			}
 		}
 	}
+
 	updatedSvc := svc.DeepCopy()
 	patch := generateRemovePatch(updatedSvc)
 	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.MergePatchType, []byte(patch))
