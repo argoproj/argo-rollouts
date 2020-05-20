@@ -95,24 +95,25 @@ type Controller struct {
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
 type ControllerConfig struct {
-	Namespace                string
-	KubeClientSet            kubernetes.Interface
-	ArgoProjClientset        clientset.Interface
-	DynamicClientSet         dynamic.Interface
-	ExperimentInformer       informers.ExperimentInformer
-	AnalysisRunInformer      informers.AnalysisRunInformer
-	AnalysisTemplateInformer informers.AnalysisTemplateInformer
-	ReplicaSetInformer       appsinformers.ReplicaSetInformer
-	ServicesInformer         coreinformers.ServiceInformer
-	IngressInformer          extensionsinformers.IngressInformer
-	RolloutsInformer         informers.RolloutInformer
-	ResyncPeriod             time.Duration
-	RolloutWorkQueue         workqueue.RateLimitingInterface
-	ServiceWorkQueue         workqueue.RateLimitingInterface
-	IngressWorkQueue         workqueue.RateLimitingInterface
-	MetricsServer            *metrics.MetricsServer
-	Recorder                 record.EventRecorder
-	DefaultIstioVersion      string
+	Namespace                  string
+	KubeClientSet              kubernetes.Interface
+	ArgoProjClientset          clientset.Interface
+	DynamicClientSet           dynamic.Interface
+	ExperimentInformer         informers.ExperimentInformer
+	AnalysisRunInformer        informers.AnalysisRunInformer
+	AnalysisTemplateInformer   informers.AnalysisTemplateInformer
+	ReplicaSetInformer         appsinformers.ReplicaSetInformer
+	ServicesInformer           coreinformers.ServiceInformer
+	IngressInformer            extensionsinformers.IngressInformer
+	RolloutsInformer           informers.RolloutInformer
+	ResyncPeriod               time.Duration
+	RolloutWorkQueue           workqueue.RateLimitingInterface
+	ServiceWorkQueue           workqueue.RateLimitingInterface
+	IngressWorkQueue           workqueue.RateLimitingInterface
+	MetricsServer              *metrics.MetricsServer
+	Recorder                   record.EventRecorder
+	DefaultIstioVersion        string
+	DefaultTrafficSplitVersion string
 }
 
 // NewController returns a new rollout controller

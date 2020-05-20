@@ -84,6 +84,7 @@ type Manager struct {
 	analysisRunWorkqueue workqueue.RateLimitingInterface
 
 	defaultIstioVersion string
+	defaultTrafficSplitVersion string
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -106,6 +107,7 @@ func NewManager(
 	metricsPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	defaultIstioVersion string,
+	defaultTrafficSplitVersion string,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
 ) *Manager {
@@ -154,6 +156,7 @@ func NewManager(
 		MetricsServer:            metricsServer,
 		Recorder:                 recorder,
 		DefaultIstioVersion:      defaultIstioVersion,
+		DefaultTrafficSplitVersion: defaultTrafficSplitVersion,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
@@ -228,6 +231,7 @@ func NewManager(
 		experimentController:   experimentController,
 		analysisController:     analysisController,
 		defaultIstioVersion:    defaultIstioVersion,
+		defaultTrafficSplitVersion: defaultTrafficSplitVersion,
 	}
 
 	return cm

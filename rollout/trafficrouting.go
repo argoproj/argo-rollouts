@@ -1,11 +1,13 @@
 package rollout
 
 import (
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
+
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -42,6 +44,12 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRo
 			IngressLister:  c.ingressesLister,
 		})
 
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
+		return smi.NewReconciler(smi.ReconcilerConfig{
+			Rollout: rollout,
+		})
+		return nil
 	}
 	return nil
 }
