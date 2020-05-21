@@ -7,10 +7,7 @@ set -o pipefail
 source $(dirname $0)/library.sh
 
 header "updating mock files"
-
-if [ ! -d "${REPO_ROOT}/vendor" ]; then
-  go mod vendor
-fi
+ensure_vendor
 
 cd ${REPO_ROOT}
 
