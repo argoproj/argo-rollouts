@@ -50,7 +50,8 @@ all: controller image
 codegen: mocks
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
-	go run ./hack/gen-crd-spec/main.go
+	./hack/update-crd-specs.sh
+	rm -rf ./vendor
 
 .PHONY: controller
 controller: clean-debug

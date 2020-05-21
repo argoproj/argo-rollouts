@@ -4,13 +4,19 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
-MOCKERY_VERSION=$(go list -m github.com/vektra/mockery | awk '{print $2}' | head -1)
-MOCKERY_PKG=$(echo `go env GOPATH`"/pkg/mod/github.com/vektra/mockery@${MOCKERY_VERSION}")
+source $(dirname $0)/library.sh
 
+header "updating mock files"
 
-go run "${MOCKERY_PKG}"/cmd/mockery/mockery.go \
-    -dir "${PROJECT_ROOT}"/metricproviders \
+if [ ! -d "${REPO_ROOT}/vendor" ]; then
+  go mod vendor
+fi
+
+cd ${REPO_ROOT}
+
+MOCKERY_PKG="${REPO_ROOT}/vendor/github.com/vektra/mockery"
+go run "${MOCKERY_PKG}"/cmd/mockery \
+    -dir "${REPO_ROOT}"/metricproviders \
     -name Provider \
-    -output "${PROJECT_ROOT}"/metricproviders/mocks
+    -output "${REPO_ROOT}"/metricproviders/mocks
 

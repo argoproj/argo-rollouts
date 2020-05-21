@@ -1,34 +1,27 @@
+#!/bin/bash
+
 set -o errexit
 set -o nounset
 set -o pipefail
 
+source $(dirname $0)/library.sh
 
-# code-generator does work with go.mod but makes assumptions about the project living in `$GOPATH/src`. 
-# To work around this and support any location: 
-#   create a temporary directory, use this as an output base, and copy everything back once generated.
-export GOPATH=$(go env GOPATH) # export gopath so it's available to generate scripts
-SCRIPT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )"
-CODEGEN_VERSION=$(go list -m k8s.io/code-generator | awk '{print $NF}' | head -1)
-CODEGEN_PKG="${GOPATH}/pkg/mod/k8s.io/code-generator@${CODEGEN_VERSION}"
-TEMP_DIR=$(mktemp -d)
-cleanup() {
-    rm -rf ${TEMP_DIR}
-}
-trap "cleanup" EXIT SIGINT
+header "running codegen"
 
+if [ ! -d "${REPO_ROOT}/vendor" ]; then
+  go mod vendor
+fi
 
-chmod +x ${CODEGEN_PKG}/generate-groups.sh
+make_fake_paths
 
-${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
+export GOPATH="${FAKE_GOPATH}"
+export GO111MODULE="off"
+
+cd "${FAKE_REPOPATH}"
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${FAKE_REPOPATH}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+
+bash -x ${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/argoproj/argo-rollouts/pkg/client github.com/argoproj/argo-rollouts/pkg/apis \
   "rollouts:v1alpha1" \
-  --output-base "${TEMP_DIR}" \
-  --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt
+  --go-header-file ${REPO_ROOT}/hack/boilerplate.go.txt
 
-cp -r "${TEMP_DIR}/github.com/argoproj/argo-rollouts/." "${SCRIPT_ROOT}/"
-# To use your own boilerplate text use:
-#   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
-
-CONTROLLERGEN_VERSION=$(go list -m sigs.k8s.io/controller-tools | awk '{print $2}' | head -1)
-CONTROLLERGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/sigs.k8s.io/controller-tools@${CONTROLLERGEN_VERSION}")
-go build -o dist/controller-gen $CONTROLLERGEN_PKG/cmd/controller-gen/
