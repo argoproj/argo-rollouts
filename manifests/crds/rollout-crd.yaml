@@ -383,10 +383,16 @@ spec:
                       properties:
                         alb:
                           properties:
-                            rootService:
+                            annotationPrefix:
                               type: string
-                            trafficSplitName:
+                            ingress:
                               type: string
+                            servicePort:
+                              format: int32
+                              type: integer
+                          required:
+                          - ingress
+                          - servicePort
                           type: object
                         istio:
                           properties:
@@ -418,8 +424,13 @@ spec:
                           required:
                           - stableIngress
                           type: object
-                      required:
-                      - alb
+                        smi:
+                          properties:
+                            rootService:
+                              type: string
+                            trafficSplitName:
+                              type: string
+                          type: object
                       type: object
                   type: object
               type: object

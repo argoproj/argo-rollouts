@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"reflect"
 	"time"
 
@@ -58,7 +59,9 @@ type Controller struct {
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
 	dynamicclientset    dynamic.Interface
+	smiclientset        smiclientset.Interface
 	defaultIstioVersion string
+	defaultTrafficSplitVersion string
 
 	replicaSetLister       appslisters.ReplicaSetLister
 	replicaSetSynced       cache.InformerSynced
@@ -99,6 +102,7 @@ type ControllerConfig struct {
 	KubeClientSet              kubernetes.Interface
 	ArgoProjClientset          clientset.Interface
 	DynamicClientSet           dynamic.Interface
+	SmiClientSet               smiclientset.Interface
 	ExperimentInformer         informers.ExperimentInformer
 	AnalysisRunInformer        informers.AnalysisRunInformer
 	AnalysisTemplateInformer   informers.AnalysisTemplateInformer
@@ -137,7 +141,9 @@ func NewController(cfg ControllerConfig) *Controller {
 		kubeclientset:          cfg.KubeClientSet,
 		argoprojclientset:      cfg.ArgoProjClientset,
 		dynamicclientset:       cfg.DynamicClientSet,
+		smiclientset:			cfg.SmiClientSet,
 		defaultIstioVersion:    cfg.DefaultIstioVersion,
+		defaultTrafficSplitVersion: cfg.DefaultTrafficSplitVersion,
 		replicaSetControl:      replicaSetControl,
 		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,

@@ -2694,14 +2694,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting"),
 						},
 					},
-					"alb": {
+					"smi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SMI holds TrafficSplit specific configuration to route traffic",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"),
 						},
 					},
 				},
-				Required: []string{"alb"},
 			},
 		},
 		Dependencies: []string{

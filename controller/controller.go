@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 
 	"github.com/argoproj/argo-rollouts/analysis"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -93,6 +94,7 @@ func NewManager(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
+	smiclientset smiclientset.Interface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	ingressesInformer extensionsinformers.IngressInformer,
@@ -142,6 +144,7 @@ func NewManager(
 		KubeClientSet:            kubeclientset,
 		ArgoProjClientset:        argoprojclientset,
 		DynamicClientSet:         dynamicclientset,
+		SmiClientSet:             smiclientset,
 		ExperimentInformer:       experimentsInformer,
 		AnalysisRunInformer:      analysisRunInformer,
 		AnalysisTemplateInformer: analysisTemplateInformer,

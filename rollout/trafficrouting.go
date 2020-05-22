@@ -48,6 +48,10 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRo
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 		return smi.NewReconciler(smi.ReconcilerConfig{
 			Rollout: rollout,
+			Client: c.smiclientset,
+			Recorder: c.recorder,
+			ControllerKind: controllerKind,
+			ApiVersion: c.defaultTrafficSplitVersion, // TODO: allow user to set trafficSplitVersion (default: v1alpha1)
 		})
 		return nil
 	}
