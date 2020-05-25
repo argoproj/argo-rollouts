@@ -211,6 +211,8 @@ type RolloutTrafficRouting struct {
 	Nginx *NginxTrafficRouting `json:"nginx,omitempty"`
 	// Nginx holds ALB Ingress specific configuration to route traffic
 	ALB *ALBTrafficRouting `json:"alb,omitempty"`
+	// Smi holds SMI specific configuration to route traffic
+	Smi *SmiTrafficRouting `json:"smi,omitempty"`
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
@@ -236,6 +238,14 @@ type IstioVirtualService struct {
 	Name string `json:"name"`
 	// Routes list of routes within VirtualService to edit
 	Routes []string `json:"routes"`
+}
+
+// SmiTrafficRouting configuration for Service Mesh Interface to enable fine grain configuration
+type SmiTrafficRouting struct {
+	// RootService Holds the name of the Root Service
+	RootService string `json:"rootService"`
+	// +optional
+	TrafficSplitName string `json:"trafficSplitName,omitempty"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
