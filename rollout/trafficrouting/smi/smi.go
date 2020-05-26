@@ -4,6 +4,7 @@ import (
 
 	"context"
 	"fmt"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,7 @@ import (
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 )
 
 const (
@@ -40,13 +42,6 @@ type Reconciler struct {
 	log *logrus.Entry
 }
 
-type trafficSplitPatchStruct struct{
-	stableSvc string
-	canarySvc string
-	rootSvc string
-	weight int32
-}
-
 // NewReconciler returns a reconciler struct that brings the SMI into the desired state
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	return &Reconciler{
@@ -63,9 +58,11 @@ func (r *Reconciler) Type() string {
 // TODO: Make code compatible with multiple TrafficSplit versions
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	trafficSplitName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
-	// Format weights for Traffic Split spec
+
+	// Service weights formatted for Traffic Split spec
 	canaryWeight := resource.MustParse(string(desiredWeight))
 	stableWeight := resource.MustParse(string(100-desiredWeight))
+
 	// If root service not set, then set root service to be stable service
 	rootSvc := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
 	if rootSvc == "" {
@@ -82,16 +79,49 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil  && k8serrors.IsNotFound(err) {
 		msg := fmt.Sprintf("Traffic Split `%s` not found", trafficSplitName)
 		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitNotFound", msg)
+		// TODO: check for double-logging
+	}
+
+	trafficSplitSpec := smiv1alpha1.TrafficSplitSpec{
+		Service: rootSvc,
+		Backends: []smiv1alpha1.TrafficSplitBackend{
+			{
+				Service: r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
+				Weight: &canaryWeight,
+			},
+			{
+				Service: r.cfg.Rollout.Spec.Strategy.Canary.StableService,
+				Weight: &stableWeight,
+			},
+		},
 	}
 
 	// Patch existing Traffic Split
-	if trafficSplit != nil && trafficSplit.GetOwnerReferences()[0].Name == r.cfg.Rollout.Name { // TODO: CHECK OWNER REFERENCE
-		// TODO: Create Patch (rootSvc, backend svcs + weights)
-		//_, err = client.TrafficSplits(r.cfg.Rollout.Namespace).Patch()
+	if trafficSplit != nil {
+		controllerRef := metav1.GetControllerOf(trafficSplit)
+		if controllerRef == nil || r.cfg.Rollout.UID != controllerRef.UID {
+			return err // TODO: Create error case - RO doesn't own TS with TSname
+		}
+		patch, modified, err := diff.CreateTwoWayMergePatch(
+			smiv1alpha1.TrafficSplit{
+				Spec:       trafficSplit.Spec,
+			},
+			smiv1alpha1.TrafficSplit{
+				Spec: trafficSplitSpec,
+			},
+			smiv1alpha1.TrafficSplit{},
+		)
+		if !modified {
+			return nil
+		}
+		_, err = client.TrafficSplits(r.cfg.Rollout.Namespace).Patch(trafficSplitName, patchtypes.MergePatchType, patch)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// Create new Traffic Split
-
 	trafficSplit = &smiv1alpha1.TrafficSplit{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,19 +130,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 				*metav1.NewControllerRef(r.cfg.Rollout, r.cfg.ControllerKind),
 			},
 		},
-		Spec:       smiv1alpha1.TrafficSplitSpec{
-			Service: rootSvc,
-			Backends: []smiv1alpha1.TrafficSplitBackend{
-				{
-					Service: r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
-					Weight: &canaryWeight,
-				},
-				{
-					Service: r.cfg.Rollout.Spec.Strategy.Canary.StableService,
-					Weight: &stableWeight,
-				},
-			},
-		},
+		Spec: trafficSplitSpec,
 	}
 
 	_, err = client.TrafficSplits(r.cfg.Rollout.Namespace).Create(ctx, trafficSplit, metav1.CreateOptions{})
