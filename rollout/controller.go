@@ -3,9 +3,10 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"reflect"
 	"time"
+
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -58,9 +59,9 @@ type Controller struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
-	dynamicclientset    dynamic.Interface
-	smiclientset        smiclientset.Interface
-	defaultIstioVersion string
+	dynamicclientset           dynamic.Interface
+	smiclientset               smiclientset.Interface
+	defaultIstioVersion        string
 	defaultTrafficSplitVersion string
 
 	replicaSetLister       appslisters.ReplicaSetLister
@@ -137,31 +138,31 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		namespace:              cfg.Namespace,
-		kubeclientset:          cfg.KubeClientSet,
-		argoprojclientset:      cfg.ArgoProjClientset,
-		dynamicclientset:       cfg.DynamicClientSet,
-		smiclientset:			cfg.SmiClientSet,
-		defaultIstioVersion:    cfg.DefaultIstioVersion,
+		namespace:                  cfg.Namespace,
+		kubeclientset:              cfg.KubeClientSet,
+		argoprojclientset:          cfg.ArgoProjClientset,
+		dynamicclientset:           cfg.DynamicClientSet,
+		smiclientset:               cfg.SmiClientSet,
+		defaultIstioVersion:        cfg.DefaultIstioVersion,
 		defaultTrafficSplitVersion: cfg.DefaultTrafficSplitVersion,
-		replicaSetControl:      replicaSetControl,
-		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
-		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,
-		rolloutsIndexer:        cfg.RolloutsInformer.Informer().GetIndexer(),
-		rolloutsLister:         cfg.RolloutsInformer.Lister(),
-		rolloutsSynced:         cfg.RolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:       cfg.RolloutWorkQueue,
-		serviceWorkqueue:       cfg.ServiceWorkQueue,
-		ingressWorkqueue:       cfg.IngressWorkQueue,
-		servicesLister:         cfg.ServicesInformer.Lister(),
-		ingressesLister:        cfg.IngressInformer.Lister(),
-		experimentsLister:      cfg.ExperimentInformer.Lister(),
-		analysisRunLister:      cfg.AnalysisRunInformer.Lister(),
-		analysisTemplateLister: cfg.AnalysisTemplateInformer.Lister(),
-		recorder:               cfg.Recorder,
-		resyncPeriod:           cfg.ResyncPeriod,
-		metricsServer:          cfg.MetricsServer,
-		podRestarter:           podRestarter,
+		replicaSetControl:          replicaSetControl,
+		replicaSetLister:           cfg.ReplicaSetInformer.Lister(),
+		replicaSetSynced:           cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:            cfg.RolloutsInformer.Informer().GetIndexer(),
+		rolloutsLister:             cfg.RolloutsInformer.Lister(),
+		rolloutsSynced:             cfg.RolloutsInformer.Informer().HasSynced,
+		rolloutWorkqueue:           cfg.RolloutWorkQueue,
+		serviceWorkqueue:           cfg.ServiceWorkQueue,
+		ingressWorkqueue:           cfg.IngressWorkQueue,
+		servicesLister:             cfg.ServicesInformer.Lister(),
+		ingressesLister:            cfg.IngressInformer.Lister(),
+		experimentsLister:          cfg.ExperimentInformer.Lister(),
+		analysisRunLister:          cfg.AnalysisRunInformer.Lister(),
+		analysisTemplateLister:     cfg.AnalysisTemplateInformer.Lister(),
+		recorder:                   cfg.Recorder,
+		resyncPeriod:               cfg.ResyncPeriod,
+		metricsServer:              cfg.MetricsServer,
+		podRestarter:               podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)

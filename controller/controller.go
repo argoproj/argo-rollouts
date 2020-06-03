@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 
 	"github.com/argoproj/argo-rollouts/analysis"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -84,7 +84,7 @@ type Manager struct {
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
 
-	defaultIstioVersion string
+	defaultIstioVersion        string
 	defaultTrafficSplitVersion string
 }
 
@@ -140,25 +140,25 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
-		Namespace:                namespace,
-		KubeClientSet:            kubeclientset,
-		ArgoProjClientset:        argoprojclientset,
-		DynamicClientSet:         dynamicclientset,
-		SmiClientSet:             smiclientset,
-		ExperimentInformer:       experimentsInformer,
-		AnalysisRunInformer:      analysisRunInformer,
-		AnalysisTemplateInformer: analysisTemplateInformer,
-		ReplicaSetInformer:       replicaSetInformer,
-		ServicesInformer:         servicesInformer,
-		IngressInformer:          ingressesInformer,
-		RolloutsInformer:         rolloutsInformer,
-		ResyncPeriod:             resyncPeriod,
-		RolloutWorkQueue:         rolloutWorkqueue,
-		ServiceWorkQueue:         serviceWorkqueue,
-		IngressWorkQueue:         ingressWorkqueue,
-		MetricsServer:            metricsServer,
-		Recorder:                 recorder,
-		DefaultIstioVersion:      defaultIstioVersion,
+		Namespace:                  namespace,
+		KubeClientSet:              kubeclientset,
+		ArgoProjClientset:          argoprojclientset,
+		DynamicClientSet:           dynamicclientset,
+		SmiClientSet:               smiclientset,
+		ExperimentInformer:         experimentsInformer,
+		AnalysisRunInformer:        analysisRunInformer,
+		AnalysisTemplateInformer:   analysisTemplateInformer,
+		ReplicaSetInformer:         replicaSetInformer,
+		ServicesInformer:           servicesInformer,
+		IngressInformer:            ingressesInformer,
+		RolloutsInformer:           rolloutsInformer,
+		ResyncPeriod:               resyncPeriod,
+		RolloutWorkQueue:           rolloutWorkqueue,
+		ServiceWorkQueue:           serviceWorkqueue,
+		IngressWorkQueue:           ingressWorkqueue,
+		MetricsServer:              metricsServer,
+		Recorder:                   recorder,
+		DefaultIstioVersion:        defaultIstioVersion,
 		DefaultTrafficSplitVersion: defaultTrafficSplitVersion,
 	})
 
@@ -213,27 +213,27 @@ func NewManager(
 	})
 
 	cm := &Manager{
-		metricsServer:          metricsServer,
-		rolloutSynced:          rolloutsInformer.Informer().HasSynced,
-		serviceSynced:          servicesInformer.Informer().HasSynced,
-		ingressSynced:          ingressesInformer.Informer().HasSynced,
-		secretSynced:           secretInformer.Informer().HasSynced,
-		jobSynced:              jobInformer.Informer().HasSynced,
-		experimentSynced:       experimentsInformer.Informer().HasSynced,
-		analysisRunSynced:      analysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced: analysisTemplateInformer.Informer().HasSynced,
-		replicasSetSynced:      replicaSetInformer.Informer().HasSynced,
-		rolloutWorkqueue:       rolloutWorkqueue,
-		experimentWorkqueue:    experimentWorkqueue,
-		analysisRunWorkqueue:   analysisRunWorkqueue,
-		serviceWorkqueue:       serviceWorkqueue,
-		ingressWorkqueue:       ingressWorkqueue,
-		rolloutController:      rolloutController,
-		serviceController:      serviceController,
-		ingressController:      ingressController,
-		experimentController:   experimentController,
-		analysisController:     analysisController,
-		defaultIstioVersion:    defaultIstioVersion,
+		metricsServer:              metricsServer,
+		rolloutSynced:              rolloutsInformer.Informer().HasSynced,
+		serviceSynced:              servicesInformer.Informer().HasSynced,
+		ingressSynced:              ingressesInformer.Informer().HasSynced,
+		secretSynced:               secretInformer.Informer().HasSynced,
+		jobSynced:                  jobInformer.Informer().HasSynced,
+		experimentSynced:           experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:          analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:     analysisTemplateInformer.Informer().HasSynced,
+		replicasSetSynced:          replicaSetInformer.Informer().HasSynced,
+		rolloutWorkqueue:           rolloutWorkqueue,
+		experimentWorkqueue:        experimentWorkqueue,
+		analysisRunWorkqueue:       analysisRunWorkqueue,
+		serviceWorkqueue:           serviceWorkqueue,
+		ingressWorkqueue:           ingressWorkqueue,
+		rolloutController:          rolloutController,
+		serviceController:          serviceController,
+		ingressController:          ingressController,
+		experimentController:       experimentController,
+		analysisController:         analysisController,
+		defaultIstioVersion:        defaultIstioVersion,
 		defaultTrafficSplitVersion: defaultTrafficSplitVersion,
 	}
 

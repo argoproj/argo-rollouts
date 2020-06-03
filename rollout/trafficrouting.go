@@ -3,9 +3,9 @@ package rollout
 import (
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -43,17 +43,15 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRo
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
 		})
-
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 		return smi.NewReconciler(smi.ReconcilerConfig{
-			Rollout: rollout,
-			Client: c.smiclientset,
-			Recorder: c.recorder,
+			Rollout:        rollout,
+			Client:         c.smiclientset,
+			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
-			ApiVersion: c.defaultTrafficSplitVersion, // TODO: allow user to set trafficSplitVersion (default: v1alpha1)
+			ApiVersion:     c.defaultTrafficSplitVersion,
 		})
-		return nil
 	}
 	return nil
 }
