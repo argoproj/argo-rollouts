@@ -17,6 +17,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 configurations:
 - rollout-transform.yaml
 ```
+With Kustomize 3.6.1 it is possible to reference the configuration directly from a remote resource:
+
+```yaml
+configurations:
+  - https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform.yaml
+```
 
 A example kustomize app demonstrating the ability to use transformers with Rollouts can be seen
 [here](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/example).
