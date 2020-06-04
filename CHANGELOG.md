@@ -1,5 +1,15 @@
 # Changelog
 
+# v0.8.3
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.3/manifests/install.yaml
+
+## Changes since v0.8.2
+### General
+* fix: Modify arg verification to check ValueFrom (#500)
+* fix: remove hash selector after switching from bg to canary (#515)
+
 # v0.8.2
 ## Quick Start
 kubectl create namespace argo-rollouts
