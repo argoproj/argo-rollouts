@@ -1,18 +1,27 @@
 package smi
 
 import (
+	"bytes"
+	"encoding/json"
+	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
+	log "github.com/sirupsen/logrus"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/apimachinery/pkg/api/equality"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
+	core "k8s.io/client-go/testing"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	fake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/record"
 )
 
 var controllerKind = schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"}
@@ -95,9 +104,6 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: controllerKind,
 	})
-	//r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "trafficsplits", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-	//	return true, nil, errors.New("fake error")
-	//})
 	err := r.Reconcile(10)
 	assert.Nil(t, err)
 	actions := client.Actions()
@@ -105,35 +111,106 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	assert.Equal(t, "get", actions[0].GetVerb())
 	assert.Equal(t, "create", actions[1].GetVerb())
 
-	//trafficSplit := trafficSplit("traffic-split-name", rollout, 10)
-	//assert.Equal(t, trafficSplit, actions[1])
+	obj := actions[1].(core.CreateAction).GetObject()
+	ts := &smiv1alpha1.TrafficSplit{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts)
+
+	expectedTS := trafficSplit("traffic-split-name", rollout, 10)
+
+	assert.Equal(t, expectedTS.TypeMeta, ts.TypeMeta)
+	assert.Equal(t, expectedTS.ObjectMeta, ts.ObjectMeta)
+	assert.Equal(t, expectedTS.Spec.Service, ts.Spec.Service)
+	assert.Equal(t, expectedTS.Spec.Backends[0].Service, ts.Spec.Backends[0].Service)
+	assert.Equal(t, expectedTS.Spec.Backends[0].Weight.Value(), ts.Spec.Backends[0].Weight.Value())
+	assert.Equal(t, expectedTS.Spec.Backends[1].Service, ts.Spec.Backends[1].Service)
+	assert.Equal(t, expectedTS.Spec.Backends[1].Weight.Value(), ts.Spec.Backends[1].Weight.Value())
 }
 
-//func TestReconcileTrafficSplitFoundError(t *testing.T) {
-//	// create TrafficSplit object for Client to discover
-//	client := fake.NewSimpleClientset()
-//}
+func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
+	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	trafficSplit := trafficSplit("traffic-split-name", rollout, 5)
+	client := fake.NewSimpleClientset(trafficSplit)
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: controllerKind,
+	})
 
-// CHECK LOGS
-// USE LOG REDACTOR EXAMPLE
-//func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
-//	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-//	client := fake.NewSimpleClientset()
-//	r := NewReconciler(ReconcilerConfig{
-//		Rollout:        rollout,
-//		Client:         client,
-//		Recorder:       &record.FakeRecorder{},
-//		ControllerKind: controllerKind,
-//	})
+	err := r.Reconcile(10)
+	assert.Nil(t, err)
 
-//}
+	actions := client.Actions()
+	assert.Len(t, actions, 2)
+	assert.Equal(t, "get", actions[0].GetVerb())
+	assert.Equal(t, "patch", actions[1].GetVerb())
 
-// *** Example Error: API Server not available (use k8sErrors)
-// Error: Not authenticated
-func TestReconcilePatchExistingTrafficSplitError(t *testing.T) {
+	patchAction := actions[1].(core.PatchAction)
+	ts := &smiv1alpha1.TrafficSplit{}
+	err = json.Unmarshal(patchAction.GetPatch(), &ts)
+	if err != nil {
+		panic(err)
+	}
+	canaryWeight, _ := ts.Spec.Backends[0].Weight.AsInt64()
+	stableWeight, _ := ts.Spec.Backends[1].Weight.AsInt64()
 
+	assert.Equal(t, int64(10), canaryWeight)
+	assert.Equal(t, int64(90), stableWeight)
 }
 
-func TestReconcilePatchExistingTrafficSplitNoModification(t *testing.T) {
+func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
+	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	trafficSplit := trafficSplit("traffic-split-name", rollout, 10)
+	client := fake.NewSimpleClientset(trafficSplit)
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: controllerKind,
+	})
+	buf := bytes.NewBufferString("")
+	logger := log.New()
+	logger.SetOutput(buf)
+	r.log.Logger = logger
+	err := r.Reconcile(10)
+	assert.Nil(t, err)
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-name` was not modified"))
+}
 
+func TestReconcileGetTrafficSplitError(t *testing.T) {
+	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	client := fake.NewSimpleClientset()
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: controllerKind,
+	})
+	//Throw error when client tries to get TrafficSplit
+	client.ReactionChain = nil
+	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "trafficsplits", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, k8serrors.NewServerTimeout(schema.GroupResource{Group: "split.smi-spec.io", Resource: "trafficsplits"}, "get", 0)
+	})
+	err := r.Reconcile(10)
+	assert.NotNil(t, err)
+	assert.True(t, k8serrors.IsServerTimeout(err))
+}
+
+func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
+	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	trafficSplit := trafficSplit("traffic-split-name", rollout, 10)
+	trafficSplit.OwnerReferences = nil
+
+	client := fake.NewSimpleClientset(trafficSplit)
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: controllerKind,
+	})
+	err := r.Reconcile(10)
+	assert.EqualError(t, err, "Rollout does not own TrafficSplit 'traffic-split-name'")
 }

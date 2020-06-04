@@ -86,11 +86,8 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 
 	// Check if Traffic Split exists in namespace
 	trafficSplit, err := client.TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-	//trafficSplit, err := client.TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
 
 	if k8serrors.IsNotFound(err) {
-		msg := fmt.Sprintf("Traffic Split `%s` not found", trafficSplitName)
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitNotFound", msg)
 		// TODO: check for double-logging
 		// Create new Traffic Split
 		trafficSplit = &smiv1alpha1.TrafficSplit{
@@ -104,6 +101,10 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 			Spec: trafficSplitSpec,
 		}
 		_, err = client.TrafficSplits(r.cfg.Rollout.Namespace).Create(trafficSplit)
+		if err == nil {
+			msg := fmt.Sprintf("Traffic Split `%s` created", trafficSplitName)
+			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitCreated", msg)
+		}
 		return err
 	}
 
@@ -115,7 +116,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if trafficSplit != nil {
 		isControlledBy := metav1.IsControlledBy(trafficSplit, r.cfg.Rollout)
 		if !isControlledBy {
-			msg := fmt.Sprintf("Rollout does not own TrafficSplit %s", trafficSplitName)
+			msg := fmt.Sprintf("Rollout does not own TrafficSplit '%s'", trafficSplitName)
 			return fmt.Errorf(msg)
 		}
 		patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -128,12 +129,15 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 			smiv1alpha1.TrafficSplit{},
 		)
 		if err != nil {
-			return err // Throw panic
+			panic(err)
 		}
 		if !modified {
-			return nil // Add log ("TrafficSplit not modified" - check log invoked)
+			r.log.Infof("Traffic Split `%s` was not modified", trafficSplitName)
+			return nil
 		}
 		_, err = client.TrafficSplits(r.cfg.Rollout.Namespace).Patch(trafficSplitName, patchtypes.MergePatchType, patch)
+		msg := fmt.Sprintf("Traffic Split `%s` modified", trafficSplitName)
+		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitModified", msg)
 		return err
 	}
 
