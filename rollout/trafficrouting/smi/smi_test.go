@@ -7,59 +7,23 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-
-	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 	k8stesting "k8s.io/client-go/testing"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	fake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/runtime"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 var controllerKind = schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"}
 
-func trafficSplit(name string, rollout *v1alpha1.Rollout, desiredWeight int32) *smiv1alpha1.TrafficSplit {
-	canaryWeight := resource.NewQuantity(int64(desiredWeight), resource.DecimalExponent)
-	stableWeight := resource.NewQuantity(int64(100-desiredWeight), resource.DecimalExponent)
-
-	rootSvc := rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
-	if rootSvc == "" {
-		rootSvc = rollout.Spec.Strategy.Canary.StableService
-	}
-
-	return &smiv1alpha1.TrafficSplit{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: metav1.NamespaceDefault,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(rollout, controllerKind),
-			},
-		},
-		Spec: smiv1alpha1.TrafficSplitSpec{
-			Service: rootSvc,
-			Backends: []smiv1alpha1.TrafficSplitBackend{
-				{
-					Service: rollout.Spec.Strategy.Canary.CanaryService,
-					Weight:  canaryWeight,
-				},
-				{
-					Service: rollout.Spec.Strategy.Canary.StableService,
-					Weight:  stableWeight,
-				},
-			},
-		},
-	}
-}
-
-// Create and test actions for client
 func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,7 +81,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts)
 
-	expectedTS := trafficSplit("traffic-split-name", rollout, 10)
+	expectedTS := createTrafficSplit(rollout, 10, controllerKind)
 
 	assert.Equal(t, expectedTS.TypeMeta, ts.TypeMeta)
 	assert.Equal(t, expectedTS.ObjectMeta, ts.ObjectMeta)
@@ -130,7 +94,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 
 func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	trafficSplit := trafficSplit("traffic-split-name", rollout, 5)
+	trafficSplit := createTrafficSplit(rollout, 5, controllerKind)
 	client := fake.NewSimpleClientset(trafficSplit)
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
@@ -162,7 +126,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 
 func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	trafficSplit := trafficSplit("traffic-split-name", rollout, 10)
+	trafficSplit := createTrafficSplit(rollout, 10, controllerKind)
 	client := fake.NewSimpleClientset(trafficSplit)
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
@@ -201,7 +165,7 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 
 func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	trafficSplit := trafficSplit("traffic-split-name", rollout, 10)
+	trafficSplit := createTrafficSplit(rollout, 10, controllerKind)
 	trafficSplit.OwnerReferences = nil
 
 	client := fake.NewSimpleClientset(trafficSplit)
