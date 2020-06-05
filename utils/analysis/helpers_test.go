@@ -460,30 +460,31 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 			},
 		},
 	}}
-	args := []v1alpha1.Argument{
-		{
-			Name:  "my-arg",
-			Value: pointer.StringPtr("my-val"),
-		},
-		{
-			Name: "my-secret",
-			ValueFrom: &v1alpha1.ValueFrom{
-				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name: "name",
-					Key:  "key",
-				},
+
+	arg := v1alpha1.Argument{
+		Name:  "my-arg",
+		Value: pointer.StringPtr("my-val"),
+	}
+	secretArg := v1alpha1.Argument{
+		Name: "my-secret",
+		ValueFrom: &v1alpha1.ValueFrom{
+			SecretKeyRef: &v1alpha1.SecretKeyRef{
+				Name: "name",
+				Key:  "key",
 			},
 		},
 	}
+
+	args := []v1alpha1.Argument{arg, secretArg}
 	run, err := NewAnalysisRunFromTemplates(templates, args, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
 	assert.Equal(t, "my-ns", run.Namespace)
-	assert.Equal(t, "my-arg", run.Spec.Args[0].Name)
-	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
-	assert.Equal(t, "my-secret", run.Spec.Args[1].Name)
-	assert.NotNil(t, *run.Spec.Args[1].ValueFrom.SecretKeyRef)
+
+	assert.Len(t, run.Spec.Args, 2)
+	assert.Contains(t, run.Spec.Args, arg)
+	assert.Contains(t, run.Spec.Args, secretArg)
 
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
