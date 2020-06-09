@@ -17,6 +17,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -26,7 +27,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
-	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 )
 
 const (

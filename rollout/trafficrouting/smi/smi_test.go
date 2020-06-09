@@ -117,8 +117,10 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	canaryWeight, _ := ts.Spec.Backends[0].Weight.AsInt64()
-	stableWeight, _ := ts.Spec.Backends[1].Weight.AsInt64()
+	canaryWeight, isInt64 := ts.Spec.Backends[0].Weight.AsInt64()
+	assert.True(t, isInt64)
+	stableWeight, isInt64 := ts.Spec.Backends[1].Weight.AsInt64()
+	assert.True(t, isInt64)
 
 	assert.Equal(t, int64(10), canaryWeight)
 	assert.Equal(t, int64(90), stableWeight)
