@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -60,12 +60,14 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 		log: logutil.WithRollout(cfg.Rollout),
 		trafficSplits: TrafficSplits{},
 	}
+	// TODO: Create default and list of supported versions
 	switch apiVersion := r.cfg.ApiVersion; apiVersion {
 	case "v1alpha1":
 		r.getFunc = func(trafficSplitName string) (TrafficSplits, error){
 			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{
-				ts1: *ts1,
+			ts := TrafficSplits{}
+			if ts1 != nil {
+				ts.ts1 = *ts1
 			}
 			return ts, err
 		}
@@ -99,8 +101,9 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	case "v1alpha2":
 		r.getFunc = func(trafficSplitName string) (TrafficSplits, error){
 			ts2, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{
-				ts2: *ts2,
+			ts := TrafficSplits{}
+			if ts2 != nil {
+				ts.ts2 = *ts2
 			}
 			return ts, err
 		}
@@ -134,8 +137,9 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	case "v1alpha3":
 		r.getFunc = func(trafficSplitName string) (TrafficSplits, error){
 			ts3, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{
-				ts3: *ts3,
+			ts := TrafficSplits{}
+			if ts3 != nil {
+				ts.ts3 = *ts3
 			}
 			return ts, err
 		}
@@ -184,7 +188,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	r.initializeTrafficSplits(trafficSplitName, desiredWeight)
 
 	// Check if Traffic Split exists in namespace
-	trafficSplit, err := r.getFunc(trafficSplitName)
+	existingTrafficSplit, err := r.getFunc(trafficSplitName)
 
 	if k8serrors.IsNotFound(err) {
 		// Create new Traffic Split
@@ -205,12 +209,12 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	// Patch existing Traffic Split
-	isControlledBy := r.isControlledBy(trafficSplit)
+	isControlledBy := r.isControlledBy(existingTrafficSplit)
 	if !isControlledBy {
 		msg := fmt.Sprintf("Rollout does not own TrafficSplit '%s'", trafficSplitName)
 		return fmt.Errorf(msg)
 	}
-	err = r.patchFunc(trafficSplit, r.trafficSplits)
+	err = r.patchFunc(existingTrafficSplit, r.trafficSplits)
 	if err == nil {
 		msg := fmt.Sprintf("Traffic Split '%s' modified", trafficSplitName)
 		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitModified", msg)
@@ -226,99 +230,81 @@ func (r *Reconciler) initializeTrafficSplits(trafficSplitName string, desiredWei
 		rootSvc = r.cfg.Rollout.Spec.Strategy.Canary.StableService
 	}
 
-	objectMeta := metav1.ObjectMeta{
-		Name:      trafficSplitName,
-		Namespace: r.cfg.Rollout.Namespace,
-		OwnerReferences: []metav1.OwnerReference{
-			*metav1.NewControllerRef(r.cfg.Rollout, r.cfg.ControllerKind),
-		},
-	}
+	objectMeta := objectMeta(trafficSplitName, r.cfg.Rollout, r.cfg.ControllerKind)
+
 	switch apiVersion := r.cfg.ApiVersion; apiVersion {
 	case "v1alpha1":
-		r.trafficSplits.ts1 = smiv1alpha1.TrafficSplit{
+		r.trafficSplits.ts1 = trafficSplitV1Alpha1(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+	case "v1alpha2":
+		r.trafficSplits.ts2 = trafficSplitV1Alpha2(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+	case "v1alpha3":
+		r.trafficSplits.ts3 = trafficSplitV1Alpha3(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+	}
+}
+
+func objectMeta(trafficSplitName string, ro *v1alpha1.Rollout, controllerKind schema.GroupVersionKind) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      trafficSplitName,
+		Namespace: ro.Namespace,
+		OwnerReferences: []metav1.OwnerReference{
+			*metav1.NewControllerRef(ro, controllerKind),
+		},
+	}
+}
+
+func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha1.TrafficSplit {
+	return smiv1alpha1.TrafficSplit{
 		ObjectMeta: objectMeta,
 		Spec:       smiv1alpha1.TrafficSplitSpec{
 			Service:  rootSvc,
 			Backends: []smiv1alpha1.TrafficSplitBackend{
 				{
-					Service: r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
+					Service: ro.Spec.Strategy.Canary.CanaryService,
 					Weight:  resource.NewQuantity(int64(desiredWeight), resource.DecimalExponent),
 				},
 				{
-					Service: r.cfg.Rollout.Spec.Strategy.Canary.StableService,
+					Service: ro.Spec.Strategy.Canary.StableService,
 					Weight:  resource.NewQuantity(int64(100-desiredWeight), resource.DecimalExponent),
 				},
 			},
 		},
 	}
-	case "v2alpha2":
-		r.trafficSplits.ts2 = smiv1alpha2.TrafficSplit{
-			ObjectMeta: objectMeta,
-			Spec:       smiv1alpha2.TrafficSplitSpec{
-				Service:  rootSvc,
-				Backends: []smiv1alpha2.TrafficSplitBackend{
-					{
-						Service: r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
-						Weight:  int(desiredWeight),
-					},
-					{
-						Service: r.cfg.Rollout.Spec.Strategy.Canary.StableService,
-						Weight:  int(desiredWeight),
-					},
+}
+
+func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha2.TrafficSplit {
+	return smiv1alpha2.TrafficSplit{
+		ObjectMeta: objectMeta,
+		Spec:       smiv1alpha2.TrafficSplitSpec{
+			Service:  rootSvc,
+			Backends: []smiv1alpha2.TrafficSplitBackend{
+				{
+					Service: ro.Spec.Strategy.Canary.CanaryService,
+					Weight: int(desiredWeight),
+				},
+				{
+					Service: ro.Spec.Strategy.Canary.StableService,
+					Weight:  int(100-desiredWeight),
 				},
 			},
-		}
-	case "v3alpha3":
-		r.trafficSplits.ts3 = smiv1alpha3.TrafficSplit{
-			ObjectMeta: objectMeta,
-			Spec:       smiv1alpha3.TrafficSplitSpec{
-				Service:  rootSvc,
-				Backends: []smiv1alpha3.TrafficSplitBackend{
-					{
-						Service: r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
-						Weight:  int(desiredWeight),
-					},
-					{
-						Service: r.cfg.Rollout.Spec.Strategy.Canary.StableService,
-						Weight:  int(desiredWeight),
-					},
-				},
-			},
-		}
+		},
 	}
 }
 
-//func createTrafficSplit(rollout *v1alpha1.Rollout, desiredWeight int32, controllerKind schema.GroupVersionKind) *smiv1alpha1.TrafficSplit {
-//	// Service weights formatted for Traffic Split spec
-//	canaryWeight := resource.NewQuantity(int64(desiredWeight), resource.DecimalExponent)
-//	stableWeight := resource.NewQuantity(int64(100-desiredWeight), resource.DecimalExponent)
-//
-//	// If root service not set, then set root service to be stable service
-//	rootSvc := rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
-//	if rootSvc == "" {
-//		rootSvc = rollout.Spec.Strategy.Canary.StableService
-//	}
-//
-//	return &smiv1alpha1.TrafficSplit{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      rollout.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName,
-//			Namespace: rollout.Namespace,
-//			OwnerReferences: []metav1.OwnerReference{
-//				*metav1.NewControllerRef(rollout, controllerKind),
-//			},
-//		},
-//		Spec: smiv1alpha1.TrafficSplitSpec{
-//			Service: rootSvc,
-//			Backends: []smiv1alpha1.TrafficSplitBackend{
-//				{
-//					Service: rollout.Spec.Strategy.Canary.CanaryService,
-//					Weight:  canaryWeight,
-//				},
-//				{
-//					Service: rollout.Spec.Strategy.Canary.StableService,
-//					Weight:  stableWeight,
-//				},
-//			},
-//		},
-//	}
-//}
+func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha3.TrafficSplit {
+	return smiv1alpha3.TrafficSplit{
+		ObjectMeta: objectMeta,
+		Spec:       smiv1alpha3.TrafficSplitSpec{
+			Service:  rootSvc,
+			Backends: []smiv1alpha3.TrafficSplitBackend{
+				{
+					Service: ro.Spec.Strategy.Canary.CanaryService,
+					Weight: int(desiredWeight),
+				},
+				{
+					Service: ro.Spec.Strategy.Canary.StableService,
+					Weight:  int(100-desiredWeight),
+				},
+			},
+		},
+	}
+}
