@@ -103,7 +103,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion: "v1alpha2",
+		ApiVersion:     "v1alpha2",
 	})
 	client.ClearActions()
 
@@ -130,7 +130,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion: "v1alpha3",
+		ApiVersion:     "v1alpha3",
 	})
 	client.ClearActions()
 
@@ -320,7 +320,7 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: controllerKind,
-		ApiVersion: "v1alpha1",
+		ApiVersion:     "v1alpha1",
 	})
 	//Throw error when client tries to get TrafficSplit
 	client.ReactionChain = nil
