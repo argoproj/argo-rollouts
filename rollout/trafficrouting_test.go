@@ -237,6 +237,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
+		rc.defaultTrafficSplitVersion = "v1alpha1"
 		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, smi.Type, networkReconciler.Type())

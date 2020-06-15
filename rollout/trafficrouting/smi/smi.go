@@ -27,7 +27,6 @@ const (
 )
 
 // ReconcilerConfig describes static configuration data for the SMI reconciler
-//noinspection GoUnresolvedReference
 type ReconcilerConfig struct {
 	Rollout        *v1alpha1.Rollout
 	Client         smiclientset.Interface
@@ -38,44 +37,41 @@ type ReconcilerConfig struct {
 
 // Reconciler holds required fields to reconcile SMI resources
 type Reconciler struct {
-	cfg            ReconcilerConfig
-	log            *logrus.Entry
-	trafficSplits  TrafficSplits
-	getFunc        func(trafficSplitName string) (TrafficSplits, error)
-	createFunc     func(ts TrafficSplits) error
-	patchFunc      func(existing TrafficSplits, desired TrafficSplits) error
-	isControlledBy func(ts TrafficSplits) bool
+	cfg                        ReconcilerConfig
+	log                        *logrus.Entry
+	getTrafficSplit            func(trafficSplitName string) (VersionedTrafficSplits, error)
+	createTrafficSplit         func(ts VersionedTrafficSplits) error
+	patchTrafficSplit          func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error
+	trafficSplitIsControlledBy func(ts VersionedTrafficSplits) bool
 }
 
-type TrafficSplits struct {
-	ts1 smiv1alpha1.TrafficSplit
-	ts2 smiv1alpha2.TrafficSplit
-	ts3 smiv1alpha3.TrafficSplit
+type VersionedTrafficSplits struct {
+	ts1 *smiv1alpha1.TrafficSplit
+	ts2 *smiv1alpha2.TrafficSplit
+	ts3 *smiv1alpha3.TrafficSplit
 }
 
 // NewReconciler returns a reconciler struct that brings the SMI into the desired state
-func NewReconciler(cfg ReconcilerConfig) *Reconciler {
+func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	r := &Reconciler{
-		cfg:           cfg,
-		log:           logutil.WithRollout(cfg.Rollout),
-		trafficSplits: TrafficSplits{},
+		cfg: cfg,
+		log: logutil.WithRollout(cfg.Rollout),
 	}
-	// TODO: Create default and list of supported versions
 	switch apiVersion := r.cfg.ApiVersion; apiVersion {
 	case "v1alpha1":
-		r.getFunc = func(trafficSplitName string) (TrafficSplits, error) {
+		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
 			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{}
+			ts := VersionedTrafficSplits{}
 			if ts1 != nil {
-				ts.ts1 = *ts1
+				ts.ts1 = ts1
 			}
 			return ts, err
 		}
-		r.createFunc = func(ts TrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Create(&ts.ts1)
+		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
+			_, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts1)
 			return err
 		}
-		r.patchFunc = func(existing TrafficSplits, desired TrafficSplits) error {
+		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
 			patch, modified, err := diff.CreateTwoWayMergePatch(
 				smiv1alpha1.TrafficSplit{
 					Spec: existing.ts1.Spec,
@@ -95,23 +91,23 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 			_, err = r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts1.Name, patchtypes.MergePatchType, patch)
 			return err
 		}
-		r.isControlledBy = func(ts TrafficSplits) bool {
-			return metav1.IsControlledBy(&ts.ts1, r.cfg.Rollout)
+		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
+			return metav1.IsControlledBy(ts.ts1, r.cfg.Rollout)
 		}
 	case "v1alpha2":
-		r.getFunc = func(trafficSplitName string) (TrafficSplits, error) {
+		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
 			ts2, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{}
+			ts := VersionedTrafficSplits{}
 			if ts2 != nil {
-				ts.ts2 = *ts2
+				ts.ts2 = ts2
 			}
 			return ts, err
 		}
-		r.createFunc = func(ts TrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Create(&ts.ts2)
+		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
+			_, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts2)
 			return err
 		}
-		r.patchFunc = func(existing TrafficSplits, desired TrafficSplits) error {
+		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
 			patch, modified, err := diff.CreateTwoWayMergePatch(
 				smiv1alpha2.TrafficSplit{
 					Spec: existing.ts2.Spec,
@@ -131,23 +127,23 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 			_, err = r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts2.Name, patchtypes.MergePatchType, patch)
 			return err
 		}
-		r.isControlledBy = func(ts TrafficSplits) bool {
-			return metav1.IsControlledBy(&ts.ts2, r.cfg.Rollout)
+		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
+			return metav1.IsControlledBy(ts.ts2, r.cfg.Rollout)
 		}
 	case "v1alpha3":
-		r.getFunc = func(trafficSplitName string) (TrafficSplits, error) {
+		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
 			ts3, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
-			ts := TrafficSplits{}
+			ts := VersionedTrafficSplits{}
 			if ts3 != nil {
-				ts.ts3 = *ts3
+				ts.ts3 = ts3
 			}
 			return ts, err
 		}
-		r.createFunc = func(ts TrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Create(&ts.ts3)
+		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
+			_, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts3)
 			return err
 		}
-		r.patchFunc = func(existing TrafficSplits, desired TrafficSplits) error {
+		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
 			patch, modified, err := diff.CreateTwoWayMergePatch(
 				smiv1alpha3.TrafficSplit{
 					Spec: existing.ts3.Spec,
@@ -167,11 +163,14 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 			_, err = r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts3.Name, patchtypes.MergePatchType, patch)
 			return err
 		}
-		r.isControlledBy = func(ts TrafficSplits) bool {
-			return metav1.IsControlledBy(&ts.ts3, r.cfg.Rollout)
+		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
+			return metav1.IsControlledBy(ts.ts3, r.cfg.Rollout)
 		}
+	default:
+		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", apiVersion)
+		return nil, err
 	}
-	return r
+	return r, nil
 }
 
 // Type indicates this reconciler is an SMI reconciler
@@ -179,27 +178,28 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
-// Create and modify traffic splits based on the desired weight
+// Reconcile creates and modifies traffic splits based on the desired weight
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
+	// If TrafficSplitName not set, then set to Rollout name
 	trafficSplitName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
 	if trafficSplitName == "" {
 		trafficSplitName = r.cfg.Rollout.Name
 	}
-	r.initializeTrafficSplits(trafficSplitName, desiredWeight)
+	trafficSplits := r.generateTrafficSplits(trafficSplitName, desiredWeight)
 
 	// Check if Traffic Split exists in namespace
-	existingTrafficSplit, err := r.getFunc(trafficSplitName)
+	existingTrafficSplit, err := r.getTrafficSplit(trafficSplitName)
 
 	if k8serrors.IsNotFound(err) {
 		// Create new Traffic Split
-		err = r.createFunc(r.trafficSplits)
+		err = r.createTrafficSplit(trafficSplits)
 		if err == nil {
 			msg := fmt.Sprintf("Traffic Split `%s` created", trafficSplitName)
 			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitCreated", msg)
 			r.log.Info(msg)
 		} else {
 			msg := fmt.Sprintf("Unable to create Traffic Split `%s`", trafficSplitName)
-			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "TrafficSplitCreated", msg)
+			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "TrafficSplitNotCreated", msg)
 		}
 		return err
 	}
@@ -209,37 +209,39 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	// Patch existing Traffic Split
-	isControlledBy := r.isControlledBy(existingTrafficSplit)
+	isControlledBy := r.trafficSplitIsControlledBy(existingTrafficSplit)
 	if !isControlledBy {
-		msg := fmt.Sprintf("Rollout does not own TrafficSplit '%s'", trafficSplitName)
-		return fmt.Errorf(msg)
+		return fmt.Errorf("Rollout does not own TrafficSplit `%s`", trafficSplitName)
 	}
-	err = r.patchFunc(existingTrafficSplit, r.trafficSplits)
+	err = r.patchTrafficSplit(existingTrafficSplit, trafficSplits)
 	if err == nil {
-		msg := fmt.Sprintf("Traffic Split '%s' modified", trafficSplitName)
+		msg := fmt.Sprintf("Traffic Split `%s` modified", trafficSplitName)
 		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitModified", msg)
 		r.log.Info(msg)
 	}
 	return err
 }
 
-func (r *Reconciler) initializeTrafficSplits(trafficSplitName string, desiredWeight int32) {
+func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeight int32) VersionedTrafficSplits {
 	// If root service not set, then set root service to be stable service
 	rootSvc := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
 	if rootSvc == "" {
 		rootSvc = r.cfg.Rollout.Spec.Strategy.Canary.StableService
 	}
 
+	trafficSplits := VersionedTrafficSplits{}
+
 	objectMeta := objectMeta(trafficSplitName, r.cfg.Rollout, r.cfg.ControllerKind)
 
 	switch apiVersion := r.cfg.ApiVersion; apiVersion {
 	case "v1alpha1":
-		r.trafficSplits.ts1 = trafficSplitV1Alpha1(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+		trafficSplits.ts1 = trafficSplitV1Alpha1(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
 	case "v1alpha2":
-		r.trafficSplits.ts2 = trafficSplitV1Alpha2(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+		trafficSplits.ts2 = trafficSplitV1Alpha2(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
 	case "v1alpha3":
-		r.trafficSplits.ts3 = trafficSplitV1Alpha3(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
+		trafficSplits.ts3 = trafficSplitV1Alpha3(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
 	}
+	return trafficSplits
 }
 
 func objectMeta(trafficSplitName string, ro *v1alpha1.Rollout, controllerKind schema.GroupVersionKind) metav1.ObjectMeta {
@@ -252,8 +254,8 @@ func objectMeta(trafficSplitName string, ro *v1alpha1.Rollout, controllerKind sc
 	}
 }
 
-func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha1.TrafficSplit {
-	return smiv1alpha1.TrafficSplit{
+func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) *smiv1alpha1.TrafficSplit {
+	return &smiv1alpha1.TrafficSplit{
 		ObjectMeta: objectMeta,
 		Spec: smiv1alpha1.TrafficSplitSpec{
 			Service: rootSvc,
@@ -271,8 +273,8 @@ func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 	}
 }
 
-func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha2.TrafficSplit {
-	return smiv1alpha2.TrafficSplit{
+func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) *smiv1alpha2.TrafficSplit {
+	return &smiv1alpha2.TrafficSplit{
 		ObjectMeta: objectMeta,
 		Spec: smiv1alpha2.TrafficSplitSpec{
 			Service: rootSvc,
@@ -290,8 +292,8 @@ func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 	}
 }
 
-func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) smiv1alpha3.TrafficSplit {
-	return smiv1alpha3.TrafficSplit{
+func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32) *smiv1alpha3.TrafficSplit {
+	return &smiv1alpha3.TrafficSplit{
 		ObjectMeta: objectMeta,
 		Spec: smiv1alpha3.TrafficSplitSpec{
 			Service: rootSvc,

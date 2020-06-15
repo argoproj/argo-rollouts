@@ -24,12 +24,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-var rootSvc = "root-service"
-var stableSvc = "stable-service"
-var canarySvc = "canary-service"
-var trafficSplitName = "traffic-split-name"
-var controllerKind = schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"}
-
 func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,328 +50,381 @@ func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) 
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		ControllerKind: schema.GroupVersionKind{},
+		ApiVersion:     "v1alpha1",
 	})
+	assert.Nil(t, err)
 	assert.Equal(t, Type, r.Type())
+}
+
+func TestUnsupportedTrafficSplitApiVersionError(t *testing.T) {
+	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	client := fake.NewSimpleClientset()
+	_, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       &record.FakeRecorder{},
+		ControllerKind: schema.GroupVersionKind{},
+		ApiVersion:     "does-not-exist",
+	})
+	assert.EqualError(t, err, "Unsupported TrafficSplit API version `does-not-exist`")
 }
 
 func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	desiredWeight := int32(10)
-	ro := fakeRollout(stableSvc, canarySvc, rootSvc, trafficSplitName)
-	client := fake.NewSimpleClientset()
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha1",
+
+	t.Run("v1alpha1", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "", "")
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha1",
+		})
+		assert.Nil(t, err)
+
+		err = r.Reconcile(desiredWeight)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts1 := &smiv1alpha1.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts1)
+
+		assert.Equal(t, objectMeta(ro.Name, ro, schema.GroupVersionKind{}), ts1.ObjectMeta) // If TrafficSplitName not set, then set to Rollout name
+		assert.Equal(t, "stable-service", ts1.Spec.Service)                                 // // If root service not set, then set root service to be stable service
+		assert.Equal(t, "canary-service", ts1.Spec.Backends[0].Service)
+		assert.Equal(t, int64(desiredWeight), ts1.Spec.Backends[0].Weight.Value())
+		assert.Equal(t, "stable-service", ts1.Spec.Backends[1].Service)
+		assert.Equal(t, int64(100-desiredWeight), ts1.Spec.Backends[1].Weight.Value())
 	})
-	// v1alpha1
-	err := r.Reconcile(desiredWeight)
-	assert.Nil(t, err)
-	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "create", actions[1].GetVerb())
 
-	obj := actions[1].(core.CreateAction).GetObject()
-	ts1 := &smiv1alpha1.TrafficSplit{}
-	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ := converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts1)
+	t.Run("v1alpha2", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha2",
+		})
+		assert.Nil(t, err)
 
-	//assert.Equal(t, expectedTS.ObjectMeta, ts.ObjectMeta)
-	assert.Equal(t, rootSvc, ts1.Spec.Service)
-	assert.Equal(t, canarySvc, ts1.Spec.Backends[0].Service)
-	assert.Equal(t, int64(desiredWeight), ts1.Spec.Backends[0].Weight.Value())
-	assert.Equal(t, stableSvc, ts1.Spec.Backends[1].Service)
-	assert.Equal(t, int64(100-desiredWeight), ts1.Spec.Backends[1].Weight.Value())
+		err = r.Reconcile(desiredWeight)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
 
-	// v1alpha2
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha2",
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts2 := &smiv1alpha2.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts2)
+
+		objectMeta := objectMeta("traffic-split-name", ro, r.cfg.ControllerKind)
+		expectedTs2 := trafficSplitV1Alpha2(ro, objectMeta, "root-service", desiredWeight)
+		assert.Equal(t, expectedTs2, ts2)
 	})
-	client.ClearActions()
 
-	err = r.Reconcile(desiredWeight)
-	assert.Nil(t, err)
-	actions = client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "create", actions[1].GetVerb())
+	t.Run("v1alpha3", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha3",
+		})
+		assert.Nil(t, err)
 
-	obj = actions[1].(core.CreateAction).GetObject()
-	ts2 := &smiv1alpha2.TrafficSplit{}
-	converter = runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ = converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts2)
+		err = r.Reconcile(desiredWeight)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
 
-	objectMeta := objectMeta(trafficSplitName, ro, r.cfg.ControllerKind)
-	expectedTs2 := trafficSplitV1Alpha2(ro, objectMeta, rootSvc, desiredWeight)
-	assert.Equal(t, expectedTs2, *ts2)
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts3 := &smiv1alpha3.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts3)
 
-	// v1alpha3
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha3",
+		objectMeta := objectMeta("traffic-split-name", ro, r.cfg.ControllerKind)
+		expectedTs3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", desiredWeight)
+		assert.Equal(t, expectedTs3, ts3)
 	})
-	client.ClearActions()
-
-	err = r.Reconcile(desiredWeight)
-	assert.Nil(t, err)
-	//actions = client.Actions()
-	//assert.Len(t, actions, 2)
-	//assert.Equal(t, "get", actions[0].GetVerb())
-	//assert.Equal(t, "create", actions[1].GetVerb())
-
-	obj = actions[1].(core.CreateAction).GetObject()
-	ts3 := &smiv1alpha3.TrafficSplit{}
-	converter = runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ = converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts3)
-
-	expectedTs3 := trafficSplitV1Alpha3(ro, objectMeta, rootSvc, desiredWeight)
-	assert.Equal(t, expectedTs3, *ts3)
 }
 
 func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
-	ro := fakeRollout(stableSvc, canarySvc, rootSvc, "traffic-split-name")
-	objectMeta := objectMeta("traffic-split-name", ro, controllerKind)
+	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	objectMeta := objectMeta("traffic-split-name", ro, schema.GroupVersionKind{})
 
-	// v1alpha1
-	ts1 := trafficSplitV1Alpha1(ro, objectMeta, rootSvc, int32(10))
-	client := fake.NewSimpleClientset(&ts1)
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha1",
+	t.Run("v1alpha1", func(t *testing.T) {
+		ts1 := trafficSplitV1Alpha1(ro, objectMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts1)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha1",
+		})
+		assert.Nil(t, err)
+
+		err = r.Reconcile(50)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "patch", actions[1].GetVerb())
+
+		patchAction := actions[1].(core.PatchAction)
+		ts1Patched := &smiv1alpha1.TrafficSplit{}
+		err = json.Unmarshal(patchAction.GetPatch(), &ts1Patched)
+		if err != nil {
+			panic(err)
+		}
+		canaryWeight, isInt64 := ts1Patched.Spec.Backends[0].Weight.AsInt64()
+		assert.True(t, isInt64)
+		stableWeight, isInt64 := ts1Patched.Spec.Backends[1].Weight.AsInt64()
+		assert.True(t, isInt64)
+
+		assert.Equal(t, int64(50), canaryWeight)
+		assert.Equal(t, int64(50), stableWeight)
 	})
 
-	err := r.Reconcile(50)
-	assert.Nil(t, err)
+	t.Run("v1alpha2", func(t *testing.T) {
+		ts2 := trafficSplitV1Alpha2(ro, objectMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts2)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha2",
+		})
+		assert.Nil(t, err)
 
-	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "patch", actions[1].GetVerb())
+		err = r.Reconcile(50)
+		assert.Nil(t, err)
 
-	patchAction := actions[1].(core.PatchAction)
-	ts1Patched := &smiv1alpha1.TrafficSplit{}
-	err = json.Unmarshal(patchAction.GetPatch(), &ts1Patched)
-	if err != nil {
-		panic(err)
-	}
-	canaryWeight, isInt64 := ts1Patched.Spec.Backends[0].Weight.AsInt64()
-	assert.True(t, isInt64)
-	stableWeight, isInt64 := ts1Patched.Spec.Backends[1].Weight.AsInt64()
-	assert.True(t, isInt64)
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "patch", actions[1].GetVerb())
 
-	assert.Equal(t, int64(50), canaryWeight)
-	assert.Equal(t, int64(50), stableWeight)
+		patchAction := actions[1].(core.PatchAction)
+		ts2Patched := &smiv1alpha2.TrafficSplit{}
+		err = json.Unmarshal(patchAction.GetPatch(), &ts2Patched)
+		if err != nil {
+			panic(err)
+		}
 
-	// v1alpha2
-	ts2 := trafficSplitV1Alpha2(ro, objectMeta, rootSvc, int32(10))
-	client = fake.NewSimpleClientset(&ts2)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha2",
+		assert.Equal(t, 50, ts2Patched.Spec.Backends[0].Weight)
+		assert.Equal(t, 50, ts2Patched.Spec.Backends[1].Weight)
 	})
 
-	err = r.Reconcile(50)
-	assert.Nil(t, err)
+	t.Run("v1alpha3", func(t *testing.T) {
+		ts3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts3)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha3",
+		})
+		assert.Nil(t, err)
 
-	actions = client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "patch", actions[1].GetVerb())
+		err = r.Reconcile(50)
+		assert.Nil(t, err)
 
-	patchAction = actions[1].(core.PatchAction)
-	ts2Patched := &smiv1alpha2.TrafficSplit{}
-	err = json.Unmarshal(patchAction.GetPatch(), &ts2Patched)
-	if err != nil {
-		panic(err)
-	}
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "patch", actions[1].GetVerb())
 
-	assert.Equal(t, 50, ts2Patched.Spec.Backends[0].Weight)
-	assert.Equal(t, 50, ts2Patched.Spec.Backends[1].Weight)
+		patchAction := actions[1].(core.PatchAction)
+		ts3Patched := &smiv1alpha3.TrafficSplit{}
+		err = json.Unmarshal(patchAction.GetPatch(), &ts3Patched)
+		if err != nil {
+			panic(err)
+		}
 
-	// v1alpha3
-	ts3 := trafficSplitV1Alpha3(ro, objectMeta, rootSvc, int32(10))
-	client = fake.NewSimpleClientset(&ts3)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		ApiVersion:     "v1alpha3",
+		assert.Equal(t, 50, ts3Patched.Spec.Backends[0].Weight)
+		assert.Equal(t, 50, ts3Patched.Spec.Backends[1].Weight)
 	})
-
-	err = r.Reconcile(50)
-	assert.Nil(t, err)
-
-	actions = client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "patch", actions[1].GetVerb())
-
-	patchAction = actions[1].(core.PatchAction)
-	ts3Patched := &smiv1alpha3.TrafficSplit{}
-	err = json.Unmarshal(patchAction.GetPatch(), &ts3Patched)
-	if err != nil {
-		panic(err)
-	}
-
-	assert.Equal(t, 50, ts3Patched.Spec.Backends[0].Weight)
-	assert.Equal(t, 50, ts3Patched.Spec.Backends[1].Weight)
 }
 
 func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
-	// v1alpha1
-	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha1")
-	objMeta := objectMeta("traffic-split-v1alpha1", ro, controllerKind)
-	ts1 := trafficSplitV1Alpha1(ro, objMeta, rootSvc, int32(10))
-	client := fake.NewSimpleClientset(&ts1)
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha1",
-	})
-	buf := bytes.NewBufferString("")
-	logger := log.New()
-	logger.SetOutput(buf)
-	r.log.Logger = logger
-	err := r.Reconcile(10)
-	assert.Nil(t, err)
-	logMessage := buf.String()
-	assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha1` was not modified"))
 
-	// v1alpha2
-	ro = fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha2")
-	objMeta = objectMeta("traffic-split-v1alpha2", ro, controllerKind)
-	ts2 := trafficSplitV1Alpha2(ro, objMeta, rootSvc, int32(10))
-	client = fake.NewSimpleClientset(&ts2)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha2",
-	})
-	buf = bytes.NewBufferString("")
-	logger = log.New()
-	logger.SetOutput(buf)
-	r.log.Logger = logger
-	err = r.Reconcile(10)
-	assert.Nil(t, err)
-	logMessage = buf.String()
-	assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha2` was not modified"))
+	t.Run("v1alpha1", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha1")
+		objMeta := objectMeta("traffic-split-v1alpha1", ro, schema.GroupVersionKind{})
+		ts1 := trafficSplitV1Alpha1(ro, objMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts1)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha1",
+		})
+		assert.Nil(t, err)
 
-	// v1alpha3
-	ro = fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha3")
-	objMeta = objectMeta("traffic-split-v1alpha3", ro, controllerKind)
-	ts3 := trafficSplitV1Alpha3(ro, objMeta, rootSvc, int32(10))
-	client = fake.NewSimpleClientset(&ts3)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha3",
+		buf := bytes.NewBufferString("")
+		logger := log.New()
+		logger.SetOutput(buf)
+		r.log.Logger = logger
+		err = r.Reconcile(10)
+		assert.Nil(t, err)
+		logMessage := buf.String()
+		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha1` was not modified"))
+
 	})
-	buf = bytes.NewBufferString("")
-	logger = log.New()
-	logger.SetOutput(buf)
-	r.log.Logger = logger
-	err = r.Reconcile(10)
-	assert.Nil(t, err)
-	logMessage = buf.String()
-	assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha3` was not modified"))
+
+	t.Run("v1alpha2", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha2")
+		objMeta := objectMeta("traffic-split-v1alpha2", ro, schema.GroupVersionKind{})
+		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts2)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha2",
+		})
+		assert.Nil(t, err)
+
+		buf := bytes.NewBufferString("")
+		logger := log.New()
+		logger.SetOutput(buf)
+		r.log.Logger = logger
+		err = r.Reconcile(10)
+		assert.Nil(t, err)
+		logMessage := buf.String()
+		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha2` was not modified"))
+	})
+
+	t.Run("v1alpha3", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha3")
+		objMeta := objectMeta("traffic-split-v1alpha3", ro, schema.GroupVersionKind{})
+		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts3)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha3",
+		})
+		assert.Nil(t, err)
+
+		buf := bytes.NewBufferString("")
+		logger := log.New()
+		logger.SetOutput(buf)
+		r.log.Logger = logger
+		err = r.Reconcile(10)
+		assert.Nil(t, err)
+		logMessage := buf.String()
+		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha3` was not modified"))
+	})
 }
 
 func TestReconcileGetTrafficSplitError(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 	client := fake.NewSimpleClientset()
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
+		ControllerKind: schema.GroupVersionKind{},
 		ApiVersion:     "v1alpha1",
 	})
+	assert.Nil(t, err)
 	//Throw error when client tries to get TrafficSplit
 	client.ReactionChain = nil
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "trafficsplits", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, k8serrors.NewServerTimeout(schema.GroupResource{Group: "split.smi-spec.io", Resource: "trafficsplits"}, "get", 0)
 	})
-	err := r.Reconcile(10)
+	err = r.Reconcile(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsServerTimeout(err))
 }
 
 func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	objMeta := objectMeta("traffic-split-name", ro, controllerKind)
+	objMeta := objectMeta("traffic-split-name", ro, schema.GroupVersionKind{})
 
-	// v1alpha1
-	ts1 := trafficSplitV1Alpha1(ro, objMeta, rootSvc, int32(10))
-	ts1.OwnerReferences = nil
+	t.Run("v1alpha1", func(t *testing.T) {
+		ts1 := trafficSplitV1Alpha1(ro, objMeta, "root-service", int32(10))
+		ts1.OwnerReferences = nil
 
-	client := fake.NewSimpleClientset(&ts1)
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha1",
+		client := fake.NewSimpleClientset(ts1)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha1",
+		})
+		assert.Nil(t, err)
+
+		err = r.Reconcile(10)
+		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
-	err := r.Reconcile(10)
-	assert.EqualError(t, err, "Rollout does not own TrafficSplit 'traffic-split-name'")
 
-	// v1alpha2
-	ts2 := trafficSplitV1Alpha2(ro, objMeta, rootSvc, int32(10))
-	ts2.OwnerReferences = nil
+	t.Run("v1alpha2", func(t *testing.T) {
+		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
+		ts2.OwnerReferences = nil
 
-	client = fake.NewSimpleClientset(&ts2)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha2",
+		client := fake.NewSimpleClientset(ts2)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha2",
+		})
+		assert.Nil(t, err)
+
+		err = r.Reconcile(10)
+		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
-	err = r.Reconcile(10)
-	assert.EqualError(t, err, "Rollout does not own TrafficSplit 'traffic-split-name'")
 
-	// v1alpha3
-	ts3 := trafficSplitV1Alpha3(ro, objMeta, rootSvc, int32(10))
-	ts3.OwnerReferences = nil
+	t.Run("v1alpha3", func(t *testing.T) {
+		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
+		ts3.OwnerReferences = nil
 
-	client = fake.NewSimpleClientset(&ts3)
-	r = NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       &record.FakeRecorder{},
-		ControllerKind: controllerKind,
-		ApiVersion:     "v1alpha3",
+		client := fake.NewSimpleClientset(ts3)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{},
+			ApiVersion:     "v1alpha3",
+		})
+		assert.Nil(t, err)
+
+		err = r.Reconcile(10)
+		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
-	err = r.Reconcile(10)
-	assert.EqualError(t, err, "Rollout does not own TrafficSplit 'traffic-split-name'")
 }
