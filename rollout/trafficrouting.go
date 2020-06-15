@@ -18,13 +18,13 @@ type TrafficRoutingReconciler interface {
 }
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRoutingReconciler {
+func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficRoutingReconciler, error) {
 	rollout := roCtx.Rollout()
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		return nil
+		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
-		return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion)
+		return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion), nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 		return nginx.NewReconciler(nginx.ReconcilerConfig{
@@ -33,7 +33,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRo
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
-		})
+		}), nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		return alb.NewReconciler(alb.ReconcilerConfig{
@@ -42,26 +42,26 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) TrafficRo
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
-		})
+		}), nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
-		r, err := smi.NewReconciler(smi.ReconcilerConfig{
+		return smi.NewReconciler(smi.ReconcilerConfig{
 			Rollout:        rollout,
 			Client:         c.smiclientset,
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			ApiVersion:     c.defaultTrafficSplitVersion,
 		})
-		if err == nil {
-			return r
-		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (c *Controller) reconcileTrafficRouting(roCtx *canaryContext) error {
 	rollout := roCtx.Rollout()
-	reconciler := c.newTrafficRoutingReconciler(roCtx)
+	reconciler, err := c.newTrafficRoutingReconciler(roCtx)
+	if err != nil {
+		return err
+	}
 	if reconciler == nil {
 		return nil
 	}
@@ -94,7 +94,7 @@ func (c *Controller) reconcileTrafficRouting(roCtx *canaryContext) error {
 		}
 	}
 
-	err := reconciler.Reconcile(desiredWeight)
+	err = reconciler.Reconcile(desiredWeight)
 	if err != nil {
 		c.recorder.Event(rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
 	}

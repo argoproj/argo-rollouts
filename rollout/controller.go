@@ -80,7 +80,7 @@ type Controller struct {
 	// used for unit testing
 	enqueueRollout              func(obj interface{})
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
-	newTrafficRoutingReconciler func(roCtx rolloutContext) TrafficRoutingReconciler
+	newTrafficRoutingReconciler func(roCtx rolloutContext) (TrafficRoutingReconciler, error)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -169,6 +169,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
+
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")

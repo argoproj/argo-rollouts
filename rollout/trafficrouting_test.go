@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -12,7 +14,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -176,7 +177,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.Nil(t, networkReconciler)
 	}
 	{
@@ -186,7 +188,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.Nil(t, networkReconciler)
 	}
 	{
@@ -198,7 +201,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, istio.Type, networkReconciler.Type())
 	}
@@ -211,7 +215,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, nginx.Type, networkReconciler.Type())
 	}
@@ -224,7 +229,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, alb.Type, networkReconciler.Type())
 	}
@@ -237,8 +243,22 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
+		_, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "Unsupported TrafficSplit API version ``")
+	}
+	{
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
 		rc.defaultTrafficSplitVersion = "v1alpha1"
-		networkReconciler := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, smi.Type, networkReconciler.Type())
 	}
