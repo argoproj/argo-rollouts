@@ -1,5 +1,7 @@
 # Anti Affinity
 
+## Background
+
 Depending on a cluster's configuration, a Blue Green Rollout (or a Canary rollout that uses traffic management) can cause newly created pods to restart after deploying a new version. This can be problematic, especially for applications that cannot startup quickly or do not gracefully exit.
 
 
@@ -30,6 +32,8 @@ You can learn more about anti-affinity [here](https://kubernetes.io/docs/concept
 Repeating the above example with anti-affinity enabled, here is what happens when the `.spec.template` of the Rollout changes. Due to anti-affinity, the new pods cannot be scheduled on nodes which run the old ReplicaSet's pods.
 As a result, the cluster auto-scaler must create 2 nodes to host the new ReplicaSet's pods. In this case, pods won't be started since the scaled-down nodes are guaranteed to not have the new pods.
 ![ Original Rollout is running, spread across two nodes](images/solution.png)
+
+## Enabling Anti-Affinity in Rollouts
 
 Anti-affinity is enabled by adding the anti-affinity struct to the Blue-Green or Canary strategy. When the anti-affinity struct is set, controller injects a PodAntiAffinity struct into the ReplicaSet's Affinity.
 This feature will not modify any of the ReplicaSet's pre-existing affinity rules. 
