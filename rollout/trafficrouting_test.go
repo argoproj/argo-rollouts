@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -14,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -248,6 +247,8 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		assert.EqualError(t, err, "Unsupported TrafficSplit API version ``")
 	}
 	{
+		tsController := Controller{}
+		tsController.defaultTrafficSplitVersion = "v1alpha1"
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
@@ -256,8 +257,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		rc.defaultTrafficSplitVersion = "v1alpha1"
-		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		networkReconciler, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, err)
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, smi.Type, networkReconciler.Type())
