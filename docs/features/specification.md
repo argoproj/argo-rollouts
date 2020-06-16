@@ -1,9 +1,4 @@
-# Overview
-
-The Rollout object has two available strategies: Canary and BlueGreen. Below are the links to the documenation for each strategy:
-
-1. [Blue Green](bluegreen.md)
-1. [Canary](canary.md)
+# Rollout Specification
 
 The following describes all the available fields of a rollout:
 
