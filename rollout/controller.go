@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,8 +58,10 @@ type Controller struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
-	dynamicclientset    dynamic.Interface
-	defaultIstioVersion string
+	dynamicclientset           dynamic.Interface
+	smiclientset               smiclientset.Interface
+	defaultIstioVersion        string
+	defaultTrafficSplitVersion string
 
 	replicaSetLister       appslisters.ReplicaSetLister
 	replicaSetSynced       cache.InformerSynced
@@ -77,7 +80,7 @@ type Controller struct {
 	// used for unit testing
 	enqueueRollout              func(obj interface{})
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
-	newTrafficRoutingReconciler func(roCtx rolloutContext) TrafficRoutingReconciler
+	newTrafficRoutingReconciler func(roCtx rolloutContext) (TrafficRoutingReconciler, error)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -95,24 +98,26 @@ type Controller struct {
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
 type ControllerConfig struct {
-	Namespace                string
-	KubeClientSet            kubernetes.Interface
-	ArgoProjClientset        clientset.Interface
-	DynamicClientSet         dynamic.Interface
-	ExperimentInformer       informers.ExperimentInformer
-	AnalysisRunInformer      informers.AnalysisRunInformer
-	AnalysisTemplateInformer informers.AnalysisTemplateInformer
-	ReplicaSetInformer       appsinformers.ReplicaSetInformer
-	ServicesInformer         coreinformers.ServiceInformer
-	IngressInformer          extensionsinformers.IngressInformer
-	RolloutsInformer         informers.RolloutInformer
-	ResyncPeriod             time.Duration
-	RolloutWorkQueue         workqueue.RateLimitingInterface
-	ServiceWorkQueue         workqueue.RateLimitingInterface
-	IngressWorkQueue         workqueue.RateLimitingInterface
-	MetricsServer            *metrics.MetricsServer
-	Recorder                 record.EventRecorder
-	DefaultIstioVersion      string
+	Namespace                  string
+	KubeClientSet              kubernetes.Interface
+	ArgoProjClientset          clientset.Interface
+	DynamicClientSet           dynamic.Interface
+	SmiClientSet               smiclientset.Interface
+	ExperimentInformer         informers.ExperimentInformer
+	AnalysisRunInformer        informers.AnalysisRunInformer
+	AnalysisTemplateInformer   informers.AnalysisTemplateInformer
+	ReplicaSetInformer         appsinformers.ReplicaSetInformer
+	ServicesInformer           coreinformers.ServiceInformer
+	IngressInformer            extensionsinformers.IngressInformer
+	RolloutsInformer           informers.RolloutInformer
+	ResyncPeriod               time.Duration
+	RolloutWorkQueue           workqueue.RateLimitingInterface
+	ServiceWorkQueue           workqueue.RateLimitingInterface
+	IngressWorkQueue           workqueue.RateLimitingInterface
+	MetricsServer              *metrics.MetricsServer
+	Recorder                   record.EventRecorder
+	DefaultIstioVersion        string
+	DefaultTrafficSplitVersion string
 }
 
 // NewController returns a new rollout controller
@@ -132,29 +137,31 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		namespace:              cfg.Namespace,
-		kubeclientset:          cfg.KubeClientSet,
-		argoprojclientset:      cfg.ArgoProjClientset,
-		dynamicclientset:       cfg.DynamicClientSet,
-		defaultIstioVersion:    cfg.DefaultIstioVersion,
-		replicaSetControl:      replicaSetControl,
-		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
-		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,
-		rolloutsIndexer:        cfg.RolloutsInformer.Informer().GetIndexer(),
-		rolloutsLister:         cfg.RolloutsInformer.Lister(),
-		rolloutsSynced:         cfg.RolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:       cfg.RolloutWorkQueue,
-		serviceWorkqueue:       cfg.ServiceWorkQueue,
-		ingressWorkqueue:       cfg.IngressWorkQueue,
-		servicesLister:         cfg.ServicesInformer.Lister(),
-		ingressesLister:        cfg.IngressInformer.Lister(),
-		experimentsLister:      cfg.ExperimentInformer.Lister(),
-		analysisRunLister:      cfg.AnalysisRunInformer.Lister(),
-		analysisTemplateLister: cfg.AnalysisTemplateInformer.Lister(),
-		recorder:               cfg.Recorder,
-		resyncPeriod:           cfg.ResyncPeriod,
-		metricsServer:          cfg.MetricsServer,
-		podRestarter:           podRestarter,
+		namespace:                  cfg.Namespace,
+		kubeclientset:              cfg.KubeClientSet,
+		argoprojclientset:          cfg.ArgoProjClientset,
+		dynamicclientset:           cfg.DynamicClientSet,
+		smiclientset:               cfg.SmiClientSet,
+		defaultIstioVersion:        cfg.DefaultIstioVersion,
+		defaultTrafficSplitVersion: cfg.DefaultTrafficSplitVersion,
+		replicaSetControl:          replicaSetControl,
+		replicaSetLister:           cfg.ReplicaSetInformer.Lister(),
+		replicaSetSynced:           cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:            cfg.RolloutsInformer.Informer().GetIndexer(),
+		rolloutsLister:             cfg.RolloutsInformer.Lister(),
+		rolloutsSynced:             cfg.RolloutsInformer.Informer().HasSynced,
+		rolloutWorkqueue:           cfg.RolloutWorkQueue,
+		serviceWorkqueue:           cfg.ServiceWorkQueue,
+		ingressWorkqueue:           cfg.IngressWorkQueue,
+		servicesLister:             cfg.ServicesInformer.Lister(),
+		ingressesLister:            cfg.IngressInformer.Lister(),
+		experimentsLister:          cfg.ExperimentInformer.Lister(),
+		analysisRunLister:          cfg.AnalysisRunInformer.Lister(),
+		analysisTemplateLister:     cfg.AnalysisTemplateInformer.Lister(),
+		recorder:                   cfg.Recorder,
+		resyncPeriod:               cfg.ResyncPeriod,
+		metricsServer:              cfg.MetricsServer,
+		podRestarter:               podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -162,6 +169,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
+
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")

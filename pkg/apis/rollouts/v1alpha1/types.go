@@ -211,6 +211,18 @@ type RolloutTrafficRouting struct {
 	Nginx *NginxTrafficRouting `json:"nginx,omitempty"`
 	// Nginx holds ALB Ingress specific configuration to route traffic
 	ALB *ALBTrafficRouting `json:"alb,omitempty"`
+	// SMI holds TrafficSplit specific configuration to route traffic
+	SMI *SMITrafficRouting `json:"smi,omitempty"`
+}
+
+// SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing
+type SMITrafficRouting struct {
+	// RootService holds the name of that clients use to communicate.
+	// +optional
+	RootService string `json:"rootService,omitempty"`
+	// TrafficSplitName holds the name of the TrafficSplit.
+	// +optional
+	TrafficSplitName string `json:"trafficSplitName,omitempty"`
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
