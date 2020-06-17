@@ -131,15 +131,62 @@ func deleteFile(path string) {
 }
 
 func createMetadataValidation(un *unstructured.Unstructured) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
 	kind := crdKind(un)
 	switch kind {
-		case "Rollout":
-			obj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
-			unstructured.SetNestedMap(un.Object, obj.Object, "spec", "validation", "openAPIV3Schema", "properties", "spec", "properties", "template", "properties", "metadata")
-		case "Experiment":
-		case "AnalysisTemplate", "AnalysisRun":
-		default:
-			panic(fmt.Sprintf("unknown kind: %s", kind))
+	case "Rollout":
+		roPath := []string{
+			"spec",
+			"validation",
+			"openAPIV3Schema",
+			"properties",
+			"spec",
+			"properties",
+			"template",
+			"properties",
+			"metadata",
+		}
+		unstructured.SetNestedMap(un.Object, obj.Object, roPath...)
+	case "Experiment":
+		exPath := []string{
+			"spec",
+			"validation",
+			"openAPIV3Schema",
+			"properties",
+			"spec",
+			"properties",
+			"templates",
+			"items",
+			"properties",
+			"template",
+			"properties",
+			"metadata",
+		}
+		unstructured.SetNestedMap(un.Object, obj.Object, exPath...)
+	case "AnalysisTemplate", "AnalysisRun":
+		//analysisPath := []string{
+		//	"spec",
+		//	"validation",
+		//	"openAPIV3Schema",
+		//	"properties",
+		//	"spec",
+		//	"properties",
+		//	"metrics",
+		//	"items",
+		//	"properties",
+		//	"provider",
+		//	"properties",
+		//	"job",
+		//	"properties",
+		//	"spec",
+		//	"properties",
+		//	"template",
+		//	"properties",
+		//	"metadata",
+		//}
+		//unstructured.SetNestedMap(un.Object, obj.Object, analysisPath...)
+	default:
+		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
 }
 
