@@ -133,28 +133,25 @@ func deleteFile(path string) {
 func createMetadataValidation(un *unstructured.Unstructured) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
 	kind := crdKind(un)
+	path := []string{
+		"spec",
+		"validation",
+		"openAPIV3Schema",
+		"properties",
+		"spec",
+		"properties",
+	}
 	switch kind {
 	case "Rollout":
 		roPath := []string{
-			"spec",
-			"validation",
-			"openAPIV3Schema",
-			"properties",
-			"spec",
-			"properties",
 			"template",
 			"properties",
 			"metadata",
 		}
+		roPath = append(path, roPath...)
 		unstructured.SetNestedMap(un.Object, obj.Object, roPath...)
 	case "Experiment":
 		exPath := []string{
-			"spec",
-			"validation",
-			"openAPIV3Schema",
-			"properties",
-			"spec",
-			"properties",
 			"templates",
 			"items",
 			"properties",
@@ -162,29 +159,32 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"properties",
 			"metadata",
 		}
+		exPath = append(path, exPath...)
 		unstructured.SetNestedMap(un.Object, obj.Object, exPath...)
 	case "AnalysisTemplate", "AnalysisRun":
-		//analysisPath := []string{
-		//	"spec",
-		//	"validation",
-		//	"openAPIV3Schema",
-		//	"properties",
-		//	"spec",
-		//	"properties",
-		//	"metrics",
-		//	"items",
-		//	"properties",
-		//	"provider",
-		//	"properties",
-		//	"job",
-		//	"properties",
-		//	"spec",
-		//	"properties",
-		//	"template",
-		//	"properties",
-		//	"metadata",
-		//}
-		//unstructured.SetNestedMap(un.Object, obj.Object, analysisPath...)
+		analysisPath := []string{
+			"metrics",
+			"items",
+			"properties",
+			"provider",
+			"properties",
+			"job",
+			"properties",
+		}
+		analysisPath = append(path, analysisPath...)
+
+		analysisPathJobMetadata := append(analysisPath, "metadata")
+		unstructured.SetNestedMap(un.Object, obj.Object, analysisPathJobMetadata...)
+
+		analysisPathJobTemplateMetadata := []string{
+			"spec",
+			"properties",
+			"template",
+			"properties",
+			"metadata",
+		}
+		analysisPathJobTemplateMetadata = append(analysisPath, analysisPathJobTemplateMetadata...)
+		unstructured.SetNestedMap(un.Object, obj.Object, analysisPathJobTemplateMetadata...)
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
