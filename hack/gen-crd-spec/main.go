@@ -10,10 +10,22 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
+
+const metadataValidation = `properties:
+ annotations:
+   additionalProperties:
+     type: string
+   type: object
+ labels:
+   additionalProperties:
+     type: string
+   type: object
+type: object`
 
 var crdPaths = map[string]string{
 	"Rollout":          "manifests/crds/rollout-crd.yaml",
@@ -70,6 +82,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		removeNestedItems(obj)
 		removeDescriptions(obj)
 		removeK8S118Fields(obj)
+		createMetadataValidation(obj)
 		crd := toCRD(obj)
 		crd.Spec.Scope = "Namespaced"
 		crds = append(crds, crd)
@@ -115,6 +128,19 @@ func deleteFile(path string) {
 		return
 	}
 	checkErr(os.Remove(path))
+}
+
+func createMetadataValidation(un *unstructured.Unstructured) {
+	kind := crdKind(un)
+	switch kind {
+		case "Rollout":
+			obj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
+			unstructured.SetNestedMap(un.Object, obj.Object, "spec", "validation", "openAPIV3Schema", "properties", "spec", "properties", "template", "properties", "metadata")
+		case "Experiment":
+		case "AnalysisTemplate", "AnalysisRun":
+		default:
+			panic(fmt.Sprintf("unknown kind: %s", kind))
+	}
 }
 
 // removeDescriptions removes all descriptions which bloats the API spec
