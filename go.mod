@@ -9,8 +9,6 @@ require (
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.3
-	github.com/golang/groupcache v0.0.0-20181024230925-c65c006176ff // indirect
-	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
@@ -21,6 +19,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/common v0.9.1
+	github.com/servicemeshinterface/smi-sdk-go v0.3.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spaceapegames/go-wavefront v1.6.2
 	github.com/spf13/cobra v0.0.5
@@ -28,13 +27,13 @@ require (
 	github.com/valyala/fasttemplate v1.0.1
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.17.3
+	k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver v0.17.0
-	k8s.io/apimachinery v0.17.3
+	k8s.io/apimachinery v0.17.4
 	k8s.io/apiserver v0.17.3
 	k8s.io/cli-runtime v0.17.3
-	k8s.io/client-go v0.17.3
-	k8s.io/code-generator v0.17.3
+	k8s.io/client-go v0.17.4
+	k8s.io/code-generator v0.17.4
 	k8s.io/component-base v0.17.3
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a

@@ -424,6 +424,13 @@ spec:
                           required:
                           - stableIngress
                           type: object
+                        smi:
+                          properties:
+                            rootService:
+                              type: string
+                            trafficSplitName:
+                              type: string
+                          type: object
                       type: object
                   type: object
               type: object

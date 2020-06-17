@@ -710,8 +710,8 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
   - name: test
     provider:
       job:
-        backoffLimit: 1
         spec:
+          backoffLimit: 1
           template:
             spec:
               containers:

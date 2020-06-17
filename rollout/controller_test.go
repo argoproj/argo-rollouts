@@ -434,8 +434,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx rolloutContext) TrafficRoutingReconciler {
-		return f.fakeTrafficRouting
+	c.newTrafficRoutingReconciler = func(roCtx rolloutContext) (TrafficRoutingReconciler, error) {
+		return f.fakeTrafficRouting, nil
 	}
 
 	for _, r := range f.rolloutLister {

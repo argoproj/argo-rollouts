@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,8 +31,9 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName             = "argo-rollouts"
-	defaultIstioVersion = "v1alpha3"
+	cliName                    = "argo-rollouts"
+	defaultIstioVersion        = "v1alpha3"
+	defaultTrafficSplitVersion = "v1alpha1"
 )
 
 func newCommand() *cobra.Command {
@@ -48,6 +50,7 @@ func newCommand() *cobra.Command {
 		serviceThreads      int
 		ingressThreads      int
 		istioVersion        string
+		trafficSplitVersion string
 		albIngressClasses   []string
 		nginxIngressClasses []string
 	)
@@ -84,6 +87,7 @@ func newCommand() *cobra.Command {
 			checkError(err)
 			dynamicClient, err := dynamic.NewForConfig(config)
 			checkError(err)
+			smiClient, err := smiclientset.NewForConfig(config)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -109,6 +113,7 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				rolloutClient,
 				dynamicClient,
+				smiClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
@@ -122,7 +127,8 @@ func newCommand() *cobra.Command {
 				instanceID,
 				metricsPort,
 				k8sRequestProvider,
-				defaultIstioVersion,
+				istioVersion,
+				trafficSplitVersion,
 				nginxIngressClasses,
 				albIngressClasses)
 
@@ -154,6 +160,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
+	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaultTrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	return &command
