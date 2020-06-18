@@ -130,8 +130,9 @@ func deleteFile(path string) {
 	checkErr(os.Remove(path))
 }
 
+// createMetadataValidation creates validation checks for metadata in Rollout, Experiment, AnalysisRun and AnalysisTemplate CRDs
 func createMetadataValidation(un *unstructured.Unstructured) {
-	obj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
+	metadataValidationObj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
 	kind := crdKind(un)
 	path := []string{
 		"spec",
@@ -149,7 +150,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"metadata",
 		}
 		roPath = append(path, roPath...)
-		unstructured.SetNestedMap(un.Object, obj.Object, roPath...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, roPath...)
 	case "Experiment":
 		exPath := []string{
 			"templates",
@@ -160,7 +161,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"metadata",
 		}
 		exPath = append(path, exPath...)
-		unstructured.SetNestedMap(un.Object, obj.Object, exPath...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, exPath...)
 	case "AnalysisTemplate", "AnalysisRun":
 		analysisPath := []string{
 			"metrics",
@@ -174,7 +175,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		analysisPath = append(path, analysisPath...)
 
 		analysisPathJobMetadata := append(analysisPath, "metadata")
-		unstructured.SetNestedMap(un.Object, obj.Object, analysisPathJobMetadata...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobMetadata...)
 
 		analysisPathJobTemplateMetadata := []string{
 			"spec",
@@ -184,7 +185,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"metadata",
 		}
 		analysisPathJobTemplateMetadata = append(analysisPath, analysisPathJobTemplateMetadata...)
-		unstructured.SetNestedMap(un.Object, obj.Object, analysisPathJobTemplateMetadata...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
