@@ -17,9 +17,9 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 
 1. [ADP](https://www.adp.com)
 1. [Intuit](https://www.intuit.com/)
+1. [Nozzle](https://nozzle.io)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Twilio SendGrid](https://sendgrid.com)
-1. [Nozzle](https://nozzle.io)
 
 ## Community Blogs and Presentations
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
