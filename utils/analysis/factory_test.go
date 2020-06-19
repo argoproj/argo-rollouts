@@ -99,7 +99,7 @@ func TestBackgroundLabels(t *testing.T) {
 }
 
 func TestValidateMetrics(t *testing.T) {
-	{
+	t.Run("Ensure count >= failureLimit", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -117,8 +117,8 @@ func TestValidateMetrics(t *testing.T) {
 		spec.Metrics[0].Count = 0
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
-	}
-	{
+	})
+	t.Run("Ensure count must be >= inconclusiveLimit", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -136,8 +136,8 @@ func TestValidateMetrics(t *testing.T) {
 		spec.Metrics[0].Count = 0
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
-	}
-	{
+	})
+	t.Run("Validate metric", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -153,8 +153,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
-	}
-	{
+	})
+	t.Run("Ensure valid internal string", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -170,8 +170,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: invalid interval string: time: unknown unit s-typo in duration 60s-typo")
-	}
-	{
+	})
+	t.Run("Ensure valid intialDelay string", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -188,15 +188,15 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: invalid startDelay string: time: unknown unit s-typo in duration 60s-typo")
-	}
-	{
+	})
+	t.Run("Ensure metric provider listed", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{},
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "no metrics specified")
-	}
-	{
+	})
+	t.Run("Ensure interval set when count > 1", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -210,8 +210,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: interval must be specified when count > 1")
-	}
-	{
+	})
+	t.Run("Ensure no duplicate metric names", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -230,8 +230,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
-	}
-	{
+	})
+	t.Run("Ensure failureLimit >= 0", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -245,8 +245,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: failureLimit must be >= 0")
-	}
-	{
+	})
+	t.Run("Ensure inconclusiveLimit >= 0", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -260,8 +260,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: inconclusiveLimit must be >= 0")
-	}
-	{
+	})
+	t.Run("Ensure consecutiveErrorLimit >= 0", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -275,8 +275,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: consecutiveErrorLimit must be >= 0")
-	}
-	{
+	})
+	t.Run("Ensure metric has provider", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -287,8 +287,8 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: no provider specified")
-	}
-	{
+	})
+	t.Run("Ensure metric does not have more than 1 provider", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -296,26 +296,14 @@ func TestValidateMetrics(t *testing.T) {
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 						Job:        &v1alpha1.JobMetric{},
-					},
-				},
-			},
-		}
-		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
-	}
-	{
-		spec := v1alpha1.AnalysisTemplateSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name: "success-rate",
-					Provider: v1alpha1.MetricProvider{
-						Prometheus: &v1alpha1.PrometheusMetric{},
 						Wavefront:  &v1alpha1.WavefrontMetric{},
+						Kayenta:    &v1alpha1.KayentaMetric{},
+						Web:        &v1alpha1.WebMetric{},
 					},
 				},
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
-	}
+	})
 }
