@@ -140,6 +140,7 @@ const (
 )
 
 // NewRolloutCondition creates a new rollout condition.
+// TODO: perform in controller.go
 func NewRolloutCondition(condType v1alpha1.RolloutConditionType, status corev1.ConditionStatus, reason, message string) *v1alpha1.RolloutCondition {
 	return &v1alpha1.RolloutCondition{
 		Type:               condType,
@@ -287,6 +288,7 @@ func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
 }
 
 func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason string, message string) *v1alpha1.RolloutCondition {
+	// TODO: put into controller logic
 	if prevCond != nil && prevCond.Message == message {
 		prevCond.LastUpdateTime = metav1.Now()
 		return prevCond

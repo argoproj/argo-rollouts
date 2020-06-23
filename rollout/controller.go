@@ -316,6 +316,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
+	// TODO: if len(invalidSpecCond) > 0 -> return 1st error
 	if invalidSpecCond != nil {
 		logutil.WithRollout(r).Error("Spec submitted is invalid")
 		generation := conditions.ComputeGenerationHash(r.Spec)
