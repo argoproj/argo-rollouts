@@ -17,6 +17,8 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 
 1. [ADP](https://www.adp.com)
 1. [Intuit](https://www.intuit.com/)
+1. [Nozzle](https://nozzle.io)
+1. [PayPay](https://paypay.ne.jp/)
 1. [Twilio SendGrid](https://sendgrid.com)
 
 ## Community Blogs and Presentations

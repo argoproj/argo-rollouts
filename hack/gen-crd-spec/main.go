@@ -10,10 +10,22 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
+
+const metadataValidation = `properties:
+ annotations:
+   additionalProperties:
+     type: string
+   type: object
+ labels:
+   additionalProperties:
+     type: string
+   type: object
+type: object`
 
 var crdPaths = map[string]string{
 	"Rollout":          "manifests/crds/rollout-crd.yaml",
@@ -70,6 +82,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		removeNestedItems(obj)
 		removeDescriptions(obj)
 		removeK8S118Fields(obj)
+		createMetadataValidation(obj)
 		crd := toCRD(obj)
 		crd.Spec.Scope = "Namespaced"
 		crds = append(crds, crd)
@@ -115,6 +128,67 @@ func deleteFile(path string) {
 		return
 	}
 	checkErr(os.Remove(path))
+}
+
+// createMetadataValidation creates validation checks for metadata in Rollout, Experiment, AnalysisRun and AnalysisTemplate CRDs
+func createMetadataValidation(un *unstructured.Unstructured) {
+	metadataValidationObj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
+	kind := crdKind(un)
+	path := []string{
+		"spec",
+		"validation",
+		"openAPIV3Schema",
+		"properties",
+		"spec",
+		"properties",
+	}
+	switch kind {
+	case "Rollout":
+		roPath := []string{
+			"template",
+			"properties",
+			"metadata",
+		}
+		roPath = append(path, roPath...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, roPath...)
+	case "Experiment":
+		exPath := []string{
+			"templates",
+			"items",
+			"properties",
+			"template",
+			"properties",
+			"metadata",
+		}
+		exPath = append(path, exPath...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, exPath...)
+	case "AnalysisTemplate", "AnalysisRun":
+		analysisPath := []string{
+			"metrics",
+			"items",
+			"properties",
+			"provider",
+			"properties",
+			"job",
+			"properties",
+		}
+		analysisPath = append(path, analysisPath...)
+
+		analysisPathJobMetadata := append(analysisPath, "metadata")
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobMetadata...)
+
+		analysisPathJobTemplateMetadata := []string{
+			"spec",
+			"properties",
+			"template",
+			"properties",
+			"metadata",
+		}
+		analysisPathJobTemplateMetadata = append(analysisPath, analysisPathJobTemplateMetadata...)
+		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
+	default:
+		panic(fmt.Sprintf("unknown kind: %s", kind))
+	}
 }
 
 // removeDescriptions removes all descriptions which bloats the API spec
