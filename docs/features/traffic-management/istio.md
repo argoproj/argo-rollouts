@@ -74,14 +74,14 @@ Argo CD has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913
 
 ## Alternatives Considered
 
-### Have the Rollout Own the Virtual Service  
+### Rollout ownership over the Virtual Service  
 
 Instead of the controller modifying a reference to a Virtual Service, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
-*  To provide the same flexibility as referencing Virtual Service within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec necessary complicated.
+*  To provide the same flexibility as referencing Virtual Service within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unecessary complicated.
 * If Istio introduces a feature, that feature will not be available in Argo Rollouts until implemented within Argo Rollouts.
 
 Both of these issues adds more complexity to the users and Argo Rollouts developers compared to referencing a Virtual Service.
 
-### Implement Istio support through the SMI
+### Istio support through the [SMI Adapter for Istio](https://github.com/servicemeshinterface/smi-adapter-istio)
 
-[SMI](https://smi-spec.io/) is the Service Mesh Interface, which serves as a standard interface for all common features of a service mesh. This feature is GitOps friendly, but native Istio has extra functionality that SMI does not currently provide. Granted, Argo Rollouts should integrate with the SMI independent of the native Istio integration.
+[SMI](https://smi-spec.io/) is the Service Mesh Interface, which serves as a standard interface for all common features of a service mesh. This feature is GitOps friendly, but native Istio has extra functionality that SMI does not currently provide.
