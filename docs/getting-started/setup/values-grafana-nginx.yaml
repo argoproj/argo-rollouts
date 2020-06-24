@@ -1,0 +1,52 @@
+# A minimal Grafana installation for dev & demo purposes and works well in minikube. 
+# Preloads Prometheus as a datasource as well as the official nginx dashboards.
+# Tested with:
+#  * Grafana helm chart: stable/grafana-5.1.4 (grafana 7.0.3)
+#  * nginx-ingress-controller v0.32.0
+service:
+  type: NodePort
+
+adminPassword: admin
+
+grafana.ini:
+  auth.anonymous:
+    enabled: 'true'
+    org_name: Main Org.
+    org_role: Viewer
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server  # presumes prometheus is installed in same namespace
+      access: proxy
+      isDefault: true
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: nginx
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/nginx
+    - name: request-handling-performance
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/request-handling-performance
+
+dashboards:
+  nginx:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/grafana/dashboards/nginx.json
+  request-handling-performance:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/grafana/dashboards/request-handling-performance.json

@@ -1,6 +1,5 @@
-site_name: Argo Rollouts - Advanced Kubernetes Deployment Controller
+site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
 repo_url: https://github.com/argoproj/argo-rollouts
-strict: true
 theme:
   font:
     text: Work Sans
@@ -20,26 +19,29 @@ markdown_extensions:
     permalink: true
 nav:
 - Overview: index.md
-- Concepts: deployment-concepts.md
-- Getting Started: getting-started.md
-- FAQ: FAQ.md
-- Features:
-  - features/index.md
-  - BlueGreen: features/bluegreen.md
-  - Canary: features/canary.md
-  - Anti Affinity: features/anti-affinity/anti-affinity.md
+- Installation: installation.md
+- Concepts: concepts.md
+- Getting Started:
+  - Basic Usage: getting-started.md
+  - NGINX: getting-started/nginx/index.md
+- Rollout:
+  - Deployment Strategies:
+    - BlueGreen: features/bluegreen.md
+    - Canary: features/canary.md
+  - Rollout Spec: features/specification.md
   - Traffic Management:
     - Overview: features/traffic-management/index.md
     - Istio: features/traffic-management/istio.md
     - NGINX: features/traffic-management/nginx.md
     - AWS ALB: features/traffic-management/alb.md
     - SMI: features/traffic-management/smi.md
+  - Anti Affinity: features/anti-affinity/anti-affinity.md
   - HPA Support: features/hpa-support.md
   - Kustomize Support: features/kustomize.md
   - Restarting Rollouts: features/restart.md
   - Controller Metrics: features/controller-metrics.md
-- Experiments: features/experiment.md
 - Analysis: features/analysis.md
+- Experiments: features/experiment.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:
@@ -65,7 +67,11 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
-- Contributing: CONTRIBUTING.md
+- Migrating: migrating.md
+- FAQ: FAQ.md
+- Contributing:
+  - Contribution Guide: CONTRIBUTING.md
+  - Environment Setup: getting-started/setup/index.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/

@@ -118,16 +118,17 @@ associated repos have to pinned to the correct version specified by the kubernet
 `./hack/update-k8s-dependencies.sh` updates all the dependencies to the those correct versions.
 
 ## Documentation Changes
-If you need to run the mkdocs server, you will need to do the following:
 
-* Follow the instruction guide to install [mkDocs](https://www.mkdocs.org/#installation)
-* Install the `material` theme with the [following guide](https://squidfunk.github.io/mkdocs-material/#quick-start)
-* Run `make plugin-docs` to generate kubectl plugin documentation
+Modify contents in `docs/` directory. 
 
-Afterwards, you can run `mkdocs serve` and access your documentation at [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-
-If you don't want to setup mkDocs locally, the following docker command should suffice:
+Preview changes in your browser by visiting http://localhost:8000 after running:
 
 ```shell
-docker run --rm -it -p 8000:8000 -v ${PWD}:/docs squidfunk/mkdocs-material
+make serve-docs
+```
+
+To publish changes, run:
+
+```shell
+make release-docs
 ```

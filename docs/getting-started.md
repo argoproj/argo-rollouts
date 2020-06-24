@@ -1,105 +1,177 @@
 # Getting Started
 
+This guide will demonstrate various concepts and features of Argo Rollouts by going through
+deployment, upgrade, promotion, and abortion of a Rollout.
+
 ## Requirements
-- Installed kubectl command-line tool
-- Have a kubeconfig file (default location is ~/.kube/config).
+- Kubernetes cluster with argo-rollouts controller installed (see [install guide](installation.md#controller-installation))
+- kubectl with argo-rollouts plugin installed (see [install guide](installation.md#kubectl-plugin-installation))
 
-## Install Argo Rollouts
-Argo Rollouts can be installed at a cluster or namespace level. 
+## 1. Deploying a Rollout
 
-!!! important
-    When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
-
-### Cluster-Level installation
-
-```bash
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
-```
-
-This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will live.
-
-On GKE, you will need grant your account the ability to create new cluster roles:
-    
-```bash
-kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
-```
-
-!!! note 
-    The cluster-level installation assumes that Argo Rollouts is deployed into the `argo-rollouts` namespace. If you would like to install Argo Rollouts in another namespace, you will need to modify the `ClusterRoleBinding` resource that binds the ClusterRole to the ServiceAcccount created. The namespace for the ServiceAccount referenced in the ClusterRoleBinding needs to be modified to match your desired namespace.
-
-### Namespace-Level Installation
-```bash
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/namespace-install.yaml
-```
-
-## Converting Deployment to Rollout
-Converting a Deployment to a Rollout simply is a core design principle of Argo Rollouts. There are two key changes:
-
-1. Changing the `apiVersion` value to `argoproj.io/v1alpha1` and changing the `kind` value from `Deployment` to `Rollout`
-1. Adding a new deployment strategy to the new Rollout. You can read up on the available strategies at [Argo Rollouts section](index.md)
-
-Below is an example of a Rollout YAML using the Canary strategy.
+First we deploy a Rollout resource and a Kubernetes Service targeting that Rollout. The example
+Rollout in this guide utilizes a canary update strategy which sends 20% of traffic to the canary,
+followed by a manual promotion, and finally gradual automated traffic increases for the remainder
+of the upgrade. This behavior is described in the following portion of the Rollout spec:
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1 # Changed from apps/v1
-kind: Rollout # Changed from Deployment
-# ----- Everything below this comment is the same as a deployment -----
-metadata:
-  name: example-rollout
 spec:
   replicas: 5
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.15.4
-        ports:
-        - containerPort: 80
-  minReadySeconds: 30
-  revisionHistoryLimit: 3
   strategy:
-  # ----- Everything above this comment are the same as a deployment -----
-    canary: # A new field that used to provide configurable options for a Canary strategy
+    canary:
       steps:
       - setWeight: 20
       - pause: {}
+      - setWeight: 40
+      - pause: {duration: 10}
+      - setWeight: 60
+      - pause: {duration: 10}
+      - setWeight: 80
+      - pause: {duration: 10}
 ```
 
-## Updating the Rollout
-The initial creation of the above Rollout will bring up all 5 replicas of the Pod Spec listed. Since the rollout was not in a stable state beforehand (as it was just created), the rollout will skip the steps listed in the `.spec.strategy.canary.steps` field to first become stable. Once the new ReplicaSet is healthy, updating any field in the `spec.template` will cause the rollout to create a new ReplicaSet and execute the steps in `spec.strategy.canary.steps` to transition to the new version.
+Run the following command to deploy the initial Rollout and Service:
 
-To demonstrate this, we will update the rollout to use a new nginx image. You can either run `kubectl edit rollout example-rollout` and change the image from `nginx:1.15.4` to `nginx:1.15.5`, or run the following:
-
-```bash
-$ kubectl patch rollout example-rollout --type merge -p '{"spec": {"template": { "spec": { "containers": [{"name": "nginx","image": "nginx:1.15.5"}]}}}}'
+```shell
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml
 ```
 
-Once the patch is applied, you can watch the new replicaset came up as healthy by running 
-```bash 
-$ kubectl get replicaset -w -o wide
+Initial creations of any Rollout will immediately scale up the replicas to 100% (skipping any
+canary upgrade steps, analysis, etc...) since there was no upgrade that occured.
+
+The Argo Rollouts kubectl plugin allows you to visualize the Rollout, its related resources
+(ReplicaSets, Pods, AnalysisRuns), and presents live state changes as they occur.
+To watch the rollout as it deploys, run the `get rollout --watch` command from plugin:
+
+```shell
+kubectl argo rollouts get rollout rollouts-demo --watch
 ```
-Once that replicaset is healthy, the rollout will enter a paused state by adding a pause condition to `.status.pauseConditions`. The pause condition contains a reason and a pause start time.
+![Initial Rollout](getting-started/basic/initial-rollout.png)
 
-## Promoting the rollout
-The rollout does not continue progessing to the new version until the pause conditon is removed from the status. Since the rollout YAML submitted does not have a duration within the pause step, the Rollout is paused indefinitely until a external process (i.e. a user or automated tool) removes the pause conditon.
+## 2. Updating a Rollout
 
-Argo Rollouts has a [kubectl plugin](features/kubectl-plugin.md) to help automate operations like promoting a rollout through a step. The installation instructions are [here](features/kubectl-plugin.md#installation).
+Next it is time to perform an update. Just as with Deployments, any change to the Pod template
+field (`spec.template`) results in a new version (i.e. ReplicaSet) to be deployed. Updating a
+Rollout involves modifying the rollout spec, typically changing the container image field with
+a new version, and then running  `kubectl apply` against the new manifest. As a convenience, the
+rollouts plugin provides a `set image` command, which performs these steps against the live rollout
+object in-place. Run the following command to update the `rollouts-demo` Rollout with the "yellow"
+version of the container:
 
-Once the plugin is installed, the user can run the following command to promote the rollout through the pause step:
-
-```bash
-kubectl argo rollouts promote example-rollout
-
+```shell
+kubectl argo rollouts set image rollouts-demo \
+  rollouts-demo=argoproj/rollouts-demo:yellow
 ```
 
-At this point, the Rollout has executed all the steps to transition to a new version. As a result, the new ReplicaSet is considered the new stable ReplicaSet, and the previous ReplicaSet will be scaled down. The Rollout will repeat these steps when the Pod Spec Template is changed again.
+During a rollout update, the controller will progress through the steps defined in the Rollout's
+update strategy. The example rollout sets a 20% traffic weight to the canary, and pauses the rollout
+indefinitely until user action is taken to unpause/promote the rollout. After updating the image, 
+watch the rollout again until it reaches the paused state:
 
-## Going forward
-Check out the [features page](features/index.md) for more configuration options for a rollout.
+```shell
+kubectl argo rollouts get rollout rollouts-demo --watch
+```
+
+![Paused Canary](getting-started/basic/paused-rollout.png)
+
+When the demo rollout reaches the second step, we can see from the plugin that the Rollout is in
+a paused state, and now has 1 of 5 replicas running the new version of the pod template, and 4 of 5
+replicas running the old version. This equates to the 20% canary weight as defined by the
+`setWeight: 20` step.
+
+## 3. Promoting a Rollout
+
+The rollout is now in an paused state. When a Rollout reaches a `pause` step with no duration, it 
+will remain in a paused state indefinitely until it is resumed/promoted. To manually promote a
+rollout to the next step, run the `promote` command of the plugin:
+
+```shell
+kubectl argo rollouts promote rollouts-demo
+```
+
+After promotion, Rollout will proceed to execute the remaining steps. The remaining rollout steps
+in our example are fully automated, so the Rollout will eventually complete steps until it has has
+fully transitioned to the new version. Watch the rollout again until it has completed all steps:
+
+```shell
+kubectl argo rollouts get rollout rollouts-demo --watch
+```
+
+![Promoted Rollout](getting-started/basic/promoted-rollout.png)
+
+!!! tip
+    The `promote` command also supports the ability to skip all remaining steps with the
+    `--skip-all-steps` flag.
+
+Once all steps complete successfully, the new ReplicaSet is marked as the "stable" ReplicaSet.
+Whenever a rollout is aborted during an update, either automatically via a failed canary analysis,
+or manually by a user, the Rollout will fall back to the "stable" version.
+
+## 4. Aborting a Rollout
+
+Next we will learn how to manually abort a rollout during an update. First, deploy a new "red"
+version of the container using the `set image` command, and wait for the rollout to reach the
+paused step again:
+
+```shell
+kubectl argo rollouts set image rollouts-demo \
+  rollouts-demo=argoproj/rollouts-demo:red
+```
+
+![Paused Rollout (Revision 3)](getting-started/basic/paused-rollout-rev3.png)
+
+This time, instead of promoting the rollout to the next step, we will abort the update, so that it
+falls back to the "stable" version. The plugin provides an `abort` command as a way to manually
+abort a rollout at any time during an update:
+
+```shell
+kubectl argo rollouts abort rollouts-demo
+```
+
+When a rollout is aborted, it will scale up the "stable" version of the ReplicaSet (in this
+case the yellow image), and scale down any other versions. Although the stable version of the
+ReplicaSet may be running and is healthy, the overall rollout is still considered `Degraded`, 
+since the desired version (the red image) is not the version which is actually running.
+
+![Aborted Rollout](getting-started/basic/aborted-rollout.png)
+
+In order to make Rollout considered Healthy again and not Degraded, it is necessary to change the
+desired state back to the previous, stable version. This typically involves running `kubectl apply`
+against the previous Rollout spec. In our case, we can simply re-run the `set image` command using
+the previous, "yellow" image.
+
+```yaml
+kubectl argo rollouts set image rollouts-demo \
+  rollouts-demo=argoproj/rollouts-demo:yellow
+```
+
+After running this command, you should notice that the Rollout immediately becomes Healthy, and
+there is no activity with regards to new ReplicaSets becoming created.
+
+![Healthy Rollout (Revision 4)](getting-started/basic/healthy-rollout-rev4.png)
+
+When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of
+an update), and the stable manifest were re-applied, the Rollout detects this as a rollback 
+and *not* a update, and will fast-track the deployment of the stable ReplicaSet by skipping
+analysis, and the steps.
+
+## Summary
+
+In this guide, we have learned basic capabilities of Argo Rolouts, including:
+
+* Deploying a rollout
+* Performing a canary update
+* Manual promotion
+* Manual abortion 
+
+The Rollout in this basic example did not utilize a ingress controller or service mesh provider
+to route traffic. Instead, it used normal Kubernetes Service networking (i.e. kube-proxy) to achieve
+an *approximate* canary weight, based on the closest ratio of new to old replica counts.
+As a result, this Rollout had a limitation in that it could only achieve a minimum canary
+weight of 20%, by scaling 1 of 5 pods to run the new version. In order to achieve much
+finer grained canarys, a ingress controller or service mesh is necessary.
+
+Follow the [NGINX Guide](getting-started/nginx/index.md) to see how Argo Rollouts can leverage a networking provider
+to gain more advanced traffic shaping.
+

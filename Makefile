@@ -126,7 +126,16 @@ precheckin: test lint
 
 .PHONY: release-docs
 release-docs: plugin-docs
-	mkdocs gh-deploy -r ${GIT_REMOTE_REPO}
+	docker run --rm -it \
+		-v ~/.ssh:/root/.ssh \
+		-v ${CURRENT_DIR}:/docs \
+		-v ~/.gitconfig:/root/.gitconfig \
+		squidfunk/mkdocs-material gh-deploy -r ${GIT_REMOTE_REPO}
+
+# convenience target to run `mkdocs serve` using a docker container
+.PHONY: serve-docs
+serve-docs:
+	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
 
 .PHONY: release-precheck
 release-precheck: manifests
