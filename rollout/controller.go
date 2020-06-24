@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
+
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -315,9 +317,10 @@ func (c *Controller) syncHandler(key string) error {
 	}()
 
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-	invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
-	// TODO: if len(invalidSpecCond) > 0 -> return 1st error
-	if invalidSpecCond != nil {
+	rolloutValidationErrors := validation.ValidateRollout(rollout) //invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
+	if len(rolloutValidationErrors) > 0 {
+		rolloutValidationError := rolloutValidationErrors[0]
+		invalidSpecCond := conditions.NewInvalidSpecRolloutCondition(prevCond, conditions.InvalidSpecReason, rolloutValidationError.Detail)
 		logutil.WithRollout(r).Error("Spec submitted is invalid")
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {

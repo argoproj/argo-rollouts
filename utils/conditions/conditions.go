@@ -140,7 +140,6 @@ const (
 )
 
 // NewRolloutCondition creates a new rollout condition.
-// TODO: perform in controller.go
 func NewRolloutCondition(condType v1alpha1.RolloutConditionType, status corev1.ConditionStatus, reason, message string) *v1alpha1.RolloutCondition {
 	return &v1alpha1.RolloutCondition{
 		Type:               condType,
@@ -287,8 +286,7 @@ func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
 	return rand.SafeEncodeString(fmt.Sprint(rolloutSpecHasher.Sum32()))
 }
 
-func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason string, message string) *v1alpha1.RolloutCondition {
-	// TODO: put into controller logic
+func NewInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason string, message string) *v1alpha1.RolloutCondition {
 	if prevCond != nil && prevCond.Message == message {
 		prevCond.LastUpdateTime = metav1.Now()
 		return prevCond
@@ -300,65 +298,65 @@ func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason 
 func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCondition) *v1alpha1.RolloutCondition {
 	if rollout.Spec.Selector == nil {
 		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Selector")
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
+		return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
 	}
 
 	everything := metav1.LabelSelector{}
 	if reflect.DeepEqual(rollout.Spec.Selector, &everything) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutSelectAllMessage)
+		return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutSelectAllMessage)
 	}
 
 	if rollout.Spec.Strategy.Canary == nil && rollout.Spec.Strategy.BlueGreen == nil {
 		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
+		return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
 	}
 
 	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.BlueGreen != nil {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStrategyMessage)
+		return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStrategyMessage)
 	}
 
 	if rollout.Spec.MinReadySeconds > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
+		return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
 	}
 
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		if rollout.Spec.Strategy.BlueGreen.ActiveService == rollout.Spec.Strategy.BlueGreen.PreviewService {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
+			return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
 		}
 		revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
+			return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
 		}
 		if rollout.Spec.Strategy.BlueGreen.AntiAffinity != nil {
 			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.BlueGreen.AntiAffinity, "BlueGreen")
 			if reason != "" {
-				return newInvalidSpecRolloutCondition(prevCond, reason, message)
+				return NewInvalidSpecRolloutCondition(prevCond, reason, message)
 			}
 		}
 	}
 
 	if rollout.Spec.Strategy.Canary != nil {
 		if invalidMaxSurgeMaxUnavailable(rollout) {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
+			return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
 		}
 		for _, step := range rollout.Spec.Strategy.Canary.Steps {
 			if hasMultipleStepsType(step) {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
+				return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}
 			if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
+				return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
 			}
 			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
+				return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
 			}
 			if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
+				return NewInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
 			}
 		}
 		if rollout.Spec.Strategy.Canary.AntiAffinity != nil {
 			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.Canary.AntiAffinity, "Canary")
 			if reason != "" {
-				return newInvalidSpecRolloutCondition(prevCond, reason, message)
+				return NewInvalidSpecRolloutCondition(prevCond, reason, message)
 			}
 		}
 	}
@@ -366,6 +364,7 @@ func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCond
 	return nil
 }
 
+// TODO(khirani): remove
 func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
 	oneOf := make([]bool, 3)
 	oneOf = append(oneOf, s.SetWeight != nil)
@@ -384,6 +383,7 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
 	return false
 }
 
+// TODO(khirani): remove
 func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
 	if intOrStringValue.Type != intstr.String {
 		return 0, false
@@ -395,6 +395,7 @@ func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
 	return value, true
 }
 
+// TODO(khirani): remove
 func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 	value, isPercent := getPercentValue(intOrStringValue)
 	if isPercent {
@@ -403,6 +404,7 @@ func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 	return intOrStringValue.IntValue()
 }
 
+// TODO(khirani): remove
 func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) (string, string) {
 	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 		return InvalidSpecReason, fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
@@ -413,6 +415,7 @@ func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) (strin
 	return "", ""
 }
 
+// TODO(khirani): remove
 func invalidMaxSurgeMaxUnavailable(r *v1alpha1.Rollout) bool {
 	maxSurge := defaults.GetMaxSurgeOrDefault(r)
 	maxUnavailable := defaults.GetMaxUnavailableOrDefault(r)

@@ -1,13 +1,18 @@
 package validation
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unversionedvalidation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	validationutil "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/apis/apps/validation"
+	"k8s.io/kubernetes/pkg/apis/core"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -50,15 +55,17 @@ const (
 )
 
 // called in strategy.go -> create.go
-func ValidateRollout(ro *v1alpha1.Rollout) field.ErrorList {
-	error := ValidateRolloutSpec(&ro.Spec, field.NewPath("spec"))
+func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
+	error := ValidateRolloutSpec(rollout, field.NewPath("spec"))
 	return error
 }
 
 // ValidateRolloutSpec Checks for a valid spec otherwise returns a invalidSpec condition.
 // TODO: don't use prevCond > syncHandler needs to take care of prevCond formatting
-func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.ErrorList {//*v1alpha1.RolloutCondition {
+//func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.ErrorList {
+func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	// ValidatePodTemplateSpec for `spec.template`
+	spec := rollout.Spec
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.Replicas), fldPath.Child("replicas"))...)
 
@@ -75,7 +82,10 @@ func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "invalid label selector"))
 	} else {
-		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&spec.Template, selector, *spec.Replicas, fldPath.Child("template"))...)
+		data, _ := json.Marshal(&spec.Template)
+		var template core.PodTemplateSpec
+		_ = json.Unmarshal(data, &template)
+		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, *spec.Replicas, fldPath.Child("template"))...)
 	}
 
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
@@ -90,17 +100,20 @@ func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.
 		}
 	}
 
-	// TODO: Check
+	// TODO: Same as MinReadySeconds check above?
 	//if rollout.Spec.MinReadySeconds > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
 	//	return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
 	//}
 
-	allErrs = append(allErrs, ValidateRolloutStrategy(spec.Strategy, fldPath.Child("strategy"))...)
+	//allErrs = append(allErrs, ValidateRolloutStrategy(spec.Strategy, fldPath.Child("strategy"))...)
+	allErrs = append(allErrs, ValidateRolloutStrategy(rollout, fldPath.Child("strategy"))...)
 
 	return allErrs
 }
 
-func ValidateRolloutStrategy(strategy v1alpha1.RolloutStrategy, fldPath *field.Path) field.ErrorList {
+func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
+	//func ValidateRolloutStrategy(strategy v1alpha1.RolloutStrategy, fldPath *field.Path) field.ErrorList {
+	strategy := rollout.Spec.Strategy
 	allErrs := field.ErrorList{}
 	if strategy.BlueGreen == nil && strategy.Canary == nil {
 
@@ -109,12 +122,15 @@ func ValidateRolloutStrategy(strategy v1alpha1.RolloutStrategy, fldPath *field.P
 
 	}
 	if strategy.BlueGreen != nil {
-		allErrs = append(allErrs, ValidateRolloutStrategyBlueGreen(strategy.BlueGreen)...)
+		allErrs = append(allErrs, ValidateRolloutStrategyBlueGreen(rollout, fldPath)...)
+		//allErrs = append(allErrs, ValidateRolloutStrategyBlueGreen(strategy.BlueGreen, fldPath)...)
 	}
 	if strategy.Canary != nil {
-
+		allErrs = append(allErrs, ValidateRolloutStrategyCanary(rollout, fldPath)...)
+		//allErrs = append(allErrs, ValidateRolloutStrategyCanary(strategy.Canary, fldPath)...)
 	}
-	//if rollout.Spec.Strategy.Canary == nil && rollout.Spec.Strategy.BlueGreen == nil {
+	return allErrs
+	//if strategy.Canary == nil && rollout.Spec.Strategy.BlueGreen == nil {
 	//	message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
 	//	return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
 	//}
@@ -132,59 +148,120 @@ func ValidateRolloutStrategy(strategy v1alpha1.RolloutStrategy, fldPath *field.P
 	//}
 }
 
-//func ValidateRolloutStrategyBlueGreen(blueGreen *v1alpha1.BlueGreenStrategy) field.ErrorList {
-//	allErrs := field.ErrorList{}
-//	if blueGreen.ActiveService == blueGreen.PreviewService {
-//		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
-//	}
-//	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
-//	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {
-//		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
-//	}
-//	if blueGreen.AntiAffinity != nil {
-//		reason, message := invalidAntiAffinity(*blueGreen.AntiAffinity, "BlueGreen")
-//		if reason != "" {
-//			return newInvalidSpecRolloutCondition(prevCond, reason, message)
-//		}
-//	}
-//	return allErrs
-//}
-//
-//
-//func ValidateRolloutStrategyCanary(rollout *v1alpha1.CanaryStrategy) field.ErrorList {
-//	allErrs := field.ErrorList{}
-//	if invalidMaxSurgeMaxUnavailable(rollout) {
-//		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
-//	}
-//	for _, step := range rollout.Spec.Strategy.Canary.Steps {
-//		if hasMultipleStepsType(step) {
-//			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
-//		}
-//		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
-//			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
-//		}
-//		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-//			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
-//		}
-//		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
-//			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
-//		}
-//	}
-//	if rollout.Spec.Strategy.Canary.AntiAffinity != nil {
-//		reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.Canary.AntiAffinity, "Canary")
-//		if reason != "" {
-//			return newInvalidSpecRolloutCondition(prevCond, reason, message)
-//		}
-//	}
-//	return allErrs
-//}
-//
-//func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) (string, string) {
-//	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-//		return InvalidSpecReason, fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
-//	}
-//	if affinity.PreferredDuringSchedulingIgnoredDuringExecution != nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-//		return InvalidSpecReason, "Multiple Anti-Affinity Strategies can not be listed"
-//	}
-//	return "", ""
-//}
+func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
+	//func ValidateRolloutStrategyBlueGreen(blueGreen *v1alpha1.BlueGreenStrategy, fldPath *field.Path) field.ErrorList {
+	blueGreen := rollout.Spec.Strategy.BlueGreen
+	allErrs := field.ErrorList{}
+	if blueGreen.ActiveService == blueGreen.PreviewService {
+		allErrs = append(allErrs, field.Duplicate(fldPath.Child("previewService"), DuplicatedServicesMessage))
+		//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
+	}
+	// TODO: modify change
+	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
+	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelayRevisionLimit"), blueGreen.ScaleDownDelayRevisionLimit, ScaleDownLimitLargerThanRevisionLimit))
+		//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
+	}
+	if blueGreen.AntiAffinity != nil {
+		message := invalidAntiAffinity(*blueGreen.AntiAffinity, "BlueGreen")
+		if message != "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("antiAffinity"), blueGreen.AntiAffinity, message))
+			//return newInvalidSpecRolloutCondition(prevCond, reason, message)
+		}
+	}
+	return allErrs
+}
+
+//func ValidateRolloutStrategyCanary(canary *v1alpha1.CanaryStrategy, fldPath *field.Path) field.ErrorList {
+func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
+	canary := rollout.Spec.Strategy.Canary
+	allErrs := field.ErrorList{}
+	if invalidMaxSurgeMaxUnavailable(rollout) {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxSurge"), canary.MaxSurge, InvalidMaxSurgeMaxUnavailable))
+		//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
+	}
+	for i, step := range canary.Steps {
+		stepFldPath := fldPath.Child("steps").Index(i)
+		if hasMultipleStepsType(step) {
+			allErrs = append(allErrs, field.Invalid(stepFldPath, canary.Steps[i], InvalidStepMessage))
+			//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
+		}
+		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
+			allErrs = append(allErrs, field.Invalid(stepFldPath, canary.Steps[i], InvalidStepMessage))
+			//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
+		}
+		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), canary.Steps[i].SetWeight, InvalidSetWeightMessage))
+			//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
+		}
+		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), canary.Steps[i].Pause.Duration, InvalidDurationMessage))
+			//return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
+		}
+	}
+	if canary.AntiAffinity != nil {
+		message := invalidAntiAffinity(*canary.AntiAffinity, "Canary")
+		if message != "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("antiAffinity"), canary.AntiAffinity, message))
+		}
+	}
+	return allErrs
+}
+
+// TODO: check if can be replaced w/ Validation pkgs?
+func invalidMaxSurgeMaxUnavailable(rollout *v1alpha1.Rollout) bool {
+	maxSurge := defaults.GetMaxSurgeOrDefault(rollout)
+	maxUnavailable := defaults.GetMaxUnavailableOrDefault(rollout)
+	maxSurgeValue := getIntOrPercentValue(*maxSurge)
+	maxUnavailableValue := getIntOrPercentValue(*maxUnavailable)
+	return maxSurgeValue == 0 && maxUnavailableValue == 0
+}
+
+// TODO: check if can be replaced w/ Validation pkgs?
+func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
+	if intOrStringValue.Type != intstr.String {
+		return 0, false
+	}
+	if len(validationutil.IsValidPercent(intOrStringValue.StrVal)) != 0 {
+		return 0, false
+	}
+	value, _ := strconv.Atoi(intOrStringValue.StrVal[:len(intOrStringValue.StrVal)-1])
+	return value, true
+}
+
+// TODO: check if can be replaced w/ Validation pkgs?
+func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
+	value, isPercent := getPercentValue(intOrStringValue)
+	if isPercent {
+		return value
+	}
+	return intOrStringValue.IntValue()
+}
+
+func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
+	oneOf := make([]bool, 3)
+	oneOf = append(oneOf, s.SetWeight != nil)
+	oneOf = append(oneOf, s.Pause != nil)
+	oneOf = append(oneOf, s.Experiment != nil)
+	oneOf = append(oneOf, s.Analysis != nil)
+	hasMultipleStepTypes := false
+	for i := range oneOf {
+		if oneOf[i] {
+			if hasMultipleStepTypes {
+				return true
+			}
+			hasMultipleStepTypes = true
+		}
+	}
+	return false
+}
+
+func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) string {
+	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
+	}
+	if affinity.PreferredDuringSchedulingIgnoredDuringExecution != nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		return "Multiple Anti-Affinity Strategies can not be listed"
+	}
+	return ""
+}
