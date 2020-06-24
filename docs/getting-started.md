@@ -4,8 +4,8 @@ This guide will demonstrate various concepts and features of Argo Rollouts by go
 deployment, upgrade, promotion, and abortion of a Rollout.
 
 ## Requirements
-- Kubernetes cluster with argo-rollouts controller installed (see [install guide](installation.md))
-- kubectl with argo-rollouts plugin installed (see [install guide](installation.md))
+- Kubernetes cluster with argo-rollouts controller installed (see [install guide](installation.md#controller-installation))
+- kubectl with argo-rollouts plugin installed (see [install guide](installation.md#kubectl-plugin-installation))
 
 ## 1. Deploying a Rollout
 
@@ -59,7 +59,7 @@ rollouts plugin provides a `set image` command, which performs these steps again
 object in-place. Run the following command to update the `rollouts-demo` Rollout with the "yellow"
 version of the container:
 
-```yaml
+```shell
 kubectl argo rollouts set image rollouts-demo \
   rollouts-demo=argoproj/rollouts-demo:yellow
 ```

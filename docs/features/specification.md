@@ -8,9 +8,11 @@ kind: Rollout
 metadata:
   name: example-rollout-canary
 spec:
-  # Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
+  # Number of desired pods. This is a pointer to distinguish between explicit zero and not specified.
+  # Defaults to 1.
   replicas: 5
-  # Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this rollout. It must match the pod template's labels.`
+  # Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones
+  # affected by this rollout. It must match the pod template's labels.
   selector:
     matchLabels:
       app: guestbook
@@ -20,20 +22,32 @@ spec:
       containers:
       - name: guestbook
         image: gcr.io/heptio-images/ks-guestbook-demo:0.1
-  # Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
+  # Minimum number of seconds for which a newly created pod should be ready without any of its
+  # container crashing, for it to be considered available.
+  # Defaults to 0 (pod will be considered available as soon as it is ready)
   minReadySeconds: 30
-  # The number of old ReplicaSets to retain. If unspecified, will retain 10 old ReplicaSets
+  # The number of old ReplicaSets to retain.
+  # Defaults to 10
   revisionHistoryLimit: 3
-  # Indiciates if the rollout is paused
-  paused: false
-  # The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.
+  # Pause allows a user to manually pause a rollout at any time. A rollout will not advance through
+  # its steps while it is manually paused, but HPA auto-scaling will still occur.
+  paused: true
+  # The maximum time in seconds in which a rollout must make progress during an update, before it is
+  # considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition
+  # with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that
+  # progress will not be estimated during the time a rollout is paused.
+  # Defaults to 600s
   progressDeadlineSeconds: 600
-  # Field to specify the strategy to run
+  # UTC timestamp in which a Rollout should sequentially restart all of its pods. Used by the
+  # `kubectl argo rollouts restart ROLLOUT` command. The controller will ensure all pods have a
+  # creationTimestamp greater than or equal to this value.
+  restartAt: "2020-03-30T21:19:35Z"
+  # Deployment strategy to use during updates
   strategy:
     blueGreen:
       # Name of the service that the rollout modifies as the active service.
       activeService: active-service
-      # Pre-promotion analysis run
+      # Pre-promotion analysis run which performs analysis before the service cutover. +optional
       prePromotionAnalysis:
         templates:
         - templateName: success-rate
@@ -41,8 +55,16 @@ spec:
         args:
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
-      # Name of the service that the rollout modifies as the preview service.
-      previewService: preview-service 
+      # Pre-promotion analysis run which performs analysis after the service cutover. +optional
+      postPromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        # template arguments
+        args:
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
+      # Name of the service that the rollout modifies as the preview service. +optional
+      previewService: preview-service
       # The number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs +optional
       previewReplicaCount: 1
       # Indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true. +optional
@@ -53,6 +75,11 @@ spec:
       scaleDownDelaySeconds: 30
       # Limits the number of old RS that can run at once before getting scaled down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
+      # Anti Affinity configuration between desired and previous replicaset. Only one must be specified
+      antiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution: {}
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 1 # Between 1 - 100
     canary:
       # CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version. +optional
       canaryService: canary-service
@@ -79,7 +106,39 @@ spec:
           duration: 1h # One hour
       - setWeight: 40
         # Sets .spec.paused to true and waits until the field is changed back
-      - pause: {} 
+      - pause: {}
+      # Anti Affinity configuration between desired and previous replicaset. Only one must be specified
+      antiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution: {}
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 1 # Between 1 - 100
+      # Traffic routing specifies ingress controller or service mesh configuration to achieve
+      # advanced traffic splitting. If omitted, will achieve traffic split via a weighted
+      # replica counts between the canary and stable ReplicaSet.
+      trafficRouting:
+        # Istio traffic routing configuration
+        istio:
+          virtualService: 
+            name: rollout-vsvc  # required
+            routes:
+            - primary # At least one route is required
+        # NGINX Ingress Controller routing configuration
+        nginx:
+          stableIngress: primary-ingress  # required
+          annotationPrefix: customingress.nginx.ingress.kubernetes.io # optional
+          additionalIngressAnnotations:   # optional
+            canary-by-header: X-Canary
+            canary-by-header-value: iwantsit
+        # ALB Ingress Controller routing configuration
+        alb:
+           ingress: ingress  # required
+           servicePort: 443  # required
+           annotationPrefix: custom.alb.ingress.kubernetes.io # optional
+        # Service Mesh Interface routing configuration
+        smi:
+         rootService: root-svc # optional
+         trafficSplitName: rollout-example-traffic-split # optional
+
 status:
   pauseConditions:
   - reason: StepPause

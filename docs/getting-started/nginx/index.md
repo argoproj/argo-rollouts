@@ -144,7 +144,7 @@ spec:
           servicePort: 80
 ```
 
-As the Rolout progresses through steps, the `canary-weight` annotation will be adjusted to match
+As the Rollout progresses through steps, the `canary-weight` annotation will be adjusted to match
 the current setWeight of the steps. The NGINX ingress controller examines the original Ingress,
 the canary Ingress, and the canary-weight annotation to determine what percentage of traffic to
 split between the two Ingresses.

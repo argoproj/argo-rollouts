@@ -20,11 +20,11 @@ markdown_extensions:
 nav:
 - Overview: index.md
 - Installation: installation.md
+- Concepts: concepts.md
 - Getting Started:
   - Basic Usage: getting-started.md
-  - Nginx: getting-started/nginx/index.md
-- Concepts: concepts.md
-- Features:
+  - NGINX: getting-started/nginx/index.md
+- Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md
     - Canary: features/canary.md
@@ -35,13 +35,13 @@ nav:
     - NGINX: features/traffic-management/nginx.md
     - AWS ALB: features/traffic-management/alb.md
     - SMI: features/traffic-management/smi.md
-  - Analysis: features/analysis.md
-  - Experiments: features/experiment.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - HPA Support: features/hpa-support.md
   - Kustomize Support: features/kustomize.md
   - Restarting Rollouts: features/restart.md
   - Controller Metrics: features/controller-metrics.md
+- Analysis: features/analysis.md
+- Experiments: features/experiment.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:
