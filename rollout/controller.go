@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"reflect"
 	"time"
 
@@ -320,7 +321,10 @@ func (c *Controller) syncHandler(key string) error {
 	rolloutValidationErrors := validation.ValidateRollout(rollout) //invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
 	if len(rolloutValidationErrors) > 0 {
 		rolloutValidationError := rolloutValidationErrors[0]
-		invalidSpecCond := conditions.NewInvalidSpecRolloutCondition(prevCond, conditions.InvalidSpecReason, rolloutValidationError.Detail)
+		invalidSpecCond := prevCond
+		if prevCond == nil || prevCond.Message != rolloutValidationError.Detail {
+			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, rolloutValidationError.Detail)
+		}
 		logutil.WithRollout(r).Error("Spec submitted is invalid")
 		generation := conditions.ComputeGenerationHash(r.Spec)
 		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {

@@ -57,13 +57,12 @@ const (
 
 // called in strategy.go -> create.go
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
-	error := ValidateRolloutSpec(rollout, field.NewPath("spec"))
-	return error
+	allErrs := field.ErrorList{}
+	allErrs = append(allErrs, ValidateRolloutSpec(rollout, field.NewPath("spec"))...)
+	return allErrs
 }
 
-// ValidateRolloutSpec Checks for a valid spec otherwise returns a invalidSpec condition.
-// TODO: don't use prevCond > syncHandler needs to take care of prevCond formatting
-//func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.ErrorList {
+// ValidateRolloutSpec checks for a valid spec otherwise returns a list of erros.
 func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	spec := rollout.Spec
 	allErrs := field.ErrorList{}
