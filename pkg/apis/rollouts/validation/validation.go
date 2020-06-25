@@ -3,9 +3,10 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unversionedvalidation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"

@@ -115,13 +115,13 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name: "container-name",
-							Image: "foo/bar",
-							ImagePullPolicy: "Always",
+							Name:                     "container-name",
+							Image:                    "foo/bar",
+							ImagePullPolicy:          "Always",
 							TerminationMessagePolicy: "FallbackToLogsOnError",
 						},
 					},
-					DNSPolicy: "ClusterFirst",
+					DNSPolicy:     "ClusterFirst",
 					RestartPolicy: "Always",
 				},
 			},
