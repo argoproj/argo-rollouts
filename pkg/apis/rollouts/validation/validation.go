@@ -64,13 +64,13 @@ func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 // TODO: don't use prevCond > syncHandler needs to take care of prevCond formatting
 //func ValidateRolloutSpec(spec *v1alpha1.RolloutSpec, fldPath *field.Path) field.ErrorList {
 func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
-	// ValidatePodTemplateSpec for `spec.template`
 	spec := rollout.Spec
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.Replicas), fldPath.Child("replicas"))...)
 
 	if spec.Selector == nil {
-		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), ""))
+		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Selector")
+		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
 	} else {
 		allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
 		if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
@@ -85,6 +85,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		data, _ := json.Marshal(&spec.Template)
 		var template core.PodTemplateSpec
 		_ = json.Unmarshal(data, &template)
+		template.ObjectMeta = spec.Template.ObjectMeta
 		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, *spec.Replicas, fldPath.Child("template"))...)
 	}
 
