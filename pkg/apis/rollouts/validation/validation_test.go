@@ -280,4 +280,3 @@ func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
 	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromString("0%"))))
 
 }
-
