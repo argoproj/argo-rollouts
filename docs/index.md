@@ -1,25 +1,19 @@
-# Argo Rollouts - Advanced Kubernetes Deployment Controller
+# Argo Rollouts - Kubernetes Progressive Delivery Controller
 
 ## What is Argo Rollouts?
-Argo Rollouts introduces a new custom resource called a Rollout to provide additional deployment strategies such as Blue Green and Canary to Kubernetes. The Rollout custom resource provides feature parity with the deployment resource with additional deployment strategies. Check out the [Deployment Concepts](deployment-concepts.md) for more information on the various deployment strategies.
+Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced deployment strategies such as blue-green, canary, experimentation, and progressive delivery features to Kubernetes. The Rollout custom resource provides feature parity with the deployment resource with additional deployment strategies.
 
 ## Why Argo Rollouts?
-Deployments resources offer two strategies to deploy changes: `RollingUpdate` and `Recreate`. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller. In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable, GitOps-friendly options.
-
-## Getting Started
+Kubernetes Deployments offer two strategies to deploy changes: `RollingUpdate` and `Recreate`. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller. In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable, GitOps-friendly options.
 
 ### Quick Start
 
-Argo Rollouts can be installed by running the following commands:
 ```
-$ kubectl create namespace argo-rollouts
-$ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
 ```
 
-!!! important
-    When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
-
-Check out the [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
+Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
 
 ### How does it work?
 Similar to the deployment object, the Argo Rollouts controller will manage the creation, scaling, and deletion of ReplicaSets. These ReplicaSets are defined by the `spec.template` field, which uses the same pod template as the deployment object. When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet has successfully progressed into the stable version, that Rollout will be marked as the stable ReplicaSet. If another change occurs in the `spec.template` during a transition from a stable ReplicaSet to a new ReplicaSet. The previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the `spec.template` field. There is more information on the behaviors of each strategy in the [spec](spec/) section.

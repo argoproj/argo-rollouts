@@ -5,36 +5,7 @@ Argo Rollouts offers a Kubectl plugin to enrich the experience with Rollouts, Ex
 
 ## Installation
 
-### Manual
-1. Install [Argo Rollouts Kubectl plugin](https://github.com/argoproj/argo-rollouts/releases) with curl.
-    ```shell
-    curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
-    ```
-
-    !!! tip "" 
-        For Linux dist, replace `darwin` with `linux`
-
-1. Make the kubectl-argo-rollouts binary executable.
-
-    ```shell
-    chmod +x ./kubectl-argo-rollouts-darwin-amd64
-    ```
-
-1. Move the binary into your PATH.
-
-    ```shell
-    sudo mv ./kubectl-argo-rollouts-darwin-amd64 /usr/local/bin/kubectl-argo-rollouts
-    ```
-
-Test to ensure the version you installed is up-to-date:
-
-```shell
-kubectl argo rollouts version
-```
-
-### Krew
-
-Currently not supported, but there are plans to make the Argo Rollouts kubectl a part of [Krew](https://github.com/kubernetes-sigs/krew). Please follow this [issue](https://github.com/argoproj/argo-rollouts/issues/294) for the most up-to-date information.
+See the [installation guide](../installation.md) for instructions on installing the plugin.
 
 ## Usage
 The best way to get information on the available Argo Rollouts kubectl plugin commands is by run `kubectl argo rollouts`. The plugin lists all the available commands that the tool can execute along with a description of each commend. All the plugin's commands interact with the Kubernetes API server and use KubeConfig credentials for authentication. Since the plugin leverages the KubeConfig of the user running the command, the plugin has the permissions of those configs. 

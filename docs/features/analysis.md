@@ -711,8 +711,8 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
     provider:
       job:
         spec:
-          backoffLimit: 1
           template:
+            backoffLimit: 1
             spec:
               containers:
               - name: test
