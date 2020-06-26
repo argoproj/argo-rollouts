@@ -8,7 +8,8 @@ This guide builds upon the concepts of the [basic getting started guide](../../g
 - Kubernetes cluster with NGINX ingress controller installed
 
 !!! tip
-    See the [environment setup guide](../setup/index.md) on how to setup a local minikube environment with nginx
+    See the [environment setup guide for NGINX](../setup/index.md#nginx-ingress-controller-setup)
+    on how to setup a local minikube environment with nginx.
 
 ## 1. Deploy the Rollout, Services, and Ingress
 
@@ -58,7 +59,11 @@ spec:
           servicePort: 80
 ```
 
-Run the following commands to deploy a Rollout, two Services (stable and canary), and a Ingress:
+Run the following commands to deploy:
+
+* A Rollout
+* Two Services (stable and canary)
+* An Ingress
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/rollout.yaml
@@ -108,7 +113,7 @@ kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-de
 kubectl argo rollouts get rollout rollouts-demo
 ```
 
-![Rollout Nginx Paued](paused-rollout-nginx.png)
+![Rollout Nginx Paused](paused-rollout-nginx.png)
 
 At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. One thing to note, is that the rollout is able to achieve a
