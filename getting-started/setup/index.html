@@ -266,6 +266,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -996,8 +1008,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#nginx-ingress-controller-install" class="md-nav__link">
-    NGINX Ingress Controller Install
+  <a href="#nginx-ingress-controller-setup" class="md-nav__link">
+    NGINX Ingress Controller Setup
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#istio-setup" class="md-nav__link">
+    Istio Setup
   </a>
   
 </li>
@@ -1008,9 +1027,83 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#local-host-entries" class="md-nav__link">
-    Local Host Entries
+  <a href="#supplying-host-headers" class="md-nav__link">
+    Supplying Host Headers
   </a>
+  
+    <nav class="md-nav" aria-label="Supplying Host Headers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#determining-the-hostname-to-ip-mapping" class="md-nav__link">
+    Determining the hostname to IP mapping
+  </a>
+  
+    <nav class="md-nav" aria-label="Determining the hostname to IP mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingresses" class="md-nav__link">
+    Ingresses
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#istio" class="md-nav__link">
+    Istio
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuring-local-hostname-resolution" class="md-nav__link">
+    Configuring local hostname resolution
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring local hostname resolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-entry" class="md-nav__link">
+    DNS Entry
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etchosts-entry" class="md-nav__link">
+    /etc/hosts Entry
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supply-header-in-curl" class="md-nav__link">
+    Supply Header in Curl
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#browser-extension" class="md-nav__link">
+    Browser Extension
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1103,8 +1196,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#nginx-ingress-controller-install" class="md-nav__link">
-    NGINX Ingress Controller Install
+  <a href="#nginx-ingress-controller-setup" class="md-nav__link">
+    NGINX Ingress Controller Setup
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#istio-setup" class="md-nav__link">
+    Istio Setup
   </a>
   
 </li>
@@ -1115,9 +1215,83 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#local-host-entries" class="md-nav__link">
-    Local Host Entries
+  <a href="#supplying-host-headers" class="md-nav__link">
+    Supplying Host Headers
   </a>
+  
+    <nav class="md-nav" aria-label="Supplying Host Headers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#determining-the-hostname-to-ip-mapping" class="md-nav__link">
+    Determining the hostname to IP mapping
+  </a>
+  
+    <nav class="md-nav" aria-label="Determining the hostname to IP mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingresses" class="md-nav__link">
+    Ingresses
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#istio" class="md-nav__link">
+    Istio
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuring-local-hostname-resolution" class="md-nav__link">
+    Configuring local hostname resolution
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring local hostname resolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-entry" class="md-nav__link">
+    DNS Entry
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etchosts-entry" class="md-nav__link">
+    /etc/hosts Entry
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supply-header-in-curl" class="md-nav__link">
+    Supply Header in Curl
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#browser-extension" class="md-nav__link">
+    Browser Extension
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1151,40 +1325,158 @@ helm repo update
 </code></pre></div>
 
 <h2 id="minikube">Minikube<a class="headerlink" href="#minikube" title="Permanent link">&para;</a></h2>
-<h3 id="nginx-ingress-controller-install">NGINX Ingress Controller Install<a class="headerlink" href="#nginx-ingress-controller-install" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="c1"># Install nginx-ingress controller</span>
-minikube addons <span class="nb">enable</span> ingress
+<h3 id="nginx-ingress-controller-setup">NGINX Ingress Controller Setup<a class="headerlink" href="#nginx-ingress-controller-setup" title="Permanent link">&para;</a></h3>
+<p>The following instructions describe how to configure NGINX Ingress Controller on minikube. For
+basic ingress support, only the "ingress" addon needs to be enabled:</p>
+<div class="highlight"><pre><span></span><code>minikube addons <span class="nb">enable</span> ingress
+</code></pre></div>
 
-<span class="c1"># Install prometheus, grafana, and nginx dashboards</span>
+<p>Optionaly, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
+<div class="highlight"><pre><span></span><code># Install Prometheus
 kubectl create ns monitoring
 helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
+
+# Patch the ingress-nginx-controller pod so that it has the required
+# prometheus annotations. This allows the pod to be scraped by the
+# prometheus server.
+kubectl patch deploy ingress-nginx-controller -n kube-system -p &quot;$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)&quot;
+
+# Install grafana along with nginx ingress dashboards
 helm install grafana stable/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
 
-<span class="c1"># Patch the ingress-nginx-controller pod so that it has the required</span>
-<span class="c1"># prometheus annotations. This allows the pod to be scraped by the</span>
-<span class="c1"># prometheus server.</span>
-kubectl patch deploy ingress-nginx-controller -n kube-system -p <span class="s2">&quot;</span><span class="k">$(</span>cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml<span class="k">)</span><span class="s2">&quot;</span>
-
-<span class="c1"># Grafana UI can be seen by running:</span>
+# Grafana UI can be accessed by running:
 minikube service grafana -n monitoring
 </code></pre></div>
 
-<h2 id="local-host-entries">Local Host Entries<a class="headerlink" href="#local-host-entries" title="Permanent link">&para;</a></h2>
+<h3 id="istio-setup">Istio Setup<a class="headerlink" href="#istio-setup" title="Permanent link">&para;</a></h3>
+<p>The following instructions describe how to configure Istio on minikube.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Istio on Minikube requires additional memory and CPU</span>
+minikube start --memory<span class="o">=</span>8192mb --cpus<span class="o">=</span><span class="m">4</span>
+
+<span class="c1"># Install istio</span>
+minikube addons <span class="nb">enable</span> istio-provisioner
+minikube addons <span class="nb">enable</span> istio
+
+<span class="c1"># Label the default namespace to enable istio sidecar injection for the namespace</span>
+kubectl label namespace default istio-injection<span class="o">=</span>enabled
+</code></pre></div>
+
+<p>Istio already comes with a Prometheus database ready to use. To visualize metrics about istio
+services, Grafana and Istio dashboards can be installed via Helm to leverage progressive delivery
+functionality:</p>
+<div class="highlight"><pre><span></span><code># Install Grafana and Istio dashboards
+helm install grafana stable/grafana -n istio-system -f docs/getting-started/setup/values-grafana-istio.yaml
+
+# Grafana UI can be accessed by running
+minikube service grafana -n istio-system
+</code></pre></div>
+
+<p>In order for traffic to enter the Istio mesh, the request needs to go through an Istio ingress
+gateway, which is simply a normal Kubernetes Deployment and Service. One convenient way to reach
+the gateway using minikube, is using the <code>minikube tunnel</code> command which assigns Services a 
+LoadBalancer. This command should be run in the background, usually in a separate terminal window:</p>
+<div class="highlight"><pre><span></span><code>minikube tunnel
+</code></pre></div>
+
+<p>While running <code>minikube tunnel</code>, the <code>istio-ingressgateway</code> Service will now have an external IP
+which can be retrieved via <code>kubectl</code>:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl get svc -n istio-system istio-ingressgateway
+NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT<span class="o">(</span>S<span class="o">)</span>                            AGE
+istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <span class="m">10</span>.100.136.45   <span class="m">15020</span>:31711/TCP,80:31298/TCP....   7d22h
+</code></pre></div>
+
+<p>The LoadBalancer external IP (10.100.136.45 in this example) is now reachable to access services in
+the Istio mesh. Istio routes requests to the correct pod based on the Host HTTP header. Follow the
+guide on <a href="#supplying-host-headers">supplying host headers</a> to learn how to configure your client
+environment to supply the proper request to reach the pod.</p>
+<h2 id="supplying-host-headers">Supplying Host Headers<a class="headerlink" href="#supplying-host-headers" title="Permanent link">&para;</a></h2>
 <p>Most ingress controllers and service mesh implementations rely on the 
 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host">Host HTTP request header</a> being
-supplied in the request, in order to determine how to route the request to the correct service.
-There are different ways to ensure the host is supplied with the request. In real, production
-environments, this is typically achieved by adding entry for the hostname a DNS server.</p>
-<p>On local workstations, we can sidestep the DNS changes by adding an entry to <code>/etc/hosts</code>,
-to map the hostname and IP address of the ingress. First obtain the values from the ingress:</p>
+supplied in the request in order to determine how to route the request to the correct pod.</p>
+<h3 id="determining-the-hostname-to-ip-mapping">Determining the hostname to IP mapping<a class="headerlink" href="#determining-the-hostname-to-ip-mapping" title="Permanent link">&para;</a></h3>
+<p>For the Host header to be set in the request, the hostname of the service should resolve to the
+public IP address of the ingress or service mesh. Depending on if you are using a ingress controller
+or a service mesh, use one of the following techniques to determine the correct hostname to IP
+mapping:</p>
+<h4 id="ingresses">Ingresses<a class="headerlink" href="#ingresses" title="Permanent link">&para;</a></h4>
+<p>For traffic which is reaching the cluster network via a normal Kubernetes Ingress, the hostname
+should map to the IP of the ingress. We can retrieve the external IP of the ingress from the
+Ingress object itself, using <code>kubectl</code>:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get ing rollouts-demo-stable
 NAME                   CLASS    HOSTS                 ADDRESS        PORTS   AGE
 rollouts-demo-stable   &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      80m
 </code></pre></div>
 
-<p>From the above output, the correct entry in <code>/etc/hosts</code> would be:</p>
-<div class="highlight"><pre><span></span><code>rollouts-demo.local   192.168.64.2
+<p>In the example above, the hostname <code>rollouts-demo.local</code> should be configured to resolve to the
+IP <code>192.168.64.2</code>. The next section describes various ways to configure your local system to
+resolve the hostname to the desired IP.</p>
+<h4 id="istio">Istio<a class="headerlink" href="#istio" title="Permanent link">&para;</a></h4>
+<p>In the case of Istio, traffic enters the mesh through an
+<a href="https://istio.io/latest/docs/tasks/traffic-management/ingress/ingress-control/">Ingress Gateway</a>,
+which simply is a load balancer sitting at the edge of mesh.</p>
+<p>To determine the correct hostname to IP mapping, it largely depends on what was configured in the 
+<code>VirtualService</code> and <code>Gateway</code>. If you are following the
+<a href="../istio/">Istio getting started guide</a>, the examples use the "default" istio 
+ingress gateway, which we can obtain from kubectl:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl get svc -n istio-system istio-ingressgateway
+NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT<span class="o">(</span>S<span class="o">)</span>                            AGE
+istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <span class="m">10</span>.100.136.45   <span class="m">15020</span>:31711/TCP,80:31298/TCP....   7d22h
 </code></pre></div>
+
+<p>In the above example, the hostname <code>rollouts-demo.local</code> should be configured to resolve to the
+IP <code>10.100.136.45</code>. The next section describes various ways to configure your local system to
+resolve the hostname to the desired IP.</p>
+<h3 id="configuring-local-hostname-resolution">Configuring local hostname resolution<a class="headerlink" href="#configuring-local-hostname-resolution" title="Permanent link">&para;</a></h3>
+<p>Now that you have determined the correct hostname to IP mapping, the next step involves configuring
+the system so that will resolve properly. There are different techniques to do this:</p>
+<h4 id="dns-entry">DNS Entry<a class="headerlink" href="#dns-entry" title="Permanent link">&para;</a></h4>
+<p>In real, production environments, the Host header is typically achieved by adding a DNS entry for
+the hostname in the DNS server. However, for local development, this is typically not an easily
+accessible option.</p>
+<h4 id="etchosts-entry">/etc/hosts Entry<a class="headerlink" href="#etchosts-entry" title="Permanent link">&para;</a></h4>
+<p>On local workstations, a local entry to <code>/etc/hosts</code> can be added to map the hostname and IP address
+of the ingress. For example, the following is an example of an <code>/etc/hosts</code> file which maps
+<code>rollouts-demo.local</code> to IP <code>10.100.136.45</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">##</span>
+<span class="c1"># Host Database</span>
+<span class="c1">#</span>
+<span class="c1"># localhost is used to configure the loopback interface</span>
+<span class="c1"># when the system is booting.  Do not change this entry.</span>
+<span class="c1">##</span>
+<span class="m">127</span>.0.0.1       localhost
+<span class="m">255</span>.255.255.255 broadcasthost
+::1             localhost
+
+<span class="m">10</span>.100.136.45  rollouts-demo.local
+</code></pre></div>
+
+<p>The advantages of using a host entry, are that it works for all clients (CLIs, browsers). On the
+other hand, it is harder to maintain if the IP address changes frequently.</p>
+<h4 id="supply-header-in-curl">Supply Header in Curl<a class="headerlink" href="#supply-header-in-curl" title="Permanent link">&para;</a></h4>
+<p>Clients such as curl, have the ability to explicitly set a header (the <code>-H</code> flag in curl).
+For example:</p>
+<div class="highlight"><pre><span></span><code>$ curl -I -H <span class="s1">&#39;Host: rollouts-demo.local&#39;</span> http://10.100.136.45/color
+HTTP/1.1 <span class="m">200</span> OK
+content-type: text/plain<span class="p">;</span> <span class="nv">charset</span><span class="o">=</span>utf-8
+x-content-type-options: nosniff
+date: Wed, <span class="m">24</span> Jun <span class="m">2020</span> <span class="m">08</span>:44:59 GMT
+content-length: <span class="m">6</span>
+x-envoy-upstream-service-time: <span class="m">1</span>
+server: istio-envoy
+</code></pre></div>
+
+<p>Notice that the same request made <em>without</em> the header, fails with a <code>404 Not Found</code> error.</p>
+<div class="highlight"><pre><span></span><code>$ curl -I http://10.100.136.45/color
+HTTP/1.1 <span class="m">404</span> Not Found
+date: Wed, <span class="m">24</span> Jun <span class="m">2020</span> <span class="m">08</span>:46:07 GMT
+server: istio-envoy
+transfer-encoding: chunked
+</code></pre></div>
+
+<h4 id="browser-extension">Browser Extension<a class="headerlink" href="#browser-extension" title="Permanent link">&para;</a></h4>
+<p>Similar to curl's ability to explicitly set a header, browsers can also achieve this via browser
+extensions. One example of a brower extension which can do this, is
+<a href="https://bewisse.com/modheader/">ModHeader</a>.</p>
                 
               
               

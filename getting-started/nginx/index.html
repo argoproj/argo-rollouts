@@ -324,6 +324,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -1125,7 +1137,8 @@ This guide builds upon the concepts of the <a href="../">basic getting started g
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>See the <a href="../setup/">environment setup guide</a> on how to setup a local minikube environment with nginx</p>
+<p>See the <a href="../setup/#nginx-ingress-controller-setup">environment setup guide for NGINX</a>
+on how to setup a local minikube environment with nginx.</p>
 </div>
 <h2 id="1-deploy-the-rollout-services-and-ingress">1. Deploy the Rollout, Services, and Ingress<a class="headerlink" href="#1-deploy-the-rollout-services-and-ingress" title="Permanent link">&para;</a></h2>
 <p>When NGINX Ingress is used as the traffic router, the Rollout canary strategy must define
@@ -1170,7 +1183,12 @@ In our example, that stable Service is named: <code>rollouts-demo-stable</code>:
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
 
-<p>Run the following commands to deploy a Rollout, two Services (stable and canary), and a Ingress:</p>
+<p>Run the following commands to deploy:</p>
+<ul>
+<li>A Rollout</li>
+<li>Two Services (stable and canary)</li>
+<li>An Ingress</li>
+</ul>
 <div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/rollout.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/services.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/ingress.yaml
@@ -1209,7 +1227,7 @@ discussed in the following section.</p>
 kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
 
-<p><img alt="Rollout Nginx Paued" src="paused-rollout-nginx.png" /></p>
+<p><img alt="Rollout Nginx Paused" src="paused-rollout-nginx.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. One thing to note, is that the rollout is able to achieve a
 5% canary weight despite only running two pods. This is able to be achieved since the traffic split
@@ -1278,13 +1296,13 @@ split between the two Ingresses.</p>
           </a>
         
         
-          <a href="../../features/bluegreen/" title="BlueGreen" class="md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../istio/" title="Istio" class="md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-footer-nav__title">
               <div class="md-ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                BlueGreen
+                Istio
               </div>
             </div>
             <div class="md-footer-nav__button md-icon">

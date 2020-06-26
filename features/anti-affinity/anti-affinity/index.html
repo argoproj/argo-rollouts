@@ -266,6 +266,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../getting-started/istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -468,9 +480,49 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Anti Affinity
+        <span class="md-nav__icon md-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9h14V7H3v2m0 4h14v-2H3v2m0 4h14v-2H3v2m16 0h2v-2h-2v2m0-10v2h2V7h-2m0 6h2v-2h-2v2z"/></svg>
+        </span>
+      </label>
+    
     <a href="./" title="Anti Affinity" class="md-nav__link md-nav__link--active">
       Anti Affinity
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    Background
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-anti-affinity-in-rollouts" class="md-nav__link">
+    Enabling Anti-Affinity in Rollouts
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -1019,6 +1071,30 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    Background
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-anti-affinity-in-rollouts" class="md-nav__link">
+    Enabling Anti-Affinity in Rollouts
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1038,6 +1114,7 @@
                 
                 
                 <h1 id="anti-affinity">Anti Affinity<a class="headerlink" href="#anti-affinity" title="Permanent link">&para;</a></h1>
+<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p>Depending on a cluster's configuration, a Blue Green Rollout (or a Canary rollout that uses traffic management) can cause newly created pods to restart after deploying a new version. This can be problematic, especially for applications that cannot startup quickly or do not gracefully exit.</p>
 <p>This behavior occurs because cluster auto-scaler wants to scale down the extra capacity which was created to support a Rollout
 running in double capacity. When a node is scaled down, the pods it owns are deleted and recreated. This usually happens if a Rollout has its own dedicated instance group since a Rollout has a greater effect on
@@ -1058,6 +1135,7 @@ all 16 pods. The resulting distribution of pods across nodes is shown here:
 <p>Repeating the above example with anti-affinity enabled, here is what happens when the <code>.spec.template</code> of the Rollout changes. Due to anti-affinity, the new pods cannot be scheduled on nodes which run the old ReplicaSet's pods.
 As a result, the cluster auto-scaler must create 2 nodes to host the new ReplicaSet's pods. In this case, pods won't be started since the scaled-down nodes are guaranteed to not have the new pods.
 <img alt=" Original Rollout is running, spread across two nodes" src="../images/solution.png" /></p>
+<h2 id="enabling-anti-affinity-in-rollouts">Enabling Anti-Affinity in Rollouts<a class="headerlink" href="#enabling-anti-affinity-in-rollouts" title="Permanent link">&para;</a></h2>
 <p>Anti-affinity is enabled by adding the anti-affinity struct to the Blue-Green or Canary strategy. When the anti-affinity struct is set, controller injects a PodAntiAffinity struct into the ReplicaSet's Affinity.
 This feature will not modify any of the ReplicaSet's pre-existing affinity rules. </p>
 <p>Users have a choice between these scheduling rules: <code>RequiredDuringSchedulingIgnoredDuringExecution</code> and <code>PreferredDuringSchedulingIgnoredDuringExecution</code>.</p>

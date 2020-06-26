@@ -266,6 +266,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../getting-started/istio/" title="Istio" class="md-nav__link">
+      Istio
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -1267,15 +1279,13 @@ pushed into the other kubernetes repositories yet. In order to import the kubern
 associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The 
 <code>./hack/update-k8s-dependencies.sh</code> updates all the dependencies to the those correct versions.</p>
 <h2 id="documentation-changes">Documentation Changes<a class="headerlink" href="#documentation-changes" title="Permanent link">&para;</a></h2>
-<p>If you need to run the mkdocs server, you will need to do the following:</p>
-<ul>
-<li>Follow the instruction guide to install <a href="https://www.mkdocs.org/#installation">mkDocs</a></li>
-<li>Install the <code>material</code> theme with the <a href="https://squidfunk.github.io/mkdocs-material/#quick-start">following guide</a></li>
-<li>Run <code>make plugin-docs</code> to generate kubectl plugin documentation</li>
-</ul>
-<p>Afterwards, you can run <code>mkdocs serve</code> and access your documentation at <a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
-<p>If you don't want to setup mkDocs locally, the following docker command should suffice:</p>
-<div class="highlight"><pre><span></span><code>docker run --rm -it -p <span class="m">8000</span>:8000 -v <span class="si">${</span><span class="nv">PWD</span><span class="si">}</span>:/docs squidfunk/mkdocs-material
+<p>Modify contents in <code>docs/</code> directory. </p>
+<p>Preview changes in your browser by visiting http://localhost:8000 after running:</p>
+<div class="highlight"><pre><span></span><code>make serve-docs
+</code></pre></div>
+
+<p>To publish changes, run:</p>
+<div class="highlight"><pre><span></span><code>make release-docs
 </code></pre></div>
                 
               
