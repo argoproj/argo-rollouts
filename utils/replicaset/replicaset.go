@@ -407,10 +407,10 @@ func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 }
 
 // checkStepHashChange indicates if the rollout's step for the strategy have changed. This causes the rollout to reset the
-// currentStepIndex to zero. If there is no previous pod spec to compare to the function defaults to false
+// currentStepIndex to zero. If there was no previously recorded step hash to compare to the function defaults to true
 func checkStepHashChange(rollout *v1alpha1.Rollout) bool {
 	if rollout.Status.CurrentStepHash == "" {
-		return false
+		return true
 	}
 	// TODO: conditions.ComputeStepHash is not stable and will change
 	stepsHash := conditions.ComputeStepHash(rollout)

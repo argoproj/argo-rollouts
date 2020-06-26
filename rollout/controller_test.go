@@ -1242,3 +1242,43 @@ func TestMigrateCanaryStableRS(t *testing.T) {
 		assert.Equal(t, "fakepodhash", updatedRollout.Status.Canary.StableRS)
 	})
 }
+
+func TestSwitchBlueGreenToCanary(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	activeSvc := newService("active", 80, nil, r)
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true)
+	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
+	r.Status.Canary.StableRS = rsPodHash
+	r.Spec.Strategy.BlueGreen = nil
+	r.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		Steps: []v1alpha1.CanaryStep{{
+			SetWeight: int32Ptr(1),
+		}},
+	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	i := f.expectPatchRolloutAction(r)
+	f.objects = append(f.objects, r)
+	f.run(getKey(r, t))
+	patch := f.getPatchedRollout(i)
+
+	addedConditons := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	expectedPatch := fmt.Sprintf(`{
+			"status": {
+				"blueGreen": {
+					"activeSelector": null
+				},
+				"conditions": %s,
+				"currentStepIndex": 1,
+				"currentStepHash": "%s",
+				"selector": "foo=bar"
+			}
+		}`, addedConditons, conditions.ComputeStepHash(r))
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
