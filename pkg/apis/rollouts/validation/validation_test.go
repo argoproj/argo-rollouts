@@ -14,6 +14,7 @@ func TestValidateRollout(t *testing.T) {
 }
 
 func TestValidateRolloutSpec(t *testing.T) {
+	// TODO: 1 test -> fail validation
 	// TestVerifyRolloutSpecBaseCases
 	//ro := &v1alpha1.Rollout{
 	//	Spec: v1alpha1.RolloutSpec{
@@ -37,20 +38,6 @@ func TestValidateRolloutSpec(t *testing.T) {
 	//validRollout.Spec.Strategy.Canary = nil
 	//validRolloutCond := VerifyRolloutSpec(validRollout, nil)
 	//assert.Nil(t, validRolloutCond)
-	//
-	//selectorEverything := validRollout.DeepCopy()
-	//selectorEverything.Spec.Selector = &metav1.LabelSelector{}
-	//selectorEverythingConf := VerifyRolloutSpec(selectorEverything, nil)
-	//assert.NotNil(t, selectorEverythingConf)
-	//assert.Equal(t, RolloutSelectAllMessage, selectorEverythingConf.Message)
-	//assert.Equal(t, InvalidSpecReason, selectorEverythingConf.Reason)
-	//
-	//noSelector := validRollout.DeepCopy()
-	//noSelector.Spec.Selector = nil
-	//noSelectorCond := VerifyRolloutSpec(noSelector, nil)
-	//assert.NotNil(t, noSelectorCond)
-	//assert.Equal(t, fmt.Sprintf(MissingFieldMessage, ".Spec.Selector"), noSelectorCond.Message)
-	//assert.Equal(t, InvalidSpecReason, noSelectorCond.Reason)
 	//
 	//minReadyLongerThanProgessDeadline := validRollout.DeepCopy()
 	//minReadyLongerThanProgessDeadline.Spec.MinReadySeconds = 1000

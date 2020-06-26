@@ -319,7 +319,7 @@ func (c *Controller) syncHandler(key string) error {
 	}()
 
 	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-	rolloutValidationErrors := validation.ValidateRollout(rollout) //invalidSpecCond := conditions.VerifyRolloutSpec(r, prevCond)
+	rolloutValidationErrors := validation.ValidateRollout(rollout)
 	if len(rolloutValidationErrors) > 0 {
 		rolloutValidationError := rolloutValidationErrors[0]
 		invalidSpecCond := prevCond
