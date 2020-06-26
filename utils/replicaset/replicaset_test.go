@@ -633,7 +633,8 @@ func TestCheckPodSpecChange(t *testing.T) {
 
 func TestCheckStepHashChange(t *testing.T) {
 	ro := generateRollout("ngnix")
-	assert.False(t, checkStepHashChange(&ro))
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+	assert.True(t, checkStepHashChange(&ro))
 	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
 	assert.False(t, checkStepHashChange(&ro))
 
