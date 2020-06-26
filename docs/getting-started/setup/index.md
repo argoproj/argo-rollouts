@@ -119,7 +119,8 @@ rollouts-demo-stable   <none>   rollouts-demo.local   192.168.64.2   80      80m
 ```
 
 In the example above, the hostname `rollouts-demo.local` should be configured to resolve to the
-IP `192.168.64.2`.
+IP `192.168.64.2`. The next section describes various ways to configure your local system to
+resolve the hostname to the desired IP.
 
 #### Istio
 
@@ -139,9 +140,10 @@ istio-ingressgateway   LoadBalancer   10.100.136.45   10.100.136.45   15020:3171
 ```
 
 In the above example, the hostname `rollouts-demo.local` should be configured to resolve to the
-IP `10.100.136.45`.
+IP `10.100.136.45`. The next section describes various ways to configure your local system to
+resolve the hostname to the desired IP.
 
-### Configuring the hostname to IP mapping
+### Configuring local hostname resolution
 
 Now that you have determined the correct hostname to IP mapping, the next step involves configuring
 the system so that will resolve properly. There are different techniques to do this:
@@ -149,7 +151,8 @@ the system so that will resolve properly. There are different techniques to do t
 #### DNS Entry
 
 In real, production environments, the Host header is typically achieved by adding a DNS entry for
-the hostname in the DNS server. However, for local development, this is typically not an easy option.
+the hostname in the DNS server. However, for local development, this is typically not an easily
+accessible option.
 
 #### /etc/hosts Entry
 
