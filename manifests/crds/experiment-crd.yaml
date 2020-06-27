@@ -58,6 +58,8 @@ spec:
                       - name
                       type: object
                     type: array
+                  clusterTemplateName:
+                    type: string
                   name:
                     type: string
                   requiredForCompletion:
@@ -65,6 +67,7 @@ spec:
                   templateName:
                     type: string
                 required:
+                - clusterTemplateName
                 - name
                 - templateName
                 type: object

@@ -35,6 +35,7 @@ type experimentContext struct {
 	kubeclientset          kubernetes.Interface
 	argoProjClientset      clientset.Interface
 	analysisTemplateLister rolloutslisters.AnalysisTemplateLister
+	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister
 	analysisRunLister      rolloutslisters.AnalysisRunLister
 	replicaSetLister       appslisters.ReplicaSetLister
 	recorder               record.EventRecorder
@@ -490,10 +491,19 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
-	template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
-	if err != nil {
-		return nil, err
+
+	if analysis.ClusterTemplateName != "" {
+		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.ClusterTemplateName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+		if err != nil {
+			return nil, err
+		}
 	}
+	// TODO same as analysis.go
 	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
 	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
