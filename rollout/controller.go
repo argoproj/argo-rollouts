@@ -107,6 +107,7 @@ type ControllerConfig struct {
 	ExperimentInformer         informers.ExperimentInformer
 	AnalysisRunInformer        informers.AnalysisRunInformer
 	AnalysisTemplateInformer   informers.AnalysisTemplateInformer
+	ClusterAnalysisTemplateInformer   informers.ClusterAnalysisTemplateInformer
 	ReplicaSetInformer         appsinformers.ReplicaSetInformer
 	ServicesInformer           coreinformers.ServiceInformer
 	IngressInformer            extensionsinformers.IngressInformer
@@ -159,6 +160,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		experimentsLister:          cfg.ExperimentInformer.Lister(),
 		analysisRunLister:          cfg.AnalysisRunInformer.Lister(),
 		analysisTemplateLister:     cfg.AnalysisTemplateInformer.Lister(),
+		clusterAnalysisTemplateLister:     cfg.ClusterAnalysisTemplateInformer.Lister(),
 		recorder:                   cfg.Recorder,
 		resyncPeriod:               cfg.ResyncPeriod,
 		metricsServer:              cfg.MetricsServer,

@@ -340,6 +340,9 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
+	// ClusterTemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
+	// Deprecated and will be removed in v0.9
+	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
 	TemplateName string `json:"templateName,omitempty"`

@@ -64,6 +64,7 @@ type fixture struct {
 	rolloutLister          []*v1alpha1.Rollout
 	experimentLister       []*v1alpha1.Experiment
 	analysisRunLister      []*v1alpha1.AnalysisRun
+	clusterAnalysisTemplateLister []*v1alpha1.ClusterAnalysisTemplate
 	analysisTemplateLister []*v1alpha1.AnalysisTemplate
 	replicaSetLister       []*appsv1.ReplicaSet
 	serviceLister          []*corev1.Service
@@ -400,6 +401,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ExperimentInformer:       i.Argoproj().V1alpha1().Experiments(),
 		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
 		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:         k8sI.Core().V1().Services(),
 		IngressInformer:          k8sI.Extensions().V1beta1().Ingresses(),
@@ -457,6 +459,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
+	}
+	for _, cat := range f.clusterAnalysisTemplateLister {
+		i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Informer().GetIndexer().Add(cat)
 	}
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
@@ -559,6 +564,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("watch", "analysisruns") ||
 			action.Matches("list", "analysistemplates") ||
 			action.Matches("watch", "analysistemplates") ||
+			action.Matches("list", "clusteranalysistemplates") ||
+			action.Matches("watch", "clusteranalysistemplates") ||
 			action.Matches("list", "rollouts") ||
 			action.Matches("watch", "rollouts") ||
 			action.Matches("list", "replicaSets") ||
