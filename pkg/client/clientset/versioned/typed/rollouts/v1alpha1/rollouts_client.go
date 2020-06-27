@@ -28,6 +28,7 @@ type ArgoprojV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AnalysisRunsGetter
 	AnalysisTemplatesGetter
+	ClusterAnalysisTemplatesGetter
 	ExperimentsGetter
 	RolloutsGetter
 }
@@ -43,6 +44,10 @@ func (c *ArgoprojV1alpha1Client) AnalysisRuns(namespace string) AnalysisRunInter
 
 func (c *ArgoprojV1alpha1Client) AnalysisTemplates(namespace string) AnalysisTemplateInterface {
 	return newAnalysisTemplates(c, namespace)
+}
+
+func (c *ArgoprojV1alpha1Client) ClusterAnalysisTemplates() ClusterAnalysisTemplateInterface {
+	return newClusterAnalysisTemplates(c)
 }
 
 func (c *ArgoprojV1alpha1Client) Experiments(namespace string) ExperimentInterface {

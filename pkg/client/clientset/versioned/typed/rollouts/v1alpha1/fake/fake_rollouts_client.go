@@ -36,6 +36,10 @@ func (c *FakeArgoprojV1alpha1) AnalysisTemplates(namespace string) v1alpha1.Anal
 	return &FakeAnalysisTemplates{c, namespace}
 }
 
+func (c *FakeArgoprojV1alpha1) ClusterAnalysisTemplates() v1alpha1.ClusterAnalysisTemplateInterface {
+	return &FakeClusterAnalysisTemplates{c}
+}
+
 func (c *FakeArgoprojV1alpha1) Experiments(namespace string) v1alpha1.ExperimentInterface {
 	return &FakeExperiments{c, namespace}
 }
