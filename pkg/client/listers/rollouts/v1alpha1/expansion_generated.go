@@ -34,6 +34,10 @@ type AnalysisTemplateListerExpansion interface{}
 // AnalysisTemplateNamespaceLister.
 type AnalysisTemplateNamespaceListerExpansion interface{}
 
+// ClusterAnalysisTemplateListerExpansion allows custom methods to be added to
+// ClusterAnalysisTemplateLister.
+type ClusterAnalysisTemplateListerExpansion interface{}
+
 // ExperimentListerExpansion allows custom methods to be added to
 // ExperimentLister.
 type ExperimentListerExpansion interface{}

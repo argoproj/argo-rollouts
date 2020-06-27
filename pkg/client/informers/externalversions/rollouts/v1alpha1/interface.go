@@ -28,6 +28,8 @@ type Interface interface {
 	AnalysisRuns() AnalysisRunInformer
 	// AnalysisTemplates returns a AnalysisTemplateInformer.
 	AnalysisTemplates() AnalysisTemplateInformer
+	// ClusterAnalysisTemplates returns a ClusterAnalysisTemplateInformer.
+	ClusterAnalysisTemplates() ClusterAnalysisTemplateInformer
 	// Experiments returns a ExperimentInformer.
 	Experiments() ExperimentInformer
 	// Rollouts returns a RolloutInformer.
@@ -53,6 +55,11 @@ func (v *version) AnalysisRuns() AnalysisRunInformer {
 // AnalysisTemplates returns a AnalysisTemplateInformer.
 func (v *version) AnalysisTemplates() AnalysisTemplateInformer {
 	return &analysisTemplateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterAnalysisTemplates returns a ClusterAnalysisTemplateInformer.
+func (v *version) ClusterAnalysisTemplates() ClusterAnalysisTemplateInformer {
+	return &clusterAnalysisTemplateInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // Experiments returns a ExperimentInformer.

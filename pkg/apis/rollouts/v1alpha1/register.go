@@ -35,6 +35,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ExperimentList{},
 		&AnalysisTemplate{},
 		&AnalysisTemplateList{},
+		&ClusterAnalysisTemplate{},
 		&AnalysisRun{},
 		&AnalysisRunList{},
 	)
