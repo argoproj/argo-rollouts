@@ -270,6 +270,8 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	TemplateName string `json:"templateName"`
+	// TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run
+	ClusterTemplateName string `json:"clustertemplateName"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -352,6 +354,8 @@ type RolloutAnalysis struct {
 type RolloutAnalysisTemplates struct {
 	//TemplateName name of template to use in AnalysisRun
 	TemplateName string `json:"templateName"`
+	//ClusterTemplateName name of template to use in AnalysisRun
+	ClusterTemplateName string `json:"clusterTemplateName"`
 }
 
 // AnalysisRunArgument argument to add to analysisRun

@@ -1036,6 +1036,13 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							Format:      "",
 						},
 					},
+					"clusterTemplateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterTemplateName reference of the ClusterAnalysisTemplate name used by the Experiment to create the run",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"args": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -1063,7 +1070,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 						},
 					},
 				},
-				Required: []string{"name", "templateName"},
+				Required: []string{"name", "templateName", "clusterTemplateName"},
 			},
 		},
 		Dependencies: []string{
@@ -2164,8 +2171,15 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 							Format:      "",
 						},
 					},
+					"clusterTemplateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterTemplateName name of template to use in AnalysisRun",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"templateName"},
+				Required: []string{"templateName", "clusterTemplateName"},
 			},
 		},
 	}
@@ -2308,6 +2322,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 							Format:      "",
 						},
 					},
+					"clustertemplateName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"args": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -2328,7 +2349,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 						},
 					},
 				},
-				Required: []string{"name", "templateName"},
+				Required: []string{"name", "templateName", "clustertemplateName"},
 			},
 		},
 		Dependencies: []string{

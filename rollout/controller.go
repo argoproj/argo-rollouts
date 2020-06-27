@@ -77,6 +77,7 @@ type Controller struct {
 	experimentsLister      listers.ExperimentLister
 	analysisRunLister      listers.AnalysisRunLister
 	analysisTemplateLister listers.AnalysisTemplateLister
+	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
 	metricsServer          *metrics.MetricsServer
 
 	podRestarter RolloutPodRestarter
