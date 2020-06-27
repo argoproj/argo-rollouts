@@ -31,6 +31,50 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 	}
 }
 
+func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "example",
+			}},
+		},
+	}
+}
+
+func clusterAnalysisRun(cat *v1alpha1.ClusterAnalysisTemplate, analysisRunType string, r *v1alpha1.Rollout) *v1alpha1.AnalysisRun {
+	labels := map[string]string{}
+	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	var name string
+	if analysisRunType == v1alpha1.RolloutTypeStepLabel {
+		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash, "")
+		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", cat.Name)
+	} else if analysisRunType == v1alpha1.RolloutTypeBackgroundRunLabel {
+		labels = analysisutil.BackgroundLabels(podHash, "")
+		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", cat.Name)
+	} else if analysisRunType == v1alpha1.RolloutTypePrePromotionLabel {
+		labels = analysisutil.PrePromotionLabels(podHash, "")
+		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+	} else if analysisRunType == v1alpha1.RolloutTypePostPromotionLabel {
+		labels = analysisutil.PostPromotionLabels(podHash, "")
+		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+	}
+	return &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       metav1.NamespaceDefault,
+			Labels:          labels,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: cat.Spec.Metrics,
+			Args:    cat.Spec.Args,
+		},
+	}
+}
+
 func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alpha1.Rollout) *v1alpha1.AnalysisRun {
 	labels := map[string]string{}
 	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
@@ -151,6 +195,62 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": "%s"
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	cat := clusterAnalysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := clusterAnalysisRun(cat, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+				ClusterTemplateName: cat.Name,
+			}},
+		},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
+	f.objects = append(f.objects, r2, cat)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectUpdateReplicaSetAction(rs2)

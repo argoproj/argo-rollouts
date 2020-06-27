@@ -347,10 +347,10 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 		for _, templateRef := range rolloutAnalysis.Templates {
 
 			if templateRef.ClusterTemplateName != "" {
-				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.ClusterTemplateName)
 				if err != nil {
 					if k8serrors.IsNotFound(err) {
-						logctx.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+						logctx.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.ClusterTemplateName)
 					}
 					return nil, err
 				}

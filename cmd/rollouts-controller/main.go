@@ -123,6 +123,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
+				argoRolloutsInformerFactory.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
