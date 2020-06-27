@@ -497,25 +497,36 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		if err != nil {
 			return nil, err
 		}
+		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+
+		run, err := analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, args, name, "", ec.ex.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
+		}
+		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		return run, nil
 	} else {
 		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
 		if err != nil {
 			return nil, err
 		}
-	}
-	// TODO same as analysis.go
-	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
-	if err != nil {
-		return nil, err
+		run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
+		}
+		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		return run, nil
 	}
-	instanceID := analysisutil.GetInstanceID(ec.ex)
-	if instanceID != "" {
-		run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-	}
-	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
-	return run, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists

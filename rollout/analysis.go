@@ -367,10 +367,7 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 			}
 
 		}
-		// TODO should we create a separate run?
-		//      or flatten the cluster templates into the namespaced templates?
-		//      or disallow mixing and matching namespaced and cluster templates (I'd prefer not to)
-		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, args, name, "", r.Namespace)
+		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", r.Namespace)
 		if err != nil {
 			return nil, err
 		}
