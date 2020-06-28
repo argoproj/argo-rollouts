@@ -30,16 +30,16 @@ const (
 
 type experimentContext struct {
 	// parameters supplied to the context
-	ex                     *v1alpha1.Experiment
-	templateRSs            map[string]*appsv1.ReplicaSet
-	kubeclientset          kubernetes.Interface
-	argoProjClientset      clientset.Interface
-	analysisTemplateLister rolloutslisters.AnalysisTemplateLister
+	ex                            *v1alpha1.Experiment
+	templateRSs                   map[string]*appsv1.ReplicaSet
+	kubeclientset                 kubernetes.Interface
+	argoProjClientset             clientset.Interface
+	analysisTemplateLister        rolloutslisters.AnalysisTemplateLister
 	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister
-	analysisRunLister      rolloutslisters.AnalysisRunLister
-	replicaSetLister       appslisters.ReplicaSetLister
-	recorder               record.EventRecorder
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
+	analysisRunLister             rolloutslisters.AnalysisRunLister
+	replicaSetLister              appslisters.ReplicaSetLister
+	recorder                      record.EventRecorder
+	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
 
 	// calculated values during reconciliation
 	log       *log.Entry

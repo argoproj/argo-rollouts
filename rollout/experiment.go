@@ -107,9 +107,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 
 		if analysis.ClusterTemplateName != "" {
 			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{
-				Name:         analysis.Name,
+				Name:                analysis.Name,
 				ClusterTemplateName: analysis.ClusterTemplateName,
-				Args:         args,
+				Args:                args,
 			}
 		} else {
 			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{

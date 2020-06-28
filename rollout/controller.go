@@ -67,18 +67,18 @@ type Controller struct {
 	defaultIstioVersion        string
 	defaultTrafficSplitVersion string
 
-	replicaSetLister       appslisters.ReplicaSetLister
-	replicaSetSynced       cache.InformerSynced
-	rolloutsLister         listers.RolloutLister
-	rolloutsSynced         cache.InformerSynced
-	rolloutsIndexer        cache.Indexer
-	servicesLister         v1.ServiceLister
-	ingressesLister        extensionslisters.IngressLister
-	experimentsLister      listers.ExperimentLister
-	analysisRunLister      listers.AnalysisRunLister
-	analysisTemplateLister listers.AnalysisTemplateLister
+	replicaSetLister              appslisters.ReplicaSetLister
+	replicaSetSynced              cache.InformerSynced
+	rolloutsLister                listers.RolloutLister
+	rolloutsSynced                cache.InformerSynced
+	rolloutsIndexer               cache.Indexer
+	servicesLister                v1.ServiceLister
+	ingressesLister               extensionslisters.IngressLister
+	experimentsLister             listers.ExperimentLister
+	analysisRunLister             listers.AnalysisRunLister
+	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	metricsServer          *metrics.MetricsServer
+	metricsServer                 *metrics.MetricsServer
 
 	podRestarter RolloutPodRestarter
 
@@ -103,27 +103,27 @@ type Controller struct {
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
 type ControllerConfig struct {
-	Namespace                  string
-	KubeClientSet              kubernetes.Interface
-	ArgoProjClientset          clientset.Interface
-	DynamicClientSet           dynamic.Interface
-	SmiClientSet               smiclientset.Interface
-	ExperimentInformer         informers.ExperimentInformer
-	AnalysisRunInformer        informers.AnalysisRunInformer
-	AnalysisTemplateInformer   informers.AnalysisTemplateInformer
-	ClusterAnalysisTemplateInformer   informers.ClusterAnalysisTemplateInformer
-	ReplicaSetInformer         appsinformers.ReplicaSetInformer
-	ServicesInformer           coreinformers.ServiceInformer
-	IngressInformer            extensionsinformers.IngressInformer
-	RolloutsInformer           informers.RolloutInformer
-	ResyncPeriod               time.Duration
-	RolloutWorkQueue           workqueue.RateLimitingInterface
-	ServiceWorkQueue           workqueue.RateLimitingInterface
-	IngressWorkQueue           workqueue.RateLimitingInterface
-	MetricsServer              *metrics.MetricsServer
-	Recorder                   record.EventRecorder
-	DefaultIstioVersion        string
-	DefaultTrafficSplitVersion string
+	Namespace                       string
+	KubeClientSet                   kubernetes.Interface
+	ArgoProjClientset               clientset.Interface
+	DynamicClientSet                dynamic.Interface
+	SmiClientSet                    smiclientset.Interface
+	ExperimentInformer              informers.ExperimentInformer
+	AnalysisRunInformer             informers.AnalysisRunInformer
+	AnalysisTemplateInformer        informers.AnalysisTemplateInformer
+	ClusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer
+	ReplicaSetInformer              appsinformers.ReplicaSetInformer
+	ServicesInformer                coreinformers.ServiceInformer
+	IngressInformer                 extensionsinformers.IngressInformer
+	RolloutsInformer                informers.RolloutInformer
+	ResyncPeriod                    time.Duration
+	RolloutWorkQueue                workqueue.RateLimitingInterface
+	ServiceWorkQueue                workqueue.RateLimitingInterface
+	IngressWorkQueue                workqueue.RateLimitingInterface
+	MetricsServer                   *metrics.MetricsServer
+	Recorder                        record.EventRecorder
+	DefaultIstioVersion             string
+	DefaultTrafficSplitVersion      string
 }
 
 // NewController returns a new rollout controller
@@ -143,32 +143,32 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		namespace:                  cfg.Namespace,
-		kubeclientset:              cfg.KubeClientSet,
-		argoprojclientset:          cfg.ArgoProjClientset,
-		dynamicclientset:           cfg.DynamicClientSet,
-		smiclientset:               cfg.SmiClientSet,
-		defaultIstioVersion:        cfg.DefaultIstioVersion,
-		defaultTrafficSplitVersion: cfg.DefaultTrafficSplitVersion,
-		replicaSetControl:          replicaSetControl,
-		replicaSetLister:           cfg.ReplicaSetInformer.Lister(),
-		replicaSetSynced:           cfg.ReplicaSetInformer.Informer().HasSynced,
-		rolloutsIndexer:            cfg.RolloutsInformer.Informer().GetIndexer(),
-		rolloutsLister:             cfg.RolloutsInformer.Lister(),
-		rolloutsSynced:             cfg.RolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:           cfg.RolloutWorkQueue,
-		serviceWorkqueue:           cfg.ServiceWorkQueue,
-		ingressWorkqueue:           cfg.IngressWorkQueue,
-		servicesLister:             cfg.ServicesInformer.Lister(),
-		ingressesLister:            cfg.IngressInformer.Lister(),
-		experimentsLister:          cfg.ExperimentInformer.Lister(),
-		analysisRunLister:          cfg.AnalysisRunInformer.Lister(),
-		analysisTemplateLister:     cfg.AnalysisTemplateInformer.Lister(),
-		clusterAnalysisTemplateLister:     cfg.ClusterAnalysisTemplateInformer.Lister(),
-		recorder:                   cfg.Recorder,
-		resyncPeriod:               cfg.ResyncPeriod,
-		metricsServer:              cfg.MetricsServer,
-		podRestarter:               podRestarter,
+		namespace:                     cfg.Namespace,
+		kubeclientset:                 cfg.KubeClientSet,
+		argoprojclientset:             cfg.ArgoProjClientset,
+		dynamicclientset:              cfg.DynamicClientSet,
+		smiclientset:                  cfg.SmiClientSet,
+		defaultIstioVersion:           cfg.DefaultIstioVersion,
+		defaultTrafficSplitVersion:    cfg.DefaultTrafficSplitVersion,
+		replicaSetControl:             replicaSetControl,
+		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
+		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
+		rolloutsLister:                cfg.RolloutsInformer.Lister(),
+		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
+		rolloutWorkqueue:              cfg.RolloutWorkQueue,
+		serviceWorkqueue:              cfg.ServiceWorkQueue,
+		ingressWorkqueue:              cfg.IngressWorkQueue,
+		servicesLister:                cfg.ServicesInformer.Lister(),
+		ingressesLister:               cfg.IngressInformer.Lister(),
+		experimentsLister:             cfg.ExperimentInformer.Lister(),
+		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
+		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
+		recorder:                      cfg.Recorder,
+		resyncPeriod:                  cfg.ResyncPeriod,
+		metricsServer:                 cfg.MetricsServer,
+		podRestarter:                  podRestarter,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)

@@ -28,11 +28,11 @@ const metadataValidation = `properties:
 type: object`
 
 var crdPaths = map[string]string{
-	"Rollout":          "manifests/crds/rollout-crd.yaml",
-	"Experiment":       "manifests/crds/experiment-crd.yaml",
-	"AnalysisTemplate": "manifests/crds/analysis-template-crd.yaml",
+	"Rollout":                 "manifests/crds/rollout-crd.yaml",
+	"Experiment":              "manifests/crds/experiment-crd.yaml",
+	"AnalysisTemplate":        "manifests/crds/analysis-template-crd.yaml",
 	"ClusterAnalysisTemplate": "manifests/crds/cluster-analysis-template-crd.yaml",
-	"AnalysisRun":      "manifests/crds/analysis-run-crd.yaml",
+	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
 }
 
 func removeValidation(un *unstructured.Unstructured, path string) {
