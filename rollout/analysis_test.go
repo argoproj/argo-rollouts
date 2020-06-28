@@ -38,7 +38,7 @@ func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
 		},
 		Spec: v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{{
-				Name: "example",
+				Name: "clusterexample",
 			}},
 		},
 	}
@@ -260,6 +260,78 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
 	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
 	assert.Equal(t, expectedArName, createdAr.Name)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRun": "%s"
+			}
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	cat := clusterAnalysisTemplate("clusterbar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "run1",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r1, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: at.Spec.Metrics,
+			Args:    at.Spec.Args,
+		},
+	}
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+				ClusterTemplateName: cat.Name,
+			},{
+				TemplateName: at.Name,
+			}},
+		},
+	}
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, cat, at)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+	assert.Len(t, createdAr.Spec.Metrics, 2)
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{
