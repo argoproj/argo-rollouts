@@ -131,6 +131,8 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterTemplateName:
+                          type: string
                         templateName:
                           type: string
                         templates:
@@ -140,9 +142,6 @@ spec:
                                 type: string
                               templateName:
                                 type: string
-                            required:
-                            - clusterTemplateName
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -164,6 +163,8 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterTemplateName:
+                          type: string
                         templateName:
                           type: string
                         templates:
@@ -173,9 +174,6 @@ spec:
                                 type: string
                               templateName:
                                 type: string
-                            required:
-                            - clusterTemplateName
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -213,6 +211,8 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterTemplateName:
+                          type: string
                         startingStep:
                           format: int32
                           type: integer
@@ -225,9 +225,6 @@ spec:
                                 type: string
                               templateName:
                                 type: string
-                            required:
-                            - clusterTemplateName
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -279,6 +276,8 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              clusterTemplateName:
+                                type: string
                               templateName:
                                 type: string
                               templates:
@@ -288,9 +287,6 @@ spec:
                                       type: string
                                     templateName:
                                       type: string
-                                  required:
-                                  - clusterTemplateName
-                                  - templateName
                                   type: object
                                 type: array
                             type: object
@@ -322,9 +318,7 @@ spec:
                                     templateName:
                                       type: string
                                   required:
-                                  - clustertemplateName
                                   - name
-                                  - templateName
                                   type: object
                                 type: array
                               duration:

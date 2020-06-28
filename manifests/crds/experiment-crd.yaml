@@ -67,9 +67,7 @@ spec:
                   templateName:
                     type: string
                 required:
-                - clusterTemplateName
                 - name
-                - templateName
                 type: object
               type: array
             duration:
