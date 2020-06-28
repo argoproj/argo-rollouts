@@ -34,7 +34,7 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
 	return &v1alpha1.ClusterAnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name: name,
 		},
 		Spec: v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{{
@@ -284,7 +284,6 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
-
 	ar := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "run1",
@@ -300,7 +299,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
 				ClusterTemplateName: cat.Name,
-			},{
+			}, {
 				TemplateName: at.Name,
 			}},
 		},

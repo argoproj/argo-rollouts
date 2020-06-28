@@ -61,14 +61,14 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	rolloutLister          []*v1alpha1.Rollout
-	experimentLister       []*v1alpha1.Experiment
-	analysisRunLister      []*v1alpha1.AnalysisRun
+	rolloutLister                 []*v1alpha1.Rollout
+	experimentLister              []*v1alpha1.Experiment
+	analysisRunLister             []*v1alpha1.AnalysisRun
 	clusterAnalysisTemplateLister []*v1alpha1.ClusterAnalysisTemplate
-	analysisTemplateLister []*v1alpha1.AnalysisTemplate
-	replicaSetLister       []*appsv1.ReplicaSet
-	serviceLister          []*corev1.Service
-	ingressLister          []*extensionsv1beta1.Ingress
+	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
+	replicaSetLister              []*appsv1.ReplicaSet
+	serviceLister                 []*corev1.Service
+	ingressLister                 []*extensionsv1beta1.Ingress
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -394,25 +394,25 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	c := NewController(ControllerConfig{
-		Namespace:                metav1.NamespaceAll,
-		KubeClientSet:            f.kubeclient,
-		ArgoProjClientset:        f.client,
-		DynamicClientSet:         nil,
-		ExperimentInformer:       i.Argoproj().V1alpha1().Experiments(),
-		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
-		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
+		Namespace:                       metav1.NamespaceAll,
+		KubeClientSet:                   f.kubeclient,
+		ArgoProjClientset:               f.client,
+		DynamicClientSet:                nil,
+		ExperimentInformer:              i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
-		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
-		ServicesInformer:         k8sI.Core().V1().Services(),
-		IngressInformer:          k8sI.Extensions().V1beta1().Ingresses(),
-		RolloutsInformer:         i.Argoproj().V1alpha1().Rollouts(),
-		ResyncPeriod:             resync(),
-		RolloutWorkQueue:         rolloutWorkqueue,
-		ServiceWorkQueue:         serviceWorkqueue,
-		IngressWorkQueue:         ingressWorkqueue,
-		MetricsServer:            metricsServer,
-		Recorder:                 &record.FakeRecorder{},
-		DefaultIstioVersion:      "v1alpha3",
+		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
+		ServicesInformer:                k8sI.Core().V1().Services(),
+		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
+		ResyncPeriod:                    resync(),
+		RolloutWorkQueue:                rolloutWorkqueue,
+		ServiceWorkQueue:                serviceWorkqueue,
+		IngressWorkQueue:                ingressWorkqueue,
+		MetricsServer:                   metricsServer,
+		Recorder:                        &record.FakeRecorder{},
+		DefaultIstioVersion:             "v1alpha3",
 	})
 
 	var enqueuedObjectsLock sync.Mutex
