@@ -190,7 +190,7 @@ func TestCreateJSON(t *testing.T) {
 	assert.Equal(t, "analysistemplate.argoproj.io/pass created\n", stdout)
 }
 
-func TestCreateAnalysisRunFromClusterTemplate(t *testing.T) {
+func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 
@@ -212,4 +212,85 @@ func TestCreateAnalysisRunFromClusterTemplate(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
 	assert.Empty(t, stderr)
+}
+
+func TestCreateAnalysisRunFromTemplateNotFoundInCluster(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from", "pass", "-a", "foo=bar", "--name", "my-run"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "analysistemplates.argoproj.io \"pass\" not found")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: analysistemplates.argoproj.io \"pass\" not found\n", stderr)
+}
+
+func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	var template v1alpha1.ClusterAnalysisTemplate
+	fileBytes, err := ioutil.ReadFile("testdata/cluster-analysis-template.yaml")
+	assert.NoError(t, err)
+	err = unmarshal(fileBytes, &template)
+	assert.NoError(t, err)
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.Tracker().Add(&template)
+
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from", "pass", "-a", "foo=bar", "--name", "my-run", "--global"})
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, "analysisrun.argoproj.io/my-run created\n", stdout)
+	assert.Empty(t, stderr)
+}
+
+func TestCreateAnalysisRunFromClusterTemplateNotFoundInCluster(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from", "pass", "-a", "foo=bar", "--name", "my-run", "--global"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "clusteranalysistemplates.argoproj.io \"pass\" not found")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: clusteranalysistemplates.argoproj.io \"pass\" not found\n", stderr)
+}
+
+func TestCreateAnalysisRunFromClusterTemplateBadArg(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/cluster-analysis-template.yaml", "-a", "bad-syntax", "--global"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "arguments must be in the form NAME=VALUE")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: arguments must be in the form NAME=VALUE\n", stderr)
+}
+
+func TestCreateAnalysisFromClusterTemplateRunUnresolvedArg(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/cluster-analysis-template.yaml", "--global"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "args.foo was not resolved")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: args.foo was not resolved\n", stderr)
 }
