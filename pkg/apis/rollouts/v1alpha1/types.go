@@ -271,10 +271,10 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// +optional
-	TemplateName string `json:"templateName"`
+	TemplateName string `json:"templateName,omitempty"`
 	// TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run
 	// +optional
-	ClusterTemplateName string `json:"clustertemplateName"`
+	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -345,9 +345,11 @@ type RolloutAnalysisBackground struct {
 type RolloutAnalysis struct {
 	// ClusterTemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
+	// +optional
 	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
+	// +optional
 	TemplateName string `json:"templateName,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
@@ -361,10 +363,10 @@ type RolloutAnalysis struct {
 type RolloutAnalysisTemplates struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
-	TemplateName string `json:"templateName"`
+	TemplateName string `json:"templateName,omitempty"`
 	//ClusterTemplateName name of template to use in AnalysisRun
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName"`
+	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
 }
 
 // AnalysisRunArgument argument to add to analysisRun

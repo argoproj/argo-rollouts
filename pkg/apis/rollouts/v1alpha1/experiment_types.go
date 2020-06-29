@@ -192,10 +192,10 @@ type ExperimentAnalysisTemplateRef struct {
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	// +optional
-	TemplateName string `json:"templateName"`
+	TemplateName string `json:"templateName,omitempty"`
 	// ClusterTemplateName reference of the ClusterAnalysisTemplate name used by the Experiment to create the run
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName"`
+	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
 	// +patchMergeKey=name

@@ -68,15 +68,16 @@ type Manager struct {
 	serviceController    *service.Controller
 	ingressController    *ingress.Controller
 
-	rolloutSynced          cache.InformerSynced
-	experimentSynced       cache.InformerSynced
-	analysisRunSynced      cache.InformerSynced
-	analysisTemplateSynced cache.InformerSynced
-	secretSynced           cache.InformerSynced
-	serviceSynced          cache.InformerSynced
-	ingressSynced          cache.InformerSynced
-	jobSynced              cache.InformerSynced
-	replicasSetSynced      cache.InformerSynced
+	rolloutSynced                 cache.InformerSynced
+	experimentSynced              cache.InformerSynced
+	analysisRunSynced             cache.InformerSynced
+	analysisTemplateSynced        cache.InformerSynced
+	clusterAnalysisTemplateSynced cache.InformerSynced
+	secretSynced                  cache.InformerSynced
+	serviceSynced                 cache.InformerSynced
+	ingressSynced                 cache.InformerSynced
+	jobSynced                     cache.InformerSynced
+	replicasSetSynced             cache.InformerSynced
 
 	rolloutWorkqueue     workqueue.RateLimitingInterface
 	serviceWorkqueue     workqueue.RateLimitingInterface
@@ -165,17 +166,18 @@ func NewManager(
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
-		KubeClientSet:            kubeclientset,
-		ArgoProjClientset:        argoprojclientset,
-		ReplicaSetInformer:       replicaSetInformer,
-		ExperimentsInformer:      experimentsInformer,
-		AnalysisRunInformer:      analysisRunInformer,
-		AnalysisTemplateInformer: analysisTemplateInformer,
-		ResyncPeriod:             resyncPeriod,
-		RolloutWorkQueue:         rolloutWorkqueue,
-		ExperimentWorkQueue:      experimentWorkqueue,
-		MetricsServer:            metricsServer,
-		Recorder:                 recorder,
+		KubeClientSet:                   kubeclientset,
+		ArgoProjClientset:               argoprojclientset,
+		ReplicaSetInformer:              replicaSetInformer,
+		ExperimentsInformer:             experimentsInformer,
+		AnalysisRunInformer:             analysisRunInformer,
+		AnalysisTemplateInformer:        analysisTemplateInformer,
+		ClusterAnalysisTemplateInformer: clusterAnalysisTemplateInformer,
+		ResyncPeriod:                    resyncPeriod,
+		RolloutWorkQueue:                rolloutWorkqueue,
+		ExperimentWorkQueue:             experimentWorkqueue,
+		MetricsServer:                   metricsServer,
+		Recorder:                        recorder,
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
@@ -215,28 +217,29 @@ func NewManager(
 	})
 
 	cm := &Manager{
-		metricsServer:              metricsServer,
-		rolloutSynced:              rolloutsInformer.Informer().HasSynced,
-		serviceSynced:              servicesInformer.Informer().HasSynced,
-		ingressSynced:              ingressesInformer.Informer().HasSynced,
-		secretSynced:               secretInformer.Informer().HasSynced,
-		jobSynced:                  jobInformer.Informer().HasSynced,
-		experimentSynced:           experimentsInformer.Informer().HasSynced,
-		analysisRunSynced:          analysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced:     analysisTemplateInformer.Informer().HasSynced,
-		replicasSetSynced:          replicaSetInformer.Informer().HasSynced,
-		rolloutWorkqueue:           rolloutWorkqueue,
-		experimentWorkqueue:        experimentWorkqueue,
-		analysisRunWorkqueue:       analysisRunWorkqueue,
-		serviceWorkqueue:           serviceWorkqueue,
-		ingressWorkqueue:           ingressWorkqueue,
-		rolloutController:          rolloutController,
-		serviceController:          serviceController,
-		ingressController:          ingressController,
-		experimentController:       experimentController,
-		analysisController:         analysisController,
-		defaultIstioVersion:        defaultIstioVersion,
-		defaultTrafficSplitVersion: defaultTrafficSplitVersion,
+		metricsServer:                 metricsServer,
+		rolloutSynced:                 rolloutsInformer.Informer().HasSynced,
+		serviceSynced:                 servicesInformer.Informer().HasSynced,
+		ingressSynced:                 ingressesInformer.Informer().HasSynced,
+		secretSynced:                  secretInformer.Informer().HasSynced,
+		jobSynced:                     jobInformer.Informer().HasSynced,
+		experimentSynced:              experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
+		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
+		replicasSetSynced:             replicaSetInformer.Informer().HasSynced,
+		rolloutWorkqueue:              rolloutWorkqueue,
+		experimentWorkqueue:           experimentWorkqueue,
+		analysisRunWorkqueue:          analysisRunWorkqueue,
+		serviceWorkqueue:              serviceWorkqueue,
+		ingressWorkqueue:              ingressWorkqueue,
+		rolloutController:             rolloutController,
+		serviceController:             serviceController,
+		ingressController:             ingressController,
+		experimentController:          experimentController,
+		analysisController:            analysisController,
+		defaultIstioVersion:           defaultIstioVersion,
+		defaultTrafficSplitVersion:    defaultTrafficSplitVersion,
 	}
 
 	return cm
@@ -256,7 +259,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 

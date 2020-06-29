@@ -311,7 +311,7 @@ spec:
                                         - name
                                         type: object
                                       type: array
-                                    clustertemplateName:
+                                    clusterTemplateName:
                                       type: string
                                     name:
                                       type: string
