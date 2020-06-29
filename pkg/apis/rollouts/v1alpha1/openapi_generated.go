@@ -963,7 +963,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplateList(ref common.Re
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate"),
+										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ClusterAnalysisTemplate"),
 									},
 								},
 							},
@@ -974,7 +974,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplateList(ref common.Re
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ClusterAnalysisTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -1068,7 +1068,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "One of TemplateName or ClusterTemplateName must be specified",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2224,11 +2225,12 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "One of TemplateName or ClusterTemplateName must be specified",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "One of TemplateName or ClusterTemplateName must be specified TemplateName name of template to use in AnalysisRun",
+							Description: "TemplateName name of template to use in AnalysisRun",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2367,7 +2369,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "One of TemplateName or ClusterTemplateName must be specified",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{

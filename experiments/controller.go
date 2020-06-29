@@ -39,15 +39,17 @@ type Controller struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	replicaSetLister       appslisters.ReplicaSetLister
-	experimentsLister      listers.ExperimentLister
-	analysisTemplateLister listers.AnalysisTemplateLister
-	analysisRunLister      listers.AnalysisRunLister
+	replicaSetLister              appslisters.ReplicaSetLister
+	experimentsLister             listers.ExperimentLister
+	analysisTemplateLister        listers.AnalysisTemplateLister
+	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
+	analysisRunLister             listers.AnalysisRunLister
 
-	replicaSetSynced       cache.InformerSynced
-	experimentSynced       cache.InformerSynced
-	analysisTemplateSynced cache.InformerSynced
-	analysisRunSynced      cache.InformerSynced
+	replicaSetSynced              cache.InformerSynced
+	experimentSynced              cache.InformerSynced
+	analysisTemplateSynced        cache.InformerSynced
+	clusterAnalysisTemplateSynced cache.InformerSynced
+	analysisRunSynced             cache.InformerSynced
 
 	metricsServer *metrics.MetricsServer
 
@@ -70,17 +72,18 @@ type Controller struct {
 
 // ControllerConfig describes the data required to instantiate a new analysis controller
 type ControllerConfig struct {
-	KubeClientSet            kubernetes.Interface
-	ArgoProjClientset        clientset.Interface
-	ReplicaSetInformer       appsinformers.ReplicaSetInformer
-	ExperimentsInformer      informers.ExperimentInformer
-	AnalysisRunInformer      informers.AnalysisRunInformer
-	AnalysisTemplateInformer informers.AnalysisTemplateInformer
-	ResyncPeriod             time.Duration
-	RolloutWorkQueue         workqueue.RateLimitingInterface
-	ExperimentWorkQueue      workqueue.RateLimitingInterface
-	MetricsServer            *metrics.MetricsServer
-	Recorder                 record.EventRecorder
+	KubeClientSet                   kubernetes.Interface
+	ArgoProjClientset               clientset.Interface
+	ReplicaSetInformer              appsinformers.ReplicaSetInformer
+	ExperimentsInformer             informers.ExperimentInformer
+	AnalysisRunInformer             informers.AnalysisRunInformer
+	AnalysisTemplateInformer        informers.AnalysisTemplateInformer
+	ClusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer
+	ResyncPeriod                    time.Duration
+	RolloutWorkQueue                workqueue.RateLimitingInterface
+	ExperimentWorkQueue             workqueue.RateLimitingInterface
+	MetricsServer                   *metrics.MetricsServer
+	Recorder                        record.EventRecorder
 }
 
 // NewController returns a new experiment controller
@@ -92,23 +95,25 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		kubeclientset:          cfg.KubeClientSet,
-		argoProjClientset:      cfg.ArgoProjClientset,
-		replicaSetControl:      replicaSetControl,
-		replicaSetLister:       cfg.ReplicaSetInformer.Lister(),
-		experimentsLister:      cfg.ExperimentsInformer.Lister(),
-		analysisTemplateLister: cfg.AnalysisTemplateInformer.Lister(),
-		analysisRunLister:      cfg.AnalysisRunInformer.Lister(),
-		metricsServer:          cfg.MetricsServer,
-		rolloutWorkqueue:       cfg.RolloutWorkQueue,
-		experimentWorkqueue:    cfg.ExperimentWorkQueue,
+		kubeclientset:                 cfg.KubeClientSet,
+		argoProjClientset:             cfg.ArgoProjClientset,
+		replicaSetControl:             replicaSetControl,
+		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
+		experimentsLister:             cfg.ExperimentsInformer.Lister(),
+		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
+		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
+		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		metricsServer:                 cfg.MetricsServer,
+		rolloutWorkqueue:              cfg.RolloutWorkQueue,
+		experimentWorkqueue:           cfg.ExperimentWorkQueue,
 
-		replicaSetSynced:       cfg.ReplicaSetInformer.Informer().HasSynced,
-		experimentSynced:       cfg.ExperimentsInformer.Informer().HasSynced,
-		analysisRunSynced:      cfg.AnalysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced: cfg.AnalysisTemplateInformer.Informer().HasSynced,
-		recorder:               cfg.Recorder,
-		resyncPeriod:           cfg.ResyncPeriod,
+		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
+		experimentSynced:              cfg.ExperimentsInformer.Informer().HasSynced,
+		analysisRunSynced:             cfg.AnalysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:        cfg.AnalysisTemplateInformer.Informer().HasSynced,
+		clusterAnalysisTemplateSynced: cfg.ClusterAnalysisTemplateInformer.Informer().HasSynced,
+		recorder:                      cfg.Recorder,
+		resyncPeriod:                  cfg.ResyncPeriod,
 	}
 
 	controller.enqueueExperiment = func(obj interface{}) {
@@ -267,6 +272,7 @@ func (ec *Controller) syncHandler(key string) error {
 		ec.argoProjClientset,
 		ec.replicaSetLister,
 		ec.analysisTemplateLister,
+		ec.clusterAnalysisTemplateLister,
 		ec.analysisRunLister,
 		ec.recorder,
 		ec.enqueueExperimentAfter,

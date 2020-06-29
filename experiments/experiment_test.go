@@ -43,6 +43,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 	rolloutsI := informers.NewSharedInformerFactory(rolloutclient, noResyncPeriodFunc())
 	analysisRunLister := rolloutsI.Argoproj().V1alpha1().AnalysisRuns().Lister()
 	analysisTemplateLister := rolloutsI.Argoproj().V1alpha1().AnalysisTemplates().Lister()
+	clusterAnalysisTemplateLister := rolloutsI.Argoproj().V1alpha1().ClusterAnalysisTemplates().Lister()
 
 	return newExperimentContext(
 		ex,
@@ -51,6 +52,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		rolloutclient,
 		rsLister,
 		analysisTemplateLister,
+		clusterAnalysisTemplateLister,
 		analysisRunLister,
 		&record.FakeRecorder{},
 		func(obj interface{}, duration time.Duration) {},

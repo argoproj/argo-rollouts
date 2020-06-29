@@ -70,6 +70,62 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
+func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	cat := clusterAnalysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32Ptr(1),
+			}},
+			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
+				Name:                "test",
+				ClusterTemplateName: cat.Name,
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	createExIndex := f.expectCreateExperimentAction(ex)
+	patchIndex := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdEx := f.getCreatedExperiment(createExIndex)
+	assert.Equal(t, createdEx.Name, ex.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, "")
+	assert.Equal(t, createdEx.Spec.Analyses[0].ClusterTemplateName, cat.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentExperiment": "%s"
+			},
+			"conditions": %s
+		}
+	}`
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+}
+
 func TestCreateExperimentWithCollision(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
