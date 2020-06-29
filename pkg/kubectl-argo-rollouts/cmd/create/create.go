@@ -30,7 +30,7 @@ type CreateOptions struct {
 	Files    []string
 	From     string
 	FromFile string
-	Global     bool
+	Global   bool
 }
 
 type CreateAnalysisRunOptions struct {
@@ -42,7 +42,7 @@ type CreateAnalysisRunOptions struct {
 	ArgFlags     []string
 	From         string
 	FromFile     string
-	Global     bool
+	Global       bool
 }
 
 const (
