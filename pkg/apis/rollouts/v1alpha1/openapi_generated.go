@@ -2386,7 +2386,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 							Format:      "",
 						},
 					},
-					"clustertemplateName": {
+					"clusterTemplateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run",
 							Type:        []string{"string"},
