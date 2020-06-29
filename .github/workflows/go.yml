@@ -1,5 +1,14 @@
 name: Go
-on: [push]
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
+  pull_request:
+    branches:
+      - 'master'
 jobs:
 
   build:
@@ -7,14 +16,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - name: Set up Go 1.13
+    - name: Set up Go 1.14
       uses: actions/setup-go@v1
       with:
-        go-version: 1.13
+        go-version: 1.14
       id: go
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
 
+    - name: Restore go build cache
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/go-build
+        key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+
+    - name: Download all Go modules
+      run: |
+        go mod download
+
+    - name: Compile all packages
+      run: make controller plugin
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v1
+      with:
+        version: v1.26
+        args: --timeout 5m
+
     - name: Test
       run: go test -failfast -covermode=count -coverprofile=coverage.out ./...
+
+    - name: Generate code coverage artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: code-coverage
+        path: coverage.out
