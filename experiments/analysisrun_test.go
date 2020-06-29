@@ -15,6 +15,26 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+func generateClusterAnalysisTemplates(names ...string) []v1alpha1.ClusterAnalysisTemplate {
+	var templates []v1alpha1.ClusterAnalysisTemplate
+	for _, name := range names {
+		t := v1alpha1.ClusterAnalysisTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{
+					{
+						Name: "job",
+					},
+				},
+			},
+		}
+		templates = append(templates, t)
+	}
+	return templates
+}
+
 func generateAnalysisTemplates(names ...string) []v1alpha1.AnalysisTemplate {
 	var templates []v1alpha1.AnalysisTemplate
 	for _, name := range names {
@@ -146,7 +166,34 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, patchedEx.Status.AnalysisRuns[0].Phase)
-	assert.Contains(t, patchedEx.Status.AnalysisRuns[0].Message, "not found")
+	message := patchedEx.Status.AnalysisRuns[0].Message
+	assert.Contains(t, message, "not found")
+	assert.Contains(t, message, "analysistemplate")
+}
+
+// TestClusterAnalysisTemplateNotExists verifies we error the run the cluster template does not exist (before availablility)
+func TestClusterAnalysisTemplateNotExists(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:                "success-rate",
+			ClusterTemplateName: "does-not-exist",
+		},
+	}
+	rs := templateToRS(e, templates[0], 1)
+
+	f := newFixture(t, e, rs)
+	defer f.Close()
+
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, patchedEx.Status.AnalysisRuns[0].Phase)
+	message := patchedEx.Status.AnalysisRuns[0].Message
+	assert.Contains(t, message, "not found")
+	assert.Contains(t, message, "clusteranalysistemplate")
 }
 
 // TestCreateAnalysisRunWhenAvailable ensures we create the AnalysisRun when we become available
@@ -168,6 +215,37 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+}
+
+// TestCreateAnalysisRunWithClusterTemplate ensures we create the AnalysisRun when we become available
+func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateClusterAnalysisTemplates("cluster-success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:                "cluster-success-rate",
+			ClusterTemplateName: aTemplates[0].Name,
+			Args: []v1alpha1.Argument{{
+				Name:  "test",
+				Value: pointer.StringPtr("sss"),
+			}},
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("cluster-success-rate", e, &aTemplates[0].Spec)
 
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()

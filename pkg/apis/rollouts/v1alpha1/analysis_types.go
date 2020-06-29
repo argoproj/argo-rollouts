@@ -24,7 +24,7 @@ type ClusterAnalysisTemplate struct {
 type ClusterAnalysisTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []AnalysisTemplate `json:"items"`
+	Items           []ClusterAnalysisTemplate `json:"items"`
 }
 
 // AnalysisTemplate holds the template for performing canary analysis

@@ -554,7 +554,7 @@ func (in *ClusterAnalysisTemplateList) DeepCopyInto(out *ClusterAnalysisTemplate
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]AnalysisTemplate, len(*in))
+		*out = make([]ClusterAnalysisTemplate, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
