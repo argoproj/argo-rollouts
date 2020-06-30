@@ -363,7 +363,6 @@ func (c *Controller) calculateBaseStatus(roCtx rolloutContext) v1alpha1.RolloutS
 	prevStatus := rollout.Status
 
 	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
-	//invalidSpecCond := conditions.VerifyRolloutSpec(rollout, prevCond)
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
 	if prevCond != nil && len(rolloutValidationErrors) == 0 {
 		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
