@@ -1,249 +1,153 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func TestValidateRollout(t *testing.T) {
+	numReplicas := int32(0)
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: &numReplicas,
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					PreviewService: "preview",
+					ActiveService:  "active",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Resources: corev1.ResourceRequirements{},
+						Image:     "foo",
+						Name:      "image-name",
+					}},
+				},
+			},
+		},
+	}
+	podTemplate := corev1.PodTemplate{
+		Template: ro.Spec.Template,
+	}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	ro.Spec.Template = podTemplate.Template
 
-}
-
-func TestValidateRolloutSpec(t *testing.T) {
-	// TODO: 1 test -> fail validation
-	// TestVerifyRolloutSpecBaseCases
-	//ro := &v1alpha1.Rollout{
-	//	Spec: v1alpha1.RolloutSpec{
-	//		Selector: &metav1.LabelSelector{
-	//			MatchLabels: map[string]string{"key": "value"},
-	//		},
-	//		Strategy: v1alpha1.RolloutStrategy{
-	//			Canary: &v1alpha1.CanaryStrategy{},
-	//			BlueGreen: &v1alpha1.BlueGreenStrategy{
-	//				ActiveService: "active",
-	//			},
-	//		},
-	//	},
-	//}
-	//cond := VerifyRolloutSpec(ro, nil)
-	//assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
-	//assert.Equal(t, InvalidSpecReason, cond.Reason)
-	//assert.Equal(t, InvalidStrategyMessage, cond.Message)
-	//
-	//validRollout := ro.DeepCopy()
-	//validRollout.Spec.Strategy.Canary = nil
-	//validRolloutCond := VerifyRolloutSpec(validRollout, nil)
-	//assert.Nil(t, validRolloutCond)
-	//
-	//minReadyLongerThanProgessDeadline := validRollout.DeepCopy()
-	//minReadyLongerThanProgessDeadline.Spec.MinReadySeconds = 1000
-	//minReadyLongerThanProgessDeadlineCond := VerifyRolloutSpec(minReadyLongerThanProgessDeadline, nil)
-	//assert.NotNil(t, minReadyLongerThanProgessDeadlineCond)
-	//assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgessDeadlineCond.Reason)
-	//assert.Equal(t, RolloutMinReadyLongerThanDeadlineMessage, minReadyLongerThanProgessDeadlineCond.Message)
+	allErrs := ValidateRollout(ro)
+	assert.Empty(t, allErrs)
 }
 
 func TestValidateRolloutStrategy(t *testing.T) {
+	rollout := v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{},
+		},
+	}
 
+	allErrs := ValidateRolloutStrategy(&rollout, field.NewPath(""))
+	message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
+	assert.Equal(t, message, allErrs[0].Detail)
+
+	rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+	rollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+	allErrs = ValidateRolloutStrategy(&rollout, field.NewPath(""))
+	assert.Equal(t, InvalidStrategyMessage, allErrs[0].Detail)
 }
 
 func TestValidateRolloutStrategyBlueGreen(t *testing.T) {
-	//validRollout := &v1alpha1.Rollout{
-	//	Spec: v1alpha1.RolloutSpec{
-	//		Selector: &metav1.LabelSelector{
-	//			MatchLabels: map[string]string{"key": "value"},
-	//		},
-	//		Strategy: v1alpha1.RolloutStrategy{
-	//			BlueGreen: &v1alpha1.BlueGreenStrategy{
-	//				PreviewService: "preview",
-	//				ActiveService:  "active",
-	//			},
-	//		},
-	//	},
-	//}
-	//assert.Nil(t, VerifyRolloutSpec(validRollout, nil))
-	//
-	//sameSvcs := validRollout.DeepCopy()
-	//sameSvcs.Spec.Strategy.BlueGreen.ActiveService = "preview"
-	//sameSvcsCond := VerifyRolloutSpec(sameSvcs, nil)
-	//assert.NotNil(t, sameSvcsCond)
-	//assert.Equal(t, DuplicatedServicesMessage, sameSvcsCond.Message)
-	//assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
-	//
-	//scaleLimitLargerThanRevision := validRollout.DeepCopy()
-	//scaleLimitLargerThanRevision.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(100)
-	//scaleLimitLargerThanRevisionCond := VerifyRolloutSpec(scaleLimitLargerThanRevision, nil)
-	//assert.NotNil(t, scaleLimitLargerThanRevisionCond)
-	//assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, scaleLimitLargerThanRevisionCond.Message)
-	//assert.Equal(t, InvalidSpecReason, sameSvcsCond.Reason)
+	scaleDownDelayRevisionLimit := defaults.DefaultRevisionHistoryLimit + 1
+	autoPromotionSeconds := int32(30)
+	rollout := v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					PreviewService:              "service-name",
+					ActiveService:               "service-name",
+					ScaleDownDelayRevisionLimit: &scaleDownDelayRevisionLimit,
+					AutoPromotionSeconds:        &autoPromotionSeconds,
+				},
+			},
+		},
+	}
+
+	allErrs := ValidateRolloutStrategyBlueGreen(&rollout, field.NewPath("spec", "strategy", "blueGreen"))
+	assert.Len(t, allErrs, 3)
+	assert.Equal(t, DuplicatedServicesBlueGreenMessage, allErrs[0].BadValue)
+	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, allErrs[1].Detail)
+	assert.Equal(t, InvalidAutoPromotionSecondsMessage, allErrs[2].Detail)
 }
 
 func TestValidateRolloutStrategyCanary(t *testing.T) {
-	//zero := intstr.FromInt(0)
-	//tests := []struct {
-	//	name           string
-	//	maxUnavailable *intstr.IntOrString
-	//	maxSurge       *intstr.IntOrString
-	//	steps          []v1alpha1.CanaryStep
-	//
-	//	notValid bool
-	//	reason   string
-	//	message  string
-	//}{
-	//	{
-	//		name:           "Max Surge and Max Unavailable set to zero",
-	//		maxUnavailable: &zero,
-	//		maxSurge:       &zero,
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidMaxSurgeMaxUnavailable,
-	//	},
-	//	{
-	//		name: "setWeight and pause both set",
-	//		steps: []v1alpha1.CanaryStep{{
-	//			Pause:     &v1alpha1.RolloutPause{},
-	//			SetWeight: pointer.Int32Ptr(10),
-	//		}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidStepMessage,
-	//	},
-	//	{
-	//		name:  "experiment, setWeight, and pause are not set",
-	//		steps: []v1alpha1.CanaryStep{{}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidStepMessage,
-	//	},
-	//	{
-	//		name: "setWeight over 0",
-	//		steps: []v1alpha1.CanaryStep{{
-	//			SetWeight: pointer.Int32Ptr(-1),
-	//		}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidSetWeightMessage,
-	//	},
-	//	{
-	//		name: "setWeight less than 100",
-	//		steps: []v1alpha1.CanaryStep{{
-	//			SetWeight: pointer.Int32Ptr(110),
-	//		}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidSetWeightMessage,
-	//	},
-	//	{
-	//		name: "Pause duration is not less than 0",
-	//		steps: []v1alpha1.CanaryStep{{
-	//			Pause: &v1alpha1.RolloutPause{
-	//				Duration: v1alpha1.DurationFromInt(-1),
-	//			},
-	//		}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidDurationMessage,
-	//	},
-	//	{
-	//		name: "Pause duration invalid unit",
-	//		steps: []v1alpha1.CanaryStep{{
-	//			Pause: &v1alpha1.RolloutPause{
-	//				Duration: v1alpha1.DurationFromString("10z"),
-	//			},
-	//		}},
-	//
-	//		notValid: true,
-	//		reason:   InvalidSpecReason,
-	//		message:  InvalidDurationMessage,
-	//	},
-	//}
-	//for i := range tests {
-	//	test := tests[i]
-	//	t.Run(test.name, func(t *testing.T) {
-	//		ro := &v1alpha1.Rollout{
-	//			Spec: v1alpha1.RolloutSpec{
-	//				Selector: &metav1.LabelSelector{
-	//					MatchLabels: map[string]string{"key": "value"},
-	//				},
-	//				Strategy: v1alpha1.RolloutStrategy{
-	//					Canary: &v1alpha1.CanaryStrategy{
-	//						MaxUnavailable: test.maxUnavailable,
-	//						MaxSurge:       test.maxSurge,
-	//						Steps:          test.steps,
-	//					},
-	//				},
-	//			},
-	//		}
-	//		cond := VerifyRolloutSpec(ro, nil)
-	//		if test.notValid {
-	//			assert.Equal(t, v1alpha1.InvalidSpec, cond.Type)
-	//			assert.Equal(t, test.reason, cond.Reason)
-	//			assert.Equal(t, test.message, cond.Message)
-	//		} else {
-	//			assert.Nil(t, cond)
-	//		}
-	//	})
-	//}
+	setWeight := int32(101)
+	pauseDuration := intstr.FromInt(-1)
+	canaryStrategy := &v1alpha1.CanaryStrategy{
+		CanaryService: "stable-service",
+		StableService: "stable-service",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		},
+		Steps: []v1alpha1.CanaryStep{{}},
+	}
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = canaryStrategy
+
+	allErrs := ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+	assert.Equal(t, DuplicatedServicesCanaryMessage, allErrs[0].Detail)
+
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+	assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
+
+	ro.Spec.Strategy.Canary.CanaryService = "canary-service"
+	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+	assert.Equal(t, InvalidStepMessage, allErrs[0].Detail)
+
+	ro.Spec.Strategy.Canary.Steps[0].SetWeight = &setWeight
+	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+	assert.Equal(t, InvalidSetWeightMessage, allErrs[0].Detail)
+
+	ro.Spec.Strategy.Canary.Steps[0].Pause = &v1alpha1.RolloutPause{
+		Duration: &pauseDuration,
+	}
+	ro.Spec.Strategy.Canary.Steps[0].SetWeight = nil
+	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+	assert.Equal(t, InvalidDurationMessage, allErrs[0].Detail)
 }
 
-//func TestInvalidAntiAffinity(t *testing.T) {
-//	affinity := v1alpha1.AntiAffinity{}
-//	reason, message := invalidAntiAffinity(affinity, "BlueGreen")
-//	expectedMsg := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.BlueGreen.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution")
-//	assert.Equal(t, InvalidSpecReason, reason)
-//	assert.Equal(t, expectedMsg, message)
-//
-//	affinity = v1alpha1.AntiAffinity{
-//		RequiredDuringSchedulingIgnoredDuringExecution:  &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
-//		PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{Weight: 1},
-//	}
-//	reason, message = invalidAntiAffinity(affinity, "Canary")
-//	assert.Equal(t, InvalidSpecReason, reason)
-//	assert.Equal(t, "Multiple Anti-Affinity Strategies can not be listed", message)
-//}
+func TestValidateRolloutStrategyAntiAffinity(t *testing.T) {
+	antiAffinity := v1alpha1.AntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: nil,
+		RequiredDuringSchedulingIgnoredDuringExecution:  nil,
+	}
+	allErrs := ValidateRolloutStrategyAntiAffinity(&antiAffinity, field.NewPath("antiAffinity"))
+	assert.Equal(t, InvalidAntiAffinityStrategyMessage, allErrs[0].Detail)
 
-//func TestValidateRolloutSpecAntiAffinity(t *testing.T) {
-//	affinity := &v1alpha1.AntiAffinity{}
-//	invalidRollout := &v1alpha1.Rollout{
-//		Spec: v1alpha1.RolloutSpec{
-//			Selector: &metav1.LabelSelector{
-//				MatchLabels: map[string]string{"key": "value"},
-//			},
-//			Strategy: v1alpha1.RolloutStrategy{
-//				BlueGreen: &v1alpha1.BlueGreenStrategy{
-//					PreviewService: "preview",
-//					ActiveService:  "active",
-//					AntiAffinity:   affinity,
-//				},
-//			},
-//		},
-//	}
-//	cond := VerifyRolloutSpec(invalidRollout, nil)
-//	message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.BlueGreen.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.BlueGreen.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution")
-//	assert.Equal(t, InvalidSpecReason, cond.Reason)
-//	assert.Equal(t, message, cond.Message)
-//
-//	invalidRollout.Spec.Strategy.BlueGreen = nil
-//	invalidRollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{AntiAffinity: &v1alpha1.AntiAffinity{
-//		PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{
-//			Weight: 1,
-//		},
-//		RequiredDuringSchedulingIgnoredDuringExecution: &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
-//	}}
-//	cond = VerifyRolloutSpec(invalidRollout, nil)
-//	assert.Equal(t, InvalidSpecReason, cond.Reason)
-//	assert.Equal(t, "Multiple Anti-Affinity Strategies can not be listed", cond.Message)
-//}
+	antiAffinity = v1alpha1.AntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: &v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution{
+			Weight: 101,
+		},
+	}
+	allErrs = ValidateRolloutStrategyAntiAffinity(&antiAffinity, field.NewPath("antiAffinity"))
+	assert.Equal(t, InvalidAntiAffinityWeightMessage, allErrs[0].Detail)
+}
 
 func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
 	r := func(maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -258,12 +162,29 @@ func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
 			},
 		}
 	}
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromInt(0))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromInt(0))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromInt(0))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0"))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0%"))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromString("0"))))
-	assert.True(t, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromString("0%"))))
+	path := &field.Path{}
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromInt(0)), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromInt(0)), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromInt(0)), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0")), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromInt(0), intstr.FromString("0%")), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0"), intstr.FromString("0")), path)[0].Detail)
+	assert.Equal(t, InvalidMaxSurgeMaxUnavailable, invalidMaxSurgeMaxUnavailable(r(intstr.FromString("0%"), intstr.FromString("0%")), path)[0].Detail)
+}
 
+func TestHasMultipleStepsType(t *testing.T) {
+	setWeight := int32(1)
+	pauseDuration := intstr.FromInt(1)
+	step := v1alpha1.CanaryStep{
+		SetWeight: &setWeight,
+	}
+
+	allErrs := hasMultipleStepsType(step, field.NewPath(""))
+	assert.Empty(t, allErrs)
+
+	step.Pause = &v1alpha1.RolloutPause{
+		Duration: &pauseDuration,
+	}
+	allErrs = hasMultipleStepsType(step, field.NewPath(""))
+	assert.Equal(t, InvalidStepMessage, allErrs[0].Detail)
 }

@@ -23,12 +23,8 @@ import (
 const (
 	// Validate Spec constants
 
-	// InvalidSpecReason indicates that the spec is invalid
-	InvalidSpecReason = "InvalidSpec"
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
-	// RolloutSelectAllMessage the message to indicate that the rollout has an empty selector
-	RolloutSelectAllMessage = "This rollout is selecting all pods. A non-empty selector is required."
 	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
 	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
@@ -37,16 +33,22 @@ const (
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
 	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, or pause"
-	// ScaleDownDelayLongerThanDeadlineMessage indicates the ScaleDownDelaySeconds is longer than ProgressDeadlineSeconds
-	ScaleDownDelayLongerThanDeadlineMessage = "ScaleDownDelaySeconds cannot be longer than ProgressDeadlineSeconds"
-	// RolloutMinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
-	RolloutMinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds"
 	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
+	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
+	DuplicatedServicesBlueGreenMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
 	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
-	DuplicatedServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
+	DuplicatedServicesCanaryMessage = "This rollout uses the same service for the stable and canary services, but two different services are required."
+	// InvalidAntiAffinityStrategyMessage indicates that Anti-Affinity can only have one strategy listed
+	InvalidAntiAffinityStrategyMessage = "AntiAffinity must have exactly one strategy listed"
+	// InvalidAntiAffinityStrategyMessage indicates that Anti-Affinity must have weight between 1-100
+	InvalidAntiAffinityWeightMessage = "AntiAffinity weight must be between 1-100"
 	// ScaleDownLimitLargerThanRevisionLimit the message to indicate that the rollout's revision history limit can not be smaller than the rollout's scale down limit
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
+	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
+	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
+	// InvalidAutoPromotionSecondsMessage indicates that autoPromotion must be enabled to set autoPromotionSeconds
+	InvalidAutoPromotionSecondsMessage = "Cannot set autoPromotionSeconds while autoPromotion is not enabled"
 )
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -129,36 +131,32 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	blueGreen := rollout.Spec.Strategy.BlueGreen
 	allErrs := field.ErrorList{}
 	if blueGreen.ActiveService == blueGreen.PreviewService {
-		allErrs = append(allErrs, field.Duplicate(fldPath.Child("previewService"), DuplicatedServicesMessage))
+		allErrs = append(allErrs, field.Duplicate(fldPath.Child("previewService"), DuplicatedServicesBlueGreenMessage))
 	}
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelayRevisionLimit"), blueGreen.ScaleDownDelayRevisionLimit, ScaleDownLimitLargerThanRevisionLimit))
 	}
-	if blueGreen.AntiAffinity != nil {
-		message := invalidAntiAffinity(*blueGreen.AntiAffinity, "BlueGreen")
-		if message != "" {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("antiAffinity"), blueGreen.AntiAffinity, message))
-		}
+	if (blueGreen.AutoPromotionEnabled == nil || *blueGreen.AutoPromotionEnabled == false) && blueGreen.AutoPromotionSeconds != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("autoPromotionSeconds"), blueGreen.AutoPromotionSeconds, InvalidAutoPromotionSecondsMessage))
 	}
-
+	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(blueGreen.AntiAffinity, fldPath.Child("antiAffinity"))...)
 	return allErrs
 }
 
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	canary := rollout.Spec.Strategy.Canary
 	allErrs := field.ErrorList{}
-	if invalidMaxSurgeMaxUnavailable(rollout) {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxSurge"), canary.MaxSurge, InvalidMaxSurgeMaxUnavailable))
+	allErrs = append(allErrs, invalidMaxSurgeMaxUnavailable(rollout, fldPath.Child("maxSurge"))...)
+	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
-	// TODO: Check TrafficRouting (w/ canary + stable svc)
-	// TODO: canary != stable svc
-	// TODO: check step # in Analysis
+	if canary.TrafficRouting != nil && (canary.StableService == "" || canary.CanaryService == "") {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting"), canary.TrafficRouting, InvalidTrafficRoutingMessage))
+	}
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
-		if hasMultipleStepsType(step) {
-			allErrs = append(allErrs, field.Invalid(stepFldPath, canary.Steps[i], InvalidStepMessage))
-		}
+		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
 		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
 			allErrs = append(allErrs, field.Invalid(stepFldPath, canary.Steps[i], InvalidStepMessage))
 		}
@@ -169,24 +167,36 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), canary.Steps[i].Pause.Duration, InvalidDurationMessage))
 		}
 	}
-	if canary.AntiAffinity != nil {
-		message := invalidAntiAffinity(*canary.AntiAffinity, "Canary")
-		if message != "" {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("antiAffinity"), canary.AntiAffinity, message))
+	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
+	return allErrs
+}
+
+func ValidateRolloutStrategyAntiAffinity(antiAffinity *v1alpha1.AntiAffinity, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if antiAffinity != nil {
+		preferred, required := antiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, antiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+		if (preferred == nil && required == nil) || (preferred != nil && required != nil) {
+			allErrs = append(allErrs, field.Invalid(fldPath, antiAffinity, InvalidAntiAffinityStrategyMessage))
+		}
+		if preferred != nil && (preferred.Weight < 1 || preferred.Weight > 100) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("weight"), preferred.Weight, InvalidAntiAffinityWeightMessage))
 		}
 	}
 	return allErrs
 }
 
-func invalidMaxSurgeMaxUnavailable(rollout *v1alpha1.Rollout) bool {
+func invalidMaxSurgeMaxUnavailable(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
 	maxSurge := defaults.GetMaxSurgeOrDefault(rollout)
 	maxUnavailable := defaults.GetMaxUnavailableOrDefault(rollout)
 	maxSurgeValue := getIntOrPercentValue(*maxSurge)
 	maxUnavailableValue := getIntOrPercentValue(*maxUnavailable)
-	return maxSurgeValue == 0 && maxUnavailableValue == 0
+	if maxSurgeValue == 0 && maxUnavailableValue == 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.MaxSurge, InvalidMaxSurgeMaxUnavailable))
+	}
+	return allErrs
 }
 
-// TODO: check if can be replaced w/ Validation pkgs?
 func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
 	if intOrStringValue.Type != intstr.String {
 		return 0, false
@@ -198,7 +208,6 @@ func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
 	return value, true
 }
 
-// TODO: check if can be replaced w/ Validation pkgs?
 func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 	value, isPercent := getPercentValue(intOrStringValue)
 	if isPercent {
@@ -207,8 +216,8 @@ func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 	return intOrStringValue.IntValue()
 }
 
-// TODO: test
-func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
+func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
 	oneOf := make([]bool, 3)
 	oneOf = append(oneOf, s.SetWeight != nil)
 	oneOf = append(oneOf, s.Pause != nil)
@@ -218,20 +227,11 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
 	for i := range oneOf {
 		if oneOf[i] {
 			if hasMultipleStepTypes {
-				return true
+				allErrs = append(allErrs, field.Invalid(fldPath, s, InvalidStepMessage))
+				break
 			}
 			hasMultipleStepTypes = true
 		}
 	}
-	return false
-}
-
-func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) string {
-	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		return fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
-	}
-	if affinity.PreferredDuringSchedulingIgnoredDuringExecution != nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		return "Multiple Anti-Affinity Strategies can not be listed"
-	}
-	return ""
+	return allErrs
 }
