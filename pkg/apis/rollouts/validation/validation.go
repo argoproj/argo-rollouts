@@ -59,12 +59,9 @@ func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	spec := rollout.Spec
 	allErrs := field.ErrorList{}
-	if spec.Replicas == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".spec.replicas")
-		allErrs = append(allErrs, field.Required(fldPath.Child("replicas"), message))
-	} else {
-		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.Replicas), fldPath.Child("replicas"))...)
-	}
+
+	replicas := defaults.GetReplicasOrDefault(spec.Replicas)
+	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(replicas), fldPath.Child("replicas"))...)
 
 	if spec.Selector == nil {
 		message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
@@ -92,14 +89,14 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			return allErrs
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
-		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, *spec.Replicas, fldPath.Child("template"))...)
+		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"))...)
 	}
 
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
-	if spec.RevisionHistoryLimit != nil {
-		// zero is a valid RevisionHistoryLimit
-		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.RevisionHistoryLimit), fldPath.Child("revisionHistoryLimit"))...)
-	}
+
+	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
+	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(revisionHistoryLimit), fldPath.Child("revisionHistoryLimit"))...)
+
 	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(rollout)
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(progressDeadlineSeconds), fldPath.Child("progressDeadlineSeconds"))...)
 	if progressDeadlineSeconds <= spec.MinReadySeconds {
