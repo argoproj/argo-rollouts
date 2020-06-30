@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 
@@ -17,19 +16,14 @@ import (
 )
 
 func TestValidateRollout(t *testing.T) {
-	numReplicas := int32(0)
 	selector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{"key": "value"},
 	}
 	ro := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: &numReplicas,
 			Selector: selector,
 			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreen: &v1alpha1.BlueGreenStrategy{
-					PreviewService: "preview",
-					ActiveService:  "active",
-				},
+				Canary: &v1alpha1.CanaryStrategy{},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -51,8 +45,43 @@ func TestValidateRollout(t *testing.T) {
 	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
 	ro.Spec.Template = podTemplate.Template
 
-	allErrs := ValidateRollout(ro)
-	assert.Empty(t, allErrs)
+	t.Run("missing selector", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Selector = nil
+		allErrs := ValidateRollout(invalidRo)
+		message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
+		assert.Equal(t, message, allErrs[0].Detail)
+	})
+
+	//t.Run("empty selector", func(t *testing.T) {
+	//	invalidRo := ro.DeepCopy()
+	//	emptySelector := &metav1.LabelSelector{}
+	//	invalidRo.Spec.Selector = emptySelector
+	//	invalidRo.Spec.Template.Labels = emptySelector.MatchLabels
+	//	allErrs := ValidateRollout(invalidRo)
+	//	assert.Equal(t, "empty selector is invalid for deployment", allErrs[0].Detail)
+	//})
+
+	t.Run("invalid progressDeadlineSeconds", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.MinReadySeconds = defaults.GetProgressDeadlineSecondsOrDefault(invalidRo) + 1
+		allErrs := ValidateRollout(invalidRo)
+		assert.Equal(t, "spec.progressDeadlineSeconds", allErrs[0].Field)
+		assert.Equal(t, "must be greater than minReadySeconds", allErrs[0].Detail)
+
+	})
+
+	t.Run("successful run", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary = nil
+		invalidRo.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			ActiveService:  "active",
+			PreviewService: "preview",
+		}
+		allErrs := ValidateRollout(invalidRo)
+		assert.Empty(t, allErrs)
+	})
+
 }
 
 func TestValidateRolloutStrategy(t *testing.T) {
