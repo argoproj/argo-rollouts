@@ -41,14 +41,12 @@ const (
 	DuplicatedServicesCanaryMessage = "This rollout uses the same service for the stable and canary services, but two different services are required."
 	// InvalidAntiAffinityStrategyMessage indicates that Anti-Affinity can only have one strategy listed
 	InvalidAntiAffinityStrategyMessage = "AntiAffinity must have exactly one strategy listed"
-	// InvalidAntiAffinityStrategyMessage indicates that Anti-Affinity must have weight between 1-100
+	// InvalidAntiAffinityWeightMessage indicates that Anti-Affinity must have weight between 1-100
 	InvalidAntiAffinityWeightMessage = "AntiAffinity weight must be between 1-100"
 	// ScaleDownLimitLargerThanRevisionLimit the message to indicate that the rollout's revision history limit can not be smaller than the rollout's scale down limit
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
 	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
-	// InvalidAutoPromotionSecondsMessage indicates that autoPromotion must be enabled to set autoPromotionSeconds
-	InvalidAutoPromotionSecondsMessage = "Cannot set autoPromotionSeconds while autoPromotion is not enabled"
 )
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -62,14 +60,14 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	spec := rollout.Spec
 	allErrs := field.ErrorList{}
 	if spec.Replicas == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Replicas")
+		message := fmt.Sprintf(MissingFieldMessage, ".spec.replicas")
 		allErrs = append(allErrs, field.Required(fldPath.Child("replicas"), message))
 	} else {
 		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.Replicas), fldPath.Child("replicas"))...)
 	}
 
 	if spec.Selector == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Selector")
+		message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
 		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
 	} else {
 		allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
@@ -85,11 +83,13 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		data, structConvertErr := json.Marshal(&spec.Template)
 		if structConvertErr != nil {
 			allErrs = append(allErrs, field.InternalError(fldPath.Child("template"), structConvertErr))
+			return allErrs
 		}
 		var template core.PodTemplateSpec
 		structConvertErr = json.Unmarshal(data, &template)
 		if structConvertErr != nil {
 			allErrs = append(allErrs, field.InternalError(fldPath.Child("template"), structConvertErr))
+			return allErrs
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
 		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, *spec.Replicas, fldPath.Child("template"))...)
@@ -115,7 +115,7 @@ func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) fie
 	strategy := rollout.Spec.Strategy
 	allErrs := field.ErrorList{}
 	if strategy.BlueGreen == nil && strategy.Canary == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
+		message := fmt.Sprintf(MissingFieldMessage, ".spec.strategy.canary or .spec.strategy.blueGreen")
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), rollout.Spec.Strategy, message))
 	} else if strategy.BlueGreen != nil && strategy.Canary != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), rollout.Spec.Strategy, InvalidStrategyMessage))
@@ -136,9 +136,6 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelayRevisionLimit"), blueGreen.ScaleDownDelayRevisionLimit, ScaleDownLimitLargerThanRevisionLimit))
-	}
-	if (blueGreen.AutoPromotionEnabled == nil || *blueGreen.AutoPromotionEnabled == false) && blueGreen.AutoPromotionSeconds != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("autoPromotionSeconds"), blueGreen.AutoPromotionSeconds, InvalidAutoPromotionSecondsMessage))
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(blueGreen.AntiAffinity, fldPath.Child("antiAffinity"))...)
 	return allErrs

@@ -63,7 +63,7 @@ func TestValidateRolloutStrategy(t *testing.T) {
 	}
 
 	allErrs := ValidateRolloutStrategy(&rollout, field.NewPath(""))
-	message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
+	message := fmt.Sprintf(MissingFieldMessage, ".spec.strategy.canary or .spec.strategy.blueGreen")
 	assert.Equal(t, message, allErrs[0].Detail)
 
 	rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
@@ -89,18 +89,15 @@ func TestValidateRolloutStrategyBlueGreen(t *testing.T) {
 	}
 
 	allErrs := ValidateRolloutStrategyBlueGreen(&rollout, field.NewPath("spec", "strategy", "blueGreen"))
-	assert.Len(t, allErrs, 3)
+	assert.Len(t, allErrs, 2)
 	assert.Equal(t, DuplicatedServicesBlueGreenMessage, allErrs[0].BadValue)
 	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, allErrs[1].Detail)
-	assert.Equal(t, InvalidAutoPromotionSecondsMessage, allErrs[2].Detail)
 }
 
 func TestValidateRolloutStrategyCanary(t *testing.T) {
-	setWeight := int32(101)
-	pauseDuration := intstr.FromInt(-1)
 	canaryStrategy := &v1alpha1.CanaryStrategy{
-		CanaryService: "stable-service",
-		StableService: "stable-service",
+		CanaryService: "canary",
+		StableService: "stable",
 		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		},
@@ -109,27 +106,43 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = canaryStrategy
 
-	allErrs := ValidateRolloutStrategyCanary(ro, field.NewPath(""))
-	assert.Equal(t, DuplicatedServicesCanaryMessage, allErrs[0].Detail)
+	t.Run("duplicate services", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.CanaryService = "stable"
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, DuplicatedServicesCanaryMessage, allErrs[0].Detail)
+	})
 
-	ro.Spec.Strategy.Canary.CanaryService = ""
-	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
-	assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
+	t.Run("invalid traffic routing", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.CanaryService = ""
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
+	})
 
-	ro.Spec.Strategy.Canary.CanaryService = "canary-service"
-	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
-	assert.Equal(t, InvalidStepMessage, allErrs[0].Detail)
+	t.Run("invalid canary step", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidStepMessage, allErrs[0].Detail)
+	})
 
-	ro.Spec.Strategy.Canary.Steps[0].SetWeight = &setWeight
-	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
-	assert.Equal(t, InvalidSetWeightMessage, allErrs[0].Detail)
+	t.Run("invalid set weight value", func(t *testing.T) {
+		setWeight := int32(101)
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps[0].SetWeight = &setWeight
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetWeightMessage, allErrs[0].Detail)
+	})
 
-	ro.Spec.Strategy.Canary.Steps[0].Pause = &v1alpha1.RolloutPause{
-		Duration: &pauseDuration,
-	}
-	ro.Spec.Strategy.Canary.Steps[0].SetWeight = nil
-	allErrs = ValidateRolloutStrategyCanary(ro, field.NewPath(""))
-	assert.Equal(t, InvalidDurationMessage, allErrs[0].Detail)
+	t.Run("invalid duration set in paused step", func(t *testing.T) {
+		pauseDuration := intstr.FromInt(-1)
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps[0].Pause = &v1alpha1.RolloutPause{
+			Duration: &pauseDuration,
+		}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidDurationMessage, allErrs[0].Detail)
+	})
 }
 
 func TestValidateRolloutStrategyAntiAffinity(t *testing.T) {

@@ -1046,7 +1046,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 		}
 	}`
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".Spec.Selector"))
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".spec.selector"))
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
 
@@ -1077,10 +1077,10 @@ requests:
 	r2 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r2Resources := `
   limits:
-    cpu: 2
+    cpu: '2'
     memory: 8192M
   requests:
-    cpu: '0.15'
+    cpu: 0.15
     memory: 8192M
 `
 	err = yaml.Unmarshal([]byte(r2Resources), &r2.Spec.Template.Spec.Containers[0].Resources)
