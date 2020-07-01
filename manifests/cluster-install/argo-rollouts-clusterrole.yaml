@@ -119,6 +119,16 @@ rules:
   - get
   - update
 - apiGroups:
+  - split.smi-spec.io
+  resources:
+  - trafficsplits
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - patch
+- apiGroups:
     - ""
   resources:
     - pods
