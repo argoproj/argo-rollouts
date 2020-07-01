@@ -46,13 +46,22 @@ func TestReconcileTrafficRoutingReturnErr(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
 	f.fakeTrafficRouting.errMessage = "Error message"
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
@@ -78,6 +87,8 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
 
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -85,8 +96,14 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, true)
@@ -114,12 +131,20 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
@@ -144,12 +169,20 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+
 	f.fakeTrafficRouting.controllerSetDesiredWeight = 10
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 10, 0, 10, false)

@@ -24,6 +24,7 @@ nav:
 - Getting Started:
   - Basic Usage: getting-started.md
   - NGINX: getting-started/nginx/index.md
+  - Istio: getting-started/istio/index.md
 - Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md

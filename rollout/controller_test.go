@@ -115,9 +115,14 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Image: "foo/bar",
+							Name:                     "container-name",
+							Image:                    "foo/bar",
+							ImagePullPolicy:          "Always",
+							TerminationMessagePolicy: "FallbackToLogsOnError",
 						},
 					},
+					DNSPolicy:     "ClusterFirst",
+					RestartPolicy: "Always",
 				},
 			},
 			RevisionHistoryLimit: revisionHistoryLimit,
@@ -1041,7 +1046,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 		}
 	}`
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".Spec.Selector"))
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".spec.selector"))
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
 
@@ -1055,15 +1060,15 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-7b5c4d46d9"
+	expectedReplicaSetName := "guestbook-7df8bcd895"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
 limits:
-  cpu: 150m
+  cpu: 2000m
   memory: 8192M
 requests:
-  cpu: 2000m
+  cpu: 150m
   memory: 8192M
 `
 	err = yaml.Unmarshal([]byte(r1Resources), &r1.Spec.Template.Spec.Containers[0].Resources)
@@ -1072,10 +1077,10 @@ requests:
 	r2 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r2Resources := `
   limits:
-    cpu: 0.15
+    cpu: '2'
     memory: 8192M
   requests:
-    cpu: '2'
+    cpu: 0.15
     memory: 8192M
 `
 	err = yaml.Unmarshal([]byte(r2Resources), &r2.Spec.Template.Spec.Containers[0].Resources)
@@ -1164,7 +1169,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"6b7b7b5769"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6687587ff6"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1209,7 +1214,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"7b5dfb6cd5"}}`
+	expectedPatch := `{"status":{"observedGeneration":"75945ffcb"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1241,4 +1246,44 @@ func TestMigrateCanaryStableRS(t *testing.T) {
 		updatedRollout := f.getUpdatedRollout(index)
 		assert.Equal(t, "fakepodhash", updatedRollout.Status.Canary.StableRS)
 	})
+}
+
+func TestSwitchBlueGreenToCanary(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	activeSvc := newService("active", 80, nil, r)
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true)
+	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
+	r.Status.Canary.StableRS = rsPodHash
+	r.Spec.Strategy.BlueGreen = nil
+	r.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		Steps: []v1alpha1.CanaryStep{{
+			SetWeight: int32Ptr(1),
+		}},
+	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	i := f.expectPatchRolloutAction(r)
+	f.objects = append(f.objects, r)
+	f.run(getKey(r, t))
+	patch := f.getPatchedRollout(i)
+
+	addedConditons := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	expectedPatch := fmt.Sprintf(`{
+			"status": {
+				"blueGreen": {
+					"activeSelector": null
+				},
+				"conditions": %s,
+				"currentStepIndex": 1,
+				"currentStepHash": "%s",
+				"selector": "foo=bar"
+			}
+		}`, addedConditons, conditions.ComputeStepHash(r))
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
