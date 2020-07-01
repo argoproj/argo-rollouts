@@ -4,17 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"math"
-	"reflect"
-	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/validation"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -23,32 +18,12 @@ import (
 )
 
 const (
-	// Verify Spec constants
-
 	// InvalidSpecReason indicates that the spec is invalid
 	InvalidSpecReason = "InvalidSpec"
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
 	// RolloutSelectAllMessage the message to indicate that the rollout has an empty selector
 	RolloutSelectAllMessage = "This rollout is selecting all pods. A non-empty selector is required."
-	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
-	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
-	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
-	InvalidDurationMessage = "Duration needs to be greater than 0"
-	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
-	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
-	// InvalidStepMessage indicates that a step must have either setWeight or pause set
-	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, or pause"
-	// ScaleDownDelayLongerThanDeadlineMessage indicates the ScaleDownDelaySeconds is longer than ProgressDeadlineSeconds
-	ScaleDownDelayLongerThanDeadlineMessage = "ScaleDownDelaySeconds cannot be longer than ProgressDeadlineSeconds"
-	// RolloutMinReadyLongerThanDeadlineMessage indicates the MinReadySeconds is longer than ProgressDeadlineSeconds
-	RolloutMinReadyLongerThanDeadlineMessage = "MinReadySeconds cannot be longer than ProgressDeadlineSeconds"
-	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
-	InvalidStrategyMessage = "Multiple Strategies can not be listed"
-	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
-	DuplicatedServicesMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
-	// ScaleDownLimitLargerThanRevisionLimit the message to indicate that the rollout's revision history limit can not be smaller than the rollout's scale down limit
-	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// AvailableReason the reason to indicate that the rollout is serving traffic from the active service
 	AvailableReason = "AvailableReason"
 	// NotAvailableMessage the message to indicate that the Rollout does not have min availability
@@ -284,144 +259,6 @@ func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
 	rolloutSpecHasher := fnv.New32a()
 	hashutil.DeepHashObject(rolloutSpecHasher, spec)
 	return rand.SafeEncodeString(fmt.Sprint(rolloutSpecHasher.Sum32()))
-}
-
-func newInvalidSpecRolloutCondition(prevCond *v1alpha1.RolloutCondition, reason string, message string) *v1alpha1.RolloutCondition {
-	if prevCond != nil && prevCond.Message == message {
-		prevCond.LastUpdateTime = metav1.Now()
-		return prevCond
-	}
-	return NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, reason, message)
-}
-
-// VerifyRolloutSpec Checks for a valid spec otherwise returns a invalidSpec condition.
-func VerifyRolloutSpec(rollout *v1alpha1.Rollout, prevCond *v1alpha1.RolloutCondition) *v1alpha1.RolloutCondition {
-	if rollout.Spec.Selector == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Selector")
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
-	}
-
-	everything := metav1.LabelSelector{}
-	if reflect.DeepEqual(rollout.Spec.Selector, &everything) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutSelectAllMessage)
-	}
-
-	if rollout.Spec.Strategy.Canary == nil && rollout.Spec.Strategy.BlueGreen == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".Spec.Strategy.Canary or .Spec.Strategy.BlueGreen")
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, message)
-	}
-
-	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.BlueGreen != nil {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStrategyMessage)
-	}
-
-	if rollout.Spec.MinReadySeconds > defaults.GetProgressDeadlineSecondsOrDefault(rollout) {
-		return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, RolloutMinReadyLongerThanDeadlineMessage)
-	}
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		if rollout.Spec.Strategy.BlueGreen.ActiveService == rollout.Spec.Strategy.BlueGreen.PreviewService {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, DuplicatedServicesMessage)
-		}
-		revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
-		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, ScaleDownLimitLargerThanRevisionLimit)
-		}
-		if rollout.Spec.Strategy.BlueGreen.AntiAffinity != nil {
-			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.BlueGreen.AntiAffinity, "BlueGreen")
-			if reason != "" {
-				return newInvalidSpecRolloutCondition(prevCond, reason, message)
-			}
-		}
-	}
-
-	if rollout.Spec.Strategy.Canary != nil {
-		if invalidMaxSurgeMaxUnavailable(rollout) {
-			return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidMaxSurgeMaxUnavailable)
-		}
-		for _, step := range rollout.Spec.Strategy.Canary.Steps {
-			if hasMultipleStepsType(step) {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
-			}
-			if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidStepMessage)
-			}
-			if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidSetWeightMessage)
-			}
-			if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
-				return newInvalidSpecRolloutCondition(prevCond, InvalidSpecReason, InvalidDurationMessage)
-			}
-		}
-		if rollout.Spec.Strategy.Canary.AntiAffinity != nil {
-			reason, message := invalidAntiAffinity(*rollout.Spec.Strategy.Canary.AntiAffinity, "Canary")
-			if reason != "" {
-				return newInvalidSpecRolloutCondition(prevCond, reason, message)
-			}
-		}
-	}
-
-	return nil
-}
-
-func hasMultipleStepsType(s v1alpha1.CanaryStep) bool {
-	oneOf := make([]bool, 3)
-	oneOf = append(oneOf, s.SetWeight != nil)
-	oneOf = append(oneOf, s.Pause != nil)
-	oneOf = append(oneOf, s.Experiment != nil)
-	oneOf = append(oneOf, s.Analysis != nil)
-	hasMultipleStepTypes := false
-	for i := range oneOf {
-		if oneOf[i] {
-			if hasMultipleStepTypes {
-				return true
-			}
-			hasMultipleStepTypes = true
-		}
-	}
-	return false
-}
-
-func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
-	if intOrStringValue.Type != intstr.String {
-		return 0, false
-	}
-	if len(validation.IsValidPercent(intOrStringValue.StrVal)) != 0 {
-		return 0, false
-	}
-	value, _ := strconv.Atoi(intOrStringValue.StrVal[:len(intOrStringValue.StrVal)-1])
-	return value, true
-}
-
-func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
-	value, isPercent := getPercentValue(intOrStringValue)
-	if isPercent {
-		return value
-	}
-	return intOrStringValue.IntValue()
-}
-
-func invalidAntiAffinity(affinity v1alpha1.AntiAffinity, strategy string) (string, string) {
-	if affinity.PreferredDuringSchedulingIgnoredDuringExecution == nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		return InvalidSpecReason, fmt.Sprintf(MissingFieldMessage, fmt.Sprintf(".Spec.Strategy.%[1]s.AntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution or .Spec.Strategy.%[1]s.AntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution", strategy))
-	}
-	if affinity.PreferredDuringSchedulingIgnoredDuringExecution != nil && affinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		return InvalidSpecReason, "Multiple Anti-Affinity Strategies can not be listed"
-	}
-	return "", ""
-}
-
-func invalidMaxSurgeMaxUnavailable(r *v1alpha1.Rollout) bool {
-	maxSurge := defaults.GetMaxSurgeOrDefault(r)
-	maxUnavailable := defaults.GetMaxUnavailableOrDefault(r)
-	maxSurgeValue := getIntOrPercentValue(*maxSurge)
-	maxUnavailableValue := getIntOrPercentValue(*maxUnavailable)
-	return maxSurgeValue == 0 && maxUnavailableValue == 0
-}
-
-// HasRevisionHistoryLimit checks if the RevisionHistoryLimit field is set
-func HasRevisionHistoryLimit(r *v1alpha1.Rollout) bool {
-	return r.Spec.RevisionHistoryLimit != nil && *r.Spec.RevisionHistoryLimit != math.MaxInt32
 }
 
 // RolloutTimedOut considers a rollout to have timed out once its condition that reports progress
