@@ -278,6 +278,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../smi/" title="SMI" class="md-nav__link">
+      SMI
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -1021,6 +1033,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#linkerd-setup" class="md-nav__link">
+    Linkerd Setup
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1209,6 +1228,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#linkerd-setup" class="md-nav__link">
+    Linkerd Setup
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1389,6 +1415,24 @@ istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <sp
 the Istio mesh. Istio routes requests to the correct pod based on the Host HTTP header. Follow the
 guide on <a href="#supplying-host-headers">supplying host headers</a> to learn how to configure your client
 environment to supply the proper request to reach the pod.</p>
+<h3 id="linkerd-setup">Linkerd Setup<a class="headerlink" href="#linkerd-setup" title="Permanent link">&para;</a></h3>
+<p>Linkerd can be installed using the linkerd CLI.</p>
+<div class="highlight"><pre><span></span><code>brew install linkerd
+linkerd install | kubectl apply -f -
+</code></pre></div>
+
+<p>Linkerd does not provide its own ingress controller, choosing instead to work alongside your
+ingress controller of choice. On minikube, we can use the built-in NGINX ingress addon and
+reconfigure it to be part of the linkerd mesh.</p>
+<div class="highlight"><pre><span></span><code># Install the NGINX ingress controller addon
+minikube addons enable ingress
+
+# Patch the nginx-ingress-controller deployment to allow injection of the linkerd proxy to the
+# pod, so that it will be part of the mesh.
+kubectl patch deploy ingress-nginx-controller -n kube-system \
+  -p &#39;{&quot;spec&quot;:{&quot;template&quot;:{&quot;metadata&quot;:{&quot;annotations&quot;:{&quot;linkerd.io/inject&quot;:&quot;enabled&quot;}}}}}&#39;
+</code></pre></div>
+
 <h2 id="supplying-host-headers">Supplying Host Headers<a class="headerlink" href="#supplying-host-headers" title="Permanent link">&para;</a></h2>
 <p>Most ingress controllers and service mesh implementations rely on the 
 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host">Host HTTP request header</a> being

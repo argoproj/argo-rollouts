@@ -233,7 +233,14 @@
     Why Argo Rollouts?
   </a>
   
-    <nav class="md-nav" aria-label="Why Argo Rollouts?">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    Features
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -350,6 +357,18 @@
   <li class="md-nav__item">
     <a href="getting-started/istio/" title="Istio" class="md-nav__link">
       Istio
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="getting-started/smi/" title="SMI" class="md-nav__link">
+      SMI
     </a>
   </li>
 
@@ -1116,7 +1135,14 @@
     Why Argo Rollouts?
   </a>
   
-    <nav class="md-nav" aria-label="Why Argo Rollouts?">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    Features
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1167,9 +1193,28 @@
                 
                 <h1 id="argo-rollouts-kubernetes-progressive-delivery-controller">Argo Rollouts - Kubernetes Progressive Delivery Controller<a class="headerlink" href="#argo-rollouts-kubernetes-progressive-delivery-controller" title="Permanent link">&para;</a></h1>
 <h2 id="what-is-argo-rollouts">What is Argo Rollouts?<a class="headerlink" href="#what-is-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced deployment strategies such as blue-green, canary, experimentation, and progressive delivery features to Kubernetes. The Rollout custom resource provides feature parity with the deployment resource with additional deployment strategies.</p>
+<p>Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced deployment capabilities such as blue-green, canary, canary analysis, experimentation, and progressive delivery features to Kubernetes. </p>
+<p>Argo Rollouts (optionally) integrates with ingress controllers and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.</p>
 <h2 id="why-argo-rollouts">Why Argo Rollouts?<a class="headerlink" href="#why-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Kubernetes Deployments offer two strategies to deploy changes: <code>RollingUpdate</code> and <code>Recreate</code>. While these strategies can solve a wide number of use cases, large scale production deployments use additional strategies, such as blue-green or canary, that are missing from the Deployment controller. In order to use these strategies in Kubernetes, users are forced to build scripts on top of their deployments. The Argo Rollouts controller provides these strategies as simple declarative, configurable, GitOps-friendly options.</p>
+<p>Kubernetes Deployments provides the <code>RollingUpdate</code> strategy which provide a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:
+* Few controls over the speed of the rollout
+* Inability to control traffic flow to the new version
+* Readiness probes are unsuitable for deeper, stress, or one-time checks
+* No ability to query external metrics to verify an update
+* Can halt the progression, but unable to automatically abort and rollback the update</p>
+<p>For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too agressively, and provides no automated rollback upon failures.</p>
+<h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Blue-Green (aka red-black) update strategy</li>
+<li>Canary update strategy</li>
+<li>Fine-grained, weighted traffic shifting</li>
+<li>Automated rollbacks and promotions</li>
+<li>Manual judgement</li>
+<li>Customizable metric queries and analysis of business KPIs</li>
+<li>Ingress controller integration: NGINX, ALB</li>
+<li>Service Mesh integration: Istio, Linkerd, SMI</li>
+<li>Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs</li>
+</ul>
 <h3 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
