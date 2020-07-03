@@ -1175,7 +1175,7 @@ the following mandatory fields:</p>
 </code></pre></div>
 
 <p>The Ingress referenced in <code>canary.trafficRouting.nginx.stableIngress</code> is required to have a host
-rule which has a backend targetting the Service referenced under <code>canary.stableService</code>.
+rule which has a backend targeting the Service referenced under <code>canary.stableService</code>.
 In our example, that stable Service is named: <code>rollouts-demo-stable</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>

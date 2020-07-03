@@ -1215,7 +1215,7 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master
 </code></pre></div>
 
 <p>Initial creations of any Rollout will immediately scale up the replicas to 100% (skipping any
-canary upgrade steps, analysis, etc...) since there was no upgrade that occured.</p>
+canary upgrade steps, analysis, etc...) since there was no upgrade that occurred.</p>
 <p>The Argo Rollouts kubectl plugin allows you to visualize the Rollout, its related resources
 (ReplicaSets, Pods, AnalysisRuns), and presents live state changes as they occur.
 To watch the rollout as it deploys, run the <code>get rollout --watch</code> command from plugin:</p>
@@ -1304,7 +1304,7 @@ an update), and the stable manifest were re-applied, the Rollout detects this as
 and <em>not</em> a update, and will fast-track the deployment of the stable ReplicaSet by skipping
 analysis, and the steps.</p>
 <h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
-<p>In this guide, we have learned basic capabilities of Argo Rolouts, including:</p>
+<p>In this guide, we have learned basic capabilities of Argo Rollouts, including:</p>
 <ul>
 <li>Deploying a rollout</li>
 <li>Performing a canary update</li>
