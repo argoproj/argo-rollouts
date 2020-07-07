@@ -476,6 +476,11 @@ type RolloutStatus struct {
 	PauseConditions []PauseCondition `json:"pauseConditions,omitempty"`
 	//ControllerPause indicates the controller has paused the rollout
 	ControllerPause bool `json:"controllerPause,omitempty"`
+	// ReconciledAbort indicates the controller reconciled an aborted rollout. The controller uses this to understand if
+	// the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used
+	// to indicate if the Rollout should enter an aborted state when the latest AnalysisRun is a failure, or the controller
+	// has already put the Rollout into an aborted and should create a new AnalysisRun.
+	ReconciledAbort bool `json:"reconciledAbort,omitempty"`
 	// CurrentPodHash the hash of the current pod template
 	// +optional
 	CurrentPodHash string `json:"currentPodHash,omitempty"`
@@ -550,9 +555,15 @@ type BlueGreenStatus struct {
 	// +optional
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
 	// PrePromotionAnalysisRun is the current analysis run running before the active service promotion
+	// TODO(Depreciated): Remove in v0.10
 	PrePromotionAnalysisRun string `json:"prePromotionAnalysisRun,omitempty"`
+	// PrePromotionAnalysisRunStatus indicates the status of the current prepromotion analysis run
+	PrePromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"prePromotionAnalysisRunStatus,omitempty"`
 	// PostPromotionAnalysisRun is the current analysis run running after the active service promotion
+	// TODO(Depreciated): Remove in v0.10
 	PostPromotionAnalysisRun string `json:"postPromotionAnalysisRun,omitempty"`
+	// PostPromotionAnalysisRunStatus indicates the status of the current post promotion analysis run
+	PostPromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"postPromotionAnalysisRunStatus,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
@@ -561,11 +572,23 @@ type CanaryStatus struct {
 	// +optional
 	StableRS string `json:"stableRS,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
+	// TODO(Depreciated): Remove in v0.10
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
+	// CurrentStepAnalysisRunStatus indicates the status of the current step analysis run
+	CurrentStepAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentStepAnalysisRunStatus,omitempty"`
 	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
+	// TODO(Depreciated): Remove in v0.10
 	CurrentBackgroundAnalysisRun string `json:"currentBackgroundAnalysisRun,omitempty"`
+	// CurrentStepAnalysisRunStatus indicates the status of the current background analysis run
+	CurrentBackgroundAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentBackgroundAnalysisRunStatus,omitempty"`
 	// CurrentExperiment indicates the running experiment
 	CurrentExperiment string `json:"currentExperiment,omitempty"`
+}
+
+type RolloutAnalysisRunStatus struct {
+	Name    string        `json:"name"`
+	Status  AnalysisPhase `json:"status"`
+	Message string        `json:"message,omitempty"`
 }
 
 // RolloutConditionType defines the conditions of Rollout

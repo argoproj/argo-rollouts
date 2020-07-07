@@ -130,16 +130,22 @@ func (bgCtx *blueGreenContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 
 func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(currAr analysisutil.CurrentAnalysisRuns) {
 	bgCtx.currentArs = currAr
-	if currAr.BlueGreenPrePromotion != nil && !bgCtx.PauseContext().IsAborted() {
-		switch currAr.BlueGreenPrePromotion.Status.Phase {
-		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currAr.BlueGreenPrePromotion.Name
+	currPrePromoAr := currAr.BlueGreenPrePromotion
+	if currPrePromoAr != nil && currPrePromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+		bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
+		bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+			Name:    currPrePromoAr.Name,
+			Status:  currPrePromoAr.Status.Phase,
+			Message: currPrePromoAr.Status.Message,
 		}
 	}
-	if currAr.BlueGreenPostPromotion != nil && !bgCtx.PauseContext().IsAborted() {
-		switch currAr.BlueGreenPostPromotion.Status.Phase {
-		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currAr.BlueGreenPostPromotion.Name
+	currPostPromoAr := currAr.BlueGreenPostPromotion
+	if currPostPromoAr != nil && currPostPromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+		bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
+		bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+			Name:    currPostPromoAr.Name,
+			Status:  currPostPromoAr.Status.Phase,
+			Message: currPostPromoAr.Status.Message,
 		}
 	}
 }
@@ -219,18 +225,24 @@ func (cCtx *canaryContext) AllRSs() []*appsv1.ReplicaSet {
 
 func (cCtx *canaryContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnalysisRuns) {
 	cCtx.currentArs = currARs
-	if currARs.CanaryBackground != nil && !cCtx.PauseContext().IsAborted() {
-		switch currARs.CanaryBackground.Status.Phase {
-		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currARs.CanaryBackground.Name
+	currBackgroundAr := currARs.CanaryBackground
+	if currBackgroundAr != nil && currBackgroundAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+		cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+		cCtx.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+			Name:    currBackgroundAr.Name,
+			Status:  currBackgroundAr.Status.Phase,
+			Message: currBackgroundAr.Status.Message,
 		}
 	}
-	if currARs.CanaryStep != nil && !cCtx.PauseContext().IsAborted() {
-		if !currARs.CanaryStep.Status.Phase.Completed() {
-			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currARs.CanaryStep.Name
+	currStepAr := currARs.CanaryStep
+	if currStepAr != nil && currStepAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+		cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+		cCtx.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+			Name:    currStepAr.Name,
+			Status:  currStepAr.Status.Phase,
+			Message: currStepAr.Status.Message,
 		}
 	}
-
 }
 
 func (cCtx *canaryContext) CurrentAnalysisRuns() analysisutil.CurrentAnalysisRuns {

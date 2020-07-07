@@ -299,6 +299,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"abort": true,
+			"reconciledAbort": true,
 			"conditions": %s,
 			"canary": {
 				"currentExperiment": null

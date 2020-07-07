@@ -59,13 +59,16 @@ func (pCtx *pauseContext) ClearPauseConditions() {
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
 	if pCtx.addAbort {
 		newStatus.Abort = true
+		newStatus.ReconciledAbort = true
 		return
 	}
 	if !pCtx.removeAbort && pCtx.rollout.Status.Abort {
 		newStatus.Abort = true
+		newStatus.ReconciledAbort = true
 		return
 	}
 	newStatus.Abort = false
+	newStatus.ReconciledAbort = false
 
 	if pCtx.clearPauseConditions {
 		return
