@@ -19,14 +19,14 @@ type rolloutContext interface {
 	StableRS() *appsv1.ReplicaSet
 	AllRSs() []*appsv1.ReplicaSet
 
-	CurrentAnalysisRuns() []*v1alpha1.AnalysisRun
+	CurrentAnalysisRuns() analysisutil.CurrentAnalysisRuns
 	OtherAnalysisRuns() []*v1alpha1.AnalysisRun
 	CurrentExperiment() *v1alpha1.Experiment
 	OtherExperiments() []*v1alpha1.Experiment
 
 	PauseContext() *pauseContext
 	NewStatus() v1alpha1.RolloutStatus
-	SetCurrentAnalysisRuns([]*v1alpha1.AnalysisRun)
+	SetCurrentAnalysisRuns(analysisutil.CurrentAnalysisRuns)
 	SetRestartedAt()
 }
 
@@ -39,7 +39,7 @@ type blueGreenContext struct {
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
 
-	currentArs []*v1alpha1.AnalysisRun
+	currentArs analysisutil.CurrentAnalysisRuns
 	otherArs   []*v1alpha1.AnalysisRun
 
 	newStatus    v1alpha1.RolloutStatus
@@ -55,7 +55,7 @@ type canaryContext struct {
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
 
-	currentArs []*v1alpha1.AnalysisRun
+	currentArs analysisutil.CurrentAnalysisRuns
 	otherArs   []*v1alpha1.AnalysisRun
 
 	currentEx *v1alpha1.Experiment
@@ -120,7 +120,7 @@ func (bgCtx *blueGreenContext) AllRSs() []*appsv1.ReplicaSet {
 func (bgCtx *blueGreenContext) CurrentExperiment() *v1alpha1.Experiment {
 	return nil
 }
-func (bgCtx *blueGreenContext) CurrentAnalysisRuns() []*v1alpha1.AnalysisRun {
+func (bgCtx *blueGreenContext) CurrentAnalysisRuns() analysisutil.CurrentAnalysisRuns {
 	return bgCtx.currentArs
 }
 
@@ -128,20 +128,18 @@ func (bgCtx *blueGreenContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 	return bgCtx.otherArs
 }
 
-func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
-	bgCtx.currentArs = ars
-	currPrePromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePrePromotionLabel)
-	if currPrePromoAr != nil && !bgCtx.PauseContext().IsAborted() {
-		switch currPrePromoAr.Status.Phase {
+func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(currAr analysisutil.CurrentAnalysisRuns) {
+	bgCtx.currentArs = currAr
+	if currAr.BlueGreenPrePromotion != nil && !bgCtx.PauseContext().IsAborted() {
+		switch currAr.BlueGreenPrePromotion.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
+			bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currAr.BlueGreenPrePromotion.Name
 		}
 	}
-	currPostPromoAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePostPromotionLabel)
-	if currPostPromoAr != nil && !bgCtx.PauseContext().IsAborted() {
-		switch currPostPromoAr.Status.Phase {
+	if currAr.BlueGreenPostPromotion != nil && !bgCtx.PauseContext().IsAborted() {
+		switch currAr.BlueGreenPostPromotion.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
+			bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currAr.BlueGreenPostPromotion.Name
 		}
 	}
 }
@@ -219,25 +217,23 @@ func (cCtx *canaryContext) AllRSs() []*appsv1.ReplicaSet {
 	return cCtx.allRSs
 }
 
-func (cCtx *canaryContext) SetCurrentAnalysisRuns(ars []*v1alpha1.AnalysisRun) {
-	cCtx.currentArs = ars
-	currBackgroundAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypeBackgroundRunLabel)
-	if currBackgroundAr != nil && !cCtx.PauseContext().IsAborted() {
-		switch currBackgroundAr.Status.Phase {
+func (cCtx *canaryContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnalysisRuns) {
+	cCtx.currentArs = currARs
+	if currARs.CanaryBackground != nil && !cCtx.PauseContext().IsAborted() {
+		switch currARs.CanaryBackground.Status.Phase {
 		case v1alpha1.AnalysisPhasePending, v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhaseSuccessful, "":
-			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+			cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currARs.CanaryBackground.Name
 		}
 	}
-	currStepAr := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypeStepLabel)
-	if currStepAr != nil && !cCtx.PauseContext().IsAborted() {
-		if !currStepAr.Status.Phase.Completed() {
-			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+	if currARs.CanaryStep != nil && !cCtx.PauseContext().IsAborted() {
+		if !currARs.CanaryStep.Status.Phase.Completed() {
+			cCtx.newStatus.Canary.CurrentStepAnalysisRun = currARs.CanaryStep.Name
 		}
 	}
 
 }
 
-func (cCtx *canaryContext) CurrentAnalysisRuns() []*v1alpha1.AnalysisRun {
+func (cCtx *canaryContext) CurrentAnalysisRuns() analysisutil.CurrentAnalysisRuns {
 	return cCtx.currentArs
 }
 func (cCtx *canaryContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {

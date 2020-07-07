@@ -11,7 +11,6 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
@@ -207,7 +206,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Replic
 		return false, nil
 	}
 	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil {
-		currentPostAr := analysisutil.GetCurrentAnalysisRunByType(roCtx.CurrentAnalysisRuns(), v1alpha1.RolloutTypePostPromotionLabel)
+		currentPostAr := roCtx.CurrentAnalysisRuns().BlueGreenPostPromotion
 		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 			logCtx.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
 			return false, nil
@@ -299,8 +298,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 	}
 	postAnalysisRunFinished := false
 	if r.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
-		ars := roCtx.CurrentAnalysisRuns()
-		currentPostPromotionAnalysisRun := analysisutil.GetCurrentAnalysisRunByType(ars, v1alpha1.RolloutTypePostPromotionLabel)
+		currentPostPromotionAnalysisRun := roCtx.CurrentAnalysisRuns().BlueGreenPostPromotion
 		if currentPostPromotionAnalysisRun != nil {
 			postAnalysisRunFinished = currentPostPromotionAnalysisRun.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 		}

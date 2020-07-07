@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -137,7 +136,7 @@ func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
 		return false
 	}
 
-	currentAr := analysisutil.FilterAnalysisRunsByName(roCtx.CurrentAnalysisRuns(), rollout.Status.BlueGreen.PrePromotionAnalysisRun)
+	currentAr := roCtx.CurrentAnalysisRuns().BlueGreenPrePromotion
 	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
