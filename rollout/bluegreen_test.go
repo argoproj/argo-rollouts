@@ -1196,6 +1196,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 	r2.Status.Abort = true
+	r2.Status.ReconciledAbort = true
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)

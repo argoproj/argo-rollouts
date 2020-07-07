@@ -200,12 +200,13 @@ func (c *Controller) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Servi
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
 func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.ReplicaSet, roCtx *blueGreenContext) (bool, error) {
 	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
 	logCtx := roCtx.Log()
 	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		logCtx.Infof("Cannot scale down old ReplicaSets while paused with inconclusive Analysis ")
 		return false, nil
 	}
-	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil {
+	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !needPostPromotionAnalysisRun(rollout, newRS) {
 		currentPostAr := roCtx.CurrentAnalysisRuns().BlueGreenPostPromotion
 		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 			logCtx.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
@@ -265,6 +266,8 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 		roCtx.PauseContext().ClearPauseConditions()
 		roCtx.PauseContext().RemoveAbort()
 		roCtx.SetRestartedAt()
+		newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
+		newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
 	}
 
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})

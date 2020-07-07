@@ -284,6 +284,8 @@ func (c *Controller) syncRolloutStatusCanary(roCtx *canaryContext) error {
 		roCtx.PauseContext().RemoveAbort()
 		roCtx.SetRestartedAt()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
+		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 

@@ -232,6 +232,8 @@ func (c *Controller) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.Repl
 	if r.Spec.Strategy.BlueGreen != nil {
 		roCtx := newBlueGreenCtx(r, newRS, oldRSs, arList)
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+		// Keep existing analysis runs if the rollout is paused
+		roCtx.SetCurrentAnalysisRuns(roCtx.CurrentAnalysisRuns())
 		if err != nil {
 			return nil
 		}

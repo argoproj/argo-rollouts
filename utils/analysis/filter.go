@@ -24,7 +24,6 @@ func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
 		if ar != nil {
-
 			switch ar.Name {
 			case r.Status.Canary.CurrentStepAnalysisRun:
 				currArs.CanaryStep = ar
