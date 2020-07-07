@@ -46,44 +46,38 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 func (c *Controller) reconcileAnalysisRuns(roCtx rolloutContext) error {
 	otherArs := roCtx.OtherAnalysisRuns()
 	if roCtx.PauseContext().IsAborted() {
-		allArs := append(roCtx.CurrentAnalysisRuns(), otherArs...)
+		allArs := append(roCtx.CurrentAnalysisRuns().ToArray(), otherArs...)
 		return c.cancelAnalysisRuns(roCtx, allArs)
 	}
 
-	newCurrentAnalysisRuns := []*v1alpha1.AnalysisRun{}
+	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
 	rollout := roCtx.Rollout()
 	if rollout.Spec.Strategy.Canary != nil {
 		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)
 		if err != nil {
 			return err
 		}
-		if stepAnalysisRun != nil {
-			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, stepAnalysisRun)
-		}
+		newCurrentAnalysisRuns.CanaryStep = stepAnalysisRun
 
 		backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(roCtx)
 		if err != nil {
 			return err
 		}
-		if backgroundAnalysisRun != nil {
-			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, backgroundAnalysisRun)
-		}
+		newCurrentAnalysisRuns.CanaryBackground = backgroundAnalysisRun
+
 	}
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		prePromotionAr, err := c.reconcilePrePromotionAnalysisRun(roCtx)
 		if err != nil {
 			return err
 		}
-		if prePromotionAr != nil {
-			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, prePromotionAr)
-		}
+		newCurrentAnalysisRuns.BlueGreenPrePromotion = prePromotionAr
+
 		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun(roCtx)
 		if err != nil {
 			return err
 		}
-		if postPromotionAr != nil {
-			newCurrentAnalysisRuns = append(newCurrentAnalysisRuns, postPromotionAr)
-		}
+		newCurrentAnalysisRuns.BlueGreenPostPromotion = postPromotionAr
 	}
 	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
 
@@ -93,7 +87,7 @@ func (c *Controller) reconcileAnalysisRuns(roCtx rolloutContext) error {
 	// To prevent us from terminating the runs that we just created moments ago, rebuild otherArs
 	// to ensure it does not include the newly created runs.
 	otherArs, _ = analysisutil.FilterAnalysisRuns(otherArs, func(ar *v1alpha1.AnalysisRun) bool {
-		for _, curr := range newCurrentAnalysisRuns {
+		for _, curr := range newCurrentAnalysisRuns.ToArray() {
 			if ar.Name == curr.Name {
 				roCtx.Log().Infof("Rescued %s from inadvertent termination", ar.Name)
 				return false
@@ -121,7 +115,7 @@ func (c *Controller) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.BlueGreen.PrePromotionAnalysisRun)
+	currentAr := currentArs.BlueGreenPrePromotion
 	if rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
@@ -163,7 +157,7 @@ func (c *Controller) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.BlueGreen.PostPromotionAnalysisRun)
+	currentAr := currentArs.BlueGreenPostPromotion
 	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
@@ -206,7 +200,7 @@ func (c *Controller) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1al
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
 	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentBackgroundAnalysisRun)
+	currentAr := currentArs.CanaryBackground
 	if rollout.Spec.Strategy.Canary.Analysis == nil {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
@@ -261,7 +255,7 @@ func (c *Controller) reconcileStepBasedAnalysisRun(roCtx rolloutContext) (*v1alp
 	currentArs := roCtx.CurrentAnalysisRuns()
 	newRS := roCtx.NewRS()
 	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
-	currentAr := analysisutil.FilterAnalysisRunsByName(currentArs, rollout.Status.Canary.CurrentStepAnalysisRun)
+	currentAr := currentArs.CanaryStep
 
 	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil

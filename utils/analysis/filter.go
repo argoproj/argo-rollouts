@@ -18,22 +18,28 @@ func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string
 }
 
 // FilterCurrentRolloutAnalysisRuns returns analysisRuns that match the analysisRuns listed in the rollout status
-func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, []*v1alpha1.AnalysisRun) {
-	return FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {
-		if ar.Name == r.Status.Canary.CurrentStepAnalysisRun {
-			return true
+func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) (CurrentAnalysisRuns, []*v1alpha1.AnalysisRun) {
+	currArs := CurrentAnalysisRuns{}
+	otherArs := []*v1alpha1.AnalysisRun{}
+	for i := range analysisRuns {
+		ar := analysisRuns[i]
+		if ar != nil {
+
+			switch ar.Name {
+			case r.Status.Canary.CurrentStepAnalysisRun:
+				currArs.CanaryStep = ar
+			case r.Status.Canary.CurrentBackgroundAnalysisRun:
+				currArs.CanaryBackground = ar
+			case r.Status.BlueGreen.PrePromotionAnalysisRun:
+				currArs.BlueGreenPrePromotion = ar
+			case r.Status.BlueGreen.PostPromotionAnalysisRun:
+				currArs.BlueGreenPostPromotion = ar
+			default:
+				otherArs = append(otherArs, ar)
+			}
 		}
-		if ar.Name == r.Status.Canary.CurrentBackgroundAnalysisRun {
-			return true
-		}
-		if ar.Name == r.Status.BlueGreen.PrePromotionAnalysisRun {
-			return true
-		}
-		if ar.Name == r.Status.BlueGreen.PostPromotionAnalysisRun {
-			return true
-		}
-		return false
-	})
+	}
+	return currArs, otherArs
 }
 
 // FilterAnalysisRunsByRolloutType returns a list of analysisRuns that have the rollout-type of the typeFilter
