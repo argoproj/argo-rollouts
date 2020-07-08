@@ -1068,8 +1068,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "One of TemplateName or ClusterTemplateName must be specified",
-				Type:        []string{"object"},
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1085,10 +1084,10 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							Format:      "",
 						},
 					},
-					"clusterTemplateName": {
+					"clusterScope": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClusterTemplateName reference of the ClusterAnalysisTemplate name used by the Experiment to create the run",
-							Type:        []string{"string"},
+							Description: "Whether to look for the templateName at cluster scope or namespace scope",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2099,10 +2098,10 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 				Description: "RolloutAnalysis defines a template that is used to create a analysisRun",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"clusterTemplateName": {
+					"clusterScope": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClusterTemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
-							Type:        []string{"string"},
+							Description: "Whether to look for the templateName at cluster scope or namespace scope Deprecated and will be removed in v0.9",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2160,10 +2159,10 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 				Description: "RolloutAnalysisBackground defines a template that is used to create a background analysisRun",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"clusterTemplateName": {
+					"clusterScope": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClusterTemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
-							Type:        []string{"string"},
+							Description: "Whether to look for the templateName at cluster scope or namespace scope Deprecated and will be removed in v0.9",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2225,8 +2224,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "One of TemplateName or ClusterTemplateName must be specified",
-				Type:        []string{"object"},
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
@@ -2235,10 +2233,10 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplates(ref common.Refer
 							Format:      "",
 						},
 					},
-					"clusterTemplateName": {
+					"clusterScope": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClusterTemplateName name of template to use in AnalysisRun",
-							Type:        []string{"string"},
+							Description: "Whether to look for the templateName at cluster scope or namespace scope",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2369,8 +2367,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "One of TemplateName or ClusterTemplateName must be specified",
-				Type:        []string{"object"},
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -2381,15 +2378,15 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 					},
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run",
+							Description: "TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"clusterTemplateName": {
+					"clusterScope": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run",
-							Type:        []string{"string"},
+							Description: "Whether to look for the templateName at cluster scope or namespace scope",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

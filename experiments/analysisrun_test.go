@@ -177,8 +177,8 @@ func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:                "success-rate",
-			ClusterTemplateName: "does-not-exist",
+			Name:         "success-rate",
+			ClusterScope: true,
 		},
 	}
 	rs := templateToRS(e, templates[0], 1)
@@ -234,8 +234,9 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 	e := newExperiment("foo", templates, "")
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
-			Name:                "cluster-success-rate",
-			ClusterTemplateName: aTemplates[0].Name,
+			Name:         "cluster-success-rate",
+			TemplateName: aTemplates[0].Name,
+			ClusterScope: true,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
 				Value: pointer.StringPtr("sss"),

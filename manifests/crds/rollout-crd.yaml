@@ -131,15 +131,15 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterTemplateName:
-                          type: string
+                        clusterScope:
+                          type: boolean
                         templateName:
                           type: string
                         templates:
                           items:
                             properties:
-                              clusterTemplateName:
-                                type: string
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
                             type: object
@@ -163,15 +163,15 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterTemplateName:
-                          type: string
+                        clusterScope:
+                          type: boolean
                         templateName:
                           type: string
                         templates:
                           items:
                             properties:
-                              clusterTemplateName:
-                                type: string
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
                             type: object
@@ -211,8 +211,8 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterTemplateName:
-                          type: string
+                        clusterScope:
+                          type: boolean
                         startingStep:
                           format: int32
                           type: integer
@@ -221,8 +221,8 @@ spec:
                         templates:
                           items:
                             properties:
-                              clusterTemplateName:
-                                type: string
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
                             type: object
@@ -276,15 +276,15 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              clusterTemplateName:
-                                type: string
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
                               templates:
                                 items:
                                   properties:
-                                    clusterTemplateName:
-                                      type: string
+                                    clusterScope:
+                                      type: boolean
                                     templateName:
                                       type: string
                                   type: object
@@ -311,8 +311,8 @@ spec:
                                         - name
                                         type: object
                                       type: array
-                                    clusterTemplateName:
-                                      type: string
+                                    clusterScope:
+                                      type: boolean
                                     name:
                                       type: string
                                     templateName:

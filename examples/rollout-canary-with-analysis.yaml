@@ -30,13 +30,16 @@ spec:
         - analysis:
             templates:
               - templateName: pass
+                clusterScope: true
         - setWeight: 60
         - pause: {duration: 1m}
         - analysis:
             templates:
-              - clusterTemplateName: always-pass
+              - templateName: always-pass
+                clusterScope: true
         - setWeight: 80
         - pause: {duration: 1m}
         - analysis:
             templates:
-              - clusterTemplateName: always-pass
+              - templateName: always-pass
+                clusterScope: true

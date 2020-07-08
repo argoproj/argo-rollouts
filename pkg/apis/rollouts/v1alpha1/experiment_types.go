@@ -186,16 +186,14 @@ type ExperimentList struct {
 	Items []Experiment `json:"items"`
 }
 
-// One of TemplateName or ClusterTemplateName must be specified
 type ExperimentAnalysisTemplateRef struct {
 	// Name is the name of the analysis
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
-	// +optional
 	TemplateName string `json:"templateName,omitempty"`
-	// ClusterTemplateName reference of the ClusterAnalysisTemplate name used by the Experiment to create the run
+	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
+	ClusterScope bool `json:"clusterScope,omitempty"`
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
 	// +patchMergeKey=name

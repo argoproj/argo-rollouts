@@ -83,8 +83,9 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 				Replicas: pointer.Int32Ptr(1),
 			}},
 			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
-				Name:                "test",
-				ClusterTemplateName: cat.Name,
+				Name:         "test",
+				TemplateName: cat.Name,
+				ClusterScope: true,
 			}},
 		},
 	}}
@@ -110,8 +111,8 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
-	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, "")
-	assert.Equal(t, createdEx.Spec.Analyses[0].ClusterTemplateName, cat.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, cat.Name)
+	assert.True(t, createdEx.Spec.Analyses[0].ClusterScope)
 	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{

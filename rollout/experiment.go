@@ -105,11 +105,12 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS)
 		var analysisTemplate v1alpha1.ExperimentAnalysisTemplateRef
 
-		if analysis.ClusterTemplateName != "" {
+		if analysis.ClusterScope {
 			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{
-				Name:                analysis.Name,
-				ClusterTemplateName: analysis.ClusterTemplateName,
-				Args:                args,
+				Name:         analysis.Name,
+				TemplateName: analysis.TemplateName,
+				ClusterScope: true,
+				Args:         args,
 			}
 		} else {
 			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{
