@@ -230,7 +230,8 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
-				ClusterTemplateName: cat.Name,
+				TemplateName: cat.Name,
+				ClusterScope: true,
 			}},
 		},
 	}
@@ -285,7 +286,8 @@ func TestCreateBackgroundAnalysisRunErrorWithMissingClusterTemplates(t *testing.
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
-				ClusterTemplateName: "missing",
+				TemplateName: "missing",
+				ClusterScope: true,
 			}},
 		},
 	}
@@ -336,7 +338,8 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplates{{
-				ClusterTemplateName: cat.Name,
+				TemplateName: cat.Name,
+				ClusterScope: true,
 			}, {
 				TemplateName: at.Name,
 			}},

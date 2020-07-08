@@ -284,7 +284,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	if ec.ex.Status.AvailableAt == nil {
 		// If we are not not available yet, don't start any runs
-		if analysis.ClusterTemplateName != "" {
+		if analysis.ClusterScope {
 			if err := ec.verifyClusterAnalysisTemplate(analysis); err != nil {
 				msg := fmt.Sprintf("ClusterAnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
 				newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -503,8 +503,8 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
 
-	if analysis.ClusterTemplateName != "" {
-		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.ClusterTemplateName)
+	if analysis.ClusterScope {
+		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
 		if err != nil {
 			return nil, err
 		}

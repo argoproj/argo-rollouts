@@ -175,7 +175,7 @@ Multiple measurements can be performed over a longer duration period, by specify
 
 A Rollout can reference a Cluster scoped AnaylsisTemplate called a `ClusterAnalysisTemplate`. This can be useful when
 you want to share an AnalysisTemplate across multiple Rollouts; rather than duplicating them in every namespace. Use the field
-`clusterTemplateName` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
+`clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
 
 ```yaml tab="Rollout"
 apiVersion: argoproj.io/v1alpha1
@@ -191,7 +191,8 @@ spec:
       - pause: {duration: 5m}
       - analysis:
           templates:
-          - clusterTemplateName: success-rate
+          - templateName: success-rate
+            clusterScope: true
           args:
           - name: service-name
             value: guestbook-svc.default.svc.cluster.local

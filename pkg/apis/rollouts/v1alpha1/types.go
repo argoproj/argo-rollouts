@@ -265,16 +265,14 @@ type RolloutExperimentStep struct {
 	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
-// One of TemplateName or ClusterTemplateName must be specified
 type RolloutExperimentStepAnalysisTemplateRef struct {
 	// Name is a name for this analysis template invocation
 	Name string `json:"name"`
-	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
-	// +optional
+	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
 	TemplateName string `json:"templateName,omitempty"`
-	// TemplateName reference of the ClusterAnalysisTemplate name used by the Rollout to create the run
+	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
+	ClusterScope bool `json:"clusterScope,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -343,10 +341,10 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	// ClusterTemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
+	// Whether to look for the templateName at cluster scope or namespace scope
 	// Deprecated and will be removed in v0.9
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
+	ClusterScope bool `json:"clusterScope,omitempty"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
 	// +optional
@@ -359,14 +357,13 @@ type RolloutAnalysis struct {
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
-// One of TemplateName or ClusterTemplateName must be specified
 type RolloutAnalysisTemplates struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName,omitempty"`
-	//ClusterTemplateName name of template to use in AnalysisRun
+	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterTemplateName string `json:"clusterTemplateName,omitempty"`
+	ClusterScope bool `json:"clusterScope,omitempty"`
 }
 
 // AnalysisRunArgument argument to add to analysisRun
