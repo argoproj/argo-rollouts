@@ -10,7 +10,17 @@ on:
     branches:
       - 'master'
 jobs:
-
+  lint-go:
+    name: Lint Go code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v1
+        with:
+          version: v1.26
+          args: --timeout 5m
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -37,12 +47,6 @@ jobs:
 
     - name: Compile all packages
       run: make controller plugin
-
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v1
-      with:
-        version: v1.26
-        args: --timeout 5m
 
     - name: Test
       run: go test -failfast -covermode=count -coverprofile=coverage.out ./...
