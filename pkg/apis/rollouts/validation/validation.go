@@ -79,7 +79,9 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "invalid label selector"))
 	} else {
-		// Set default values in PodTemplate to address issue https://github.com/argoproj/argo-rollouts/issues/576
+		// The upstream K8s validation we are using expects the default values of a PodSpec to be set otherwise throwing a validation error.
+		// However, the Rollout does not need to have them set since the ReplicaSet it creates will have the default values set.
+		// As a result, the controller sets the default values before validation to prevent the validation errors due to the lack of these default fields. See #576 for more info.
 		podTemplate := corev1.PodTemplate{
 			Template: *spec.Template.DeepCopy(),
 		}
