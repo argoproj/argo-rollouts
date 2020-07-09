@@ -47,15 +47,21 @@ type CreateAnalysisRunOptions struct {
 
 const (
 	createExample = `
-	# Create an experiement and watch it
+	# Create an experiment and watch it
 	%[1]s create -f my-experiment.yaml -w`
 
 	createAnalysisRunExample = `
-  	# Create an AnalysisRun from a local template file
+  	# Create an AnalysisRun from a local AnalysisTemplate file
   	%[1]s create analysisrun --from-file my-analysis-template.yaml
   
-  	# Create an AnalysisRun from a template in the cluster
-  	%[1]s create analysisrun --from my-analysis-template`
+  	# Create an AnalysisRun from a AnalysisTemplate in the cluster
+  	%[1]s create analysisrun --from my-analysis-template
+
+  	# Create an AnalysisRun from a local ClusterAnalysisTemplate file
+  	%[1]s create analysisrun --global --from my-analysis-cluster-template.yaml
+
+  	# Create an AnalysisRun from a ClusterAnalysisTemplate in the cluster
+  	%[1]s create analysisrun --global --from my-analysis-cluster-template`
 )
 
 // NewCmdCreate returns a new instance of an `rollouts create` command
@@ -215,7 +221,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "analysisrun",
 		Aliases:      []string{"ar"},
-		Short:        "Create an AnalysisRun from a template",
+		Short:        "Create an AnalysisRun from an AnalysisTemplate or a ClusterAnalysisTemplate",
 		Long:         "This command creates a new AnalysisRun from an existing AnalysisTemplate resources or from an AnalysisTemplate file.",
 		Example:      o.Example(createAnalysisRunExample),
 		SilenceUsage: true,
