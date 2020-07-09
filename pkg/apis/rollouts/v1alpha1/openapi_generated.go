@@ -1118,7 +1118,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 						},
 					},
 				},
-				Required: []string{"name"},
+				Required: []string{"name", "templateName"},
 			},
 		},
 		Dependencies: []string{
@@ -2410,7 +2410,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 						},
 					},
 				},
-				Required: []string{"name"},
+				Required: []string{"name", "templateName"},
 			},
 		},
 		Dependencies: []string{

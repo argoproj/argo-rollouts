@@ -35,3 +35,5 @@ spec:
       - analysis:
           templates:
           - templateName: random-fail
+          - templateName: always-pass
+            clusterScope: true

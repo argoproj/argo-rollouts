@@ -269,7 +269,7 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	// Name is a name for this analysis template invocation
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
-	TemplateName string `json:"templateName,omitempty"`
+	TemplateName string `json:"templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
 	ClusterScope bool `json:"clusterScope,omitempty"`
@@ -348,7 +348,7 @@ type RolloutAnalysis struct {
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
 	// +optional
-	TemplateName string `json:"templateName,omitempty"`
+	TemplateName string `json:"templateName"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
@@ -360,7 +360,7 @@ type RolloutAnalysis struct {
 type RolloutAnalysisTemplates struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
-	TemplateName string `json:"templateName,omitempty"`
+	TemplateName string `json:"templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
 	ClusterScope bool `json:"clusterScope,omitempty"`
