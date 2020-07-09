@@ -173,8 +173,9 @@ Multiple measurements can be performed over a longer duration period, by specify
 
 ## Cluster analysis templates
 
-A Rollout can reference a Cluster scoped AnaylsisTemplate called a `ClusterAnalysisTemplate`. This can be useful when
-you want to share an AnalysisTemplate across multiple Rollouts; rather than duplicating them in every namespace. Use the field
+Starting in version `0.9.0` a Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+`ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
+rather than duplicating them in every namespace. Use the field
 `clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
 
 ```yaml tab="Rollout"

@@ -190,7 +190,7 @@ type ExperimentAnalysisTemplateRef struct {
 	// Name is the name of the analysis
 	Name string `json:"name"`
 	// TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run
-	TemplateName string `json:"templateName,omitempty"`
+	TemplateName string `json:"templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
 	ClusterScope bool `json:"clusterScope,omitempty"`
