@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func TestValidateRollout(t *testing.T) {
@@ -39,11 +37,6 @@ func TestValidateRollout(t *testing.T) {
 			},
 		},
 	}
-	podTemplate := corev1.PodTemplate{
-		Template: ro.Spec.Template,
-	}
-	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
-	ro.Spec.Template = podTemplate.Template
 
 	t.Run("missing selector", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()

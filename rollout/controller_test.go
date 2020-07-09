@@ -115,14 +115,10 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:                     "container-name",
-							Image:                    "foo/bar",
-							ImagePullPolicy:          "Always",
-							TerminationMessagePolicy: "FallbackToLogsOnError",
+							Name:  "container-name",
+							Image: "foo/bar",
 						},
 					},
-					DNSPolicy:     "ClusterFirst",
-					RestartPolicy: "Always",
 				},
 			},
 			RevisionHistoryLimit: revisionHistoryLimit,
@@ -1060,7 +1056,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-7df8bcd895"
+	expectedReplicaSetName := "guestbook-898c8c6bd"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1169,7 +1165,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"6687587ff6"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6979d9866d"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1214,7 +1210,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"75945ffcb"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7c59bcf464"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
