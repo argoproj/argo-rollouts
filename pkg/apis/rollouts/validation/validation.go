@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -17,7 +20,6 @@ import (
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	//"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 const (
@@ -77,7 +79,17 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "invalid label selector"))
 	} else {
-		data, structConvertErr := json.Marshal(&spec.Template)
+		// The upstream K8s validation we are using expects the default values of a PodSpec to be set otherwise throwing a validation error.
+		// However, the Rollout does not need to have them set since the ReplicaSet it creates will have the default values set.
+		// As a result, the controller sets the default values before validation to prevent the validation errors due to the lack of these default fields. See #576 for more info.
+		podTemplate := corev1.PodTemplate{
+			Template: *spec.Template.DeepCopy(),
+		}
+		corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+		templateCoreV1 := podTemplate.Template
+		// ValidatePodTemplateSpecForReplicaSet function requires PodTemplateSpec from "k8s.io/api/core".
+		// We must cast spec.Template from "k8s.io/api/core/v1" to "k8s.io/api/core" in order to use ValidatePodTemplateSpecForReplicaSet.
+		data, structConvertErr := json.Marshal(&templateCoreV1)
 		if structConvertErr != nil {
 			allErrs = append(allErrs, field.InternalError(fldPath.Child("template"), structConvertErr))
 			return allErrs
