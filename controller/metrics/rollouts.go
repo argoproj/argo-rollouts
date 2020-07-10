@@ -23,6 +23,20 @@ var (
 		nil,
 	)
 
+	descRolloutInfoReplicasAvailable = prometheus.NewDesc(
+		"rollout_info_replicas_available",
+		"The number of available replicas per rollout.",
+		descRolloutWithStrategyLabels,
+		nil,
+	)
+
+	descRolloutInfoReplicasUnavailable = prometheus.NewDesc(
+		"rollout_info_replicas_unavailable",
+		"The number of unavailable replicas per rollout.",
+		descRolloutWithStrategyLabels,
+		nil,
+	)
+
 	descRolloutPhaseLabels = prometheus.NewDesc(
 		"rollout_phase",
 		"Information on the state of the rollout",
@@ -119,6 +133,9 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 	}
 
 	addGauge(descRolloutInfo, 1)
+
+	addGauge(descRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
+	addGauge(descRolloutInfoReplicasUnavailable, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)-rollout.Status.AvailableReplicas))
 
 	calculatedPhase := calculatePhase(rollout)
 	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutCompleted), string(RolloutCompleted))

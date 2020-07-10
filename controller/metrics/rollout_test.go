@@ -47,11 +47,19 @@ spec:
     blueGreen:
       activeService: active-service
       previewService: preview-service
+status:
+  availableReplicas: 1
 `
 )
 const expectedResponse = `# HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1`
+rollout_info{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1
+# HELP rollout_info_replicas_available The number of available replicas per rollout.
+# TYPE rollout_info_replicas_available gauge
+rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 0`
 
 func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
 	var rollout v1alpha1.Rollout
