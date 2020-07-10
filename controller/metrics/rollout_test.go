@@ -48,6 +48,7 @@ spec:
       activeService: active-service
       previewService: preview-service
 status:
+  replicas: 1
   availableReplicas: 1
 `
 )
