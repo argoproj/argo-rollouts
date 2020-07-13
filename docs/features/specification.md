@@ -55,7 +55,7 @@ spec:
         args:
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
-      # Pre-promotion analysis run which performs analysis after the service cutover. +optional
+      # Post-promotion analysis run which performs analysis after the service cutover. +optional
       postPromotionAnalysis:
         templates:
         - templateName: success-rate

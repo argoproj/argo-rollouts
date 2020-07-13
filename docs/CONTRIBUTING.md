@@ -11,8 +11,7 @@ Install:
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
-Argo Rollout additionally uses
-* `golangci-lint` to lint the project.
+Argo Rollout additionally uses `golangci-lint` to lint the project.
 
 Run the following commands to install them:
 ```bash
