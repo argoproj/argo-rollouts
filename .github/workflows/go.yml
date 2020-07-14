@@ -52,3 +52,8 @@ jobs:
       with:
         name: code-coverage
         path: coverage.out
+
+    - name: Upload code coverage information to codecov.io
+      uses: codecov/codecov-action@v1
+      with:
+        file: coverage.out
