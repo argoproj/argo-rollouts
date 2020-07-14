@@ -76,6 +76,7 @@ rules:
   - argoproj.io
   resources:
   - analysistemplates
+  - clusteranalysistemplates
   verbs:
   - get
   - list

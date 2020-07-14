@@ -347,8 +347,7 @@ type RolloutAnalysis struct {
 	ClusterScope bool `json:"clusterScope,omitempty"`
 	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
 	// Deprecated and will be removed in v0.9
-	// +optional
-	TemplateName string `json:"templateName"`
+	TemplateName string `json:"templateName,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
