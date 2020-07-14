@@ -14,6 +14,7 @@ rules:
   - rollouts
   - experiments
   - analysistemplates
+  - clusteranalysistemplates
   - analysisruns
   verbs:
   - get
@@ -37,6 +38,7 @@ rules:
   - rollouts
   - experiments
   - analysistemplates
+  - clusteranalysistemplates
   - analysisruns
   verbs:
   - create
@@ -65,6 +67,7 @@ rules:
   - rollouts
   - experiments
   - analysistemplates
+  - clusteranalysistemplates
   - analysisruns
   verbs:
   - create
