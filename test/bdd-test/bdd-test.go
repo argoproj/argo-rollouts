@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -14,52 +16,63 @@ import (
 )
 
 func main() {
-	// Default loading rules
-	//var kubeconfig *string
-	//if home := homedir.HomeDir(); home != "" {
-	//	kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	//} else {
-	//	kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	//}
-	//flag.Parse()
+	rolloutName := "rollout-bluegreen"
+	activeServiceName := "rollout-bluegreen-active"
+	filePath := "../../examples/rollout-bluegreen.yaml"
+	newImage := "rollouts-demo=argoproj/rollouts-demo:green"
 
-	//config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//clientset, err := kubernetes.NewForConfig(config)
-	//if err != nil {
-	//	panic(err)
-	//}
 
-	// Create file
-	argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "apply", "-f", "../../examples/rollout-bluegreen.yaml")
+	// Create RO and active service
+	_, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "apply", "-f", filePath)
+	if err != nil {
+		panic(err)
+	}
 	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	o := options.NewArgoRolloutsOptions(streams)
 
 	// Change image
 	cmdSetImage := set.NewCmdSetImage(o)
 	cmdSetImage.PersistentPreRunE = o.PersistentPreRunE
-	cmdSetImage.SetArgs([]string{"rollout-bluegreen", "rollouts-demo=argoproj/rollouts-demo:green"})
-	err := cmdSetImage.Execute()
+	cmdSetImage.SetArgs([]string{rolloutName, newImage})
+	err = cmdSetImage.Execute()
 	if err != nil {
+		panic(err)
+	}
+
+	currentPodHash, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", rolloutName, "-o", "jsonpath={.status.currentPodHash}")
+	if err != nil {
+		panic(err)
+	}
+
+	activeRSName := fmt.Sprint(rolloutName, "-7d6b6cb796")
+	numReplicas := getNumReplicas(activeRSName)
+
+	numAttempts := 4
+	for i := 0; i < numAttempts; i ++ {
+		numReadyReplicas := getNumReadyReplicas(activeRSName)
+		if numReadyReplicas < numReplicas {
+			time.Sleep(30 * time.Second)
+		} else {
+			break
+		}
+	}
+
+	numReadyReplicas := getNumReadyReplicas(activeRSName)
+	if numReadyReplicas < numReplicas {
+		err = fmt.Errorf("Pods not available")
 		panic(err)
 	}
 
 	// Promote rollout
 	cmdPromote := promote.NewCmdPromote(o)
-	cmdPromote.SetArgs([]string{"rollout-bluegreen"})
+	cmdPromote.SetArgs([]string{rolloutName})
 	err = cmdPromote.Execute()
 	if err != nil {
 		panic(err)
 	}
 
 	// Check if active service selector contains rollout-pod-template-hash
-	currentPodHash, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", "rollout-bluegreen", "-o", "jsonpath={.status.currentPodHash}")
-	if err != nil {
-		panic(err)
-	}
-	svcInjection, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "service", "rollout-bluegreen-active", "-o", "jsonpath='{.spec.selector.rollouts-pod-template-hash}'")
+	svcInjection, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "service", activeServiceName, "-o", "jsonpath='{.spec.selector.rollouts-pod-template-hash}'")
 	if err != nil {
 		panic(err)
 	}
@@ -69,4 +82,22 @@ func main() {
 	} else {
 		fmt.Println("Injection failed")
 	}
+}
+
+func getNumReplicas(replicaSetName string) int {
+	i, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "replicaset", replicaSetName, "-o", "jsonpath={.spec.replicas}")
+	if err != nil {
+		panic(err)
+	}
+	numReadyReplicas, err := strconv.Atoi(i)
+	return numReadyReplicas
+}
+
+func getNumReadyReplicas(replicaSetName string) int {
+	i, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "replicaset", replicaSetName, "-o", "jsonpath={.status.readyReplicas}")
+	if err != nil {
+		panic(err)
+	}
+	numReadyReplicas, err := strconv.Atoi(i)
+	return numReadyReplicas
 }
