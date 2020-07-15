@@ -22,6 +22,8 @@ type AnalysisRunExpansion interface{}
 
 type AnalysisTemplateExpansion interface{}
 
+type ClusterAnalysisTemplateExpansion interface{}
+
 type ExperimentExpansion interface{}
 
 type RolloutExpansion interface{}

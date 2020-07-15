@@ -343,17 +343,31 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 		}
 	} else {
 		templates := make([]*v1alpha1.AnalysisTemplate, 0)
+		clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 		for _, templateRef := range rolloutAnalysis.Templates {
-			template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(templateRef.TemplateName)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+
+			if templateRef.ClusterScope {
+				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+				if err != nil {
+					if k8serrors.IsNotFound(err) {
+						logctx.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+					}
+					return nil, err
 				}
-				return nil, err
+				clusterTemplates = append(clusterTemplates, template)
+			} else {
+				template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(templateRef.TemplateName)
+				if err != nil {
+					if k8serrors.IsNotFound(err) {
+						logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+					}
+					return nil, err
+				}
+				templates = append(templates, template)
 			}
-			templates = append(templates, template)
+
 		}
-		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, args, name, "", r.Namespace)
+		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", r.Namespace)
 		if err != nil {
 			return nil, err
 		}

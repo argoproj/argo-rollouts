@@ -28,10 +28,11 @@ const metadataValidation = `properties:
 type: object`
 
 var crdPaths = map[string]string{
-	"Rollout":          "manifests/crds/rollout-crd.yaml",
-	"Experiment":       "manifests/crds/experiment-crd.yaml",
-	"AnalysisTemplate": "manifests/crds/analysis-template-crd.yaml",
-	"AnalysisRun":      "manifests/crds/analysis-run-crd.yaml",
+	"Rollout":                 "manifests/crds/rollout-crd.yaml",
+	"Experiment":              "manifests/crds/experiment-crd.yaml",
+	"AnalysisTemplate":        "manifests/crds/analysis-template-crd.yaml",
+	"ClusterAnalysisTemplate": "manifests/crds/cluster-analysis-template-crd.yaml",
+	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
 }
 
 func removeValidation(un *unstructured.Unstructured, path string) {
@@ -84,7 +85,12 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
-		crd.Spec.Scope = "Namespaced"
+
+		if crd.Name == "clusteranalysistemplates.argoproj.io" {
+			crd.Spec.Scope = "Cluster"
+		} else {
+			crd.Spec.Scope = "Namespaced"
+		}
 		crds = append(crds, crd)
 	}
 
@@ -162,7 +168,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		}
 		exPath = append(path, exPath...)
 		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, exPath...)
-	case "AnalysisTemplate", "AnalysisRun":
+	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
 		analysisPath := []string{
 			"metrics",
 			"items",
@@ -259,7 +265,7 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
-	case "AnalysisTemplate", "AnalysisRun":
+	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
 		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")

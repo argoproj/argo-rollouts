@@ -7,6 +7,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ClusterAnalysisTemplate holds the template for performing canary analysis
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat
+type ClusterAnalysisTemplate struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec AnalysisTemplateSpec `json:"spec"`
+}
+
+// AnalysisTemplateList is a list of AnalysisTemplate resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type ClusterAnalysisTemplateList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ClusterAnalysisTemplate `json:"items"`
+}
+
 // AnalysisTemplate holds the template for performing canary analysis
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

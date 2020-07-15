@@ -58,6 +58,8 @@ spec:
                       - name
                       type: object
                     type: array
+                  clusterScope:
+                    type: boolean
                   name:
                     type: string
                   requiredForCompletion:

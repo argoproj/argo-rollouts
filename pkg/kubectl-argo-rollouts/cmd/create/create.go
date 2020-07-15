@@ -30,6 +30,7 @@ type CreateOptions struct {
 	Files    []string
 	From     string
 	FromFile string
+	Global   bool
 }
 
 type CreateAnalysisRunOptions struct {
@@ -41,19 +42,26 @@ type CreateAnalysisRunOptions struct {
 	ArgFlags     []string
 	From         string
 	FromFile     string
+	Global       bool
 }
 
 const (
 	createExample = `
-	# Create an experiement and watch it
+	# Create an experiment and watch it
 	%[1]s create -f my-experiment.yaml -w`
 
 	createAnalysisRunExample = `
-  	# Create an AnalysisRun from a local template file
+  	# Create an AnalysisRun from a local AnalysisTemplate file
   	%[1]s create analysisrun --from-file my-analysis-template.yaml
   
-  	# Create an AnalysisRun from a template in the cluster
-  	%[1]s create analysisrun --from my-analysis-template`
+  	# Create an AnalysisRun from a AnalysisTemplate in the cluster
+  	%[1]s create analysisrun --from my-analysis-template
+
+  	# Create an AnalysisRun from a local ClusterAnalysisTemplate file
+  	%[1]s create analysisrun --global --from my-analysis-cluster-template.yaml
+
+  	# Create an AnalysisRun from a ClusterAnalysisTemplate in the cluster
+  	%[1]s create analysisrun --global --from my-analysis-cluster-template`
 )
 
 // NewCmdCreate returns a new instance of an `rollouts create` command
@@ -63,8 +71,8 @@ func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	var cmd = &cobra.Command{
 		Use:          "create",
-		Short:        "Create a Rollout, Experiment, AnalysisTemplate, or AnalysisRun resource",
-		Long:         "This command creates a new Rollout, Experiment, AnalysisTemplate, or AnalysisRun resource from a file.",
+		Short:        "Create a Rollout, Experiment, AnalysisTemplate, ClusterAnalysisTemplate, or AnalysisRun resource",
+		Long:         "This command creates a new Rollout, Experiment, AnalysisTemplate, ClusterAnalysisTemplate, or AnalysisRun resource from a file.",
 		Example:      o.Example(createExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -176,6 +184,18 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		}
 		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
 		return obj, nil
+	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.ClusterAnalysisTemplateKind:
+		var template v1alpha1.ClusterAnalysisTemplate
+		err = unmarshal(fileBytes, &template)
+		if err != nil {
+			return nil, err
+		}
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Create(&template)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
+		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.AnalysisRunKind:
 		var run v1alpha1.AnalysisRun
 		err = unmarshal(fileBytes, &run)
@@ -201,7 +221,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "analysisrun",
 		Aliases:      []string{"ar"},
-		Short:        "Create an AnalysisRun from a template",
+		Short:        "Create an AnalysisRun from an AnalysisTemplate or a ClusterAnalysisTemplate",
 		Long:         "This command creates a new AnalysisRun from an existing AnalysisTemplate resources or from an AnalysisTemplate file.",
 		Example:      o.Example(createAnalysisRunExample),
 		SilenceUsage: true,
@@ -220,24 +240,48 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			template, err := createOptions.getAnalysisTemplate()
-			if err != nil {
-				return err
+			var templateName string
+			var template *v1alpha1.AnalysisTemplate
+			var clusterTemplate *v1alpha1.ClusterAnalysisTemplate
+
+			if createOptions.Global {
+				clusterTemplate, err = createOptions.getClusterAnalysisTemplate()
+				if err != nil {
+					return err
+				}
+				templateName = clusterTemplate.Name
+			} else {
+				template, err = createOptions.getAnalysisTemplate()
+				if err != nil {
+					return err
+				}
+				templateName = template.Name
 			}
+
 			var name, generateName string
 			if createOptions.Name != "" {
 				name = createOptions.Name
 			} else if createOptions.GenerateName != "" {
 				generateName = createOptions.GenerateName
 			} else {
-				generateName = template.Name + "-"
+				generateName = templateName + "-"
+			}
+			ns := o.Namespace()
+
+			var run *v1alpha1.AnalysisRun
+
+			if clusterTemplate != nil {
+				run, err = analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, templateArgs, name, generateName, ns)
+				if err != nil {
+					return err
+				}
+			} else {
+				run, err = analysisutil.NewAnalysisRunFromTemplate(template, templateArgs, name, generateName, ns)
+				if err != nil {
+					return err
+				}
 			}
 
-			ns := o.Namespace()
-			run, err := analysisutil.NewAnalysisRunFromTemplate(template, templateArgs, name, generateName, ns)
-			if err != nil {
-				return err
-			}
 			if createOptions.InstanceID != "" {
 				run.Labels = map[string]string{
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
@@ -255,8 +299,9 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.Flags().StringVar(&createOptions.GenerateName, "generate-name", "", "Use the specified generateName for the run")
 	cmd.Flags().StringVar(&createOptions.InstanceID, "instance-id", "", "Instance-ID for the AnalysisRun")
 	cmd.Flags().StringArrayVarP(&createOptions.ArgFlags, "argument", "a", []string{}, "Arguments to the parameter template")
-	cmd.Flags().StringVar(&createOptions.From, "from", "", "Create an AnalysisRun from an AnalysisTemplate in the cluster")
-	cmd.Flags().StringVar(&createOptions.FromFile, "from-file", "", "Create an AnalysisRun from an AnalysisTemplate in a local file")
+	cmd.Flags().StringVar(&createOptions.From, "from", "", "Create an AnalysisRun from an AnalysisTemplate or ClusterAnalysisTemplate in the cluster")
+	cmd.Flags().StringVar(&createOptions.FromFile, "from-file", "", "Create an AnalysisRun from an AnalysisTemplate or ClusterAnalysisTemplate in a local file")
+	cmd.Flags().BoolVar(&createOptions.Global, "global", false, "Use a ClusterAnalysisTemplate instead of a AnalysisTemplate")
 	return cmd
 }
 
@@ -269,6 +314,23 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemp
 			return nil, err
 		}
 		var tmpl v1alpha1.AnalysisTemplate
+		err = unmarshal(fileBytes, &tmpl)
+		if err != nil {
+			return nil, err
+		}
+		return &tmpl, nil
+	}
+}
+
+func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*v1alpha1.ClusterAnalysisTemplate, error) {
+	if c.From != "" {
+		return c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Get(c.From, metav1.GetOptions{})
+	} else {
+		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		if err != nil {
+			return nil, err
+		}
+		var tmpl v1alpha1.ClusterAnalysisTemplate
 		err = unmarshal(fileBytes, &tmpl)
 		if err != nil {
 			return nil, err

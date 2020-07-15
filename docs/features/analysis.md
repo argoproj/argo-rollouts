@@ -10,6 +10,7 @@ time analysis is performed, it's frequency, and occurrence.
 |---------------------|-------------|
 | Rollout             | A `Rollout` acts as a drop-in replacement for a Deployment resource. It provides additional blueGreen and canary update strategies. These strategies can create AnalysisRuns and Experiments during the update, which will progress the update, or abort it. |
 | AnalysisTemplate    | An `AnalysisTemplate` is a template spec which defines *_how_* to perform a canary analysis, such as the metrics which it should perform, its frequency, and the values which are considered successful or failed. AnalysisTemplates may be parameterized with inputs values. |
+| ClusterAnalysisTemplate    | A `ClusterAnalysisTemplate` is like an `AnalysisTemplate`, but it is not limited to it's namespace. It can be used by any `Rollout` throughout the cluster. |
 | AnalysisRun         | An `AnalysisRun` is an instantiation of an `AnalysisTemplate`. AnalysisRuns are like Jobs in that they eventually complete. Completed runs are considered Successful, Failed, or Inconclusive, and the result of the run affect if the Rollout's update will continue, abort, or pause, respectively. |
 | Experiment          | An `Experiment` is limited run of one or more ReplicaSets for the purposes of analysis. Experiments typically run for a pre-determined duration, but can also run indefinitely until stopped. Experiments may reference an `AnalysisTemplate` to run during or after the experiment. The canonical use case for an Experiment is to start a baseline and canary deployment in parallel, and compare the metrics produced by the baseline and canary pods for an equal comparison. |
 
@@ -169,6 +170,60 @@ Multiple measurements can be performed over a longer duration period, by specify
         address: http://prometheus.example.com:9090
         query: ...
 ```
+
+## Cluster analysis templates
+
+Starting in version `0.9.0` a Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+`ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
+rather than duplicating them in every namespace. Use the field
+`clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
+
+```yaml tab="Rollout"
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+spec:
+...
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 20
+      - pause: {duration: 5m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+            clusterScope: true
+          args:
+          - name: service-name
+            value: guestbook-svc.default.svc.cluster.local
+```
+
+```yaml tab="ClusterAnalysisTemplate"
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    successCondition: result >= 0.95
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
+
+!!! note
+    The resulting `AnalysisRun` will still run in the namespace of the `Rollout`
 
 ## Analysis with Multiple Templates
 A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 

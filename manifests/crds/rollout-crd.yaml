@@ -131,15 +131,17 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterScope:
+                          type: boolean
                         templateName:
                           type: string
                         templates:
                           items:
                             properties:
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
-                            required:
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -161,15 +163,17 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterScope:
+                          type: boolean
                         templateName:
                           type: string
                         templates:
                           items:
                             properties:
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
-                            required:
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -207,6 +211,8 @@ spec:
                             - name
                             type: object
                           type: array
+                        clusterScope:
+                          type: boolean
                         startingStep:
                           format: int32
                           type: integer
@@ -215,10 +221,10 @@ spec:
                         templates:
                           items:
                             properties:
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
-                            required:
-                            - templateName
                             type: object
                           type: array
                       type: object
@@ -270,15 +276,17 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              clusterScope:
+                                type: boolean
                               templateName:
                                 type: string
                               templates:
                                 items:
                                   properties:
+                                    clusterScope:
+                                      type: boolean
                                     templateName:
                                       type: string
-                                  required:
-                                  - templateName
                                   type: object
                                 type: array
                             type: object
@@ -303,6 +311,8 @@ spec:
                                         - name
                                         type: object
                                       type: array
+                                    clusterScope:
+                                      type: boolean
                                     name:
                                       type: string
                                     templateName:

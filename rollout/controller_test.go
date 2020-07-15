@@ -61,13 +61,14 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	rolloutLister          []*v1alpha1.Rollout
-	experimentLister       []*v1alpha1.Experiment
-	analysisRunLister      []*v1alpha1.AnalysisRun
-	analysisTemplateLister []*v1alpha1.AnalysisTemplate
-	replicaSetLister       []*appsv1.ReplicaSet
-	serviceLister          []*corev1.Service
-	ingressLister          []*extensionsv1beta1.Ingress
+	rolloutLister                 []*v1alpha1.Rollout
+	experimentLister              []*v1alpha1.Experiment
+	analysisRunLister             []*v1alpha1.AnalysisRun
+	clusterAnalysisTemplateLister []*v1alpha1.ClusterAnalysisTemplate
+	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
+	replicaSetLister              []*appsv1.ReplicaSet
+	serviceLister                 []*corev1.Service
+	ingressLister                 []*extensionsv1beta1.Ingress
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -115,14 +116,10 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:                     "container-name",
-							Image:                    "foo/bar",
-							ImagePullPolicy:          "Always",
-							TerminationMessagePolicy: "FallbackToLogsOnError",
+							Name:  "container-name",
+							Image: "foo/bar",
 						},
 					},
-					DNSPolicy:     "ClusterFirst",
-					RestartPolicy: "Always",
 				},
 			},
 			RevisionHistoryLimit: revisionHistoryLimit,
@@ -398,24 +395,25 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	c := NewController(ControllerConfig{
-		Namespace:                metav1.NamespaceAll,
-		KubeClientSet:            f.kubeclient,
-		ArgoProjClientset:        f.client,
-		DynamicClientSet:         nil,
-		ExperimentInformer:       i.Argoproj().V1alpha1().Experiments(),
-		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
-		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
-		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
-		ServicesInformer:         k8sI.Core().V1().Services(),
-		IngressInformer:          k8sI.Extensions().V1beta1().Ingresses(),
-		RolloutsInformer:         i.Argoproj().V1alpha1().Rollouts(),
-		ResyncPeriod:             resync(),
-		RolloutWorkQueue:         rolloutWorkqueue,
-		ServiceWorkQueue:         serviceWorkqueue,
-		IngressWorkQueue:         ingressWorkqueue,
-		MetricsServer:            metricsServer,
-		Recorder:                 &record.FakeRecorder{},
-		DefaultIstioVersion:      "v1alpha3",
+		Namespace:                       metav1.NamespaceAll,
+		KubeClientSet:                   f.kubeclient,
+		ArgoProjClientset:               f.client,
+		DynamicClientSet:                nil,
+		ExperimentInformer:              i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
+		ServicesInformer:                k8sI.Core().V1().Services(),
+		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
+		ResyncPeriod:                    resync(),
+		RolloutWorkQueue:                rolloutWorkqueue,
+		ServiceWorkQueue:                serviceWorkqueue,
+		IngressWorkQueue:                ingressWorkqueue,
+		MetricsServer:                   metricsServer,
+		Recorder:                        &record.FakeRecorder{},
+		DefaultIstioVersion:             "v1alpha3",
 	})
 
 	var enqueuedObjectsLock sync.Mutex
@@ -462,6 +460,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
+	}
+	for _, cat := range f.clusterAnalysisTemplateLister {
+		i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Informer().GetIndexer().Add(cat)
 	}
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
@@ -564,6 +565,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("watch", "analysisruns") ||
 			action.Matches("list", "analysistemplates") ||
 			action.Matches("watch", "analysistemplates") ||
+			action.Matches("list", "clusteranalysistemplates") ||
+			action.Matches("watch", "clusteranalysistemplates") ||
 			action.Matches("list", "rollouts") ||
 			action.Matches("watch", "rollouts") ||
 			action.Matches("list", "replicaSets") ||
@@ -1060,7 +1063,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-7df8bcd895"
+	expectedReplicaSetName := "guestbook-898c8c6bd"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1169,7 +1172,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"6687587ff6"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6979d9866d"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1214,7 +1217,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"75945ffcb"}}`
+	expectedPatch := `{"status":{"observedGeneration":"7c59bcf464"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

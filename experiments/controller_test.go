@@ -62,10 +62,11 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	experimentLister       []*v1alpha1.Experiment
-	replicaSetLister       []*appsv1.ReplicaSet
-	analysisRunLister      []*v1alpha1.AnalysisRun
-	analysisTemplateLister []*v1alpha1.AnalysisTemplate
+	experimentLister              []*v1alpha1.Experiment
+	replicaSetLister              []*appsv1.ReplicaSet
+	analysisRunLister             []*v1alpha1.AnalysisRun
+	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
+	clusterAnalysisTemplateLister []*v1alpha1.ClusterAnalysisTemplate
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -83,6 +84,9 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	for _, obj := range objects {
 		switch obj.(type) {
+		case *v1alpha1.ClusterAnalysisTemplate:
+			f.objects = append(f.objects, obj)
+			f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, obj.(*v1alpha1.ClusterAnalysisTemplate))
 		case *v1alpha1.AnalysisTemplate:
 			f.objects = append(f.objects, obj)
 			f.analysisTemplateLister = append(f.analysisTemplateLister, obj.(*v1alpha1.AnalysisTemplate))
@@ -318,17 +322,18 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	c := NewController(ControllerConfig{
-		KubeClientSet:            f.kubeclient,
-		ArgoProjClientset:        f.client,
-		ReplicaSetInformer:       k8sI.Apps().V1().ReplicaSets(),
-		ExperimentsInformer:      i.Argoproj().V1alpha1().Experiments(),
-		AnalysisRunInformer:      i.Argoproj().V1alpha1().AnalysisRuns(),
-		AnalysisTemplateInformer: i.Argoproj().V1alpha1().AnalysisTemplates(),
-		ResyncPeriod:             resync(),
-		RolloutWorkQueue:         rolloutWorkqueue,
-		ExperimentWorkQueue:      experimentWorkqueue,
-		MetricsServer:            metricsServer,
-		Recorder:                 &record.FakeRecorder{},
+		KubeClientSet:                   f.kubeclient,
+		ArgoProjClientset:               f.client,
+		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
+		ExperimentsInformer:             i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		ResyncPeriod:                    resync(),
+		RolloutWorkQueue:                rolloutWorkqueue,
+		ExperimentWorkQueue:             experimentWorkqueue,
+		MetricsServer:                   metricsServer,
+		Recorder:                        &record.FakeRecorder{},
 	})
 
 	var enqueuedObjectsLock sync.Mutex
@@ -367,6 +372,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	for _, r := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(r)
 	}
+
+	for _, r := range f.clusterAnalysisTemplateLister {
+		i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Informer().GetIndexer().Add(r)
+	}
 	return c, i, k8sI
 }
 
@@ -387,7 +396,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced))
 	}
 
 	err := c.syncHandler(experimentName)
@@ -466,6 +475,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("watch", "experiments") ||
 			action.Matches("list", "analysistemplates") ||
 			action.Matches("watch", "analysistemplates") ||
+			action.Matches("list", "clusteranalysistemplates") ||
+			action.Matches("watch", "clusteranalysistemplates") ||
 			action.Matches("list", "analysisruns") ||
 			action.Matches("watch", "analysisruns") {
 			continue

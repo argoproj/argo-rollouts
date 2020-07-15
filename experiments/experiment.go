@@ -30,15 +30,16 @@ const (
 
 type experimentContext struct {
 	// parameters supplied to the context
-	ex                     *v1alpha1.Experiment
-	templateRSs            map[string]*appsv1.ReplicaSet
-	kubeclientset          kubernetes.Interface
-	argoProjClientset      clientset.Interface
-	analysisTemplateLister rolloutslisters.AnalysisTemplateLister
-	analysisRunLister      rolloutslisters.AnalysisRunLister
-	replicaSetLister       appslisters.ReplicaSetLister
-	recorder               record.EventRecorder
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
+	ex                            *v1alpha1.Experiment
+	templateRSs                   map[string]*appsv1.ReplicaSet
+	kubeclientset                 kubernetes.Interface
+	argoProjClientset             clientset.Interface
+	analysisTemplateLister        rolloutslisters.AnalysisTemplateLister
+	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister
+	analysisRunLister             rolloutslisters.AnalysisRunLister
+	replicaSetLister              appslisters.ReplicaSetLister
+	recorder                      record.EventRecorder
+	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
 
 	// calculated values during reconciliation
 	log       *log.Entry
@@ -55,21 +56,23 @@ func newExperimentContext(
 	argoProjClientset clientset.Interface,
 	replicaSetLister appslisters.ReplicaSetLister,
 	analysisTemplateLister rolloutslisters.AnalysisTemplateLister,
+	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister,
 	analysisRunLister rolloutslisters.AnalysisRunLister,
 	recorder record.EventRecorder,
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
 ) *experimentContext {
 
 	exCtx := experimentContext{
-		ex:                     experiment,
-		templateRSs:            templateRSs,
-		kubeclientset:          kubeclientset,
-		argoProjClientset:      argoProjClientset,
-		replicaSetLister:       replicaSetLister,
-		analysisTemplateLister: analysisTemplateLister,
-		analysisRunLister:      analysisRunLister,
-		recorder:               recorder,
-		enqueueExperimentAfter: enqueueExperimentAfter,
+		ex:                            experiment,
+		templateRSs:                   templateRSs,
+		kubeclientset:                 kubeclientset,
+		argoProjClientset:             argoProjClientset,
+		replicaSetLister:              replicaSetLister,
+		analysisTemplateLister:        analysisTemplateLister,
+		clusterAnalysisTemplateLister: clusterAnalysisTemplateLister,
+		analysisRunLister:             analysisRunLister,
+		recorder:                      recorder,
+		enqueueExperimentAfter:        enqueueExperimentAfter,
 
 		log:           log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace),
 		newStatus:     experiment.Status.DeepCopy(),
@@ -281,11 +284,20 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	if ec.ex.Status.AvailableAt == nil {
 		// If we are not not available yet, don't start any runs
-		if err := ec.verifyAnalysisTemplate(analysis); err != nil {
-			msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
-			newStatus.Phase = v1alpha1.AnalysisPhaseError
-			newStatus.Message = msg
-			logCtx.Warn(msg)
+		if analysis.ClusterScope {
+			if err := ec.verifyClusterAnalysisTemplate(analysis); err != nil {
+				msg := fmt.Sprintf("ClusterAnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
+				newStatus.Phase = v1alpha1.AnalysisPhaseError
+				newStatus.Message = msg
+				logCtx.Warn(msg)
+			}
+		} else {
+			if err := ec.verifyAnalysisTemplate(analysis); err != nil {
+				msg := fmt.Sprintf("AnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
+				newStatus.Phase = v1alpha1.AnalysisPhaseError
+				newStatus.Message = msg
+				logCtx.Warn(msg)
+			}
 		}
 		return
 	}
@@ -490,26 +502,52 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
-	template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
-	if err != nil {
-		return nil, err
-	}
-	name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-	run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
-	if err != nil {
-		return nil, err
+	if analysis.ClusterScope {
+		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
+		if err != nil {
+			return nil, err
+		}
+		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+
+		run, err := analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, args, name, "", ec.ex.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
+		}
+		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		return run, nil
+	} else {
+		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+		if err != nil {
+			return nil, err
+		}
+		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
+
+		run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
+		}
+		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		return run, nil
 	}
-	instanceID := analysisutil.GetInstanceID(ec.ex)
-	if instanceID != "" {
-		run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-	}
-	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
-	return run, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists
 func (ec *experimentContext) verifyAnalysisTemplate(analysis v1alpha1.ExperimentAnalysisTemplateRef) error {
 	_, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	return err
+}
+
+// verifyAnalysisTemplate verifies a ClusterAnalysisTemplate. For now, it simply means that it exists
+func (ec *experimentContext) verifyClusterAnalysisTemplate(analysis v1alpha1.ExperimentAnalysisTemplateRef) error {
+	_, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
 	return err
 }
