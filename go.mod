@@ -4,7 +4,9 @@ go 1.13
 
 require (
 	github.com/antonmedv/expr v1.4.2
+	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/bouk/monkey v1.0.0
+	github.com/cucumber/godog v0.10.0
 	github.com/docker/docker v1.4.2-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -23,7 +25,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spaceapegames/go-wavefront v1.6.2
 	github.com/spf13/cobra v0.0.5
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.0.1
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.2.8
