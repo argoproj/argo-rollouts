@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-
-	//"strconv"
 	"strings"
 	"time"
 
@@ -52,7 +50,7 @@ func (c *FunctionalTestContext) iApplyManifest(fileName string) error {
 		if desiredReplicas == "" || err != nil {
 			return false, err
 		}
-		
+
 		jsonPath = createJsonPath(".status.availableReplicas")
 		availableReplicas, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
 		if availableReplicas == "" || err != nil {
