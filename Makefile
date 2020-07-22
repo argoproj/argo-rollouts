@@ -99,6 +99,10 @@ test: test-kustomize
 test-kustomize:
 	./test/kustomize/test.sh
 
+.PHONY: test-bdd
+test-bdd:
+	./hack/run-bdd.sh
+
 .PHONY: coverage
 coverage: test
 	go tool cover -html=coverage.out -o coverage.html
