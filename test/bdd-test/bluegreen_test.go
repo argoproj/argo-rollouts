@@ -4,69 +4,81 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	//"strconv"
 	"strings"
 	"time"
 
 	"github.com/cucumber/godog"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	argoexec "github.com/argoproj/pkg/exec"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	argoexec "github.com/argoproj/pkg/exec"
 )
 
 type FunctionalTestContext struct {
 	RolloutName string
-	Streams genericclioptions.IOStreams
-	Options *options.ArgoRolloutsOptions
+	FilePath    string
+	Streams     genericclioptions.IOStreams
+	Options     *options.ArgoRolloutsOptions
 }
 
 func (c *FunctionalTestContext) iApplyManifest(fileName string) error {
 	folder := "../../examples"
 	filePath := folder + "/" + fileName
+	c.FilePath = filePath
 	_, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "apply", "-f", filePath)
 	if err != nil {
 		return err
 	}
 
 	numAttempts := 4
-	rolloutExists, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName)
-	for numAttempts > 0 && rolloutExists == "" {
-		time.Sleep(30 * time.Second)
-		rolloutExists, err = argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName)
-		numAttempts -= 1
+	isSuccess, err := retry(numAttempts, func() (bool, error) {
+		rolloutExists, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName)
+		return rolloutExists != "", err
+	})
+	if err != nil {
+		return err
 	}
-	if rolloutExists == "" {
+	if !isSuccess {
 		return fmt.Errorf("Rollout not created")
 	}
 
-	desiredReplicas, err := getFieldFromObject(c.RolloutName, "rollout", ".spec.replicas")
-	if err != nil {
-		return err
-	}
-	availableReplicas, err := getFieldFromObject(c.RolloutName, "rollout", ".status.availableReplicas")
-	if err != nil {
-		return err
-	}
-
-	numAttempts = 4
-	for numAttempts > 0 && availableReplicas < desiredReplicas {
-		time.Sleep(30 * time.Second)
-		availableReplicas, err = getFieldFromObject(c.RolloutName, "rollout", ".status.availableReplicas")
-		if err != nil {
-			return err
+	isSuccess, err = retry(numAttempts, func() (bool, error) {
+		jsonPath := createJsonPath(".spec.replicas")
+		desiredReplicas, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
+		if desiredReplicas == "" || err != nil {
+			return false, err
 		}
-		numAttempts -= 1
-	}
+		
+		jsonPath = createJsonPath(".status.availableReplicas")
+		availableReplicas, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
+		if availableReplicas == "" || err != nil {
+			return false, err
+		}
 
-	if availableReplicas < desiredReplicas {
-		return fmt.Errorf("Pods not ready")
+		numDesiredReplicas, err := strconv.Atoi(desiredReplicas)
+		if err != nil {
+			return false, err
+		}
+		numAvailableReplicas, err := strconv.Atoi(availableReplicas)
+		if err != nil {
+			return false, err
+		}
+
+		return numAvailableReplicas == numDesiredReplicas, err
+	})
+	if err != nil {
+		return err
+	}
+	if !isSuccess {
+		return fmt.Errorf("Replicas not available")
 	}
 
 	return nil
 }
-
 
 func (c *FunctionalTestContext) iChangeTheImageTo(image string) error {
 	jsonPath := createJsonPath(".spec.template.spec.containers[0].name")
@@ -91,24 +103,17 @@ func (c *FunctionalTestContext) iChangeTheImageTo(image string) error {
 }
 
 func (c *FunctionalTestContext) promoteTheRollout() error {
-	// Wait before promotion (for pause)
-	// wait() -> anonymous function
 	jsonPath := createJsonPath(".status.pauseConditions")
 	numAttempts := 4
-	pauseCond, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
+	isSuccess, err := retry(numAttempts, func() (bool, error) {
+		pauseCond, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
+		return pauseCond != "", err
+	})
 	if err != nil {
 		return err
 	}
-	for numAttempts > 0 && pauseCond == "" {
-		time.Sleep(30 * time.Second)
-		pauseCond, err = argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
-		if err != nil {
-			return err
-		}
-		numAttempts -= 1
-	}
-	if pauseCond == "" {
-		return fmt.Errorf("")
+	if !isSuccess {
+		return fmt.Errorf("Rollout did not enter paused state")
 	}
 
 	cmdPromote := promote.NewCmdPromote(c.Options)
@@ -127,44 +132,54 @@ func (c *FunctionalTestContext) theActiveServiceShouldRouteTrafficToNewVersionsR
 }
 
 func (c *FunctionalTestContext) theServiceShouldRouteTrafficToNewVersionsReplicaSet(svcName string) error {
-	// TODO: Incorporate wait time
-	jsonPath := createJsonPath(".spec.selector.rollouts-pod-template-hash")
-	svcInjection, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "service", svcName, "-o", jsonPath)
+	numAttempts := 3
+	isSuccess, err := retry(numAttempts, func() (bool, error) {
+		jsonPath := createJsonPath(".spec.selector.rollouts-pod-template-hash")
+		svcInjection, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "service", svcName, "-o", jsonPath)
+		if err != nil {
+			return false, err
+		}
+
+		jsonPath = createJsonPath(".status.currentPodHash")
+		currentPodHash, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
+		if err != nil {
+			return false, err
+		}
+		return strings.Contains(svcInjection, currentPodHash), nil
+	})
 	if err != nil {
 		return err
 	}
-
-	jsonPath = createJsonPath(".status.currentPodHash")
-	currentPodHash, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", "rollout", c.RolloutName, "-o", jsonPath)
-	if !strings.Contains(svcInjection, currentPodHash) {
-		return fmt.Errorf("Injection failed")
+	if !isSuccess {
+		return fmt.Errorf("Injection not successful")
 	}
 
 	return nil
 }
 
-func getFieldFromObject(objName string, objType string, field string) (int, error) {
-	jsonPath := createJsonPath(field)
-	i, err := argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "get", objType, objName, "-o", jsonPath)
-	if i == "" || err != nil {
-		return 0, err
+func retry(numAttempts int, cond func() (bool, error)) (bool, error) {
+	for numAttempts > 0 {
+		isSuccess, err := cond()
+		if err != nil {
+			return false, err
+		}
+		if isSuccess {
+			return isSuccess, nil
+		}
+		time.Sleep(30 * time.Second)
+		numAttempts -= 1
 	}
-	retVal, err := strconv.Atoi(i)
-	return retVal, err
+	return false, nil
 }
 
 func createJsonPath(field string) string {
 	return "jsonpath={" + field + "}"
 }
 
-func InitializeTestSuite(ctx *godog.TestSuiteContext) {
-	ctx.BeforeSuite(func(){})
-}
-
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	cctx := FunctionalTestContext{}
 	ctx.BeforeScenario(func(*godog.Scenario) {
-		cctx.RolloutName =  "rollout-bluegreen"
+		cctx.RolloutName = "rollout-bluegreen"
 		cctx.Streams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 		cctx.Options = options.NewArgoRolloutsOptions(cctx.Streams)
 	})
@@ -172,4 +187,9 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I apply manifest "([^"]*)"$`, cctx.iApplyManifest)
 	ctx.Step(`^I change the image to "([^"]*)"$`, cctx.iChangeTheImageTo)
 	ctx.Step(`^promote the rollout$`, cctx.promoteTheRollout)
-	ctx.Step(`^the active service should route traffic to new version\'s ReplicaSet$`, cctx.theActiveServiceShouldRouteTrafficToNewVersionsReplicaSet)}
+	ctx.Step(`^the active service should route traffic to new version\'s ReplicaSet$`, cctx.theActiveServiceShouldRouteTrafficToNewVersionsReplicaSet)
+
+	ctx.AfterScenario(func(*godog.Scenario, error) {
+		argoexec.RunCommand("kubectl", argoexec.CmdOpts{}, "delete", "-f", cctx.FilePath)
+	})
+}
