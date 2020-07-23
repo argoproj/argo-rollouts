@@ -11,7 +11,7 @@
       
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.2.3">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.4.0">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.6e35a1a6.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.fe0cca5b.min.css">
       
         <link rel="stylesheet" href="../../assets/stylesheets/palette.a46bcfb3.min.css">
       
@@ -55,6 +55,7 @@
     
     <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
   
+    
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
@@ -274,18 +275,6 @@
   <li class="md-nav__item">
     <a href="../istio/" title="Istio" class="md-nav__link">
       Istio
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../smi/" title="SMI" class="md-nav__link">
-      SMI
     </a>
   </li>
 
@@ -1033,13 +1022,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#linkerd-setup" class="md-nav__link">
-    Linkerd Setup
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1228,13 +1210,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#linkerd-setup" class="md-nav__link">
-    Linkerd Setup
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1415,24 +1390,6 @@ istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <sp
 the Istio mesh. Istio routes requests to the correct pod based on the Host HTTP header. Follow the
 guide on <a href="#supplying-host-headers">supplying host headers</a> to learn how to configure your client
 environment to supply the proper request to reach the pod.</p>
-<h3 id="linkerd-setup">Linkerd Setup<a class="headerlink" href="#linkerd-setup" title="Permanent link">&para;</a></h3>
-<p>Linkerd can be installed using the linkerd CLI.</p>
-<div class="highlight"><pre><span></span><code>brew install linkerd
-linkerd install | kubectl apply -f -
-</code></pre></div>
-
-<p>Linkerd does not provide its own ingress controller, choosing instead to work alongside your
-ingress controller of choice. On minikube, we can use the built-in NGINX ingress addon and
-reconfigure it to be part of the linkerd mesh.</p>
-<div class="highlight"><pre><span></span><code># Install the NGINX ingress controller addon
-minikube addons enable ingress
-
-# Patch the nginx-ingress-controller deployment to allow injection of the linkerd proxy to the
-# pod, so that it will be part of the mesh.
-kubectl patch deploy ingress-nginx-controller -n kube-system \
-  -p &#39;{&quot;spec&quot;:{&quot;template&quot;:{&quot;metadata&quot;:{&quot;annotations&quot;:{&quot;linkerd.io/inject&quot;:&quot;enabled&quot;}}}}}&#39;
-</code></pre></div>
-
 <h2 id="supplying-host-headers">Supplying Host Headers<a class="headerlink" href="#supplying-host-headers" title="Permanent link">&para;</a></h2>
 <p>Most ingress controllers and service mesh implementations rely on the 
 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host">Host HTTP request header</a> being
@@ -1574,14 +1531,14 @@ extensions. One example of a brower extension which can do this, is
     </div>
     
       <script src="../../assets/javascripts/vendor.d710d30a.min.js"></script>
-      <script src="../../assets/javascripts/bundle.a45f732b.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
+      <script src="../../assets/javascripts/bundle.b39636ac.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
       
       <script>
         app = initialize({
           base: "../..",
           features: [],
           search: Object.assign({
-            worker: "../../assets/javascripts/worker/search.c03f0417.min.js"
+            worker: "../../assets/javascripts/worker/search.a68abb33.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>

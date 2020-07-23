@@ -11,7 +11,7 @@
       
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.2.3">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.4.0">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.6e35a1a6.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.fe0cca5b.min.css">
       
         <link rel="stylesheet" href="../../assets/stylesheets/palette.a46bcfb3.min.css">
       
@@ -55,6 +55,7 @@
     
     <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
   
+    
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
@@ -274,18 +275,6 @@
   <li class="md-nav__item">
     <a href="../../getting-started/istio/" title="Istio" class="md-nav__link">
       Istio
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../getting-started/smi/" title="SMI" class="md-nav__link">
-      SMI
     </a>
   </li>
 
@@ -1286,7 +1275,7 @@
 <p>Each step can have one of two fields. The <code>setWeight</code> field dictates the percentage of traffic that should be sent to the canary, and the <code>pause</code> struct instructs the rollout to pause.  When the controller reaches a <code>pause</code> step for a rollout, it will set adds a PauseCondition struct to the <code>.status.PauseConditions</code> field. If the <code>duration</code> field within the <code>pause</code> struct is set, the rollout will not progress to the next step until it has waited for the value of the <code>duration</code> field. Otherwise, the rollout will wait indefinitely until that Pause condition is removed. By using the <code>setWeight</code> and the <code>pause</code> fields, a user can declarative describe how they want to progress to the new version. Below is an example of a canary strategy.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>If the canary Rollout does not use <a href="../traffic-management/">traffic management</a>, the Rollout makes a best effort attempt to achieve the percentage listed in the last <code>setWeight</code> step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first <code>setWeight</code> step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 15%, the Rollout attempts to get there by rounding up the calculation (i.e. the new ReplicaSet has 2 pod since 15% * 10 rounds up to 2 and the old ReplicaSet has 9 pod since 85% * 10 rounds up to 9). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the  <a href="">traffic management</a> functionality.</p>
+<p>If the canary Rollout does not use <a href="../traffic-management/">traffic management</a>, the Rollout makes a best effort attempt to achieve the percentage listed in the last <code>setWeight</code> step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first <code>setWeight</code> step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 15%, the Rollout attempts to get there by rounding up the calculation (i.e. the new ReplicaSet has 2 pod since 15% * 10 rounds up to 2 and the old ReplicaSet has 9 pod since 85% * 10 rounds up to 9). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the  <a href="#trafficrouting">traffic management</a> functionality.</p>
 </div>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1444,14 +1433,14 @@ kubectl argo rollouts promote &lt;rollout&gt;
     </div>
     
       <script src="../../assets/javascripts/vendor.d710d30a.min.js"></script>
-      <script src="../../assets/javascripts/bundle.a45f732b.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
+      <script src="../../assets/javascripts/bundle.b39636ac.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
       
       <script>
         app = initialize({
           base: "../..",
           features: [],
           search: Object.assign({
-            worker: "../../assets/javascripts/worker/search.c03f0417.min.js"
+            worker: "../../assets/javascripts/worker/search.a68abb33.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>

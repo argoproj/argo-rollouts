@@ -11,7 +11,7 @@
       
       
       <link rel="shortcut icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.2.3">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.4.0">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.6e35a1a6.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.fe0cca5b.min.css">
       
         <link rel="stylesheet" href="../assets/stylesheets/palette.a46bcfb3.min.css">
       
@@ -55,6 +55,7 @@
     
     <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
   
+    
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
@@ -353,18 +354,6 @@
   <li class="md-nav__item">
     <a href="istio/" title="Istio" class="md-nav__link">
       Istio
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="smi/" title="SMI" class="md-nav__link">
-      SMI
     </a>
   </li>
 
@@ -1215,7 +1204,7 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master
 </code></pre></div>
 
 <p>Initial creations of any Rollout will immediately scale up the replicas to 100% (skipping any
-canary upgrade steps, analysis, etc...) since there was no upgrade that occurred.</p>
+canary upgrade steps, analysis, etc...) since there was no upgrade that occured.</p>
 <p>The Argo Rollouts kubectl plugin allows you to visualize the Rollout, its related resources
 (ReplicaSets, Pods, AnalysisRuns), and presents live state changes as they occur.
 To watch the rollout as it deploys, run the <code>get rollout --watch</code> command from plugin:</p>
@@ -1304,7 +1293,7 @@ an update), and the stable manifest were re-applied, the Rollout detects this as
 and <em>not</em> a update, and will fast-track the deployment of the stable ReplicaSet by skipping
 analysis, and the steps.</p>
 <h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
-<p>In this guide, we have learned basic capabilities of Argo Rollouts, including:</p>
+<p>In this guide, we have learned basic capabilities of Argo Rolouts, including:</p>
 <ul>
 <li>Deploying a rollout</li>
 <li>Performing a canary update</li>
@@ -1386,14 +1375,14 @@ to gain more advanced traffic shaping.</p>
     </div>
     
       <script src="../assets/javascripts/vendor.d710d30a.min.js"></script>
-      <script src="../assets/javascripts/bundle.a45f732b.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
+      <script src="../assets/javascripts/bundle.b39636ac.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
       
       <script>
         app = initialize({
           base: "..",
           features: [],
           search: Object.assign({
-            worker: "../assets/javascripts/worker/search.c03f0417.min.js"
+            worker: "../assets/javascripts/worker/search.a68abb33.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>

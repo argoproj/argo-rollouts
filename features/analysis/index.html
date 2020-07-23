@@ -11,7 +11,7 @@
       
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.2.3">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.4.0">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.6e35a1a6.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.fe0cca5b.min.css">
       
         <link rel="stylesheet" href="../../assets/stylesheets/palette.a46bcfb3.min.css">
       
@@ -55,6 +55,7 @@
     
     <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
   
+    
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
@@ -274,18 +275,6 @@
   <li class="md-nav__item">
     <a href="../../getting-started/istio/" title="Istio" class="md-nav__link">
       Istio
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../getting-started/smi/" title="SMI" class="md-nav__link">
-      SMI
     </a>
   </li>
 
@@ -598,6 +587,13 @@
         <li class="md-nav__item">
   <a href="#analysis-at-a-predefined-step" class="md-nav__link">
     Analysis at a Predefined Step
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-analysis-templates" class="md-nav__link">
+    Cluster analysis templates
   </a>
   
 </li>
@@ -1209,6 +1205,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cluster-analysis-templates" class="md-nav__link">
+    Cluster analysis templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#analysis-with-multiple-templates" class="md-nav__link">
     Analysis with Multiple Templates
   </a>
@@ -1339,6 +1342,10 @@ time analysis is performed, it's frequency, and occurrence.</p>
 <tr>
 <td>AnalysisTemplate</td>
 <td>An <code>AnalysisTemplate</code> is a template spec which defines <em><em>how</em></em> to perform a canary analysis, such as the metrics which it should perform, its frequency, and the values which are considered successful or failed. AnalysisTemplates may be parameterized with inputs values.</td>
+</tr>
+<tr>
+<td>ClusterAnalysisTemplate</td>
+<td>A <code>ClusterAnalysisTemplate</code> is like an <code>AnalysisTemplate</code>, but it is not limited to it's namespace. It can be used by any <code>Rollout</code> throughout the cluster.</td>
 </tr>
 <tr>
 <td>AnalysisRun</td>
@@ -1495,12 +1502,63 @@ no interval is specified, the analysis will perform a single measurement and com
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
 
+<h2 id="cluster-analysis-templates">Cluster analysis templates<a class="headerlink" href="#cluster-analysis-templates" title="Permanent link">&para;</a></h2>
+<p>Starting in version <code>0.9.0</code> a Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+<code>ClusterAnalysisTemplate</code>. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
+rather than duplicating them in every namespace. Use the field
+<code>clusterScope: true</code> to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.</p>
+<div class="tabbed-set" data-tabs="2:2">
+<input name="__tabbed_2" type="radio" id="__tabbed_2_1" checked="checked" /><label for="__tabbed_2_1">Rollout</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span> 
+      <span class="nt">steps</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">5m</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">analysis</span><span class="p">:</span>
+          <span class="nt">templates</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+            <span class="nt">clusterScope</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+          <span class="nt">args</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+</code></pre></div></div>
+<input name="__tabbed_2" type="radio" id="__tabbed_2_2" /><label for="__tabbed_2_2">ClusterAnalysisTemplate</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ClusterAnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">prometheus</span><span class="p">:</span>
+        <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+          <span class="no">)) / </span>
+          <span class="no">sum(irate(</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+          <span class="no">))</span>
+</code></pre></div></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The resulting <code>AnalysisRun</code> will still run in the namespace of the <code>Rollout</code></p>
+</div>
 <h2 id="analysis-with-multiple-templates">Analysis with Multiple Templates<a class="headerlink" href="#analysis-with-multiple-templates" title="Permanent link">&para;</a></h2>
 <p>A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
 analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
 templates together. The controller combines the <code>metrics</code> and <code>args</code> fields of all the templates.</p>
-<div class="tabbed-set" data-tabs="2:3">
-<input name="__tabbed_2" type="radio" id="__tabbed_2_1" checked="checked" /><label for="__tabbed_2_1">Rollout</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="tabbed-set" data-tabs="3:3">
+<input name="__tabbed_3" type="radio" id="__tabbed_3_1" checked="checked" /><label for="__tabbed_3_1">Rollout</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1516,7 +1574,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </code></pre></div></div>
-<input name="__tabbed_2" type="radio" id="__tabbed_2_2" /><label for="__tabbed_2_2">AnalysisTemplate</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<input name="__tabbed_3" type="radio" id="__tabbed_3_2" /><label for="__tabbed_3_2">AnalysisTemplate</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
@@ -1562,7 +1620,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div></div>
-<input name="__tabbed_2" type="radio" id="__tabbed_2_3" /><label for="__tabbed_2_3">AnalysisRun</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="c1"># NOTE: The rollouts controller will create this resource</span>
+<input name="__tabbed_3" type="radio" id="__tabbed_3_3" /><label for="__tabbed_3_3">AnalysisRun</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="c1"># NOTE: The rollouts controller will create this resource</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1845,8 +1903,8 @@ short-lived experiment and an asynchronous analysis.</p>
 <li>The ability to reference and supply pod-template-hash to an AnalysisRun</li>
 <li>Kayenta metrics</li>
 </ul>
-<div class="tabbed-set" data-tabs="3:3">
-<input name="__tabbed_3" type="radio" id="__tabbed_3_1" checked="checked" /><label for="__tabbed_3_1">Rollout</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="tabbed-set" data-tabs="4:3">
+<input name="__tabbed_4" type="radio" id="__tabbed_4_1" checked="checked" /><label for="__tabbed_4_1">Rollout</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1874,7 +1932,7 @@ short-lived experiment and an asynchronous analysis.</p>
               <span class="nt">valueFrom</span><span class="p">:</span>
                 <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
 </code></pre></div></div>
-<input name="__tabbed_3" type="radio" id="__tabbed_3_2" /><label for="__tabbed_3_2">AnalysisTemplate</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<input name="__tabbed_4" type="radio" id="__tabbed_4_2" /><label for="__tabbed_4_2">AnalysisTemplate</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
@@ -1907,7 +1965,7 @@ short-lived experiment and an asynchronous analysis.</p>
             <span class="nt">start</span><span class="p">:</span> <span class="s">&quot;{{args.start-time}}&quot;</span>
             <span class="nt">end</span><span class="p">:</span> <span class="s">&quot;{{args.end-time}}&quot;</span>
 </code></pre></div></div>
-<input name="__tabbed_3" type="radio" id="__tabbed_3_3" /><label for="__tabbed_3_3">Experiment</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<input name="__tabbed_4" type="radio" id="__tabbed_4_3" /><label for="__tabbed_4_3">Experiment</label><div class="tabbed-content"><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Experiment</span>
 <span class="nt">name</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-6c54544bf9-0</span>
@@ -2130,14 +2188,14 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
     </div>
     
       <script src="../../assets/javascripts/vendor.d710d30a.min.js"></script>
-      <script src="../../assets/javascripts/bundle.a45f732b.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
+      <script src="../../assets/javascripts/bundle.b39636ac.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
       
       <script>
         app = initialize({
           base: "../..",
           features: [],
           search: Object.assign({
-            worker: "../../assets/javascripts/worker/search.c03f0417.min.js"
+            worker: "../../assets/javascripts/worker/search.a68abb33.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>
