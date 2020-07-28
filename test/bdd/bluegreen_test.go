@@ -41,7 +41,7 @@ func (c *FunctionalTestContext) iApplyManifest(fileName string) error {
 		return err
 	}
 	if !isSuccess {
-		return fmt.Errorf("Rollout not created")
+		return fmt.Errorf("Unable to apply manifest %s. Rollout not created", fileName)
 	}
 
 	isSuccess, err = retry(numAttempts, func() (bool, error) {
@@ -111,7 +111,7 @@ func (c *FunctionalTestContext) promoteTheRollout() error {
 		return err
 	}
 	if !isSuccess {
-		return fmt.Errorf("Rollout did not enter paused state")
+		return fmt.Errorf("Unable to promote rollut %s. Rollout did not enter paused state.", c.RolloutName)
 	}
 
 	cmdPromote := promote.NewCmdPromote(c.Options)
@@ -149,7 +149,7 @@ func (c *FunctionalTestContext) theServiceShouldRouteTrafficToNewVersionsReplica
 		return err
 	}
 	if !isSuccess {
-		return fmt.Errorf("Injection not successful")
+		return fmt.Errorf("Service %s does not contain Rollout %s's current pod hash. Injection failed.", svcName, c.RolloutName)
 	}
 
 	return nil
