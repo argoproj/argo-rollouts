@@ -18,6 +18,10 @@ Run the following commands to install them:
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
+Argo Rollouts runs BDD tests using the tool [godog](https://github.com/cucumber/godog). Run the following command to install godog:
+```bash
+go get -u github.com/cucumber/godog/cmd/godog@v0.10.0
+```
 
 Brew users can quickly install the lot:
     
@@ -63,6 +67,11 @@ To run unit tests:
 
 ```bash
 make test
+```
+
+To run bdd tests:
+```bash
+make test-bdd
 ```
 
 
