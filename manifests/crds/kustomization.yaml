@@ -6,3 +6,4 @@ resources:
 - experiment-crd.yaml
 - analysis-run-crd.yaml
 - analysis-template-crd.yaml
+- cluster-analysis-template-crd.yaml

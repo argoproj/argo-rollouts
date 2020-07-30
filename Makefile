@@ -99,6 +99,11 @@ test: test-kustomize
 test-kustomize:
 	./test/kustomize/test.sh
 
+.PHONY: test-bdd
+test-bdd:
+	go get -u github.com/cucumber/godog/cmd/godog@v0.10.0
+	./hack/run-bdd.sh
+
 .PHONY: coverage
 coverage: test
 	go tool cover -html=coverage.out -o coverage.html

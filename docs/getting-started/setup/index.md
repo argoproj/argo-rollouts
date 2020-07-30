@@ -93,6 +93,29 @@ the Istio mesh. Istio routes requests to the correct pod based on the Host HTTP 
 guide on [supplying host headers](#supplying-host-headers) to learn how to configure your client
 environment to supply the proper request to reach the pod.
 
+### Linkerd Setup
+
+Linkerd can be installed using the linkerd CLI.
+
+```
+brew install linkerd
+linkerd install | kubectl apply -f -
+```
+
+Linkerd does not provide its own ingress controller, choosing instead to work alongside your
+ingress controller of choice. On minikube, we can use the built-in NGINX ingress addon and
+reconfigure it to be part of the linkerd mesh.
+
+```
+# Install the NGINX ingress controller addon
+minikube addons enable ingress
+
+# Patch the nginx-ingress-controller deployment to allow injection of the linkerd proxy to the
+# pod, so that it will be part of the mesh.
+kubectl patch deploy ingress-nginx-controller -n kube-system \
+  -p '{"spec":{"template":{"metadata":{"annotations":{"linkerd.io/inject":"enabled"}}}}}'
+```
+
 ## Supplying Host Headers
 
 Most ingress controllers and service mesh implementations rely on the 
