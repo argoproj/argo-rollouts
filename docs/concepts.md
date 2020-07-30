@@ -20,10 +20,10 @@ manner, thereby reducing the risk of the release, typically coupling automation 
 to drive the automated promotion or rollback of the update. 
 
 Progressive delivery is often described as an evolution of continuous delivery, extending the
-speed benefits made in CI/CD to the deployment proccess. This is accomplished by limiting the
-exposure of the new version to a subset of users, observing and analysing for correct behavior, 
-then  progressively increassing the exposure to a broader and wider audience while continuosly
-verifing correctness.
+speed benefits made in CI/CD to the deployment process. This is accomplished by limiting the
+exposure of the new version to a subset of users, observing and analyzing for correct behavior, 
+then progressively increasing the exposure to a broader and wider audience while continuously
+verifying correctness.
 
 ## Deployment Strategies
 

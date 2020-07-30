@@ -37,7 +37,7 @@ spec:
 ```
 
 The Ingress referenced in `canary.trafficRouting.nginx.stableIngress` is required to have a host
-rule which has a backend targetting the Service referenced under `canary.stableService`.
+rule which has a backend targeting the Service referenced under `canary.stableService`.
 In our example, that stable Service is named: `rollouts-demo-stable`:
 
 ```yaml
