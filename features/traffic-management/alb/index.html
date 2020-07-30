@@ -11,7 +11,7 @@
       
       
       <link rel="shortcut icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.4.0">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-5.2.3">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.fe0cca5b.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.6e35a1a6.min.css">
       
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.a46bcfb3.min.css">
       
@@ -55,7 +55,6 @@
     
     <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
   
-    
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
@@ -279,6 +278,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../getting-started/smi/" title="SMI" class="md-nav__link">
+      SMI
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -479,6 +490,20 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#integration-with-argo-rollouts" class="md-nav__link">
@@ -1083,6 +1108,20 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#integration-with-argo-rollouts" class="md-nav__link">
     Integration with Argo Rollouts
   </a>
@@ -1117,10 +1156,16 @@
                 
                 
                 <h1 id="aws-application-load-balancer-alb">AWS Application Load Balancer (ALB)<a class="headerlink" href="#aws-application-load-balancer-alb" title="Permanent link">&para;</a></h1>
-<p>The <a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/">AWS ALB Ingress Controller</a> enables traffic management through an Ingress object that configuring an ALB that routes traffic proportionally to different services. </p>
-<p>The ALB consists of a listener and rules with actions. Listeners define how traffic from client comes in, and rules define how to handle those requests with various actions. One action allows users to forward traffic to multiple TargetGroups (with each being defined as a Kubernetes service) You can read more about ALB concepts <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html">here</a>.</p>
-<p>An ALB Ingress defines a desired ALB with listener and rules through its annotations and spec. The ALB Ingress controller honors an annotation on an Ingress called <code>alb.ingress.kubernetes.io/actions.&lt;service-name&gt;</code> that allows users to define the actions of a service listed in the Ingress with a "use-annotations" value for the ports. Below is an example of an ingress:</p>
-<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+<ul>
+<li>ALB Ingress Controller v1.1.5 or greater</li>
+</ul>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/">AWS ALB Ingress Controller</a> enables traffic management through an Ingress object which configures an ALB to route traffic to one or more
+Kubernetes services. ALBs supports the ability to split traffic through the concept of <a href="https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/">weighted target groups</a>. This feature is supported by the AWS ALB Ingress Controller through annotations made in the Ingress object to configure "actions".</p>
+<p>ALBs are configured via listeners and rules with actions. Listeners define how traffic from client comes in, and rules define how to handle those requests with various actions. One action allows users to forward traffic to multiple TargetGroups (with each being defined as a Kubernetes service) You can read more about ALB concepts <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html">here</a>.</p>
+<p>An ALB Ingress defines a desired ALB with listener and rules through its annotations and spec. To leverage multiple target groups, ALB Ingress controller looks to an annotation on an Ingress called <a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions"><code>alb.ingress.kubernetes.io/actions.&lt;service-name&gt;</code></a>. To indicate that the action annotation should be used for an specific ingress rule, the value "use-annotations" is used as the port value in lieue of a named or numeric port. Below is an example of an ingress which splits traffic between two Kubernetes services, canary-service and stable-service, with a traffic weight of 80 and 20 respectively:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
@@ -1139,7 +1184,7 @@
                 <span class="no">&quot;ServiceName&quot;:&quot;stable-service&quot;,</span>
                 <span class="no">&quot;ServicePort&quot;:&quot;80&quot;</span>
             <span class="no">}</span>
-            <span class="no">]</span>
+          <span class="no">]</span>
         <span class="no">}</span>
       <span class="no">}</span>
     <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
@@ -1153,30 +1198,30 @@
               <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
             <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
 </code></pre></div>
-This Ingress uses the <code>alb.ingress.kubernetes.io/actions.stable-service</code> annotation to define how to route traffic to the various services for the rule with the <code>stable-service</code> serviceName instead of sending traffic to the canary-service service. You can read more about these annotations on the official <a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions">documentation</a>.</p>
+
+<p>This Ingress uses the <code>alb.ingress.kubernetes.io/actions.stable-service</code> annotation to define how to route traffic to the various services for the rule with the <code>stable-service</code> serviceName instead of sending traffic to the canary-service service. You can read more about these annotations on the official <a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions">documentation</a>.</p>
 <h2 id="integration-with-argo-rollouts">Integration with Argo Rollouts<a class="headerlink" href="#integration-with-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>There are a couple of required fields in a Rollout to send split traffic between versions using ALB ingresses. Below is an example of a Rollout with those fields:</p>
+<p>To configure a Rollout to split traffic between the canary and stable services during update via its ALB integration, the following fields should be specified:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">spec</span><span class="p">:</span>
-  <span class="l l-Scalar l-Scalar-Plain">...</span>
-  <span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">canary</span><span class="p">:</span>
-      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span> <span class="c1"># required</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span>  <span class="c1"># required</span>
       <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>  <span class="c1"># required</span>
       <span class="nt">trafficRouting</span><span class="p">:</span>
         <span class="nt">alb</span><span class="p">:</span>
-           <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>  <span class="c1"># required</span>
-           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span> <span class="c1"># required</span>
-           <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span> <span class="c1"># optional</span>
+          <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>  <span class="c1"># required</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>  <span class="c1"># required</span>
+          <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span> <span class="c1"># optional</span>
 </code></pre></div>
 
 <p>The ingress field is a reference to an Ingress in the same namespace of the Rollout, and the servicePort field refers a port of a service. The Rollout requires the Ingress and servicePort to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.</p>
 <p>Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional <code>annotationPrefix</code> field. The Ingress uses that prefix instead of the default <code>alb.ingress.kubernetes.io</code> if the field set.</p>
 <p>The Rollout adds another annotation called <code>rollouts.argoproj.io/managed-alb-actions</code> to the Ingress to help the controller manage the Ingresses. This annotation indicates which actions are being managed by Rollout objects (since multiple Rollouts can reference one Ingress). If a Rollout is deleted, the Argo Rollouts controller uses this annotation to see that this action is no longer managed, and it is reset to only the stable service with 100 weight.</p>
 <h2 id="using-argo-rollouts-with-multiple-alb-ingress-controllers">Using Argo Rollouts with multiple ALB ingress controllers<a class="headerlink" href="#using-argo-rollouts-with-multiple-alb-ingress-controllers" title="Permanent link">&para;</a></h2>
-<p>As a default, the Argo Rollouts controller only operates on ingresses with the <code>kubernetes.io/ingress.class</code> annotation set to <code>alb</code>. A user can configure the controller to operate on Ingresses with different <code>kubernetes.io/ingress.class</code> values by specifying the <code>--alb-ingress-classes</code> flag. A user can list the <code>--alb-ingress-classes</code> flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different <code>kubernetes.io/ingress.class</code> values.</p>
-<p>If the user would like the controller to operate on any Ingress without the <code>kubernetes.io/ingress.class</code> annotation, a user should add the following <code>--alb-ingress-classes ''</code>.</p>
+<p>As a default, the Argo Rollouts controller only operates on ingresses with the <code>kubernetes.io/ingress.class</code> annotation set to <code>alb</code>. A user can configure the controller to operate on Ingresses with different <code>kubernetes.io/ingress.class</code> values by specifying the <code>--alb-ingress-classes</code> flag. A user can list the <code>--alb-ingress-classes</code> flag multiple times if the Argo Rollouts controller should operate on multiple values. This may be desired when a cluster has multiple Ingress controllers that operate on different <code>kubernetes.io/ingress.class</code> values.</p>
+<p>If the controller needs to operate on any Ingress without the <code>kubernetes.io/ingress.class</code> annotation, the flag can be specified with an empty string (e.g. <code>--alb-ingress-classes ''</code>).</p>
                 
               
               
@@ -1244,14 +1289,14 @@ This Ingress uses the <code>alb.ingress.kubernetes.io/actions.stable-service</co
     </div>
     
       <script src="../../../assets/javascripts/vendor.d710d30a.min.js"></script>
-      <script src="../../../assets/javascripts/bundle.b39636ac.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
+      <script src="../../../assets/javascripts/bundle.a45f732b.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents"}</script>
       
       <script>
         app = initialize({
           base: "../../..",
           features: [],
           search: Object.assign({
-            worker: "../../../assets/javascripts/worker/search.a68abb33.min.js"
+            worker: "../../../assets/javascripts/worker/search.c03f0417.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>
