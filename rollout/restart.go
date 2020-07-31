@@ -4,6 +4,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +59,8 @@ func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
 	logCtx.Info("Reconcile pod restarts")
 	s := NewSortReplicaSetsByPriority(roCtx)
 	for _, rs := range s.allRSs {
-		if rs.Status.AvailableReplicas != *rs.Spec.Replicas {
+		rsReplicas := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
+		if rs.Status.AvailableReplicas != rsReplicas {
 			logCtx.WithField("ReplicaSet", rs.Name).Info("cannot restart pods as not all ReplicasSets are fully available")
 			return nil
 		}
