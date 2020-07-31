@@ -213,11 +213,15 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s"
+				"currentBackgroundAnalysisRun": "%s",
+				"currentBackgroundAnalysisRunStatus": {
+					"name": "%s",
+					"status": ""
+				}
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
@@ -270,11 +274,15 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s"
+				"currentBackgroundAnalysisRun": "%s",
+				"currentBackgroundAnalysisRunStatus": {
+					"name": "%s",
+					"status": ""
+				}
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunErrorWithMissingClusterTemplates(t *testing.T) {
@@ -592,10 +600,6 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
-		Name:   ar.Name,
-		Status: "",
-	}
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
@@ -784,6 +788,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
@@ -910,6 +915,9 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
