@@ -1,6 +1,7 @@
 package kubeclientmetrics
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -41,7 +42,7 @@ func (ri ResourceInfo) HasAllFields() bool {
 
 type metricsRoundTripper struct {
 	roundTripper http.RoundTripper
-	inc          func(ResourceInfo) error
+	inc          func(ResourceInfo)
 	processPath  *regexp.Regexp
 }
 
@@ -184,6 +185,12 @@ func handleUpdate(r *http.Request, statusCode int) ResourceInfo {
 
 func (mrt *metricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, roundTimeErr := mrt.roundTripper.RoundTrip(r)
+	if roundTimeErr != nil {
+		return resp, roundTimeErr
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("round tripper has no response when there is no error. please file an issue at https://github.com/argoproj/argo-rollouts")
+	}
 	var info ResourceInfo
 	switch verb := mrt.resolveK8sRequestVerb(r); verb {
 	case List:
@@ -210,7 +217,7 @@ func (mrt *metricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 }
 
 // AddMetricsTransportWrapper adds a transport wrapper which wraps a function call around each kubernetes request
-func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo) error) *rest.Config {
+func AddMetricsTransportWrapper(config *rest.Config, incFunc func(ResourceInfo)) *rest.Config {
 	regex := regexp.MustCompile(findPathRegex)
 	wrap := config.WrapTransport
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
