@@ -43,9 +43,8 @@ func TestAddMetricsTransportWrapperWrapTwice(t *testing.T) {
 		}
 	}
 
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		currentCount++
-		return nil
 	})
 
 	client := kubernetes.NewForConfigOrDie(newConfig)
@@ -133,14 +132,13 @@ func TestGetRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "test", info.Name)
 		assert.Equal(t, Get, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get("test", metav1.GetOptions{})
@@ -157,14 +155,13 @@ func TestListRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "", info.Name)
 		assert.Equal(t, List, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).List(metav1.ListOptions{})
@@ -181,14 +178,13 @@ func TestCreateRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "test", info.Name)
 		assert.Equal(t, Create, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	rs := &appsv1.ReplicaSet{
@@ -211,14 +207,13 @@ func TestDeleteRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "test", info.Name)
 		assert.Equal(t, Delete, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Delete("test", &metav1.DeleteOptions{})
@@ -235,14 +230,13 @@ func TestPatchRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "test", info.Name)
 		assert.Equal(t, Patch, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Patch("test", types.MergePatchType, []byte("{}"))
@@ -259,14 +253,13 @@ func TestUpdateRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, "replicasets", info.Kind)
 		assert.Equal(t, metav1.NamespaceDefault, info.Namespace)
 		assert.Equal(t, "test", info.Name)
 		assert.Equal(t, Update, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	rs := &appsv1.ReplicaSet{
@@ -288,11 +281,10 @@ func TestUnknownRequest(t *testing.T) {
 	config := &rest.Config{
 		Host: ts.URL,
 	}
-	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) error {
+	newConfig := AddMetricsTransportWrapper(config, func(info ResourceInfo) {
 		assert.Equal(t, expectedStatusCode, info.StatusCode)
 		assert.Equal(t, Unknown, info.Verb)
 		executed = true
-		return nil
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
 	client.Discovery().RESTClient().Verb("invalid-verb").Do()

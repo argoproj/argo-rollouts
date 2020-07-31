@@ -128,8 +128,8 @@ func (c *Controller) syncIngress(key string) error {
 		if !strings.HasSuffix(name, ingressutil.CanaryIngressSuffix) {
 			// a primary ingress was deleted, simply ignore the event
 			log.WithField(logutil.IngressKey, key).Warn("primary ingress has been deleted")
-			return nil
 		}
+		return nil
 	}
 	rollouts, err := c.getRolloutsByIngress(ingress.Namespace, ingress.Name)
 	if err != nil {

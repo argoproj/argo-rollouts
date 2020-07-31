@@ -34,7 +34,7 @@ var (
 )
 
 // IncKubernetesRequest increments the kubernetes client counter
-func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) error {
+func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) {
 	name := resourceInfo.Name
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
@@ -49,5 +49,4 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	}
 
 	m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
-	return nil
 }
