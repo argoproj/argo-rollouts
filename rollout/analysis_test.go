@@ -1194,12 +1194,13 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			},
 			"conditions": %s,
 			"abort": true,
-			"reconciledAbort": true
+			"abortedAt": "%s"
 		}
 	}`
+	now := metav1.Now().UTC().Format(time.RFC3339)
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, ar.Status.Message)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name, condition)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name, condition, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
@@ -1259,13 +1260,14 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 				}
 			},
 			"conditions": %s,
-			"reconciledAbort": true,
+			"abortedAt": "%s",
 			"abort": true
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1316,10 +1318,11 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"conditions": %s,
-			"reconciledAbort": true
+			"abortedAt": "%s"
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now)), patch)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -1879,7 +1882,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"abort": true,
-			"reconciledAbort": true,
+			"abortedAt": "%s",
 			"pauseConditions": null,
 			"controllerPause":null,
 			"blueGreen": {
@@ -1889,7 +1892,8 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -2096,7 +2100,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"abort": true,
-			"reconciledAbort": true,
+			"abortedAt": "%s",
 			"pauseConditions": null,
 			"controllerPause":null,
 			"blueGreen": {
@@ -2106,5 +2110,6 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	now := metav1.Now().UTC().Format(time.RFC3339)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
 }
