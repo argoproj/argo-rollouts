@@ -1258,7 +1258,8 @@ func TestHandleCanaryAbort(t *testing.T) {
 
 		r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
 		r2.Status.Abort = true
-		r2.Status.ReconciledAbort = true
+		now := metav1.Now()
+		r2.Status.AbortedAt = &now
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
 
@@ -1291,7 +1292,8 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}
 		r1 := newCanaryRollout("foo", 2, nil, steps, int32Ptr(3), intstr.FromInt(1), intstr.FromInt(0))
 		r1.Status.Abort = true
-		r1.Status.ReconciledAbort = true
+		now := metav1.Now()
+		r1.Status.AbortedAt = &now
 		rs1 := newReplicaSetWithStatus(r1, 2, 2)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 2, 2, 2, false)

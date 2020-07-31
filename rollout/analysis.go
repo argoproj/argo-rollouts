@@ -130,7 +130,7 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 	if rollout.Status.ControllerPause && getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
 		return currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive
 	}
-	return rollout.Status.ReconciledAbort
+	return rollout.Status.AbortedAt != nil
 }
 
 // emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status

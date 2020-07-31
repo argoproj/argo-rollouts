@@ -2909,6 +2909,8 @@ spec:
               type: integer
             abort:
               type: boolean
+            abortedAt:
+              type: boolean
             availableReplicas:
               format: int32
               type: integer

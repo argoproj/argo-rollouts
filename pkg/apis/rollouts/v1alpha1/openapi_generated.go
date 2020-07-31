@@ -787,7 +787,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 					},
 					"currentBackgroundAnalysisRunStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentStepAnalysisRunStatus indicates the status of the current background analysis run",
+							Description: "CurrentBackgroundAnalysisRunStatus indicates the status of the current background analysis run",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
 						},
 					},
@@ -2698,6 +2698,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"controllerPause": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerPause indicates the controller has paused the rollout",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"abortedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortedAt indicates the controller reconciled an aborted rollout. The controller uses this to understand if the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used to indicate if the Rollout should enter an aborted state when the latest AnalysisRun is a failure, or the controller has already put the Rollout into an aborted and should create a new AnalysisRun.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
