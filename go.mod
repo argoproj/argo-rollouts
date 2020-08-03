@@ -31,9 +31,9 @@ require (
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/api v0.17.4
-	k8s.io/apiextensions-apiserver v0.17.0
-	k8s.io/apimachinery v0.17.4
+	k8s.io/api v0.18.2
+	k8s.io/apiextensions-apiserver v0.18.2
+	k8s.io/apimachinery v0.18.2
 	k8s.io/apiserver v0.17.3
 	k8s.io/cli-runtime v0.17.3
 	k8s.io/client-go v0.17.4
@@ -44,7 +44,7 @@ require (
 	k8s.io/kubectl v0.16.4
 	k8s.io/kubernetes v1.17.3
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
-	sigs.k8s.io/controller-tools v0.2.5
+	sigs.k8s.io/controller-tools v0.3.0
 )
 
 replace (
