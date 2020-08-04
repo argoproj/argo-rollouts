@@ -69,7 +69,7 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&listOptions.name, "name", "", "Only show rollout with specified name")
-	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
+	cmd.Flags().BoolVarP(&listOptions.allNamespaces, "all-namespaces", "A", false, "Include all namespaces")
 	cmd.Flags().BoolVarP(&listOptions.watch, "watch", "w", false, "Watch for changes")
 	cmd.Flags().BoolVar(&listOptions.timestamps, "timestamps", false, "Print timestamps on updates")
 	return cmd
