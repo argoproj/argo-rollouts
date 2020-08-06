@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"time"
 
@@ -345,6 +346,81 @@ func (c *Controller) syncHandler(key string) error {
 		}
 		return nil
 	}
+
+	referencedResources := validation.ReferencedResources{}
+
+	if r.Spec.Strategy.BlueGreen != nil {
+		blueGreen := r.Spec.Strategy.BlueGreen
+		_, _, err := c.getPreviewAndActiveServices(r)
+		if err != nil {
+			return err
+		}
+		for _, template := range blueGreen.PrePromotionAnalysis.Templates {
+			analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
+		}
+		for _, template := range blueGreen.PostPromotionAnalysis.Templates {
+			analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
+		}
+
+	}
+
+	if r.Spec.Strategy.Canary != nil {
+		canary := r.Spec.Strategy.Canary
+		if r.Spec.Strategy.Canary.CanaryService != "" {
+			_, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
+			if err != nil {
+				return err
+			}
+		}
+		if r.Spec.Strategy.Canary.StableService != "" {
+			_, err := c.getReferencedService(r, r.Spec.Strategy.Canary.StableService)
+			if err != nil {
+				return err
+			}
+		}
+		for _, step := range canary.Steps {
+			for _, template := range step.Analysis.Templates {
+				analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
+			}
+		}
+
+		trafficRouting := canary.TrafficRouting
+		if trafficRouting.ALB != nil {
+			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(trafficRouting.ALB.Ingress)
+			if err != nil {
+				return err
+			}
+			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
+		} else if trafficRouting.Nginx != nil {
+			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(trafficRouting.Nginx.StableIngress)
+			if err != nil {
+				return err
+			}
+			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
+		} else if trafficRouting.Istio != nil {
+			referencedResources.VirtualServices = append(referencedResources.VirtualServices, trafficRouting.Istio.VirtualService)
+
+		}
+	}
+
+	rolloutValidationRefErrors := validation.ValidateRolloutReferencedResources(r, referencedResources)
+	if len(rolloutValidationRefErrors) > 0 {
+		return rolloutValidationRefErrors[0]
+	}
+
+
 
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
 	// through adoption/orphaning.

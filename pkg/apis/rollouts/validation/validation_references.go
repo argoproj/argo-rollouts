@@ -2,9 +2,8 @@ package validation
 
 import (
 	"fmt"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/kubernetes/pkg/apis/networking"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -12,65 +11,48 @@ import (
 // Controller will validate references in reconciliation
 
 type ReferencedResources struct {
-	Ingresses []networking.Ingress
-	Services []v1.Service
-	VirtualServices []v1alpha1.IstioVirtualService
 	AnalysisTemplates []v1alpha1.AnalysisTemplate
+	Ingresses []v1beta1.Ingress
+	//Services []corev1.Service // Check if service exists
+	VirtualServices []v1alpha1.IstioVirtualService
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, ValidateIngresses(referencedResources.Ingresses)...)
-	allErrs = append(allErrs, ValidateServices(referencedResources.Services)...)
-	allErrs = append(allErrs, ValidateVirtualServices(rollout, referencedResources.VirtualServices)...)
-	allErrs = append(allErrs, ValidateAnalysisTemplates(referencedResources.AnalysisTemplates)...)
-	return allErrs
-}
-
-func ValidateIngresses(ingresses []networking.Ingress) field.ErrorList {
-	allErrs := field.ErrorList{}
-	for _, ingress := range ingresses {
-		allErrs = append(allErrs, ValidateIngress(ingress)...)
+	for _, analysisTemplate := range referencedResources.AnalysisTemplates {
+		allErrs = append(allErrs, ValidateAnalysisTemplate(rollout, analysisTemplate)...)
+	}
+	for _, ingress := range referencedResources.Ingresses {
+		allErrs = append(allErrs, ValidateIngress(rollout, ingress)...)
+	}
+	for _, vsvc := range referencedResources.VirtualServices {
+		allErrs = append(allErrs, ValidateVirtualService(rollout, vsvc)...)
 	}
 	return allErrs
 }
 
-func ValidateServices(services []v1.Service) field.ErrorList {
+// Must run deterministically
+func ValidateAnalysisTemplate(rollout *v1alpha1.Rollout, analysisTempate v1alpha1.AnalysisTemplate) field.ErrorList {
 	allErrs := field.ErrorList{}
-	for _, service := range services {
-		allErrs = append(allErrs, ValidateService(service)...)
-	}
-	return allErrs
-}
-
-func ValidateVirtualServices(rollout *v1alpha1.Rollout, virtualServices []v1alpha1.IstioVirtualService) field.ErrorList {
-	allErrs := field.ErrorList{}
-	for _, virtualService := range virtualServices {
-		allErrs = append(allErrs, ValidateVirtualService(rollout, virtualService)...)
-	}
-	return allErrs
-}
-
-func ValidateAnalysisTemplates(analysisTempates []v1alpha1.AnalysisTemplate) field.ErrorList {
-	allErrs := field.ErrorList{}
-	for _, analysisTemplate := range analysisTempates {
-		allErrs = append(allErrs, ValidateAnalysisTemplate(analysisTemplate)...)
+	// Check if STEP in RO, or pre/post-promo
+	for _, metric := range analysisTempate.Spec.Metrics {
+		effectiveCount := metric.EffectiveCount()
+		if effectiveCount == nil {
+			allErrs = append(allErrs, nil) // "Metric metric.Name in analysisTemplate analysisTemplate.name runs indefinitely"
+		}
 	}
 	return allErrs
 }
 
 // ALB or Nginx
-func ValidateIngress(ingress networking.Ingress) field.ErrorList {
-	return nil
-}
-
-// TODO: what checks?
-func ValidateService(service v1.Service) field.ErrorList {
+// Nginx validates existing ingress for stable svc
+// ALB checks for annotations
+func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
 	return nil
 }
 
 func ValidateVirtualService(rollout *v1alpha1.Rollout, virtualService v1alpha1.IstioVirtualService) field.ErrorList {
-	allErrs := field.ErrorList{}
+	//allErrs := field.ErrorList{}
 	// TODO: types.go for istio vsvc?
 	//httpRoutesI := virtualService.Routes
 	//if !notFound {
@@ -89,7 +71,7 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, virtualService v1alpha1.I
 	//if err != nil {
 	//	return nil, false, err
 	//}
-	validateHTTPRoutes(rollout, virtualService.Routes)
+	//validateHTTPRoutes(rollout, virtualService.Routes)
 	return nil
 }
 
@@ -145,16 +127,4 @@ func validateHosts(hr istio.HttpRoute, stableSvc, canarySvc string) error {
 		return fmt.Errorf("Stable Service '%s' not found in route", stableSvc)
 	}
 	return nil
-}
-
-// Must run deterministically
-func ValidateAnalysisTemplate(analysisTempate v1alpha1.AnalysisTemplate) field.ErrorList {
-	allErrs := field.ErrorList{}
-	for _, metric := range analysisTempate.Spec.Metrics {
-		effectiveCount := metric.EffectiveCount()
-		if effectiveCount == nil {
-			allErrs = append(allErrs, nil) // "Metric metric.Name in analysisTemplate analysisTemplate.name runs indefinitely"
-		}
-	}
-	return allErrs
 }
