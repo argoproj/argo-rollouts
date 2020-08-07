@@ -322,33 +322,10 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
-	if len(rolloutValidationErrors) > 0 {
-		rolloutValidationError := rolloutValidationErrors[0]
-		invalidSpecCond := prevCond
-		if prevCond == nil || prevCond.Message != rolloutValidationError.Detail {
-			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, rolloutValidationError.Detail)
-		}
-		logutil.WithRollout(r).Error("Spec submitted is invalid")
-		generation := conditions.ComputeGenerationHash(r.Spec)
-		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			newStatus := r.Status.DeepCopy()
-			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
-			// the controller should update the invalidSpec if there is a change in why the spec is invalid
-			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
-				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
-			}
-			err := c.patchCondition(r, newStatus, invalidSpecCond)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 
+	// cannotFindResources
 	referencedResources := validation.ReferencedResources{}
-
 	if r.Spec.Strategy.BlueGreen != nil {
 		blueGreen := r.Spec.Strategy.BlueGreen
 		_, _, err := c.getPreviewAndActiveServices(r)
@@ -356,18 +333,35 @@ func (c *Controller) syncHandler(key string) error {
 			return err
 		}
 		for _, template := range blueGreen.PrePromotionAnalysis.Templates {
-			analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
-			if err != nil {
-				return err
+			if template.ClusterScope {
+				clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+				if err != nil { // if !k8serrors.IsNotFound(err)
+					// TODO: Create + append error to list of RolloutValidationErrors?
+					return err
+				}
+				referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
+			} else {
+				analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
+				if err != nil {
+					return err
+				}
+				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 			}
-			referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 		}
 		for _, template := range blueGreen.PostPromotionAnalysis.Templates {
-			analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
-			if err != nil {
-				return err
+			if template.ClusterScope {
+				clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+				if err != nil {
+					return err
+				}
+				referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
+			} else {
+				analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
+				if err != nil {
+					return err
+				}
+				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 			}
-			referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 		}
 
 	}
@@ -388,11 +382,19 @@ func (c *Controller) syncHandler(key string) error {
 		}
 		for _, step := range canary.Steps {
 			for _, template := range step.Analysis.Templates {
-				analysisTemplate, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisTemplates(r.Namespace).Get(template.TemplateName, metav1.GetOptions{})
-				if err != nil {
-					return err
+				if template.ClusterScope {
+					clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+					if err != nil {
+						return err
+					}
+					referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
+				} else {
+					analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
+					if err != nil {
+						return err
+					}
+					referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 				}
-				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
 			}
 		}
 
@@ -410,17 +412,40 @@ func (c *Controller) syncHandler(key string) error {
 			}
 			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
 		} else if trafficRouting.Istio != nil {
-			referencedResources.VirtualServices = append(referencedResources.VirtualServices, trafficRouting.Istio.VirtualService)
-
+			vsvcName := trafficRouting.Istio.VirtualService.Name
+			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
+			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(r.Namespace).Get(vsvcName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			referencedResources.VirtualServices = append(referencedResources.VirtualServices, *vsvc)
 		}
+	} // TODO: if errors finding objects, don't run ValidateRolloutReferencedResources
+
+	rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
+	if len(rolloutValidationErrors) > 0 {
+		validationError := rolloutValidationErrors[0]
+		prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
+		invalidSpecCond := prevCond
+		if prevCond == nil || prevCond.Message != validationError.Detail {
+			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Detail)
+		}
+		logutil.WithRollout(r).Error("Spec submitted is invalid")
+		generation := conditions.ComputeGenerationHash(r.Spec)
+		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+			newStatus := r.Status.DeepCopy()
+			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
+			// the controller should update the invalidSpec if there is a change in why the spec is invalid
+			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
+			}
+			err := c.patchCondition(r, newStatus, invalidSpecCond)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-
-	rolloutValidationRefErrors := validation.ValidateRolloutReferencedResources(r, referencedResources)
-	if len(rolloutValidationRefErrors) > 0 {
-		return rolloutValidationRefErrors[0]
-	}
-
-
 
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
 	// through adoption/orphaning.

@@ -2,7 +2,9 @@ package validation
 
 import (
 	"fmt"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -10,17 +12,36 @@ import (
 )
 // Controller will validate references in reconciliation
 
-type ReferencedResources struct {
-	AnalysisTemplates []v1alpha1.AnalysisTemplate
-	Ingresses []v1beta1.Ingress
-	//Services []corev1.Service // Check if service exists
-	VirtualServices []v1alpha1.IstioVirtualService
+// RolloutConditionType defines the conditions of Rollout
+type AnalysisTemplateType string
+
+const (
+	PrePromotionAnalysis AnalysisTemplateType = "PrePromotionAnalysis"
+	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
+	RolloutProgressing AnalysisTemplateType = "Progressing"
+	RolloutReplicaFailure AnalysisTemplateType = "ReplicaFailure"
+)
+
+type AnalysisTemplateWithPath struct {
+	AnalysisTemplate v1alpha1.AnalysisTemplate
+	FieldPath string
+	Type AnalysisTemplateType
+	// Type -> preAnalysis, CanaryStep (i)
 }
 
-func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
+type ReferencedResources struct {
+	AnalysisTemplates []v1alpha1.AnalysisTemplate
+	ClusterAnalysisTemplates []v1alpha1.ClusterAnalysisTemplate
+	Ingresses []v1beta1.Ingress
+	VirtualServices []unstructured.Unstructured
+}
+
+// return list of errors - no fieldPath, fieldErrorList
+
+func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {//field.ErrorList {
 	allErrs := field.ErrorList{}
 	for _, analysisTemplate := range referencedResources.AnalysisTemplates {
-		allErrs = append(allErrs, ValidateAnalysisTemplate(rollout, analysisTemplate)...)
+		allErrs = append(allErrs, ValidateAnalysisTemplate(analysisTemplate)...)
 	}
 	for _, ingress := range referencedResources.Ingresses {
 		allErrs = append(allErrs, ValidateIngress(rollout, ingress)...)
@@ -32,10 +53,9 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 }
 
 // Must run deterministically
-func ValidateAnalysisTemplate(rollout *v1alpha1.Rollout, analysisTempate v1alpha1.AnalysisTemplate) field.ErrorList {
+func ValidateAnalysisTemplate(analysisTemplate v1alpha1.AnalysisTemplate) field.ErrorList {
 	allErrs := field.ErrorList{}
-	// Check if STEP in RO, or pre/post-promo
-	for _, metric := range analysisTempate.Spec.Metrics {
+	for _, metric := range analysisTemplate.Spec.Metrics {
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
 			allErrs = append(allErrs, nil) // "Metric metric.Name in analysisTemplate analysisTemplate.name runs indefinitely"
@@ -48,83 +68,48 @@ func ValidateAnalysisTemplate(rollout *v1alpha1.Rollout, analysisTempate v1alpha
 // Nginx validates existing ingress for stable svc
 // ALB checks for annotations
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
-	return nil
-}
-
-func ValidateVirtualService(rollout *v1alpha1.Rollout, virtualService v1alpha1.IstioVirtualService) field.ErrorList {
-	//allErrs := field.ErrorList{}
-	// TODO: types.go for istio vsvc?
-	//httpRoutesI := virtualService.Routes
-	//if !notFound {
-	//	return nil, false, fmt.Errorf(".spec.http is not defined")
-	//}
-	//if err != nil {
-	//	return nil, false, err
-	//}
-	//routeBytes, err := json.Marshal(httpRoutesI)
-	//if err != nil {
-	//	return nil, false, err
-	//}
-	//
-	//var httpRoutes []HttpRoute
-	//err = json.Unmarshal(routeBytes, &httpRoutes)
-	//if err != nil {
-	//	return nil, false, err
-	//}
-	//validateHTTPRoutes(rollout, virtualService.Routes)
-	return nil
-}
-
-func validateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []istio.HttpRoute) error {
-	routes := r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
-	stableSvc := r.Spec.Strategy.Canary.StableService
-	canarySvc := r.Spec.Strategy.Canary.CanaryService
-
-	routesPatched := map[string]bool{}
-	for _, route := range routes {
-		routesPatched[route] = false
-	}
-
-	for _, route := range httpRoutes {
-		// check if the httpRoute is in the list of routes from the rollout
-		if _, ok := routesPatched[route.Name]; ok {
-			routesPatched[route.Name] = true
-			err := validateHosts(route, stableSvc, canarySvc)
-			if err != nil {
-				return err
+	allErrs := field.ErrorList{}
+	trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
+	if trafficRouting.Nginx != nil {
+		var hasStableServiceBackendRule bool
+		for _, rule := range ingress.Spec.Rules {
+			for _, path := range rule.HTTP.Paths {
+				if path.Backend.ServiceName == rollout.Spec.Strategy.Canary.StableService {
+					hasStableServiceBackendRule = true
+				}
 			}
 		}
-	}
-
-	for i := range routesPatched {
-		if !routesPatched[i] {
-			return fmt.Errorf("Route '%s' is not found", i)
+		if !hasStableServiceBackendRule {
+			msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
+			err := field.Error{
+				Type:     field.ErrorTypeRequired,
+				Field:    ".Spec.Rules", // TODO: list RO field
+				BadValue: nil,
+				Detail:   msg,
+			}
+			allErrs = append(allErrs, &err)
+		}
+	} else if trafficRouting.ALB != nil {
+		if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
+			return fmt.Errorf("ingress %s does not use the stable service %s", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
 		}
 	}
-
-	return nil
 }
 
-// validateHosts ensures there are two destinations within a route and their hosts are the stable and canary service
-func validateHosts(hr istio.HttpRoute, stableSvc, canarySvc string) error {
-	if len(hr.Route) != 2 {
-		return fmt.Errorf("Route '%s' does not have exactly two routes", hr.Name)
+func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
+	//allErrs := field.ErrorList{}
+	newObj := obj.DeepCopy()
+	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
+	if err != nil {
+		return err
 	}
-	hasStableSvc := false
-	hasCanarySvc := false
-	for _, r := range hr.Route {
-		if r.Destination.Host == stableSvc {
-			hasStableSvc = true
-		}
-		if r.Destination.Host == canarySvc {
-			hasCanarySvc = true
-		}
+	httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
+	if err != nil {
+		return err
 	}
-	if !hasCanarySvc {
-		return fmt.Errorf("Canary Service '%s' not found in route", canarySvc)
-	}
-	if !hasStableSvc {
-		return fmt.Errorf("Stable Service '%s' not found in route", stableSvc)
+	err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
+	if err != nil {
+		return err
 	}
 	return nil
 }

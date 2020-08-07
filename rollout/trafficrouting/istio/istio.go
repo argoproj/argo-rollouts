@@ -91,7 +91,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute, desiredWeight int64) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(httpRoutes []HttpRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	routes := map[string]bool{}
@@ -132,25 +132,33 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []httpRoute, desir
 
 func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
-	httpRoutesI, notFound, err := unstructured.NestedSlice(newObj.Object, "spec", "http")
-	if !notFound {
-		return nil, false, fmt.Errorf(".spec.http is not defined")
-	}
+	//	httpRoutesI, notFound, err := unstructured.NestedSlice(newObj.Object, "spec", "http")
+	//	if !notFound {
+	//		return nil, false, fmt.Errorf(".spec.http is not defined")
+	//	}
+	//	if err != nil {
+	//		return nil, false, err
+	//	}
+	//	routeBytes, err := json.Marshal(httpRoutesI)
+	//	if err != nil {
+	//		return nil, false, err
+	//	}
+	//
+	//	var httpRoutes []HttpRoute
+	//	err = json.Unmarshal(routeBytes, &httpRoutes)
+	//	if err != nil {
+	//		return nil, false, err
+	//}
+	httpRoutesI, err := GetHttpRoutesI(newObj)
 	if err != nil {
 		return nil, false, err
 	}
-	routeBytes, err := json.Marshal(httpRoutesI)
+	httpRoutes, err := GetHttpRoutes(newObj, httpRoutesI)
 	if err != nil {
 		return nil, false, err
 	}
 
-	var httpRoutes []httpRoute
-	err = json.Unmarshal(routeBytes, &httpRoutes)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if err := validateHTTPRoutes(r.rollout, httpRoutes); err != nil {
+	if err := ValidateHTTPRoutes(r.rollout, httpRoutes); err != nil {
 		return nil, false, err
 	}
 
@@ -159,6 +167,32 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 
 	err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", "http")
 	return newObj, len(patches) > 0, err
+}
+
+func GetHttpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
+	httpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", "http")
+	if !notFound {
+		return nil, fmt.Errorf(".spec.http is not defined")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return httpRoutesI, nil
+}
+
+func GetHttpRoutes(obj *unstructured.Unstructured, httpRoutesI []interface{}) ([]HttpRoute, error) {
+	routeBytes, err := json.Marshal(httpRoutesI)
+	if err != nil {
+		return nil, err
+	}
+
+	var httpRoutes []HttpRoute
+	err = json.Unmarshal(routeBytes, &httpRoutes)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpRoutes, nil
 }
 
 // Type indicates this reconciler is an Istio reconciler
@@ -194,7 +228,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 }
 
 // validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
-func validateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []httpRoute) error {
+func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []HttpRoute) error {
 	routes := r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
@@ -225,7 +259,7 @@ func validateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []httpRoute) error {
 }
 
 // validateHosts ensures there are two destinations within a route and their hosts are the stable and canary service
-func validateHosts(hr httpRoute, stableSvc, canarySvc string) error {
+func validateHosts(hr HttpRoute, stableSvc, canarySvc string) error {
 	if len(hr.Route) != 2 {
 		return fmt.Errorf("Route '%s' does not have exactly two routes", hr.Name)
 	}
@@ -265,7 +299,7 @@ type route struct {
 }
 
 // httpRoute fields within the HTTP struct of the Virtual Service that the controller modifies
-type httpRoute struct {
+type HttpRoute struct {
 	Name  string  `json:"name,omitempty"`
 	Route []route `json:"route,omitempty"`
 }
