@@ -18,15 +18,13 @@ type AnalysisTemplateType string
 const (
 	PrePromotionAnalysis AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-	RolloutProgressing AnalysisTemplateType = "Progressing"
-	RolloutReplicaFailure AnalysisTemplateType = "ReplicaFailure"
+	CanaryStepIndexLabel AnalysisTemplateType = "CanaryStepIndex"
 )
 
-type AnalysisTemplateWithPath struct {
+type AnalysisTemplateWithType struct {
 	AnalysisTemplate v1alpha1.AnalysisTemplate
-	FieldPath string
+	ClusterAnalysisTemplate v1alpha1.ClusterAnalysisTemplate
 	Type AnalysisTemplateType
-	// Type -> preAnalysis, CanaryStep (i)
 }
 
 type ReferencedResources struct {
@@ -35,8 +33,6 @@ type ReferencedResources struct {
 	Ingresses []v1beta1.Ingress
 	VirtualServices []unstructured.Unstructured
 }
-
-// return list of errors - no fieldPath, fieldErrorList
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {//field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -52,64 +48,53 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	return allErrs
 }
 
-// Must run deterministically
+// TODO: Handle ClusterAnalysisTemplate
 func ValidateAnalysisTemplate(analysisTemplate v1alpha1.AnalysisTemplate) field.ErrorList {
 	allErrs := field.ErrorList{}
+	fieldPath := ""
 	for _, metric := range analysisTemplate.Spec.Metrics {
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
-			allErrs = append(allErrs, nil) // "Metric metric.Name in analysisTemplate analysisTemplate.name runs indefinitely"
+			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", metric.Name, analysisTemplate.Name)
+			allErrs = append(allErrs, &field.Error{field.ErrorTypeForbidden, fieldPath, nil, msg})
 		}
 	}
 	return allErrs
 }
 
-// ALB or Nginx
-// Nginx validates existing ingress for stable svc
-// ALB checks for annotations
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
 	allErrs := field.ErrorList{}
-	trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-	if trafficRouting.Nginx != nil {
-		var hasStableServiceBackendRule bool
-		for _, rule := range ingress.Spec.Rules {
-			for _, path := range rule.HTTP.Paths {
-				if path.Backend.ServiceName == rollout.Spec.Strategy.Canary.StableService {
-					hasStableServiceBackendRule = true
-				}
-			}
-		}
-		if !hasStableServiceBackendRule {
-			msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
-			err := field.Error{
-				Type:     field.ErrorTypeRequired,
-				Field:    ".Spec.Rules", // TODO: list RO field
-				BadValue: nil,
-				Detail:   msg,
-			}
-			allErrs = append(allErrs, &err)
-		}
-	} else if trafficRouting.ALB != nil {
-		if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
-			return fmt.Errorf("ingress %s does not use the stable service %s", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
-		}
+	fieldPath := ".Spec.Strategy.Canary.TrafficRouting"
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
+		fieldPath += ".Nginx"
+	} else {
+		fieldPath += ".ALB"
 	}
+	if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
+		msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
+		allErrs = append(allErrs, &field.Error{field.ErrorTypeRequired, fieldPath, nil, msg})
+	}
+	return allErrs
 }
 
 func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
-	//allErrs := field.ErrorList{}
+	allErrs := field.ErrorList{}
 	newObj := obj.DeepCopy()
+	fieldPath := "rollout.Spec.Strategy.Canary.TrafficRouting.Istio"
 	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
 	if err != nil {
-		return err
+		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
+		allErrs = append(allErrs, &field.Error{field.ErrorTypeInvalid, fieldPath, nil, msg})
 	}
 	httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
 	if err != nil {
-		return err
+		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
+		allErrs = append(allErrs, &field.Error{field.ErrorTypeInvalid, fieldPath, nil, msg})
 	}
 	err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
 	if err != nil {
-		return err
+		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
+		allErrs = append(allErrs, &field.Error{field.ErrorTypeInvalid, fieldPath, nil, msg})
 	}
 	return nil
 }

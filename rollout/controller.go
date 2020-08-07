@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"reflect"
 	"time"
 
@@ -324,7 +325,65 @@ func (c *Controller) syncHandler(key string) error {
 
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
 
-	// cannotFindResources
+	referencedResources := c.getRolloutReferencedResources(rollout)
+
+	rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
+	if len(rolloutValidationErrors) > 0 {
+		validationError := rolloutValidationErrors[0]
+		prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
+		invalidSpecCond := prevCond
+		if prevCond == nil || prevCond.Message != validationError.Detail {
+			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Detail)
+		}
+		logutil.WithRollout(r).Error("Spec submitted is invalid")
+		generation := conditions.ComputeGenerationHash(r.Spec)
+		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+			newStatus := r.Status.DeepCopy()
+			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
+			// the controller should update the invalidSpec if there is a change in why the spec is invalid
+			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
+			}
+			err := c.patchCondition(r, newStatus, invalidSpecCond)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
+	// through adoption/orphaning.
+	rsList, err := c.getReplicaSetsForRollouts(r)
+	if err != nil {
+		return err
+	}
+
+	err = c.checkPausedConditions(r)
+	if err != nil {
+		return err
+	}
+
+	isScalingEvent, err := c.isScalingEvent(r, rsList)
+	if err != nil {
+		return err
+	}
+
+	if getPauseCondition(r, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || r.Spec.Paused || isScalingEvent {
+		return c.syncReplicasOnly(r, rsList, isScalingEvent)
+	}
+
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		return c.rolloutBlueGreen(r, rsList)
+	}
+	if rollout.Spec.Strategy.Canary != nil {
+		return c.rolloutCanary(r, rsList)
+	}
+	return fmt.Errorf("no rollout strategy selected")
+}
+
+func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validation.ReferencedResources, field.ErrorList) {
+	allErrs := field.ErrorList{}
 	referencedResources := validation.ReferencedResources{}
 	if r.Spec.Strategy.BlueGreen != nil {
 		blueGreen := r.Spec.Strategy.BlueGreen
@@ -400,13 +459,13 @@ func (c *Controller) syncHandler(key string) error {
 
 		trafficRouting := canary.TrafficRouting
 		if trafficRouting.ALB != nil {
-			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(trafficRouting.ALB.Ingress)
+			ingress, err := c.ingressesLister.Ingresses(r.Namespace).Get(trafficRouting.ALB.Ingress)
 			if err != nil {
 				return err
 			}
 			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
 		} else if trafficRouting.Nginx != nil {
-			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(trafficRouting.Nginx.StableIngress)
+			ingress, err := c.ingressesLister.Ingresses(r.Namespace).Get(trafficRouting.Nginx.StableIngress)
 			if err != nil {
 				return err
 			}
@@ -421,60 +480,7 @@ func (c *Controller) syncHandler(key string) error {
 			referencedResources.VirtualServices = append(referencedResources.VirtualServices, *vsvc)
 		}
 	} // TODO: if errors finding objects, don't run ValidateRolloutReferencedResources
-
-	rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
-	if len(rolloutValidationErrors) > 0 {
-		validationError := rolloutValidationErrors[0]
-		prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-		invalidSpecCond := prevCond
-		if prevCond == nil || prevCond.Message != validationError.Detail {
-			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Detail)
-		}
-		logutil.WithRollout(r).Error("Spec submitted is invalid")
-		generation := conditions.ComputeGenerationHash(r.Spec)
-		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			newStatus := r.Status.DeepCopy()
-			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
-			// the controller should update the invalidSpec if there is a change in why the spec is invalid
-			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
-				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
-			}
-			err := c.patchCondition(r, newStatus, invalidSpecCond)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
-	// through adoption/orphaning.
-	rsList, err := c.getReplicaSetsForRollouts(r)
-	if err != nil {
-		return err
-	}
-
-	err = c.checkPausedConditions(r)
-	if err != nil {
-		return err
-	}
-
-	isScalingEvent, err := c.isScalingEvent(r, rsList)
-	if err != nil {
-		return err
-	}
-
-	if getPauseCondition(r, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || r.Spec.Paused || isScalingEvent {
-		return c.syncReplicasOnly(r, rsList, isScalingEvent)
-	}
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		return c.rolloutBlueGreen(r, rsList)
-	}
-	if rollout.Spec.Strategy.Canary != nil {
-		return c.rolloutCanary(r, rsList)
-	}
-	return fmt.Errorf("no rollout strategy selected")
+	return referencedResources, allErrs
 }
 
 func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
