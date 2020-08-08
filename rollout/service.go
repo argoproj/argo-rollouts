@@ -167,6 +167,26 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	return previewSvc, activeSvc, nil
 }
 
+func (c *Controller) getStableAndCanaryServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+	var stableSvc *corev1.Service
+	var canarySvc *corev1.Service
+	var err error
+
+	if r.Spec.Strategy.Canary.StableService != "" {
+		stableSvc, err = c.getReferencedService(r, r.Spec.Strategy.Canary.StableService)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	if r.Spec.Strategy.Canary.CanaryService != "" {
+		canarySvc, err = c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return stableSvc, canarySvc, nil
+}
+
 func (c *Controller) reconcileStableAndCanaryService(roCtx *canaryContext) error {
 	r := roCtx.Rollout()
 	newRS := roCtx.NewRS()

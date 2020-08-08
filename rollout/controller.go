@@ -3,10 +3,11 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"reflect"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -323,42 +324,18 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	// TODO: put into helper functions
-	rolloutValidationErrors := validation.ValidateRollout(rollout)
-	if len(rolloutValidationErrors) == 0 {
-		referencedResources, rolloutValidationReferencesErrors, err := c.getRolloutReferencedResources(rollout)
+	// Get RO Validation errors
+	rolloutValidationErrors, err := c.getRolloutValidationErrors(r)
+	if err != nil {
+		return err
+	}
+
+	// If any RO Validation errors, create InvalidCondition in RO status
+	if len(rolloutValidationErrors) > 0 {
+		err = c.createInvalidRolloutCondition(rolloutValidationErrors[0], r)
 		if err != nil {
 			return err
 		}
-		rolloutValidationErrors = append(rolloutValidationErrors, rolloutValidationReferencesErrors...)
-		if len(rolloutValidationErrors) == 0 {
-			rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
-		}
-	}
-
-
-	if len(rolloutValidationErrors) > 0 {
-		validationError := rolloutValidationErrors[0]
-		prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-		invalidSpecCond := prevCond
-		if prevCond == nil || prevCond.Message != validationError.Detail {
-			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Detail)
-		}
-		logutil.WithRollout(r).Error("Spec submitted is invalid")
-		generation := conditions.ComputeGenerationHash(r.Spec)
-		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			newStatus := r.Status.DeepCopy()
-			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
-			// the controller should update the invalidSpec if there is a change in why the spec is invalid
-			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
-				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
-			}
-			err := c.patchCondition(r, newStatus, invalidSpecCond)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
 	}
 
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
@@ -391,114 +368,224 @@ func (c *Controller) syncHandler(key string) error {
 	return fmt.Errorf("no rollout strategy selected")
 }
 
-// TODO: don't put errors in fields.Error -> possible operational problem
-// Note: Listers do not return errors except 'Not Found', which will be translated as a field error
-// This method will likely never return an error
-func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validation.ReferencedResources, field.ErrorList, error) {
-	// TODO: create in-line function?
-	//errorReturner := func() {}
-	allErrs := field.ErrorList{}
-	referencedResources := validation.ReferencedResources{}
-	if r.Spec.Strategy.BlueGreen != nil {
-		blueGreen := r.Spec.Strategy.BlueGreen
-		_, _, err := c.getPreviewAndActiveServices(r)
+func (c *Controller) getRolloutValidationErrors(r *v1alpha1.Rollout) (field.ErrorList, error) {
+	rolloutValidationErrors := validation.ValidateRollout(r)
+	if len(rolloutValidationErrors) == 0 {
+		referencedResources, rolloutValidationReferencesErrors, err := c.getRolloutReferencedResources(r)
+		if err != nil {
+			return rolloutValidationErrors, err
+		}
+		rolloutValidationErrors = append(rolloutValidationErrors, rolloutValidationReferencesErrors...)
+		if len(rolloutValidationErrors) == 0 {
+			rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
+		}
+	}
+	return rolloutValidationErrors, nil
+}
+
+func (c *Controller) createInvalidRolloutCondition(validationError *field.Error, r *v1alpha1.Rollout) error {
+	prevCond := conditions.GetRolloutCondition(r.Status, v1alpha1.InvalidSpec)
+	invalidSpecCond := prevCond
+	if prevCond == nil || prevCond.Message != validationError.Detail {
+		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Detail)
+	}
+	logutil.WithRollout(r).Error("Spec submitted is invalid")
+	generation := conditions.ComputeGenerationHash(r.Spec)
+	if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+		newStatus := r.Status.DeepCopy()
+		// SetRolloutCondition only updates the condition when the status and/or reason changes, but
+		// the controller should update the invalidSpec if there is a change in why the spec is invalid
+		if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+			conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
+		}
+		err := c.patchCondition(r, newStatus, invalidSpecCond)
 		if err != nil {
 			return err
 		}
-		for _, template := range blueGreen.PrePromotionAnalysis.Templates {
-			if template.ClusterScope {
-				clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-				if err != nil {
-					if !k8serrors.IsNotFound(err) {
-						return referencedResources, nil, err
-					} else {
-						// TODO: Create field error
-						//allErrs = append(allErrs, field.Error{})
-					}
-				}
-				referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
-			} else {
-				analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
-				if err != nil {
-					return err
-				}
-				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
-			}
-		}
-		for _, template := range blueGreen.PostPromotionAnalysis.Templates {
-			if template.ClusterScope {
-				clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-				if err != nil {
-					return err
-				}
-				referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
-			} else {
-				analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
-				if err != nil {
-					return err
-				}
-				referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
-			}
-		}
+	}
+	return nil
+}
 
+// Note: Listers do not return errors except 'Not Found', which will be translated as a field error
+// This method will likely never return an error
+func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validation.ReferencedResources, field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	referencedResources := validation.ReferencedResources{}
+	fldPath := field.NewPath("spec", "strategy")
+
+	errorReturner := func(err error, value interface{}, fldPath *field.Path) error {
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return err
+			} else {
+				allErrs = append(allErrs, field.NotFound(fldPath, value))
+			}
+		}
+		return nil
+	}
+
+	if r.Spec.Strategy.BlueGreen != nil {
+		blueGreenRefErrs, err := c.getBlueGreenStrategyRefs(r.Spec.Strategy.BlueGreen, r, fldPath.Child("blueGreen"), &referencedResources, errorReturner)
+		if err != nil {
+			return referencedResources, allErrs, err
+		}
+		allErrs = append(allErrs, blueGreenRefErrs...)
 	}
 
 	if r.Spec.Strategy.Canary != nil {
-		canary := r.Spec.Strategy.Canary
-		if r.Spec.Strategy.Canary.CanaryService != "" {
-			_, err := c.getReferencedService(r, r.Spec.Strategy.Canary.CanaryService)
-			if err != nil {
-				return err
-			}
+		canaryRefErrs, err := c.getCanaryStrategyRefs(r.Spec.Strategy.Canary, r, fldPath.Child("canary"), &referencedResources, errorReturner)
+		if err != nil {
+			return referencedResources, allErrs, err
 		}
-		if r.Spec.Strategy.Canary.StableService != "" {
-			_, err := c.getReferencedService(r, r.Spec.Strategy.Canary.StableService)
-			if err != nil {
-				return err
-			}
-		}
-		for _, step := range canary.Steps {
-			for _, template := range step.Analysis.Templates {
-				if template.ClusterScope {
-					clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-					if err != nil {
-						return err
-					}
-					referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
-				} else {
-					analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
-					if err != nil {
-						return err
-					}
-					referencedResources.AnalysisTemplates = append(referencedResources.AnalysisTemplates, *analysisTemplate)
-				}
-			}
-		}
+		allErrs = append(allErrs, canaryRefErrs...)
+	}
+	return referencedResources, allErrs, nil
+}
 
-		trafficRouting := canary.TrafficRouting
-		if trafficRouting.ALB != nil {
-			ingress, err := c.ingressesLister.Ingresses(r.Namespace).Get(trafficRouting.ALB.Ingress)
+func (c *Controller) getCanaryStrategyRefs(canaryStrategy *v1alpha1.CanaryStrategy, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	_, _, err := c.getStableAndCanaryServices(r)
+	err = errorReturner(err, canaryStrategy, fldPath)
+	if err != nil {
+		return allErrs, err
+	}
+
+	if canaryStrategy.Steps != nil {
+		for i, step := range canaryStrategy.Steps {
+			canaryStepErrs, err := c.getRolloutAnalysisRefs(step.Analysis, r, fldPath.Index(i).Child("analysis"), referencedResources, errorReturner)
 			if err != nil {
-				return err
+				return allErrs, err
 			}
-			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
-		} else if trafficRouting.Nginx != nil {
-			ingress, err := c.ingressesLister.Ingresses(r.Namespace).Get(trafficRouting.Nginx.StableIngress)
-			if err != nil {
-				return err
-			}
-			referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
-		} else if trafficRouting.Istio != nil {
-			vsvcName := trafficRouting.Istio.VirtualService.Name
-			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(r.Namespace).Get(vsvcName, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			referencedResources.VirtualServices = append(referencedResources.VirtualServices, *vsvc)
+			allErrs = append(allErrs, canaryStepErrs...)
 		}
-	} // TODO: if errors finding objects, don't run ValidateRolloutReferencedResources
-	return referencedResources, allErrs
+	}
+
+	if canaryStrategy.TrafficRouting != nil {
+		trafficRoutingRefErrs, err := c.getTrafficRoutingRefs(canaryStrategy.TrafficRouting, r, fldPath.Child("trafficRouting"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, trafficRoutingRefErrs...)
+	}
+
+	return allErrs, nil
+}
+
+func (c *Controller) getBlueGreenStrategyRefs(blueGreenStrategy *v1alpha1.BlueGreenStrategy, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	_, activeService, err := c.getPreviewAndActiveServices(r)
+	err = errorReturner(err, activeService, fldPath.Child("activeService"))
+	if err != nil {
+		return allErrs, err
+	}
+
+	prePromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PrePromotionAnalysis, r, fldPath.Child("prePromotionAnalysis"), referencedResources, errorReturner)
+	if err != nil {
+		return allErrs, err
+	}
+	allErrs = append(allErrs, prePromotionErrs...)
+
+	postPromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PostPromotionAnalysis, r, fldPath.Child("postPromotionAnalysis"), referencedResources, errorReturner)
+	if err != nil {
+		return allErrs, err
+	}
+	allErrs = append(allErrs, postPromotionErrs...)
+
+	return allErrs, nil
+}
+
+func (c *Controller) getRolloutAnalysisRefs(rolloutAnalysis *v1alpha1.RolloutAnalysis, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	if rolloutAnalysis != nil && rolloutAnalysis.Templates != nil {
+		for i, template := range rolloutAnalysis.Templates {
+			getAnalysisTemplateErrs, err := c.getAnalysisTemplateRef(template, r, fldPath.Child("templates").Index(i), referencedResources, errorReturner)
+			if err != nil {
+				return allErrs, err
+			}
+			allErrs = append(allErrs, getAnalysisTemplateErrs...)
+		}
+	}
+	return allErrs, nil
+}
+
+func (c *Controller) getAnalysisTemplateRef(template v1alpha1.RolloutAnalysisTemplate, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	var templateWithType *validation.AnalysisTemplateWithType
+	if template.ClusterScope {
+		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+		err = errorReturner(err, template.TemplateName, fldPath)
+		if err != nil {
+			return allErrs, err
+		}
+		if clusterAnalysisTemplate != nil {
+			templateWithType.ClusterAnalysisTemplate = *clusterAnalysisTemplate
+		}
+	} else {
+		analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
+		err = errorReturner(err, template.TemplateName, fldPath)
+		if err != nil {
+			return allErrs, err
+		}
+		if analysisTemplate != nil {
+			templateWithType.AnalysisTemplate = *analysisTemplate
+		}
+	}
+	if templateWithType != nil {
+		templateWithType.FieldPath = *fldPath
+		referencedResources.AnalysisTemplateWithType = append(referencedResources.AnalysisTemplateWithType, *templateWithType)
+	}
+	return allErrs, nil
+}
+
+func (c *Controller) getTrafficRoutingRefs(trafficRouting *v1alpha1.RolloutTrafficRouting, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	if trafficRouting.ALB != nil {
+		getIngressErrs, err := c.getIngressReference(trafficRouting.ALB.Ingress, r, fldPath.Child("alb", "ingress"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, getIngressErrs...)
+	} else if trafficRouting.Nginx != nil {
+		getIngressErrs, err := c.getIngressReference(trafficRouting.Nginx.StableIngress, r, fldPath.Child("nginx", "stableIngress"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, getIngressErrs...)
+	} else if trafficRouting.Istio != nil {
+		getVsvcErrs, err := c.getVirtualServiceReference(trafficRouting.Istio.VirtualService.Name, r, fldPath.Child("istio", "virtualService", "name"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, getVsvcErrs...)
+	}
+	return allErrs, nil
+}
+
+func (c *Controller) getIngressReference(name string, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	ingress, err := c.ingressesLister.Ingresses(r.Namespace).Get(name)
+	err = errorReturner(err, ingress, fldPath)
+	if err != nil {
+		return allErrs, err
+	}
+	if ingress != nil {
+		referencedResources.Ingresses = append(referencedResources.Ingresses, *ingress)
+	}
+	return allErrs, nil
+}
+
+func (c *Controller) getVirtualServiceReference(name string, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
+	allErrs := field.ErrorList{}
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
+	vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(r.Namespace).Get(name, metav1.GetOptions{})
+	err = errorReturner(err, name, fldPath.Child("istio.virtualService.name"))
+	if err != nil {
+		return allErrs, err
+	}
+	if vsvc != nil {
+		referencedResources.VirtualServices = append(referencedResources.VirtualServices, *vsvc)
+	}
+	return allErrs, nil
 }
 
 func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
