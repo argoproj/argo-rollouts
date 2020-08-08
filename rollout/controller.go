@@ -323,11 +323,20 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
+	// TODO: put into helper functions
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
+	if len(rolloutValidationErrors) == 0 {
+		referencedResources, rolloutValidationReferencesErrors, err := c.getRolloutReferencedResources(rollout)
+		if err != nil {
+			return err
+		}
+		rolloutValidationErrors = append(rolloutValidationErrors, rolloutValidationReferencesErrors...)
+		if len(rolloutValidationErrors) == 0 {
+			rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
+		}
+	}
 
-	referencedResources := c.getRolloutReferencedResources(rollout)
 
-	rolloutValidationErrors = append(rolloutValidationErrors, validation.ValidateRolloutReferencedResources(r, referencedResources)...)
 	if len(rolloutValidationErrors) > 0 {
 		validationError := rolloutValidationErrors[0]
 		prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
@@ -382,7 +391,12 @@ func (c *Controller) syncHandler(key string) error {
 	return fmt.Errorf("no rollout strategy selected")
 }
 
-func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validation.ReferencedResources, field.ErrorList) {
+// TODO: don't put errors in fields.Error -> possible operational problem
+// Note: Listers do not return errors except 'Not Found', which will be translated as a field error
+// This method will likely never return an error
+func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validation.ReferencedResources, field.ErrorList, error) {
+	// TODO: create in-line function?
+	//errorReturner := func() {}
 	allErrs := field.ErrorList{}
 	referencedResources := validation.ReferencedResources{}
 	if r.Spec.Strategy.BlueGreen != nil {
@@ -394,9 +408,13 @@ func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validat
 		for _, template := range blueGreen.PrePromotionAnalysis.Templates {
 			if template.ClusterScope {
 				clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-				if err != nil { // if !k8serrors.IsNotFound(err)
-					// TODO: Create + append error to list of RolloutValidationErrors?
-					return err
+				if err != nil {
+					if !k8serrors.IsNotFound(err) {
+						return referencedResources, nil, err
+					} else {
+						// TODO: Create field error
+						//allErrs = append(allErrs, field.Error{})
+					}
 				}
 				referencedResources.ClusterAnalysisTemplates = append(referencedResources.ClusterAnalysisTemplates, *clusterAnalysisTemplate)
 			} else {

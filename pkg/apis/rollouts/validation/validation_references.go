@@ -15,6 +15,7 @@ import (
 // RolloutConditionType defines the conditions of Rollout
 type AnalysisTemplateType string
 
+// TODO: can incorporate later
 const (
 	PrePromotionAnalysis AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
@@ -37,7 +38,10 @@ type ReferencedResources struct {
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {//field.ErrorList {
 	allErrs := field.ErrorList{}
 	for _, analysisTemplate := range referencedResources.AnalysisTemplates {
-		allErrs = append(allErrs, ValidateAnalysisTemplate(analysisTemplate)...)
+		allErrs = append(allErrs, ValidateAnalysisTemplateSpec(analysisTemplate.Name, analysisTemplate.Spec)...)
+	}
+	for _, clusterAnalysisTemplate := range referencedResources.ClusterAnalysisTemplates {
+		allErrs = append(allErrs, ValidateAnalysisTemplateSpec(clusterAnalysisTemplate.Name, clusterAnalysisTemplate.Spec)...)
 	}
 	for _, ingress := range referencedResources.Ingresses {
 		allErrs = append(allErrs, ValidateIngress(rollout, ingress)...)
@@ -48,14 +52,13 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	return allErrs
 }
 
-// TODO: Handle ClusterAnalysisTemplate
-func ValidateAnalysisTemplate(analysisTemplate v1alpha1.AnalysisTemplate) field.ErrorList {
+func ValidateAnalysisTemplateSpec(analysisTemplateName string, analysisTemplateSpec v1alpha1.AnalysisTemplateSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 	fieldPath := ""
-	for _, metric := range analysisTemplate.Spec.Metrics {
+	for _, metric := range analysisTemplateSpec.Metrics {
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
-			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", metric.Name, analysisTemplate.Name)
+			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", metric.Name, analysisTemplateName)
 			allErrs = append(allErrs, &field.Error{field.ErrorTypeForbidden, fieldPath, nil, msg})
 		}
 	}
@@ -64,11 +67,13 @@ func ValidateAnalysisTemplate(analysisTemplate v1alpha1.AnalysisTemplate) field.
 
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
 	allErrs := field.ErrorList{}
-	fieldPath := ".Spec.Strategy.Canary.TrafficRouting"
+	fieldPath := ".spec.strategy.canary.trafficRouting"
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
-		fieldPath += ".Nginx"
+		fieldPath += ".nginx"
+	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
+		fieldPath += ".alb"
 	} else {
-		fieldPath += ".ALB"
+		return allErrs
 	}
 	if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
 		msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
@@ -80,7 +85,7 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
 	allErrs := field.ErrorList{}
 	newObj := obj.DeepCopy()
-	fieldPath := "rollout.Spec.Strategy.Canary.TrafficRouting.Istio"
+	fieldPath := ".spec.strategy.canary.trafficRouting.istio"
 	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
@@ -96,5 +101,5 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
 		allErrs = append(allErrs, &field.Error{field.ErrorTypeInvalid, fieldPath, nil, msg})
 	}
-	return nil
+	return allErrs
 }
