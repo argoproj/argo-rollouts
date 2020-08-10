@@ -1432,6 +1432,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	}
 
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -1439,6 +1440,10 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
+
+	at := analysisTemplate("test")
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
@@ -1480,6 +1485,9 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc)
+	at := analysisTemplate("test")
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	rs := newReplicaSet(r, 1)
 
@@ -1515,12 +1523,16 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	activeSvc := newService("active", 80, activeSelector, r2)
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	previewSvc := newService("preview", 80, previewSelector, r2)
+	at := analysisTemplate("test")
+
 
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	patchRolloutIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))

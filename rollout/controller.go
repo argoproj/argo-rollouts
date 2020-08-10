@@ -415,10 +415,14 @@ func (c *Controller) getRolloutReferencedResources(r *v1alpha1.Rollout) (validat
 
 	errorReturner := func(err error, value interface{}, fldPath *field.Path) error {
 		if err != nil {
-			if k8serrors.IsNotFound(err) {
+			// If object not found, create fieldPath error
+			// Else, return error object
+			if !k8serrors.IsNotFound(err) {
 				return err
 			} else {
-				allErrs = append(allErrs, field.NotFound(fldPath, value))
+				notFound := field.NotFound(fldPath, value)
+				notFound.Detail = fmt.Sprintf("Object not found '%s'", fldPath.String())
+				allErrs = append(allErrs, notFound)
 			}
 		}
 		return nil
