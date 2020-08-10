@@ -25,9 +25,9 @@ type AnalysisTemplateType string
 //)
 
 type AnalysisTemplateWithType struct {
-	AnalysisTemplate        v1alpha1.AnalysisTemplate
-	ClusterAnalysisTemplate v1alpha1.ClusterAnalysisTemplate
-	FieldPath               field.Path
+	AnalysisTemplate        *v1alpha1.AnalysisTemplate
+	ClusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate
+	FieldPath               *field.Path
 }
 
 type ReferencedResources struct {
@@ -55,16 +55,16 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
-	if &template.ClusterAnalysisTemplate != nil {
+	if template.ClusterAnalysisTemplate != nil {
 		templateName, templateSpec = template.ClusterAnalysisTemplate.Name, template.ClusterAnalysisTemplate.Spec
-	} else if &template.AnalysisTemplate != nil {
+	} else if template.AnalysisTemplate != nil {
 		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
 	}
 	for _, metric := range templateSpec.Metrics {
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
-			allErrs = append(allErrs, field.Forbidden(&template.FieldPath, msg))
+			allErrs = append(allErrs, field.Forbidden(template.FieldPath, msg))
 		}
 	}
 	return allErrs

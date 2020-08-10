@@ -479,17 +479,21 @@ func (c *Controller) getBlueGreenStrategyRefs(blueGreenStrategy *v1alpha1.BlueGr
 		return allErrs, err
 	}
 
-	prePromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PrePromotionAnalysis, r, fldPath.Child("prePromotionAnalysis"), referencedResources, errorReturner)
-	if err != nil {
-		return allErrs, err
+	if blueGreenStrategy.PrePromotionAnalysis != nil {
+		prePromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PrePromotionAnalysis, r, fldPath.Child("prePromotionAnalysis"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, prePromotionErrs...)
 	}
-	allErrs = append(allErrs, prePromotionErrs...)
 
-	postPromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PostPromotionAnalysis, r, fldPath.Child("postPromotionAnalysis"), referencedResources, errorReturner)
-	if err != nil {
-		return allErrs, err
+	if blueGreenStrategy.PostPromotionAnalysis != nil {
+		postPromotionErrs, err := c.getRolloutAnalysisRefs(blueGreenStrategy.PostPromotionAnalysis, r, fldPath.Child("postPromotionAnalysis"), referencedResources, errorReturner)
+		if err != nil {
+			return allErrs, err
+		}
+		allErrs = append(allErrs, postPromotionErrs...)
 	}
-	allErrs = append(allErrs, postPromotionErrs...)
 
 	return allErrs, nil
 }
@@ -510,7 +514,6 @@ func (c *Controller) getRolloutAnalysisRefs(rolloutAnalysis *v1alpha1.RolloutAna
 
 func (c *Controller) getAnalysisTemplateRef(template v1alpha1.RolloutAnalysisTemplate, r *v1alpha1.Rollout, fldPath *field.Path, referencedResources *validation.ReferencedResources, errorReturner func(error, interface{}, *field.Path) error) (field.ErrorList, error) {
 	allErrs := field.ErrorList{}
-	var templateWithType *validation.AnalysisTemplateWithType
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
 		err = errorReturner(err, template.TemplateName, fldPath)
@@ -518,7 +521,10 @@ func (c *Controller) getAnalysisTemplateRef(template v1alpha1.RolloutAnalysisTem
 			return allErrs, err
 		}
 		if clusterAnalysisTemplate != nil {
-			templateWithType.ClusterAnalysisTemplate = *clusterAnalysisTemplate
+			referencedResources.AnalysisTemplateWithType = append(referencedResources.AnalysisTemplateWithType, validation.AnalysisTemplateWithType{
+				ClusterAnalysisTemplate: clusterAnalysisTemplate,
+				FieldPath:               fldPath,
+			})
 		}
 	} else {
 		analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(template.TemplateName)
@@ -527,12 +533,11 @@ func (c *Controller) getAnalysisTemplateRef(template v1alpha1.RolloutAnalysisTem
 			return allErrs, err
 		}
 		if analysisTemplate != nil {
-			templateWithType.AnalysisTemplate = *analysisTemplate
+			referencedResources.AnalysisTemplateWithType = append(referencedResources.AnalysisTemplateWithType, validation.AnalysisTemplateWithType{
+				AnalysisTemplate: analysisTemplate,
+				FieldPath:               fldPath,
+			})
 		}
-	}
-	if templateWithType != nil {
-		templateWithType.FieldPath = *fldPath
-		referencedResources.AnalysisTemplateWithType = append(referencedResources.AnalysisTemplateWithType, *templateWithType)
 	}
 	return allErrs, nil
 }
