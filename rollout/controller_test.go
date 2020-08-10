@@ -888,17 +888,17 @@ func (f *fixture) getDeletedExperiment(index int) string {
 	return deleteAction.GetName()
 }
 
-//func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
-//	f := newFixture(t)
-//	defer f.Close()
-//
-//	r := newBlueGreenRollout("foo", 1, nil, "", "")
-//	f.rolloutLister = append(f.rolloutLister, r)
-//	f.objects = append(f.objects, r)
-//
-//	f.expectPatchRolloutAction(r)
-//	f.run(getKey(r, t))
-//}
+func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+}
 
 func TestAdoptReplicaSet(t *testing.T) {
 	f := newFixture(t)
@@ -1027,35 +1027,35 @@ func TestSetReplicaToDefault(t *testing.T) {
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
 
-//func TestSwitchInvalidSpecMessage(t *testing.T) {
-//	f := newFixture(t)
-//	defer f.Close()
-//
-//	r := newBlueGreenRollout("foo", 1, nil, "", "")
-//	r.Spec.Selector = &metav1.LabelSelector{}
-//	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
-//	conditions.SetRolloutCondition(&r.Status, *cond)
-//
-//	r.Spec.Selector = nil
-//	f.rolloutLister = append(f.rolloutLister, r)
-//	f.objects = append(f.objects, r)
-//
-//	patchIndex := f.expectPatchRolloutAction(r)
-//	f.run(getKey(r, t))
-//
-//	expectedPatchWithoutSub := `{
-//		"status": {
-//			"conditions": [%s,%s]
-//		}
-//	}`
-//	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-//	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".spec.selector"))
-//	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-//	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
-//
-//	patch := f.getPatchedRollout(patchIndex)
-//	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
-//}
+func TestSwitchInvalidSpecMessage(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r.Spec.Selector = &metav1.LabelSelector{}
+	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
+	conditions.SetRolloutCondition(&r.Status, *cond)
+
+	r.Spec.Selector = nil
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".spec.selector"))
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
 
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
 // variations made to the pod template in equivalent ways.
