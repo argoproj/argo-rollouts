@@ -418,8 +418,6 @@ func (c *Controller) createInvalidRolloutCondition(validationError error, r *v1a
 	return nil
 }
 
-// Returns 1st error found -> others will never be surfaced by controller
-// Format errors properly (ex: object not found)
 func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
 	refResources := validation.ReferencedResources{}
 	services, err := c.getReferencedServices(rollout)
