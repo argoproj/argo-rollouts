@@ -103,7 +103,7 @@ func TestValidateRolloutStrategyBlueGreen(t *testing.T) {
 
 	allErrs := ValidateRolloutStrategyBlueGreen(&rollout, field.NewPath("spec", "strategy", "blueGreen"))
 	assert.Len(t, allErrs, 2)
-	assert.Equal(t, DuplicatedServicesBlueGreenMessage, allErrs[0].BadValue)
+	assert.Equal(t, DuplicatedServicesBlueGreenMessage, allErrs[0].Detail)
 	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, allErrs[1].Detail)
 }
 

@@ -140,7 +140,7 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	blueGreen := rollout.Spec.Strategy.BlueGreen
 	allErrs := field.ErrorList{}
 	if blueGreen.ActiveService == blueGreen.PreviewService {
-		allErrs = append(allErrs, field.Duplicate(fldPath.Child("previewService"), DuplicatedServicesBlueGreenMessage))
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("activeService"), blueGreen.ActiveService, DuplicatedServicesBlueGreenMessage))
 	}
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {

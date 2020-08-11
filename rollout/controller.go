@@ -325,13 +325,15 @@ func (c *Controller) syncHandler(key string) error {
 	}()
 
 	// Get RO Validation errors
-	rolloutValidationError, err := c.getRolloutValidationErrors(rollout)
+	// TODO: why does rolloutValidationError get reset?
+	rolloutValidationErrorMsg, err := c.getRolloutValidationErrors(rollout)
 	if err != nil {
 		return err
 	}
 
-	if rolloutValidationError != "" {
-		return c.createInvalidRolloutCondition(rolloutValidationError, rollout)
+	if rolloutValidationErrorMsg != "" {
+		err = c.createInvalidRolloutCondition(rolloutValidationErrorMsg, rollout)
+		return err
 	}
 
 	// If any RO Validation errors, create InvalidCondition in RO status and return
@@ -373,11 +375,13 @@ func (c *Controller) syncHandler(key string) error {
 func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) (string, error) {
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
 	if len(rolloutValidationErrors) > 0 {
-		return rolloutValidationErrors[0].Detail, nil
+		return rolloutValidationErrors[0].Error(), nil
 	}
+
 	refResources, err := c.getRolloutReferencedResources(rollout)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
+			// Should not execute codepath
 			return "", err
 		}
 		return err.Error(), nil
@@ -434,7 +438,6 @@ func (c *Controller) createInvalidRolloutCondition(validationErrorMessage string
 // Returns 1st error found -> others will never be surfaced by controller
 // Format errors properly (ex: object not found)
 func (c* Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
-	//referencedResources := validation.ReferencedResources{}
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		refResources, err := c.getBlueGreenStrategyRefs(rollout)
 		if err != nil {

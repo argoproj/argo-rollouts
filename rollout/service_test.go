@@ -91,7 +91,8 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
 		assert.NotNil(t, err)
-		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
+		//assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
+		assert.EqualError(t, err, "service \"\" not found")
 	})
 	t.Run("Invalid Spec: Service reference different rollout", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
