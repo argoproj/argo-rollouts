@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
@@ -125,22 +124,22 @@ func (c *Controller) reconcileActiveService(roCtx *blueGreenContext, previewSvc,
 func (c *Controller) getReferencedService(r *v1alpha1.Rollout, serviceName string) (*corev1.Service, error) {
 	svc, err := c.servicesLister.Services(r.Namespace).Get(serviceName)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, serviceName)
-			c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
-			newStatus := r.Status.DeepCopy()
-			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
-			c.patchCondition(r, newStatus, cond)
-		}
+		//if errors.IsNotFound(err) {
+		//	msg := fmt.Sprintf(conditions.ServiceNotFoundMessage, serviceName)
+		//	c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+		//	newStatus := r.Status.DeepCopy()
+		//	cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceNotFoundReason, msg)
+		//	c.patchCondition(r, newStatus, cond)
+		//}
 		return nil, err
 	}
 	rolloutManagingService, exists := serviceutil.HasManagedByAnnotation(svc)
 	if exists && rolloutManagingService != r.Name {
 		msg := fmt.Sprintf(conditions.ServiceReferencingManagedService, serviceName)
-		c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
-		newStatus := r.Status.DeepCopy()
-		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceReferenceReason, msg)
-		c.patchCondition(r, newStatus, cond)
+		//c.recorder.Event(r, corev1.EventTypeWarning, conditions.ServiceNotFoundReason, msg)
+		//newStatus := r.Status.DeepCopy()
+		//cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.ServiceReferenceReason, msg)
+		//c.patchCondition(r, newStatus, cond)
 		return nil, fmt.Errorf(msg)
 	}
 	return svc, nil

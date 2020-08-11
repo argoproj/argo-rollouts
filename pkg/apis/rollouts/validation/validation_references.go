@@ -17,17 +17,16 @@ import (
 // RolloutConditionType defines the conditions of Rollout
 type AnalysisTemplateType string
 
-// TODO: can incorporate later
-//const (
-//	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
-//	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-//	CanaryStepIndex  AnalysisTemplateType = "CanaryStep" //TODO: include index #
-//)
+const (
+	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
+	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
+	CanaryStepIndex  AnalysisTemplateType = "CanaryStep"
+)
 
 type AnalysisTemplateWithType struct {
 	AnalysisTemplate        *v1alpha1.AnalysisTemplate
 	ClusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate
-	FieldPath               *field.Path
+	TemplateType            AnalysisTemplateType
 }
 
 type ReferencedResources struct {
@@ -52,6 +51,16 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 
 func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.ErrorList {
 	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "strategy")
+	switch template.TemplateType {
+	case PrePromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
+	case PostPromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
+	case CanaryStepIndex:
+		fldPath = fldPath.Child("canary", "steps")
+
+	}
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
@@ -64,7 +73,7 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
-			allErrs = append(allErrs, field.Forbidden(template.FieldPath, msg))
+			allErrs = append(allErrs, field.Forbidden(fldPath, msg))
 		}
 	}
 	return allErrs

@@ -132,23 +132,6 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []HttpRoute, desir
 
 func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
-	//	httpRoutesI, notFound, err := unstructured.NestedSlice(newObj.Object, "spec", "http")
-	//	if !notFound {
-	//		return nil, false, fmt.Errorf(".spec.http is not defined")
-	//	}
-	//	if err != nil {
-	//		return nil, false, err
-	//	}
-	//	routeBytes, err := json.Marshal(httpRoutesI)
-	//	if err != nil {
-	//		return nil, false, err
-	//	}
-	//
-	//	var httpRoutes []HttpRoute
-	//	err = json.Unmarshal(routeBytes, &httpRoutes)
-	//	if err != nil {
-	//		return nil, false, err
-	//}
 	httpRoutesI, err := GetHttpRoutesI(newObj)
 	if err != nil {
 		return nil, false, err
