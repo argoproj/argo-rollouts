@@ -3,10 +3,11 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"reflect"
 	"time"
+
+	"k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -437,7 +438,7 @@ func (c *Controller) createInvalidRolloutCondition(validationErrorMessage string
 
 // Returns 1st error found -> others will never be surfaced by controller
 // Format errors properly (ex: object not found)
-func (c* Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
+func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		refResources, err := c.getBlueGreenStrategyRefs(rollout)
 		if err != nil {
@@ -581,8 +582,8 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 		}
 		if analysisTemplate != nil {
 			return &validation.AnalysisTemplateWithType{
-				AnalysisTemplate:        analysisTemplate,
-				TemplateType:            templateType,
+				AnalysisTemplate: analysisTemplate,
+				TemplateType:     templateType,
 			}, nil
 		}
 	}

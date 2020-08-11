@@ -1605,7 +1605,6 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	previewSvc := newService("preview", 80, previewSelector, r2)
 	at := analysisTemplate("test")
 
-
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)

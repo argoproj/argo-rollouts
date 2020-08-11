@@ -20,7 +20,7 @@ type AnalysisTemplateType string
 const (
 	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-	CanaryStepIndex  AnalysisTemplateType = "CanaryStep"
+	CanaryStepIndex       AnalysisTemplateType = "CanaryStep"
 )
 
 type AnalysisTemplateWithType struct {
