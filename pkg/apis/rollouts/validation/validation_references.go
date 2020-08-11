@@ -2,11 +2,14 @@ package validation
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -29,14 +32,32 @@ type AnalysisTemplateWithType struct {
 	TemplateType            AnalysisTemplateType
 }
 
+type ServiceType string
+
+const (
+	StableService ServiceType = "StableService"
+	CanaryService ServiceType = "CanaryService"
+	ActiveService ServiceType = "ActiveService"
+	PreviewService ServiceType = "PreviewService"
+)
+
+type ServiceWithType struct {
+	Service *corev1.Service
+	Type ServiceType
+}
+
 type ReferencedResources struct {
 	AnalysisTemplateWithType []AnalysisTemplateWithType
 	Ingresses                []v1beta1.Ingress
+	ServiceWithType			 []ServiceWithType
 	VirtualServices          []unstructured.Unstructured
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList { //field.ErrorList {
 	allErrs := field.ErrorList{}
+	for _, service := range referencedResources.ServiceWithType {
+		allErrs = append(allErrs, ValidateService(service, rollout)...)
+	}
 	for _, template := range referencedResources.AnalysisTemplateWithType {
 		allErrs = append(allErrs, ValidateAnalysisTemplateWithType(template)...)
 	}
@@ -45,6 +66,31 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	}
 	for _, vsvc := range referencedResources.VirtualServices {
 		allErrs = append(allErrs, ValidateVirtualService(rollout, vsvc)...)
+	}
+	return allErrs
+}
+
+func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.ErrorList {
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "strategy")
+	switch svc.Type {
+	case ActiveService:
+		fldPath = fldPath.Child("blueGreen", "activeService")
+	case PreviewService:
+		fldPath = fldPath.Child("blueGreen", "previewService")
+	case CanaryService:
+		fldPath = fldPath.Child("canary", "canaryService")
+	case StableService:
+		fldPath = fldPath.Child("canary", "stableService")
+	default:
+		return allErrs
+	}
+
+	service := svc.Service
+	rolloutManagingService, exists := serviceutil.HasManagedByAnnotation(service)
+	if exists && rolloutManagingService != rollout.Name {
+		msg := fmt.Sprintf(conditions.ServiceReferencingManagedService, service.Name)
+		allErrs = append(allErrs, field.Invalid(fldPath, service.Name, msg))
 	}
 	return allErrs
 }
@@ -59,7 +105,8 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
 	case CanaryStepIndex:
 		fldPath = fldPath.Child("canary", "steps")
-
+	default:
+		return allErrs
 	}
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
@@ -73,7 +120,7 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount == nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
-			allErrs = append(allErrs, field.Forbidden(fldPath, msg))
+			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
 		}
 	}
 	return allErrs
