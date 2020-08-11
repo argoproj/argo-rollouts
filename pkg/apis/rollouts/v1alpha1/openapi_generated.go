@@ -75,6 +75,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                       schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate":                         schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplate(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                                schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                           schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef":        schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
@@ -640,6 +641,12 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"prePromotionAnalysisRunStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrePromotionAnalysisRunStatus indicates the status of the current prepromotion analysis run",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
+						},
+					},
 					"postPromotionAnalysisRun": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PostPromotionAnalysisRun is the current analysis run running after the active service promotion",
@@ -647,11 +654,17 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"postPromotionAnalysisRunStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PostPromotionAnalysisRunStatus indicates the status of the current post promotion analysis run",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -759,11 +772,23 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"currentStepAnalysisRunStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentStepAnalysisRunStatus indicates the status of the current step analysis run",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
+						},
+					},
 					"currentBackgroundAnalysisRun": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"currentBackgroundAnalysisRunStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentBackgroundAnalysisRunStatus indicates the status of the current background analysis run",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
 						},
 					},
 					"currentExperiment": {
@@ -776,6 +801,8 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"},
 	}
 }
 
@@ -2220,6 +2247,37 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "status"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2640,6 +2698,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"controllerPause": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerPause indicates the controller has paused the rollout",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"abortedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortedAt indicates the controller reconciled an aborted rollout. The controller uses this to understand if the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used to indicate if the Rollout should enter an aborted state when the latest AnalysisRun is a failure, or the controller has already put the Rollout into an aborted and should create a new AnalysisRun.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

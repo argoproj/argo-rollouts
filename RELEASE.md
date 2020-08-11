@@ -8,18 +8,30 @@
 
 1. Make a PR with new changelog in CHANGELOG.md and new version in VERSION.
 
-2. Once approved and merged, export the upstream repository, version and branch name, e.g.:
+1. Once approved and merged, export the upstream repository, version and branch name, e.g.:
 
     ```bash
     REPO=upstream ;# or origin 
-    BRANCH=release-v0.8
+    BRANCH=release-v0.8 # should not include the patch version
     VERSION=$(cat VERSION)
     ```
 
-1. Create Release branch and update manifests with new version:
 
+
+1. Create or checkout release branch:
+
+    For major/minor releases:
     ```bash
     git checkout -b $BRANCH
+    ```
+    For patch releases:
+    ```bash
+    git checkout $BRANCH
+    git cherry-pick <commits shas for release>
+    ```
+    
+1. Upgrade the manifests to the new version
+    ```
     make IMAGE_TAG=$VERSION manifests
     git commit -am "Update manifests to $VERSION"
     git push $REPO $BRANCH

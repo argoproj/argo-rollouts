@@ -11,7 +11,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -243,8 +242,7 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 	if currentStep.Experiment != nil && experiment != nil && experiment.Status.Phase.Completed() && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
-	currentArs := roCtx.CurrentAnalysisRuns()
-	currentStepAr := analysisutil.GetCurrentAnalysisRunByType(currentArs, v1alpha1.RolloutTypeStepLabel)
+	currentStepAr := roCtx.CurrentAnalysisRuns().CanaryStep
 	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
 	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
@@ -286,6 +284,8 @@ func (c *Controller) syncRolloutStatusCanary(roCtx *canaryContext) error {
 		roCtx.PauseContext().RemoveAbort()
 		roCtx.SetRestartedAt()
 		newStatus = c.calculateRolloutConditions(roCtx, newStatus)
+		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
 		return c.persistRolloutStatus(roCtx, &newStatus)
 	}
 

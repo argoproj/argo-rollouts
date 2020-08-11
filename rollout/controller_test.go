@@ -356,10 +356,12 @@ func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
 func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	origBytes, err := json.Marshal(ro)
 	if err != nil {
+		fmt.Println(patch)
 		panic(err)
 	}
 	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
 	if err != nil {
+		fmt.Println(patch)
 		panic(err)
 	}
 	newRO := &v1alpha1.Rollout{}

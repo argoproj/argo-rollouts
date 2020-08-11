@@ -118,3 +118,13 @@ rules:
   verbs:
   - list
   - delete
+- apiGroups:
+  - split.smi-spec.io
+  resources:
+  - trafficsplits
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - patch

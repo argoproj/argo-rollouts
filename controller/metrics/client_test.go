@@ -3,8 +3,6 @@ package metrics
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 )
 
@@ -21,18 +19,16 @@ func TestIncKubernetesRequest(t *testing.T) {
 		AnalysisRunLister:  fakeAnalysisRunLister{},
 		K8SRequestProvider: provider,
 	})
-	err := provider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
+	provider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
 		Kind:       "replicasets",
 		Namespace:  "default",
 		Name:       "test",
 		Verb:       kubeclientmetrics.List,
 		StatusCode: 200,
 	})
-	assert.Nil(t, err)
-	err = provider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
+	provider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
 		Verb:       kubeclientmetrics.Unknown,
 		StatusCode: 200,
 	})
-	assert.Nil(t, err)
 	testHttpResponse(t, metricsServ.Handler, expectedKubernetesRequest)
 }

@@ -2909,6 +2909,8 @@ spec:
               type: integer
             abort:
               type: boolean
+            abortedAt:
+              type: boolean
             availableReplicas:
               format: int32
               type: integer
@@ -2918,8 +2920,32 @@ spec:
                   type: string
                 postPromotionAnalysisRun:
                   type: string
+                postPromotionAnalysisRunStatus:
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - name
+                  - status
+                  type: object
                 prePromotionAnalysisRun:
                   type: string
+                prePromotionAnalysisRunStatus:
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - name
+                  - status
+                  type: object
                 previewSelector:
                   type: string
                 previousActiveSelector:
@@ -2934,10 +2960,34 @@ spec:
               properties:
                 currentBackgroundAnalysisRun:
                   type: string
+                currentBackgroundAnalysisRunStatus:
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - name
+                  - status
+                  type: object
                 currentExperiment:
                   type: string
                 currentStepAnalysisRun:
                   type: string
+                currentStepAnalysisRunStatus:
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - name
+                  - status
+                  type: object
                 stableRS:
                   type: string
               type: object
