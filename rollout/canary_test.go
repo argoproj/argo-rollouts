@@ -1002,7 +1002,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
-	f.runExpectError(getKey(rollout, t), true)
+	f.run(getKey(rollout, t))
 
 	patch := make(map[string]interface{})
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1012,11 +1012,12 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
 	assert.NoError(t, err)
 	assert.True(t, ok)
-	assert.Len(t, c, 1)
+	assert.Len(t, c, 2)
 
-	condition, ok := c[0].(map[string]interface{})
+	condition, ok := c[1].(map[string]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "service \"invalid-canary\" not found", condition["message"])
 }
 
 func TestCanaryRolloutWithStableService(t *testing.T) {
@@ -1055,7 +1056,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
-	f.runExpectError(getKey(rollout, t), true)
+	f.run(getKey(rollout, t))
 
 	patch := make(map[string]interface{})
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1065,11 +1066,12 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
 	assert.NoError(t, err)
 	assert.True(t, ok)
-	assert.Len(t, c, 1)
+	assert.Len(t, c, 2)
 
-	condition, ok := c[0].(map[string]interface{})
+	condition, ok := c[1].(map[string]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, condition["reason"], conditions.ServiceNotFoundReason)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "service \"invalid-stable\" not found", condition["message"])
 }
 
 func TestCanaryRolloutScaleWhilePaused(t *testing.T) {

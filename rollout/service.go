@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
@@ -156,9 +155,9 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 			return nil, nil, err
 		}
 	}
-	if r.Spec.Strategy.BlueGreen.ActiveService == "" {
-		return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
-	}
+	//if r.Spec.Strategy.BlueGreen.ActiveService == "" {
+	//	return nil, nil, fmt.Errorf("Invalid Spec: Rollout missing field ActiveService")
+	//}
 	activeSvc, err = c.getReferencedService(r, r.Spec.Strategy.BlueGreen.ActiveService)
 	if err != nil {
 		return nil, nil, err

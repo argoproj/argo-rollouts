@@ -117,7 +117,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.runExpectError(getKey(r, t), true)
+	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -125,7 +125,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedActiveSvc, "")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, "service \"active-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }
 
@@ -143,7 +143,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.runExpectError(getKey(r, t), true)
+	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -151,6 +151,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc, "")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, "service \"preview-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }

@@ -220,7 +220,28 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		panic(err)
 	}
 	return condition, string(conditionBytes)
+}
 
+func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := ""
+	if optionalMessage != "" {
+		msg = optionalMessage
+	}
+
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            msg,
+		Reason:             reason,
+		Status:             status,
+		Type:               v1alpha1.InvalidSpec,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
 }
 
 func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
