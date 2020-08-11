@@ -597,47 +597,6 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 	}, nil
 }
 
-//func (c *Controller) getCanaryStrategyRefs(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
-//	refResources := validation.ReferencedResources{}
-//
-//	canary := rollout.Spec.Strategy.Canary
-//	//if canary.Steps != nil {
-//	//	for _, step := range canary.Steps {
-//	//		if step.Analysis != nil {
-//	//			analysisTemplates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStepIndex)
-//	//			if err != nil {
-//	//				return nil, err
-//	//			}
-//	//			refResources.AnalysisTemplateWithType = append(refResources.AnalysisTemplateWithType, analysisTemplates...)
-//	//		}
-//	//	}
-//	//}
-//
-//	if canary.TrafficRouting != nil {
-//		if canary.TrafficRouting.ALB != nil {
-//			ingress, err := c.getReferencedIngress(canary.TrafficRouting.ALB.Ingress, rollout)
-//			if err != nil {
-//				return nil, err
-//			}
-//			refResources.Ingresses = append(refResources.Ingresses, *ingress)
-//		} else if canary.TrafficRouting.Nginx != nil {
-//			ingress, err := c.getReferencedIngress(canary.TrafficRouting.Nginx.StableIngress, rollout)
-//			if err != nil {
-//				return nil, err
-//			}
-//			refResources.Ingresses = append(refResources.Ingresses, *ingress)
-//		} else if canary.TrafficRouting.Istio != nil {
-//			vsvc, err := c.getReferencedVirtualService(canary.TrafficRouting.Istio.VirtualService.Name, rollout)
-//			if err != nil {
-//				return nil, err
-//			}
-//			refResources.VirtualServices = append(refResources.VirtualServices, *vsvc)
-//		}
-//	}
-//
-//	return &refResources, nil
-//}
-
 func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1beta1.Ingress, error) {
 	ingresses := []v1beta1.Ingress{}
 	canary := rollout.Spec.Strategy.Canary
@@ -689,34 +648,6 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 	}
 	return &virtualServices, nil
 }
-
-//func (c *Controller) getBlueGreenStrategyRefs(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
-//	refResources := validation.ReferencedResources{}
-//
-//	_, _, err := c.getPreviewAndActiveServices(rollout)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	blueGreen := rollout.Spec.Strategy.BlueGreen
-//	if blueGreen.PrePromotionAnalysis != nil {
-//		analysisTemplates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis)
-//		if err != nil {
-//			return nil, err
-//		}
-//		refResources.AnalysisTemplateWithType = append(refResources.AnalysisTemplateWithType, analysisTemplates...)
-//	}
-//
-//	if blueGreen.PostPromotionAnalysis != nil {
-//		analysisTemplates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis)
-//		if err != nil {
-//			return nil, err
-//		}
-//		refResources.AnalysisTemplateWithType = append(refResources.AnalysisTemplateWithType, analysisTemplates...)
-//	}
-//
-//	return &refResources, nil
-//}
 
 func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.Canary == nil {

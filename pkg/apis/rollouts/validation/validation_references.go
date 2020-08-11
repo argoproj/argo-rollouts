@@ -2,14 +2,15 @@ package validation
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -35,21 +36,21 @@ type AnalysisTemplateWithType struct {
 type ServiceType string
 
 const (
-	StableService ServiceType = "StableService"
-	CanaryService ServiceType = "CanaryService"
-	ActiveService ServiceType = "ActiveService"
+	StableService  ServiceType = "StableService"
+	CanaryService  ServiceType = "CanaryService"
+	ActiveService  ServiceType = "ActiveService"
 	PreviewService ServiceType = "PreviewService"
 )
 
 type ServiceWithType struct {
 	Service *corev1.Service
-	Type ServiceType
+	Type    ServiceType
 }
 
 type ReferencedResources struct {
 	AnalysisTemplateWithType []AnalysisTemplateWithType
 	Ingresses                []v1beta1.Ingress
-	ServiceWithType			 []ServiceWithType
+	ServiceWithType          []ServiceWithType
 	VirtualServices          []unstructured.Unstructured
 }
 
