@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"reflect"
 	"time"
 
@@ -328,7 +329,7 @@ func (c *Controller) syncHandler(key string) error {
 	// Get Rollout Validation errors
 	err = c.getRolloutValidationErrors(rollout)
 	if err != nil {
-		if vErr, ok := err.(ValidationError); ok {
+		if vErr, ok := err.(*field.Error); ok {
 			return c.createInvalidRolloutCondition(vErr, r)
 		}
 		return err
@@ -375,9 +376,7 @@ func (ve ValidationError) Error() string {
 func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
 	if len(rolloutValidationErrors) > 0 {
-		return ValidationError{
-			err: rolloutValidationErrors[0],
-		}
+		return rolloutValidationErrors[0]
 	}
 
 	refResources, err := c.getRolloutReferencedResources(rollout)
@@ -387,21 +386,19 @@ func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error
 
 	rolloutValidationErrors = validation.ValidateRolloutReferencedResources(rollout, *refResources)
 	if len(rolloutValidationErrors) > 0 {
-		return ValidationError{
-			err: rolloutValidationErrors[0],
-		}
+		return rolloutValidationErrors[0]
 	}
-
 	return nil
 }
 
 func (c *Controller) createInvalidRolloutCondition(validationError error, r *v1alpha1.Rollout) error {
 	prevCond := conditions.GetRolloutCondition(r.Status, v1alpha1.InvalidSpec)
 	invalidSpecCond := prevCond
-	if prevCond == nil || prevCond.Message != validationError.Error() {
-		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, validationError.Error())
+	errorMessage := fmt.Sprintf("The Rollout \"%s\" is invalid: %s", r.Name, validationError.Error())
+	if prevCond == nil || prevCond.Message != errorMessage {
+		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errorMessage)
 	}
-	logutil.WithRollout(r).Error("Spec submitted is invalid")
+	logutil.WithRollout(r).Error(errorMessage)
 	generation := conditions.ComputeGenerationHash(r.Spec)
 	if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 		newStatus := r.Status.DeepCopy()
@@ -449,13 +446,13 @@ func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*
 
 func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]validation.ServiceWithType, error) {
 	services := []validation.ServiceWithType{}
+	fldPath := field.NewPath("spec", "strategy")
 	if rollout.Spec.Strategy.BlueGreen != nil {
+		fldPath = fldPath.Child("blueGreen")
 		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
 			activeSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.ActiveService)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("activeService"), rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -468,9 +465,7 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
 			previewSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.PreviewService)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("previewService"), rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -481,12 +476,11 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 			})
 		}
 	} else if rollout.Spec.Strategy.Canary != nil {
+		fldPath = fldPath.Child("canary")
 		if rollout.Spec.Strategy.Canary.StableService != "" {
 			stableSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.StableService)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("stableService"), rollout.Spec.Strategy.Canary.StableService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -499,9 +493,7 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 		if rollout.Spec.Strategy.Canary.CanaryService != "" {
 			canarySvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.CanaryService)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("canaryService"), rollout.Spec.Strategy.Canary.CanaryService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -520,25 +512,30 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		blueGreen := rollout.Spec.Strategy.BlueGreen
 		if blueGreen.PrePromotionAnalysis != nil {
-			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis)
+			// CanaryStepIndex will be ignored
+			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis, 0)
 			if err != nil {
+				return nil, err
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
 
 		if blueGreen.PostPromotionAnalysis != nil {
-			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis)
+			// CanaryStepIndex will be ignored
+			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis, 0)
 			if err != nil {
+				return nil, err
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
 	} else if rollout.Spec.Strategy.Canary != nil {
 		canary := rollout.Spec.Strategy.Canary
 		if canary.Steps != nil {
-			for _, step := range canary.Steps {
+			for i, step := range canary.Steps {
 				if step.Analysis != nil {
-					templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStepIndex)
+					templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStep, i)
 					if err != nil {
+						return nil, err
 					}
 					analysisTemplates = append(analysisTemplates, templates...)
 				}
@@ -548,11 +545,11 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 	return &analysisTemplates, nil
 }
 
-func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType) ([]validation.AnalysisTemplateWithType, error) {
+func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
 	analysisTemplates := []validation.AnalysisTemplateWithType{}
 	if rolloutAnalysis.Templates != nil {
-		for _, template := range rolloutAnalysis.Templates {
-			analysisTemplate, err := c.getReferencedAnalysisTemplate(rollout, template, templateType)
+		for i, template := range rolloutAnalysis.Templates {
+			analysisTemplate, err := c.getReferencedAnalysisTemplate(rollout, template, templateType, i, canaryStepIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -564,13 +561,21 @@ func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, r
 	return analysisTemplates, nil
 }
 
-func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType) (*validation.AnalysisTemplateWithType, error) {
+func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
+	fldPath := field.NewPath("spec", "strategy")
+	switch templateType {
+	case validation.PrePromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
+	case validation.PostPromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
+	case validation.CanaryStep:
+		fldPath = fldPath.Child("canary", "steps").Index(canaryStepIndex).Child("analysis", "templates")
+	}
+	fldPath = fldPath.Index(analysisIndex).Child("templateName")
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
 		if k8serrors.IsNotFound(err) {
-			return nil, ValidationError{
-				err: err,
-			}
+			return nil, field.Invalid(fldPath, template, err.Error())
 		}
 		if err != nil {
 			return nil, err
@@ -578,13 +583,12 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 		return &validation.AnalysisTemplateWithType{
 			ClusterAnalysisTemplate: clusterAnalysisTemplate,
 			TemplateType:            templateType,
+			AnalysisIndex:           analysisIndex,
 		}, nil
 	}
 	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(rollout.Namespace).Get(template.TemplateName)
 	if k8serrors.IsNotFound(err) {
-		return nil, ValidationError{
-			err: err,
-		}
+		return nil, field.Invalid(fldPath, template, err.Error())
 	}
 	if err != nil {
 		return nil, err
@@ -598,13 +602,12 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1beta1.Ingress, error) {
 	ingresses := []v1beta1.Ingress{}
 	canary := rollout.Spec.Strategy.Canary
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	if canary != nil && canary.TrafficRouting != nil {
 		if canary.TrafficRouting.ALB != nil {
 			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("alb", "ingress"), ingress, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -613,9 +616,7 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 		} else if canary.TrafficRouting.Nginx != nil {
 			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), ingress, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -628,15 +629,14 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 
 func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
 	virtualServices := []unstructured.Unstructured{}
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 	if rollout.Spec.Strategy.Canary != nil {
 		canary := rollout.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
 			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
-				return nil, ValidationError{
-					err: err,
-				}
+				return nil, field.Invalid(fldPath, vsvc, err.Error())
 			}
 			if err != nil {
 				return nil, err

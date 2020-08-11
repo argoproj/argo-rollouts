@@ -118,7 +118,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, "service \"active-svc\" not found")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }
 
@@ -144,6 +144,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, "service \"preview-svc\" not found")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }

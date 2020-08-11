@@ -1017,7 +1017,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	condition, ok := c[1].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
-	assert.Equal(t, "service \"invalid-canary\" not found", condition["message"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.canaryService: Invalid value: \"invalid-canary\": service \"invalid-canary\" not found", condition["message"])
 }
 
 func TestCanaryRolloutWithStableService(t *testing.T) {
@@ -1071,7 +1071,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	condition, ok := c[1].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
-	assert.Equal(t, "service \"invalid-stable\" not found", condition["message"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.stableService: Invalid value: \"invalid-stable\": service \"invalid-stable\" not found", condition["message"])
 }
 
 func TestCanaryRolloutScaleWhilePaused(t *testing.T) {

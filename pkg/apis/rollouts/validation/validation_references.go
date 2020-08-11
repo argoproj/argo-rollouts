@@ -24,13 +24,16 @@ type AnalysisTemplateType string
 const (
 	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-	CanaryStepIndex       AnalysisTemplateType = "CanaryStep"
+	CanaryStep       AnalysisTemplateType = "CanaryStep"
 )
 
 type AnalysisTemplateWithType struct {
 	AnalysisTemplate        *v1alpha1.AnalysisTemplate
 	ClusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate
 	TemplateType            AnalysisTemplateType
+	AnalysisIndex			int
+	// Used only for CanaryStep
+	CanaryStepIndex			int
 }
 
 type ServiceType string
@@ -104,11 +107,12 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
 	case PostPromotionAnalysis:
 		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
-	case CanaryStepIndex:
-		fldPath = fldPath.Child("canary", "steps")
+	case CanaryStep:
+		fldPath = fldPath.Child("canary", "steps").Index(template.CanaryStepIndex).Child("analysis", "templates")
 	default:
 		return allErrs
 	}
+	fldPath = fldPath.Index(template.AnalysisIndex).Child("templateName")
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
