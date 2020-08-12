@@ -1,14 +1,14 @@
 package validation
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"reflect"
-	"testing"
 )
-
 
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	//AnalysisTemplateWithType{
