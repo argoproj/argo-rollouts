@@ -568,7 +568,7 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
 		if k8serrors.IsNotFound(err) {
-			return nil, field.Invalid(fldPath, template, err.Error())
+			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
 		}
 		if err != nil {
 			return nil, err
@@ -581,7 +581,7 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 	}
 	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(rollout.Namespace).Get(template.TemplateName)
 	if k8serrors.IsNotFound(err) {
-		return nil, field.Invalid(fldPath, template, err.Error())
+		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
 	}
 	if err != nil {
 		return nil, err
@@ -600,7 +600,7 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 		if canary.TrafficRouting.ALB != nil {
 			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("alb", "ingress"), ingress, err.Error())
+				return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -609,7 +609,7 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 		} else if canary.TrafficRouting.Nginx != nil {
 			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), ingress, err.Error())
+				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -629,7 +629,7 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
 			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath, vsvc, err.Error())
+				return nil, field.Invalid(fldPath, canary.TrafficRouting.Istio.VirtualService.Name, err.Error())
 			}
 			if err != nil {
 				return nil, err
