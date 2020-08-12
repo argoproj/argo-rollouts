@@ -76,17 +76,8 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 
 func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
-	fldPath := field.NewPath("spec", "strategy")
-	switch svc.Type {
-	case ActiveService:
-		fldPath = fldPath.Child("blueGreen", "activeService")
-	case PreviewService:
-		fldPath = fldPath.Child("blueGreen", "previewService")
-	case CanaryService:
-		fldPath = fldPath.Child("canary", "canaryService")
-	case StableService:
-		fldPath = fldPath.Child("canary", "stableService")
-	default:
+	fldPath := GetServiceWithTypeFieldPath(svc.Type)
+	if fldPath == nil {
 		return allErrs
 	}
 
@@ -101,18 +92,10 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 
 func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.ErrorList {
 	allErrs := field.ErrorList{}
-	fldPath := field.NewPath("spec", "strategy")
-	switch template.TemplateType {
-	case PrePromotionAnalysis:
-		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
-	case PostPromotionAnalysis:
-		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
-	case CanaryStep:
-		fldPath = fldPath.Child("canary", "steps").Index(template.CanaryStepIndex).Child("analysis", "templates")
-	default:
+	fldPath := GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex)
+	if fldPath == nil {
 		return allErrs
 	}
-	fldPath = fldPath.Index(template.AnalysisIndex).Child("templateName")
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
@@ -172,4 +155,38 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
 	}
 	return allErrs
+}
+
+func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {
+	fldPath := field.NewPath("spec", "strategy")
+	switch serviceType {
+	case ActiveService:
+		fldPath = fldPath.Child("blueGreen", "activeService")
+	case PreviewService:
+		fldPath = fldPath.Child("blueGreen", "previewService")
+	case CanaryService:
+		fldPath = fldPath.Child("canary", "canaryService")
+	case StableService:
+		fldPath = fldPath.Child("canary", "stableService")
+	default:
+		return nil
+	}
+	return fldPath
+}
+
+func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, analysisIndex int, canaryStepIndex int) *field.Path {
+	fldPath := field.NewPath("spec", "strategy")
+	switch templateType {
+	case PrePromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
+	case PostPromotionAnalysis:
+		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
+	case CanaryStep:
+		fldPath = fldPath.Child("canary", "steps").Index(canaryStepIndex).Child("analysis", "templates")
+	default:
+		// No path specified
+		return nil
+	}
+	fldPath = fldPath.Index(analysisIndex).Child("templateName")
+	return fldPath
 }

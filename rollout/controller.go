@@ -446,13 +446,12 @@ func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*
 
 func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]validation.ServiceWithType, error) {
 	services := []validation.ServiceWithType{}
-	fldPath := field.NewPath("spec", "strategy")
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		fldPath = fldPath.Child("blueGreen")
 		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
 			activeSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.ActiveService)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("activeService"), rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.ActiveService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -465,7 +464,8 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
 			previewSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.PreviewService)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("previewService"), rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.PreviewService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -476,11 +476,11 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 			})
 		}
 	} else if rollout.Spec.Strategy.Canary != nil {
-		fldPath = fldPath.Child("canary")
 		if rollout.Spec.Strategy.Canary.StableService != "" {
 			stableSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.StableService)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("stableService"), rollout.Spec.Strategy.Canary.StableService, err.Error())
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.StableService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.StableService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -493,7 +493,8 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 		if rollout.Spec.Strategy.Canary.CanaryService != "" {
 			canarySvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.CanaryService)
 			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("canaryService"), rollout.Spec.Strategy.Canary.CanaryService, err.Error())
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.CanaryService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.CanaryService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -562,16 +563,7 @@ func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, r
 }
 
 func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
-	fldPath := field.NewPath("spec", "strategy")
-	switch templateType {
-	case validation.PrePromotionAnalysis:
-		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
-	case validation.PostPromotionAnalysis:
-		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
-	case validation.CanaryStep:
-		fldPath = fldPath.Child("canary", "steps").Index(canaryStepIndex).Child("analysis", "templates")
-	}
-	fldPath = fldPath.Index(analysisIndex).Child("templateName")
+	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
 		if k8serrors.IsNotFound(err) {
