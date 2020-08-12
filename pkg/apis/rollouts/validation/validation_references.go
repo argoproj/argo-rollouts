@@ -24,16 +24,16 @@ type AnalysisTemplateType string
 const (
 	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-	CanaryStep       AnalysisTemplateType = "CanaryStep"
+	CanaryStep            AnalysisTemplateType = "CanaryStep"
 )
 
 type AnalysisTemplateWithType struct {
 	AnalysisTemplate        *v1alpha1.AnalysisTemplate
 	ClusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate
 	TemplateType            AnalysisTemplateType
-	AnalysisIndex			int
+	AnalysisIndex           int
 	// Used only for CanaryStep
-	CanaryStepIndex			int
+	CanaryStepIndex int
 }
 
 type ServiceType string

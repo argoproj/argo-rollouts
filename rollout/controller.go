@@ -3,9 +3,10 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"reflect"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
