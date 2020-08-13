@@ -366,14 +366,6 @@ func (c *Controller) syncHandler(key string) error {
 	return fmt.Errorf("no rollout strategy selected")
 }
 
-type ValidationError struct {
-	err error
-}
-
-func (ve ValidationError) Error() string {
-	return ve.err.Error()
-}
-
 func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {
 	rolloutValidationErrors := validation.ValidateRollout(rollout)
 	if len(rolloutValidationErrors) > 0 {

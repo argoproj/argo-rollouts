@@ -117,19 +117,19 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
-	var value interface{}
+	var ingressName string
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
-		fldPath = fldPath.Child("nginx")
-		value = rollout.Spec.Strategy.Canary.TrafficRouting.Nginx
+		fldPath = fldPath.Child("nginx").Child("stableIngress")
+		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
-		fldPath = fldPath.Child("alb")
-		value = rollout.Spec.Strategy.Canary.TrafficRouting.ALB
+		fldPath = fldPath.Child("alb").Child("ingress")
+		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 	} else {
 		return allErrs
 	}
 	if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
 		msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
-		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
+		allErrs = append(allErrs, field.Invalid(fldPath, ingressName, msg))
 	}
 	return allErrs
 }
@@ -137,22 +137,22 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
 	allErrs := field.ErrorList{}
 	newObj := obj.DeepCopy()
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
-	value := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
+	vsvcName := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
-		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
+		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
 	}
 	httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
-		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
+		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
 	}
 	err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
 	if err != nil {
 		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
-		allErrs = append(allErrs, field.Invalid(fldPath, value, msg))
+		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
 	}
 	return allErrs
 }
