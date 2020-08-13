@@ -3,12 +3,14 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"reflect"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
@@ -16,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1335,10 +1336,79 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetReferencedIngresses(t *testing.T) {
+func TestGetReferencedIngressesALB(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingress: "alb-ingress-name",
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
 
+	// Fail case - cannot find ALB Ingress
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	_, err := c.getReferencedIngresses(r)
+	assert.Equal(t, "spec.strategy.canary.trafficRouting.alb.ingress: Invalid value: \"alb-ingress-name\": ingress.extensions \"alb-ingress-name\" not found", err.Error())
+
+	// Success case
+	ingress := &extensionsv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "alb-ingress-name",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+	f.ingressLister = append(f.ingressLister, ingress)
+	c, _, _ = f.newController(noResyncPeriodFunc)
+	_, err = c.getReferencedIngresses(r)
+	assert.NoError(t, err)
+}
+
+func TestGetReferencedIngressesNginx(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Nginx: &v1alpha1.NginxTrafficRouting{
+			StableIngress: "nginx-ingress-name",
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	// Fail case - cannot find Nginx Ingress
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	_, err := c.getReferencedIngresses(r)
+	assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress: Invalid value: \"nginx-ingress-name\": ingress.extensions \"nginx-ingress-name\" not found", err.Error())
+
+	// Success case
+	ingress := &extensionsv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nginx-ingress-name",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+	f.ingressLister = append(f.ingressLister, ingress)
+	c, _, _ = f.newController(noResyncPeriodFunc)
+	_, err = c.getReferencedIngresses(r)
+	assert.NoError(t, err)
 }
 
 func TestGetReferencedVirtualServices(t *testing.T) {
-
+	//f := newFixture(t)
+	//r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	//r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+	//	Istio: &v1alpha1.IstioTrafficRouting{
+	//		VirtualService: v1alpha1.IstioVirtualService{
+	//			Name: "istio-vsvc-name",
+	//		},
+	//	},
+	//}
+	//r.Namespace = metav1.NamespaceDefault
+	//defer f.Close()
+	//
+	//// Fail case - cannot find Virtual Service
+	//c, _, _ := f.newController(noResyncPeriodFunc)
+	//_, err := c.getReferencedVirtualServices(r)
+	//assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress: Invalid value: \"nginx-ingress-name\": ingress.extensions \"nginx-ingress-name\" not found", err.Error())
 }
