@@ -1457,6 +1457,10 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.AbortedAt != nil {
+		in, out := &in.AbortedAt, &out.AbortedAt
+		*out = (*in).DeepCopy()
+	}
 	if in.CurrentStepIndex != nil {
 		in, out := &in.CurrentStepIndex, &out.CurrentStepIndex
 		*out = new(int32)

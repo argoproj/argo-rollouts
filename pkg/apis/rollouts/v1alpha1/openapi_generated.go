@@ -74,8 +74,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                         schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                       schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate":                         schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplate(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate":                         schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplate(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                                schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                           schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef":        schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
@@ -117,6 +117,13 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 							Description: "ServicePort refers to the port that the Ingress action should route traffic to",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"rootService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RootService references the service in the ingress to the controller should add the action to",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"annotationPrefix": {
@@ -2705,8 +2712,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"abortedAt": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AbortedAt indicates the controller reconciled an aborted rollout. The controller uses this to understand if the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used to indicate if the Rollout should enter an aborted state when the latest AnalysisRun is a failure, or the controller has already put the Rollout into an aborted and should create a new AnalysisRun.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"currentPodHash": {
