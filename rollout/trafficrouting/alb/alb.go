@@ -63,10 +63,14 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if err != nil {
 		return err
 	}
-	stableService := r.cfg.Rollout.Spec.Strategy.Canary.StableService
+	actionService := r.cfg.Rollout.Spec.Strategy.Canary.StableService
+	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+		actionService = r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+
+	}
 	port := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
-	if !ingressutil.HasRuleWithService(ingress, stableService) {
-		return fmt.Errorf("ingress does not use the stable service")
+	if !ingressutil.HasRuleWithService(ingress, actionService) {
+		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
 	}
 
 	desired, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight)
