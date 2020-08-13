@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"reflect"
 	"strconv"
 	"sync"
@@ -1315,19 +1316,23 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 
 func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
-
 	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
-	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
-			TemplateName: "analysis-template",
-			ClusterScope: true,
-		}},
+	roAnalysisTemplate := v1alpha1.RolloutAnalysisTemplate{
+		TemplateName: "cluster-analysis-template-name",
+		ClusterScope: true,
 	}
-	//analysisTemplate := clusterAnalysisTemplate("cluster-analysis-template")
-	//f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, analysisTemplate)
+	defer f.Close()
 
-	f.run(getKey(r, t))
+	// Fail case - cannot find ClusterAnalysisTemplate
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+	assert.Equal(t, "spec.strategy.blueGreen.prePromotionAnalysis.templates[0].templateName: Invalid value: \"cluster-analysis-template-name\": clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found", err.Error())
 
+	// Success case
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
+	c, _, _ = f.newController(noResyncPeriodFunc)
+	_, err = c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+	assert.NoError(t, err)
 }
 
 func TestGetReferencedIngresses(t *testing.T) {
