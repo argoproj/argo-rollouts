@@ -9,15 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,6 +37,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -1408,10 +1407,55 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 	r.Namespace = metav1.NamespaceDefault
 	defer f.Close()
 
-	// Fail case - cannot find Virtual Service
+	//Fail case - cannot find Virtual Service
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	schema := runtime.NewScheme()
 	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
 	_, err := c.getReferencedVirtualServices(r)
 	assert.Equal(t, "spec.strategy.canary.trafficRouting.istio.virtualService.name: Invalid value: \"istio-vsvc-name\": virtualservices.networking.istio.io \"istio-vsvc-name\" not found", err.Error())
+
+	//
+	//	regularVsvc := `apiVersion: networking.istio.io/v1alpha3
+	//kind: VirtualService
+	//metadata:
+	//  name: istio-vsvc-name
+	//  namespace: default
+	//spec:
+	//  gateways:
+	//  - istio-rollout-gateway
+	//  hosts:
+	//  - istio-rollout.dev.argoproj.io
+	//  http:
+	//  - name: primary
+	//    route:
+	//    - destination:
+	//        host: 'stable'
+	//      weight: 100
+	//    - destination:
+	//        host: canary
+	//	  weight: 0
+	//  - name: secondary
+	//	route:
+	//	- destination:
+	//		host: 'stable'
+	//	  weight: 100
+	//	- destination:
+	//	    host: canary
+	//	  weight: 0`
+	//obj := strToUnstructured(regularVsvc)
+	//f.objects = append(f.objects, obj)
+	//c, _, _ = f.newController(noResyncPeriodFunc)
+	//c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
+	//_, err = c.getReferencedVirtualServices(r)
+	//assert.Nil(t, err)
 }
+
+//func strToUnstructured(yamlStr string) *unstructured.Unstructured {
+//	obj := make(map[string]interface{})
+//	yamlStr = strings.ReplaceAll(yamlStr, "\t", "    ")
+//	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return &unstructured.Unstructured{Object: obj}
+//}

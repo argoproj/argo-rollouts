@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -70,6 +72,72 @@ spec:
 	    host: canary
 	  weight: 0`
 
+var analysisTemplate = v1alpha1.AnalysisTemplate{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "analysis-template-name",
+	},
+	Spec: v1alpha1.AnalysisTemplateSpec{
+		Metrics: []v1alpha1.Metric{{
+			Name:     "metric-name",
+			Interval: "1m",
+			Count:    1,
+		}},
+	},
+}
+
+var analysisTemplateWithType = AnalysisTemplateWithType{
+	AnalysisTemplate: &analysisTemplate,
+	TemplateType:     CanaryStep,
+	AnalysisIndex:    0,
+	CanaryStepIndex:  0,
+}
+
+var ro = &v1alpha1.Rollout{
+	Spec: v1alpha1.RolloutSpec{
+		Strategy: v1alpha1.RolloutStrategy{
+			Canary: &v1alpha1.CanaryStrategy{
+				StableService: "stable-service-name",
+				TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+					ALB: &v1alpha1.ALBTrafficRouting{
+						Ingress: "alb-ingress",
+					},
+				},
+			},
+		},
+	},
+}
+
+var ingress = v1beta1.Ingress{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "alb-ingress",
+	},
+	Spec: v1beta1.IngressSpec{
+		Rules: []v1beta1.IngressRule{{
+			Host: "fakehost.example.com",
+			IngressRuleValue: v1beta1.IngressRuleValue{
+				HTTP: &v1beta1.HTTPIngressRuleValue{
+					Paths: []v1beta1.HTTPIngressPath{{
+						Path: "/foo",
+						Backend: v1beta1.IngressBackend{
+							ServiceName: "stable-service-name",
+							ServicePort: intstr.FromString("use-annotations"),
+						},
+					}},
+				},
+			},
+		}},
+	},
+}
+
+var svc = ServiceWithType{
+	Service: &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "stable-service-name",
+		},
+	},
+	Type: StableService,
+}
+
 func strToUnstructured(yamlStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
 	yamlStr = strings.ReplaceAll(yamlStr, "\t", "    ")
@@ -80,71 +148,30 @@ func strToUnstructured(yamlStr string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: obj}
 }
 
-func TestValidateAnalysisTemplateWithType(t *testing.T) {
-	analysisTemplate := v1alpha1.AnalysisTemplate{
-		Spec: v1alpha1.AnalysisTemplateSpec{
-			Metrics: []v1alpha1.Metric{
-				{
-					Name:     "metric-name",
-					Interval: "1m",
-				},
-			},
-		},
+func TestValidateRolloutReferencedResources(t *testing.T) {
+	refResources := ReferencedResources{
+		AnalysisTemplateWithType: []AnalysisTemplateWithType{analysisTemplateWithType},
+		Ingresses:                []v1beta1.Ingress{ingress},
+		ServiceWithType:          []ServiceWithType{svc},
+		VirtualServices:          nil,
 	}
-	analysisTemplate.Name = "analysis-template-name"
-	analysisTemplateWithType := AnalysisTemplateWithType{
-		AnalysisTemplate: &analysisTemplate,
-		TemplateType:     PrePromotionAnalysis,
-		AnalysisIndex:    0,
-	}
-
-	// Fail case - AnalysisTemplate runs indefinitely
-	allErrs := ValidateAnalysisTemplateWithType(analysisTemplateWithType)
-	assert.Len(t, allErrs, 1)
-	assert.Equal(t, "spec.strategy.blueGreen.prePromotionAnalysis.templates[0].templateName: Invalid value: \"analysis-template-name\": AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely", allErrs[0].Error())
-
-	// Success - specify count so that metric runs deterministically
-	analysisTemplate.Spec.Metrics[0].Count = 1
-	allErrs = ValidateAnalysisTemplateWithType(analysisTemplateWithType)
+	allErrs := ValidateRolloutReferencedResources(ro, refResources)
 	assert.Empty(t, allErrs)
 }
 
-func TestValidateIngress(t *testing.T) {
-	stableSvc := "stable-service-name"
-	ro := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: stableSvc,
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						ALB: &v1alpha1.ALBTrafficRouting{
-							Ingress: "alb-ingress",
-						},
-					},
-				},
-			},
-		},
-	}
-	ingress := v1beta1.Ingress{
-		Spec: v1beta1.IngressSpec{
-			Rules: []v1beta1.IngressRule{{
-				Host: "fakehost.example.com",
-				IngressRuleValue: v1beta1.IngressRuleValue{
-					HTTP: &v1beta1.HTTPIngressRuleValue{
-						Paths: []v1beta1.HTTPIngressPath{{
-							Path: "/foo",
-							Backend: v1beta1.IngressBackend{
-								ServiceName: stableSvc,
-								ServicePort: intstr.FromString("use-annotations"),
-							},
-						}},
-					},
-				},
-			}},
-		},
-	}
-	ingress.Name = "alb-ingress"
+func TestValidateAnalysisTemplateWithType(t *testing.T) {
+	// Success - specify count so that metric runs deterministically
+	allErrs := ValidateAnalysisTemplateWithType(analysisTemplateWithType)
+	assert.Empty(t, allErrs)
 
+	// Fail case - AnalysisTemplate runs indefinitely
+	analysisTemplate.Spec.Metrics[0].Count = 0
+	allErrs = ValidateAnalysisTemplateWithType(analysisTemplateWithType)
+	assert.Len(t, allErrs, 1)
+	assert.Equal(t, "spec.strategy.canary.steps[0].analysis.templates[0].templateName: Invalid value: \"analysis-template-name\": AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely", allErrs[0].Error())
+}
+
+func TestValidateIngress(t *testing.T) {
 	// Success
 	allErrs := ValidateIngress(ro, ingress)
 	assert.Empty(t, allErrs)
@@ -157,21 +184,14 @@ func TestValidateIngress(t *testing.T) {
 
 func TestValidateService(t *testing.T) {
 	// Success
-	svc := ServiceWithType{
-		Service: &corev1.Service{},
-		Type:    ActiveService,
-	}
-	svc.Service.Name = "service-name"
-	ro := &v1alpha1.Rollout{}
 	allErrs := ValidateService(svc, ro)
 	assert.Empty(t, allErrs)
 
 	// Failure - Service managed by another Rollout
-	ro.Name = "rollout-name"
 	svc.Service.Annotations = map[string]string{v1alpha1.ManagedByRolloutsKey: "not-rollout-name"}
 	allErrs = ValidateService(svc, ro)
 	assert.Len(t, allErrs, 1)
-	assert.Equal(t, "spec.strategy.blueGreen.activeService: Invalid value: \"service-name\": Service \"service-name\" is managed by another Rollout", allErrs[0].Error())
+	assert.Equal(t, "spec.strategy.canary.stableService: Invalid value: \"stable-service-name\": Service \"stable-service-name\" is managed by another Rollout", allErrs[0].Error())
 }
 
 // TODO: Incorrect behavior - test passed when RO routes were empty
