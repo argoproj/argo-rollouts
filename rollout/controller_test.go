@@ -1318,7 +1318,7 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 
 	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
 	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates:    []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: "analysis-template",
 			ClusterScope: true,
 		}},
@@ -1327,4 +1327,13 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	//f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, analysisTemplate)
 
 	f.run(getKey(r, t))
+
+}
+
+func TestGetReferencedIngresses(t *testing.T) {
+
+}
+
+func TestGetReferencedVirtualServices(t *testing.T) {
+
 }
