@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
@@ -1395,20 +1396,22 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 }
 
 func TestGetReferencedVirtualServices(t *testing.T) {
-	//f := newFixture(t)
-	//r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	//r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-	//	Istio: &v1alpha1.IstioTrafficRouting{
-	//		VirtualService: v1alpha1.IstioVirtualService{
-	//			Name: "istio-vsvc-name",
-	//		},
-	//	},
-	//}
-	//r.Namespace = metav1.NamespaceDefault
-	//defer f.Close()
-	//
-	//// Fail case - cannot find Virtual Service
-	//c, _, _ := f.newController(noResyncPeriodFunc)
-	//_, err := c.getReferencedVirtualServices(r)
-	//assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress: Invalid value: \"nginx-ingress-name\": ingress.extensions \"nginx-ingress-name\" not found", err.Error())
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc-name",
+			},
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	// Fail case - cannot find Virtual Service
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	schema := runtime.NewScheme()
+	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
+	_, err := c.getReferencedVirtualServices(r)
+	assert.Equal(t, "spec.strategy.canary.trafficRouting.istio.virtualService.name: Invalid value: \"istio-vsvc-name\": virtualservices.networking.istio.io \"istio-vsvc-name\" not found", err.Error())
 }
