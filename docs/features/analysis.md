@@ -767,13 +767,13 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
       job:
         spec:
           template:
-            backoffLimit: 1
             spec:
               containers:
               - name: test
                 image: my-image:latest
                 command: [my-test-script, my-service.default.svc.cluster.local]
               restartPolicy: Never
+          backoffLimit: 1
 ```
 
 ## Wavefront Metrics
