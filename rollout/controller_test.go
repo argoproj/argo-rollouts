@@ -220,28 +220,7 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		panic(err)
 	}
 	return condition, string(conditionBytes)
-}
 
-func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
-	status := corev1.ConditionTrue
-	msg := ""
-	if optionalMessage != "" {
-		msg = optionalMessage
-	}
-
-	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
-		Message:            msg,
-		Reason:             reason,
-		Status:             status,
-		Type:               v1alpha1.InvalidSpec,
-	}
-	conditionBytes, err := json.Marshal(condition)
-	if err != nil {
-		panic(err)
-	}
-	return condition, string(conditionBytes)
 }
 
 func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
@@ -356,12 +335,10 @@ func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
 func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	origBytes, err := json.Marshal(ro)
 	if err != nil {
-		fmt.Println(patch)
 		panic(err)
 	}
 	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
 	if err != nil {
-		fmt.Println(patch)
 		panic(err)
 	}
 	newRO := &v1alpha1.Rollout{}
@@ -1312,4 +1289,42 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			}
 		}`, addedConditons, conditions.ComputeStepHash(r))
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := ""
+	if optionalMessage != "" {
+		msg = optionalMessage
+	}
+
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            msg,
+		Reason:             reason,
+		Status:             status,
+		Type:               v1alpha1.InvalidSpec,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
+func TestGetReferencedAnalysisTemplate(t *testing.T) {
+	f := newFixture(t)
+
+	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		Templates:    []v1alpha1.RolloutAnalysisTemplate{{
+			TemplateName: "analysis-template",
+			ClusterScope: true,
+		}},
+	}
+	//analysisTemplate := clusterAnalysisTemplate("cluster-analysis-template")
+	//f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, analysisTemplate)
+
+	f.run(getKey(r, t))
 }
