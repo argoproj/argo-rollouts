@@ -13858,6 +13858,8 @@ spec:
               type: integer
             abort:
               type: boolean
+            abortedAt:
+              type: boolean
             availableReplicas:
               format: int32
               type: integer
@@ -14171,6 +14173,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - rollouts/scale
   - experiments
   - analysistemplates
   - clusteranalysistemplates
@@ -14199,6 +14202,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - rollouts/scale
   - experiments
   - analysistemplates
   - clusteranalysistemplates
@@ -14227,6 +14231,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - rollouts/scale
   - experiments
   - analysistemplates
   - clusteranalysistemplates
