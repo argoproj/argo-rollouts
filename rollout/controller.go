@@ -522,6 +522,7 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
+		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
 	} else if rollout.Spec.Strategy.Canary != nil {
 		canary := rollout.Spec.Strategy.Canary
 		if canary.Steps != nil {

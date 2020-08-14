@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -24,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
@@ -341,6 +343,7 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	}
 	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
 	if err != nil {
+		fmt.Println(patch)
 		panic(err)
 	}
 	newRO := &v1alpha1.Rollout{}
@@ -1324,16 +1327,19 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	}
 	defer f.Close()
 
-	// Fail case - cannot find ClusterAnalysisTemplate
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
-	assert.Equal(t, "spec.strategy.blueGreen.prePromotionAnalysis.templates[0].templateName: Invalid value: \"cluster-analysis-template-name\": clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found", err.Error())
+	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0, 0), roAnalysisTemplate.TemplateName, "clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 
-	// Success case
-	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
-	c, _, _ = f.newController(noResyncPeriodFunc)
-	_, err = c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
-	assert.NoError(t, err)
+	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGetReferencedIngressesALB(t *testing.T) {
@@ -1347,22 +1353,25 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 	r.Namespace = metav1.NamespaceDefault
 	defer f.Close()
 
-	// Fail case - cannot find ALB Ingress
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, err := c.getReferencedIngresses(r)
-	assert.Equal(t, "spec.strategy.canary.trafficRouting.alb.ingress: Invalid value: \"alb-ingress-name\": ingress.extensions \"alb-ingress-name\" not found", err.Error())
+	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), "alb-ingress-name", "ingress.extensions \"alb-ingress-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 
-	// Success case
-	ingress := &extensionsv1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "alb-ingress-name",
-			Namespace: metav1.NamespaceDefault,
-		},
-	}
-	f.ingressLister = append(f.ingressLister, ingress)
-	c, _, _ = f.newController(noResyncPeriodFunc)
-	_, err = c.getReferencedIngresses(r)
-	assert.NoError(t, err)
+	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "alb-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingress)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGetReferencedIngressesNginx(t *testing.T) {
@@ -1376,22 +1385,25 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	r.Namespace = metav1.NamespaceDefault
 	defer f.Close()
 
-	// Fail case - cannot find Nginx Ingress
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, err := c.getReferencedIngresses(r)
-	assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress: Invalid value: \"nginx-ingress-name\": ingress.extensions \"nginx-ingress-name\" not found", err.Error())
+	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 
-	// Success case
-	ingress := &extensionsv1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nginx-ingress-name",
-			Namespace: metav1.NamespaceDefault,
-		},
-	}
-	f.ingressLister = append(f.ingressLister, ingress)
-	c, _, _ = f.newController(noResyncPeriodFunc)
-	_, err = c.getReferencedIngresses(r)
-	assert.NoError(t, err)
+	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nginx-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingress)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGetReferencedVirtualServices(t *testing.T) {
@@ -1407,10 +1419,12 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 	r.Namespace = metav1.NamespaceDefault
 	defer f.Close()
 
-	//Fail case - cannot find Virtual Service
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	schema := runtime.NewScheme()
-	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
-	_, err := c.getReferencedVirtualServices(r)
-	assert.Equal(t, "spec.strategy.canary.trafficRouting.istio.virtualService.name: Invalid value: \"istio-vsvc-name\": virtualservices.networking.istio.io \"istio-vsvc-name\" not found", err.Error())
+	t.Run("get referenced virtualService - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		schema := runtime.NewScheme()
+		c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
+		_, err := c.getReferencedVirtualServices(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 }
