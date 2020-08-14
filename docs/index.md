@@ -7,6 +7,7 @@ Argo Rollouts (optionally) integrates with ingress controllers and service meshe
 
 ## Why Argo Rollouts?
 Kubernetes Deployments provides the `RollingUpdate` strategy which provide a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:
+
 * Few controls over the speed of the rollout
 * Inability to control traffic flow to the new version
 * Readiness probes are unsuitable for deeper, stress, or one-time checks
