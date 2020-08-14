@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -36,6 +39,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -335,7 +339,6 @@ func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
 func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	origBytes, err := json.Marshal(ro)
 	if err != nil {
-		fmt.Println(patch)
 		panic(err)
 	}
 	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
@@ -1051,7 +1054,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 		}
 	}`
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, fmt.Sprintf(conditions.MissingFieldMessage, ".spec.selector"))
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.selector: Required value: Rollout has missing field '.spec.selector'")
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
 
@@ -1291,4 +1294,137 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			}
 		}`, addedConditons, conditions.ComputeStepHash(r))
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := ""
+	if optionalMessage != "" {
+		msg = optionalMessage
+	}
+
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            msg,
+		Reason:             reason,
+		Status:             status,
+		Type:               v1alpha1.InvalidSpec,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
+func TestGetReferencedAnalysisTemplate(t *testing.T) {
+	f := newFixture(t)
+	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+	roAnalysisTemplate := v1alpha1.RolloutAnalysisTemplate{
+		TemplateName: "cluster-analysis-template-name",
+		ClusterScope: true,
+	}
+	defer f.Close()
+
+	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0, 0), roAnalysisTemplate.TemplateName, "clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetReferencedIngressesALB(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingress: "alb-ingress-name",
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), "alb-ingress-name", "ingress.extensions \"alb-ingress-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "alb-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingress)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetReferencedIngressesNginx(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Nginx: &v1alpha1.NginxTrafficRouting{
+			StableIngress: "nginx-ingress-name",
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nginx-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingress)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.getReferencedIngresses(r)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetReferencedVirtualServices(t *testing.T) {
+	f := newFixture(t)
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc-name",
+			},
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	t.Run("get referenced virtualService - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		schema := runtime.NewScheme()
+		c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
+		_, err := c.getReferencedVirtualServices(r)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 }

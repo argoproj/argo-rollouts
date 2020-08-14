@@ -6,7 +6,13 @@ import (
 	"reflect"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	"k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 
@@ -321,29 +327,13 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	prevCond := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-	rolloutValidationErrors := validation.ValidateRollout(rollout)
-	if len(rolloutValidationErrors) > 0 {
-		rolloutValidationError := rolloutValidationErrors[0]
-		invalidSpecCond := prevCond
-		if prevCond == nil || prevCond.Message != rolloutValidationError.Detail {
-			invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, rolloutValidationError.Detail)
+	// Get Rollout Validation errors
+	err = c.getRolloutValidationErrors(rollout)
+	if err != nil {
+		if vErr, ok := err.(*field.Error); ok {
+			return c.createInvalidRolloutCondition(vErr, r)
 		}
-		logutil.WithRollout(r).Error("Spec submitted is invalid")
-		generation := conditions.ComputeGenerationHash(r.Spec)
-		if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
-			newStatus := r.Status.DeepCopy()
-			// SetRolloutCondition only updates the condition when the status and/or reason changes, but
-			// the controller should update the invalidSpec if there is a change in why the spec is invalid
-			if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
-				conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
-			}
-			err := c.patchCondition(r, newStatus, invalidSpecCond)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return err
 	}
 
 	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
@@ -374,6 +364,273 @@ func (c *Controller) syncHandler(key string) error {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")
+}
+
+func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {
+	rolloutValidationErrors := validation.ValidateRollout(rollout)
+	if len(rolloutValidationErrors) > 0 {
+		return rolloutValidationErrors[0]
+	}
+
+	refResources, err := c.getRolloutReferencedResources(rollout)
+	if err != nil {
+		return err
+	}
+
+	rolloutValidationErrors = validation.ValidateRolloutReferencedResources(rollout, *refResources)
+	if len(rolloutValidationErrors) > 0 {
+		return rolloutValidationErrors[0]
+	}
+	return nil
+}
+
+func (c *Controller) createInvalidRolloutCondition(validationError error, r *v1alpha1.Rollout) error {
+	prevCond := conditions.GetRolloutCondition(r.Status, v1alpha1.InvalidSpec)
+	invalidSpecCond := prevCond
+	errorMessage := fmt.Sprintf("The Rollout \"%s\" is invalid: %s", r.Name, validationError.Error())
+	if prevCond == nil || prevCond.Message != errorMessage {
+		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errorMessage)
+	}
+	logutil.WithRollout(r).Error(errorMessage)
+	generation := conditions.ComputeGenerationHash(r.Spec)
+	if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+		newStatus := r.Status.DeepCopy()
+		// SetRolloutCondition only updates the condition when the status and/or reason changes, but
+		// the controller should update the invalidSpec if there is a change in why the spec is invalid
+		if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
+			conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
+		}
+		err := c.patchCondition(r, newStatus, invalidSpecCond)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
+	refResources := validation.ReferencedResources{}
+	services, err := c.getReferencedServices(rollout)
+	if err != nil {
+		return nil, err
+	}
+	refResources.ServiceWithType = *services
+
+	analysisTemplates, err := c.getReferencedRolloutAnalyses(rollout)
+	if err != nil {
+		return nil, err
+	}
+	refResources.AnalysisTemplateWithType = *analysisTemplates
+
+	ingresses, err := c.getReferencedIngresses(rollout)
+	if err != nil {
+		return nil, err
+	}
+	refResources.Ingresses = *ingresses
+
+	virtualServices, err := c.getReferencedVirtualServices(rollout)
+	if err != nil {
+		return nil, err
+	}
+	refResources.VirtualServices = *virtualServices
+
+	return &refResources, nil
+}
+
+func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]validation.ServiceWithType, error) {
+	services := []validation.ServiceWithType{}
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
+			activeSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.ActiveService)
+			if k8serrors.IsNotFound(err) {
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.ActiveService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			services = append(services, validation.ServiceWithType{
+				Service: activeSvc,
+				Type:    validation.ActiveService,
+			})
+		}
+		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+			previewSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.PreviewService)
+			if k8serrors.IsNotFound(err) {
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.PreviewService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			services = append(services, validation.ServiceWithType{
+				Service: previewSvc,
+				Type:    validation.PreviewService,
+			})
+		}
+	} else if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.StableService != "" {
+			stableSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.StableService)
+			if k8serrors.IsNotFound(err) {
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.StableService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.StableService, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			services = append(services, validation.ServiceWithType{
+				Service: stableSvc,
+				Type:    validation.StableService,
+			})
+		}
+		if rollout.Spec.Strategy.Canary.CanaryService != "" {
+			canarySvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.CanaryService)
+			if k8serrors.IsNotFound(err) {
+				fldPath := validation.GetServiceWithTypeFieldPath(validation.CanaryService)
+				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.CanaryService, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			services = append(services, validation.ServiceWithType{
+				Service: canarySvc,
+				Type:    validation.CanaryService,
+			})
+		}
+	}
+	return &services, nil
+}
+
+func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[]validation.AnalysisTemplateWithType, error) {
+	analysisTemplates := []validation.AnalysisTemplateWithType{}
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		blueGreen := rollout.Spec.Strategy.BlueGreen
+		if blueGreen.PrePromotionAnalysis != nil {
+			// CanaryStepIndex will be ignored
+			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis, 0)
+			if err != nil {
+				return nil, err
+			}
+			analysisTemplates = append(analysisTemplates, templates...)
+		}
+
+		if blueGreen.PostPromotionAnalysis != nil {
+			// CanaryStepIndex will be ignored
+			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis, 0)
+			if err != nil {
+				return nil, err
+			}
+			analysisTemplates = append(analysisTemplates, templates...)
+		}
+		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
+	} else if rollout.Spec.Strategy.Canary != nil {
+		canary := rollout.Spec.Strategy.Canary
+		if canary.Steps != nil {
+			for i, step := range canary.Steps {
+				if step.Analysis != nil {
+					templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStep, i)
+					if err != nil {
+						return nil, err
+					}
+					analysisTemplates = append(analysisTemplates, templates...)
+				}
+			}
+		}
+	}
+	return &analysisTemplates, nil
+}
+
+func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
+	analysisTemplates := []validation.AnalysisTemplateWithType{}
+	if rolloutAnalysis.Templates != nil {
+		for i, template := range rolloutAnalysis.Templates {
+			analysisTemplate, err := c.getReferencedAnalysisTemplate(rollout, template, templateType, i, canaryStepIndex)
+			if err != nil {
+				return nil, err
+			}
+			if analysisTemplate != nil {
+				analysisTemplates = append(analysisTemplates, *analysisTemplate)
+			}
+		}
+	}
+	return analysisTemplates, nil
+}
+
+func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
+	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
+	if template.ClusterScope {
+		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+		if k8serrors.IsNotFound(err) {
+			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &validation.AnalysisTemplateWithType{
+			ClusterAnalysisTemplate: clusterAnalysisTemplate,
+			TemplateType:            templateType,
+			AnalysisIndex:           analysisIndex,
+		}, nil
+	}
+	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(rollout.Namespace).Get(template.TemplateName)
+	if k8serrors.IsNotFound(err) {
+		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &validation.AnalysisTemplateWithType{
+		AnalysisTemplate: analysisTemplate,
+		TemplateType:     templateType,
+	}, nil
+}
+
+func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1beta1.Ingress, error) {
+	ingresses := []v1beta1.Ingress{}
+	canary := rollout.Spec.Strategy.Canary
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
+	if canary != nil && canary.TrafficRouting != nil {
+		if canary.TrafficRouting.ALB != nil {
+			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
+			if k8serrors.IsNotFound(err) {
+				return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			ingresses = append(ingresses, *ingress)
+		} else if canary.TrafficRouting.Nginx != nil {
+			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
+			if k8serrors.IsNotFound(err) {
+				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			ingresses = append(ingresses, *ingress)
+		}
+	}
+	return &ingresses, nil
+}
+
+func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
+	virtualServices := []unstructured.Unstructured{}
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
+	if rollout.Spec.Strategy.Canary != nil {
+		canary := rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
+			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
+			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+			if k8serrors.IsNotFound(err) {
+				return nil, field.Invalid(fldPath, canary.TrafficRouting.Istio.VirtualService.Name, err.Error())
+			}
+			if err != nil {
+				return nil, err
+			}
+			virtualServices = append(virtualServices, *vsvc)
+		}
+	}
+	return &virtualServices, nil
 }
 
 func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {

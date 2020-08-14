@@ -293,7 +293,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: "test",
 			}},
 		}
@@ -316,12 +316,15 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
+		at := analysisTemplate("test")
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+		f.objects = append(f.objects, at)
 
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))

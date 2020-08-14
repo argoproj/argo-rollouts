@@ -91,16 +91,8 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
 		assert.NotNil(t, err)
-		assert.EqualError(t, err, "Invalid Spec: Rollout missing field ActiveService")
+		assert.EqualError(t, err, "service \"\" not found")
 	})
-	t.Run("Invalid Spec: Service reference different rollout", func(t *testing.T) {
-		noActiveSvcRollout := rollout.DeepCopy()
-		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "other-svc"
-		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
-		assert.NotNil(t, err)
-		assert.EqualError(t, err, "Service \"other-svc\" is managed by another Rollout")
-	})
-
 }
 
 func TestActiveServiceNotFound(t *testing.T) {
@@ -117,7 +109,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.runExpectError(getKey(r, t), true)
+	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -125,7 +117,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedActiveSvc, "")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }
 
@@ -143,7 +135,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.runExpectError(getKey(r, t), true)
+	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -151,6 +143,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 				"conditions": [%s]
 			}
 		}`
-	_, pausedCondition := newProgressingCondition(conditions.ServiceNotFoundReason, notUsedPreviewSvc, "")
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found")
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
 }

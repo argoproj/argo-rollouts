@@ -349,14 +349,14 @@ type RolloutAnalysis struct {
 	// Deprecated and will be removed in v0.9
 	TemplateName string `json:"templateName,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
-	Templates []RolloutAnalysisTemplates `json:"templates,omitempty"`
+	Templates []RolloutAnalysisTemplate `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 }
 
-type RolloutAnalysisTemplates struct {
+type RolloutAnalysisTemplate struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName"`

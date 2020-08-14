@@ -231,7 +231,7 @@ func TestValidateHTTPRoutes(t *testing.T) {
 			},
 		}
 	}
-	httpRoutes := []httpRoute{{
+	httpRoutes := []HttpRoute{{
 		Name: "test",
 		Route: []route{{
 			Destination: destination{
@@ -240,7 +240,7 @@ func TestValidateHTTPRoutes(t *testing.T) {
 		}},
 	}}
 	rollout := newRollout([]string{"test"})
-	err := validateHTTPRoutes(rollout, httpRoutes)
+	err := ValidateHTTPRoutes(rollout, httpRoutes)
 	assert.Equal(t, fmt.Errorf("Route 'test' does not have exactly two routes"), err)
 
 	httpRoutes[0].Route = []route{{
@@ -252,17 +252,17 @@ func TestValidateHTTPRoutes(t *testing.T) {
 			Host: "canary",
 		},
 	}}
-	err = validateHTTPRoutes(rollout, httpRoutes)
+	err = ValidateHTTPRoutes(rollout, httpRoutes)
 	assert.Nil(t, err)
 
 	rolloutWithNotFoundRoute := newRollout([]string{"not-found-route"})
-	err = validateHTTPRoutes(rolloutWithNotFoundRoute, httpRoutes)
+	err = ValidateHTTPRoutes(rolloutWithNotFoundRoute, httpRoutes)
 	assert.Equal(t, "Route 'not-found-route' is not found", err.Error())
 
 }
 
 func TestValidateHosts(t *testing.T) {
-	hr := httpRoute{
+	hr := HttpRoute{
 		Name: "test",
 		Route: []route{{
 			Destination: destination{

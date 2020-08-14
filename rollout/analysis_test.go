@@ -177,7 +177,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: at.Name,
 			}},
 		},
@@ -237,7 +237,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	ar := clusterAnalysisRun(cat, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: cat.Name,
 				ClusterScope: true,
 			}},
@@ -297,7 +297,7 @@ func TestCreateBackgroundAnalysisRunErrorWithMissingClusterTemplates(t *testing.
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: "missing",
 				ClusterScope: true,
 			}},
@@ -349,7 +349,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	}
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: cat.Name,
 				ClusterScope: true,
 			}, {
@@ -658,7 +658,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRefWithTemplates(t *tes
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: "invalid-template-ref",
 			}},
 		},
@@ -696,7 +696,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	at := analysisTemplate("bar")
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplates{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
 				{
 					TemplateName: at.Name,
 				}, {
@@ -1453,7 +1453,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1497,8 +1497,8 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
-// TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
-// points the active service at the new ReplicaSet
+//TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
+//points the active service at the new ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1506,12 +1506,13 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: "test",
 		}},
 	}
 
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -1519,6 +1520,10 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
+
+	at := analysisTemplate("test")
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
 	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
@@ -1542,15 +1547,15 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 }
 
-// TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
-// if the Rollout does not have a stable ReplicaSet
+//TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
+//if the Rollout does not have a stable ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: "test",
 		}},
 	}
@@ -1560,6 +1565,9 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc)
+	at := analysisTemplate("test")
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	rs := newReplicaSet(r, 1)
 
@@ -1569,8 +1577,8 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.run(getKey(r, t))
 }
 
-// TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
-// the new ReplicaSet is saturated
+//TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
+//the new ReplicaSet is saturated
 func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1579,7 +1587,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: "test",
 		}},
 	}
@@ -1595,12 +1603,15 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	activeSvc := newService("active", 80, activeSelector, r2)
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	previewSvc := newService("preview", 80, previewSelector, r2)
+	at := analysisTemplate("test")
 
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, at)
 
 	patchRolloutIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1618,7 +1629,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1683,7 +1694,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1745,7 +1756,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = pointer.Int32Ptr(10)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1806,7 +1817,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1852,7 +1863,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1912,7 +1923,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1961,7 +1972,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2016,7 +2027,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2069,7 +2080,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplates{{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
