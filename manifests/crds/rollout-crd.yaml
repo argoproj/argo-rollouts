@@ -397,6 +397,8 @@ spec:
                               type: string
                             ingress:
                               type: string
+                            rootService:
+                              type: string
                             servicePort:
                               format: int32
                               type: integer
@@ -2910,7 +2912,8 @@ spec:
             abort:
               type: boolean
             abortedAt:
-              type: boolean
+              format: date-time
+              type: string
             availableReplicas:
               format: int32
               type: integer

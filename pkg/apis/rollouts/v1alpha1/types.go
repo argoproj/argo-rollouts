@@ -198,6 +198,8 @@ type ALBTrafficRouting struct {
 	Ingress string `json:"ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort"`
+	// RootService references the service in the ingress to the controller should add the action to
+	RootService string `json:"rootService,omitempty"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty"`

@@ -140,5 +140,9 @@ func ALBActionAnnotationKey(r *v1alpha1.Rollout) string {
 	if r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix != "" {
 		prefix = r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix
 	}
-	return fmt.Sprintf("%s%s%s", prefix, ALBActionPrefix, r.Spec.Strategy.Canary.StableService)
+	actionService := r.Spec.Strategy.Canary.StableService
+	if r.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+		actionService = r.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+	}
+	return fmt.Sprintf("%s%s%s", prefix, ALBActionPrefix, actionService)
 }

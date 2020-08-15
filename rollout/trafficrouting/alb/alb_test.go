@@ -134,9 +134,10 @@ func TestIngressNotFound(t *testing.T) {
 	assert.True(t, k8serrors.IsNotFound(err))
 }
 
-func TestStableServiceNotFoundInIngress(t *testing.T) {
-	ro := fakeRollout("different-stable", "canary-service", "ingress", 443)
-	i := ingress("ingress", "stable-service", "preview-svc", 443, 50, ro.Name)
+func TestServiceNotFoundInIngress(t *testing.T) {
+	ro := fakeRollout("stable-stable", "canary-service", "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "invalid-svc"
+	i := ingress("ingress", "stable-service", "canary-svc", 443, 50, ro.Name)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)

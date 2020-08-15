@@ -118,17 +118,24 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	var ingressName string
+	var serviceName string
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 		fldPath = fldPath.Child("nginx").Child("stableIngress")
+		serviceName = rollout.Spec.Strategy.Canary.StableService
 		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		fldPath = fldPath.Child("alb").Child("ingress")
 		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+		serviceName = rollout.Spec.Strategy.Canary.StableService
+		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+			serviceName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+		}
+
 	} else {
 		return allErrs
 	}
-	if !ingressutil.HasRuleWithService(&ingress, rollout.Spec.Strategy.Canary.StableService) {
-		msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, rollout.Spec.Strategy.Canary.StableService)
+	if !ingressutil.HasRuleWithService(&ingress, serviceName) {
+		msg := fmt.Sprintf("ingress `%s` has no rules using service %s backend", ingress.Name, serviceName)
 		allErrs = append(allErrs, field.Invalid(fldPath, ingressName, msg))
 	}
 	return allErrs

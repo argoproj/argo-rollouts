@@ -164,7 +164,9 @@ func TestALBActionAnnotationKey(t *testing.T) {
 		Status: v1alpha1.RolloutStatus{},
 	}
 	assert.Equal(t, "test.annotation/actions.svc", ALBActionAnnotationKey(r))
+	r.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "root-svc"
+	assert.Equal(t, "test.annotation/actions.root-svc", ALBActionAnnotationKey(r))
 	r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix = ""
-	assert.Equal(t, "alb.ingress.kubernetes.io/actions.svc", ALBActionAnnotationKey(r))
+	assert.Equal(t, "alb.ingress.kubernetes.io/actions.root-svc", ALBActionAnnotationKey(r))
 
 }
