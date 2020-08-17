@@ -360,10 +360,9 @@ func (c *Controller) syncHandler(key string) error {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		return c.rolloutBlueGreen(r, rsList)
 	}
-	if rollout.Spec.Strategy.Canary != nil {
-		return c.rolloutCanary(r, rsList)
-	}
-	return fmt.Errorf("no rollout strategy selected")
+
+	// Due to the rollout validation before this, when we get here strategy is canary
+	return c.rolloutCanary(r, rsList)
 }
 
 func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {
