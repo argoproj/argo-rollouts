@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -365,8 +363,8 @@ func (c *Controller) calculateBaseStatus(roCtx rolloutContext) v1alpha1.RolloutS
 	prevStatus := rollout.Status
 
 	prevCond := conditions.GetRolloutCondition(prevStatus, v1alpha1.InvalidSpec)
-	rolloutValidationErrors := validation.ValidateRollout(rollout)
-	if prevCond != nil && len(rolloutValidationErrors) == 0 {
+	err := c.getRolloutValidationErrors(rollout)
+	if err == nil && prevCond != nil {
 		conditions.RemoveRolloutCondition(&prevStatus, v1alpha1.InvalidSpec)
 	}
 
