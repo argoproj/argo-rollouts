@@ -1428,3 +1428,26 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 }
+
+func TestRolloutStrategyNotSet(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r.Spec.Strategy.BlueGreen = nil
+	r.Status.Conditions = []v1alpha1.RolloutCondition{}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	previewSvc := newService("preview", 80, nil, r)
+	activeSvc := newService("active", 80, nil, r)
+
+	rs := newReplicaSet(r, 1)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+	patchedRolout := f.getPatchedRollout(patchIndex)
+	assert.Contains(t, patchedRolout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
+}
