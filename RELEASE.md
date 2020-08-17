@@ -13,7 +13,7 @@
     ```bash
     REPO=upstream ;# or origin 
     BRANCH=release-v0.8 # should not include the patch version
-    VERSION=$(cat VERSION)
+    VERSION=v$(cat VERSION)
     ```
 
 
