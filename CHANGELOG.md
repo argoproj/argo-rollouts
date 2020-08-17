@@ -1,5 +1,39 @@
 # Changelog
 
+# v0.9.0
+## Quick Start
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.9.0/manifests/install.yaml
+
+## Changes since v0.8
+### General
+* fix: Fix various panics #603
+* feat: add security context to run as non-root #498
+  
+### Rollouts
+* feat: Controller Validation #549
+* feat: Controller Validation for objects referenced by Rollout #600
+* feat: Add Rollout replicas metrics (#507) #581
+* feat: Add support for rootService within ALB traffic routing #634
+
+* fix: Populate .spec.template with default values before Rollout Validation #580
+* fix: Add Rollout/scale to aggregate roles #637
+* Fix: remove hash selector after switching from bg to canary #515
+* fix: Set the currentStepIndex to max after bg to canary #558
+
+### Traffic Routing
+* feat: SMI TrafficSplit Support for Canary #520
+
+### Kubectl Plugin
+* feat: add shortened option -A for --all-namespaces #615
+
+### Analysis
+* feat: ClusterAnalysisTemplates (Cluster scoped AnalysisTemplates) #560
+* feat: Uplevel AnalysisRun status to Rollout status #578
+
+* fix: Modify arg verification to check ValueFrom #500
+* fix: Fix analysis validation to include Kayenta #545
+
 # v0.8.3
 ## Quick Start
 kubectl create namespace argo-rollouts
