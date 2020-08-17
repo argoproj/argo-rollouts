@@ -127,9 +127,10 @@ func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) fie
 	allErrs := field.ErrorList{}
 	if strategy.BlueGreen == nil && strategy.Canary == nil {
 		message := fmt.Sprintf(MissingFieldMessage, ".spec.strategy.canary or .spec.strategy.blueGreen")
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), rollout.Spec.Strategy, message))
+		allErrs = append(allErrs, field.Required(fldPath.Child("strategy"), message))
 	} else if strategy.BlueGreen != nil && strategy.Canary != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), rollout.Spec.Strategy, InvalidStrategyMessage))
+		errVal := fmt.Sprintf("blueGreen: %t canary: %t", rollout.Spec.Strategy.BlueGreen != nil, rollout.Spec.Strategy.Canary != nil)
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), errVal, InvalidStrategyMessage))
 	} else if strategy.BlueGreen != nil {
 		allErrs = append(allErrs, ValidateRolloutStrategyBlueGreen(rollout, fldPath)...)
 	} else if strategy.Canary != nil {
@@ -146,7 +147,7 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	}
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
 	if blueGreen.ScaleDownDelayRevisionLimit != nil && revisionHistoryLimit < *blueGreen.ScaleDownDelayRevisionLimit {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelayRevisionLimit"), blueGreen.ScaleDownDelayRevisionLimit, ScaleDownLimitLargerThanRevisionLimit))
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelayRevisionLimit"), *blueGreen.ScaleDownDelayRevisionLimit, ScaleDownLimitLargerThanRevisionLimit))
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(blueGreen.AntiAffinity, fldPath.Child("antiAffinity"))...)
 	return allErrs
@@ -159,24 +160,30 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
-	if canary.TrafficRouting != nil && (canary.StableService == "" || canary.CanaryService == "") {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting"), canary.TrafficRouting, InvalidTrafficRoutingMessage))
+	if canary.TrafficRouting != nil {
+		if canary.StableService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, InvalidTrafficRoutingMessage))
+		}
+		if canary.CanaryService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("canaryService"), canary.CanaryService, InvalidTrafficRoutingMessage))
+		}
 	}
 	if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil && len(canary.TrafficRouting.Istio.VirtualService.Routes) == 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("istio").Child("virtualService").Child("routes"), canary.TrafficRouting, InvalidIstioRoutesMessage))
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("istio").Child("virtualService").Child("routes"), "[]", InvalidIstioRoutesMessage))
 
 	}
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
 		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil {
-			allErrs = append(allErrs, field.Invalid(stepFldPath, canary.Steps[i], InvalidStepMessage))
+			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t", step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil)
+			allErrs = append(allErrs, field.Invalid(stepFldPath, errVal, InvalidStepMessage))
 		}
 		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), canary.Steps[i].SetWeight, InvalidSetWeightMessage))
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), *canary.Steps[i].SetWeight, InvalidSetWeightMessage))
 		}
 		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), canary.Steps[i].Pause.Duration, InvalidDurationMessage))
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), step.Pause.DurationSeconds(), InvalidDurationMessage))
 		}
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
@@ -188,7 +195,8 @@ func ValidateRolloutStrategyAntiAffinity(antiAffinity *v1alpha1.AntiAffinity, fl
 	if antiAffinity != nil {
 		preferred, required := antiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, antiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 		if (preferred == nil && required == nil) || (preferred != nil && required != nil) {
-			allErrs = append(allErrs, field.Invalid(fldPath, antiAffinity, InvalidAntiAffinityStrategyMessage))
+			errVal := fmt.Sprintf("antiAffinity.PreferredDuringSchedulingIgnoredDuringExecution: %t antiAffinity.RequiredDuringSchedulingIgnoredDuringExecution: %t", antiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil, antiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil)
+			allErrs = append(allErrs, field.Invalid(fldPath, errVal, InvalidAntiAffinityStrategyMessage))
 		}
 		if preferred != nil && (preferred.Weight < 1 || preferred.Weight > 100) {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("weight"), preferred.Weight, InvalidAntiAffinityWeightMessage))
@@ -204,7 +212,7 @@ func invalidMaxSurgeMaxUnavailable(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	maxSurgeValue := getIntOrPercentValue(*maxSurge)
 	maxUnavailableValue := getIntOrPercentValue(*maxUnavailable)
 	if maxSurgeValue == 0 && maxUnavailableValue == 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.MaxSurge, InvalidMaxSurgeMaxUnavailable))
+		allErrs = append(allErrs, field.Invalid(fldPath, *rollout.Spec.Strategy.Canary.MaxSurge, InvalidMaxSurgeMaxUnavailable))
 	}
 	return allErrs
 }
@@ -239,7 +247,8 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.Erro
 	for i := range oneOf {
 		if oneOf[i] {
 			if hasMultipleStepTypes {
-				allErrs = append(allErrs, field.Invalid(fldPath, s, InvalidStepMessage))
+				errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t", s.Experiment != nil, s.Pause != nil, s.SetWeight != nil, s.Analysis != nil)
+				allErrs = append(allErrs, field.Invalid(fldPath, errVal, InvalidStepMessage))
 				break
 			}
 			hasMultipleStepTypes = true
