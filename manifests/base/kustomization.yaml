@@ -10,4 +10,4 @@ resources:
 - argo-rollouts-metrics-service.yaml
 images:
 - name: argoproj/argo-rollouts
-  newTag: latest
+  newTag: 0.9.0
