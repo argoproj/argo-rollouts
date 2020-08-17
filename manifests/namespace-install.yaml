@@ -14296,6 +14296,8 @@ spec:
       labels:
         app.kubernetes.io/name: argo-rollouts
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       containers:
       - command:
         - /bin/rollouts-controller
