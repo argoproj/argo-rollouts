@@ -63,6 +63,7 @@
     ```bash
     git clone git@github.com:argoproj/homebrew-tap.git
     cd homebrew-tap
+    git pull
     ./update.sh kubectl-argo-rollouts $VERSION
     git commit -am "Update kubectl-argo-rollouts to $VERSION"
     git push
