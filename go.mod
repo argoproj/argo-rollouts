@@ -22,7 +22,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/common v0.9.1
-	github.com/servicemeshinterface/smi-sdk-go v0.3.0
+	github.com/servicemeshinterface/smi-sdk-go v0.4.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spaceapegames/go-wavefront v1.6.2
 	github.com/spf13/cobra v0.0.7
@@ -31,13 +31,13 @@ require (
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/api v0.17.4
+	k8s.io/api v0.18.0
 	k8s.io/apiextensions-apiserver v0.17.0
-	k8s.io/apimachinery v0.17.4
+	k8s.io/apimachinery v0.18.0
 	k8s.io/apiserver v0.17.3
 	k8s.io/cli-runtime v0.17.3
-	k8s.io/client-go v0.17.4
-	k8s.io/code-generator v0.17.4
+	k8s.io/client-go v0.18.0
+	k8s.io/code-generator v0.18.0
 	k8s.io/component-base v0.17.3
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
