@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/servicemeshinterface/smi-sdk-go v0.3.0
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spaceapegames/go-wavefront v1.6.2
+	github.com/spaceapegames/go-wavefront v1.8.1
 	github.com/spf13/cobra v0.0.7
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.0.1
