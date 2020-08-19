@@ -1441,6 +1441,13 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 				Description: "IstioVirtualService holds information on the virtual service the rollout needs to modify",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace holds the namespace of the VirtualService",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name holds the name of the VirtualService",
@@ -1463,7 +1470,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"name", "routes"},
+				Required: []string{"namespace", "name", "routes"},
 			},
 		},
 	}

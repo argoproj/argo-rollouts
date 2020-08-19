@@ -47,7 +47,12 @@ func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
 		return []string{}
 	}
-	return []string{fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
+
+	namespace := rollout.Namespace
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace != "" {
+		namespace = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	}
+	return []string{fmt.Sprintf("%s/%s", namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
@@ -190,10 +195,14 @@ func (r *Reconciler) Type() string {
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	var vsvc *unstructured.Unstructured
 	var err error
+	vsvcNamespace := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	if vsvcNamespace == "" {
+		vsvcNamespace = r.rollout.Namespace
+	}
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	client := r.client.Resource(istioutil.GetIstioGVR(r.defaultAPIVersion)).Namespace(r.rollout.Namespace)
 	if r.istioVirtualServiceLister != nil {
-		vsvc, err = r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
+		vsvc, err = r.istioVirtualServiceLister.Namespace(vsvcNamespace).Get(vsvcName)
 	} else {
 		vsvc, err = client.Get(vsvcName, metav1.GetOptions{})
 	}
