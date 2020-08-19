@@ -1470,7 +1470,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"namespace", "name", "routes"},
+				Required: []string{"name", "routes"},
 			},
 		},
 	}

@@ -247,7 +247,7 @@ type IstioTrafficRouting struct {
 // IstioVirtualService holds information on the virtual service the rollout needs to modify
 type IstioVirtualService struct {
 	// Namespace holds the namespace of the VirtualService
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	// Name holds the name of the VirtualService
 	Name string `json:"name"`
 	// Routes list of routes within VirtualService to edit
