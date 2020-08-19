@@ -27,7 +27,7 @@ require (
 	github.com/spaceapegames/go-wavefront v1.6.2
 	github.com/spf13/cobra v0.0.7
 	github.com/stretchr/testify v1.6.1
-	github.com/valyala/fasttemplate v1.0.1
+	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
