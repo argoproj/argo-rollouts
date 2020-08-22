@@ -572,6 +572,8 @@ github.com/soheilhy/cmux v0.1.4/go.mod h1:IM3LyeVVIOuxMH7sFAkER9+bJ4dT7Ms6E4xg4k
 github.com/sourcegraph/go-diff v0.5.1/go.mod h1:j2dHj3m8aZgQO8lMTcTnBcXkRRRqi34cd2MNlA9u1mE=
 github.com/spaceapegames/go-wavefront v1.6.2 h1:5AHElze/Y6oi4DdpkYfksS4F0ItsBpV7WwuB3r159cY=
 github.com/spaceapegames/go-wavefront v1.6.2/go.mod h1:Q9wbY/SM99cOM4NvoJ2SN1bzcJUJOEzta5C7dhnT5IM=
+github.com/spaceapegames/go-wavefront v1.8.1 h1:Xuby0uBfw1WVxD9d+l8Gh+zINqnBfd0RJT8e/3i3vBM=
+github.com/spaceapegames/go-wavefront v1.8.1/go.mod h1:GtdIjtJ0URkfPmaKx0+7vMSDvT/MON9v+4pbdagA8As=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.0/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
