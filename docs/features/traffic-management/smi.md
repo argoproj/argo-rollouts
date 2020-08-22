@@ -1,7 +1,7 @@
 # Service Mesh Interface (SMI)
 
 !!! important
-    This is not implemented yet and is scheduled to be part of the v0.9 release
+    Available since v0.9.0
 
 [Service Mesh Interface](https://smi-spec.io/) (SMI) is a standard interface for service meshes on Kubernetes leveraged by many Service Mesh implementations (like Linkerd). SMI offers this functionality through a set of CRDs, and the Argo Rollouts controller creates these resources to manipulate the traffic routing into the desired state. 
 

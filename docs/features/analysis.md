@@ -34,68 +34,68 @@ This example highlights:
 * The ability to parameterize the analysis
 * Delay starting the analysis run until step 3 (Set Weight 40%)
 
-```yaml tab="Rollout"
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: guestbook
-spec:
-...
-  strategy:
-    canary: 
-      analysis:
-        templates:
-        - templateName: success-rate
-        startingStep: 2 # delay starting analysis run
-                        # until setWeight: 40%
-        args:
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
-      steps:
-      - setWeight: 20
-      - pause: {duration: 10m}
-      - setWeight: 40
-      - pause: {duration: 10m}
-      - setWeight: 60
-      - pause: {duration: 10m}
-      - setWeight: 80
-      - pause: {duration: 10m}
-```
+=== "Rollout"
 
-```yaml tab="AnalysisTemplate"
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: success-rate
-spec:
-  args:
-  - name: service-name
-  metrics:
-  - name: success-rate
-    interval: 5m
-    successCondition: result[0] >= 0.95
-    failureLimit: 3
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-          )) / 
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
-```
+    ```yaml 
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: guestbook
+    spec:
+    ...
+      strategy:
+        canary:
+          analysis:
+            templates:
+            - templateName: success-rate
+            startingStep: 2 # delay starting analysis run until setWeight: 40%
+            args:
+            - name: service-name
+              value: guestbook-svc.default.svc.cluster.local
+          steps:
+          - setWeight: 20
+          - pause: {duration: 10m}
+          - setWeight: 40
+          - pause: {duration: 10m}
+          - setWeight: 60
+          - pause: {duration: 10m}
+          - setWeight: 80
+          - pause: {duration: 10m}
+    ```
 
-!!! note
-    Previously, the Rollout `analysis` section had a field called "`templateName`" where a user would specify a single
-    `AnalysisTemplate.` This field has be depreciated in lieu of the `templates` field, and the field will be removed in v0.9.0. 
+=== "AnalysisTemplate"
 
+    ```yaml 
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: success-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        # NOTE: prometheus queries return results in the form of a vector.
+        # So it is common to access the index 0 of the returned array to obtain the value
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) / 
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ```
 
-## Analysis at a Predefined Step
+## Inline Analysis
 
-Analysis can also be performed as a rollout step as a "analysis" step. When analysis is performed
-as a step, an `AnalysisRun` is started when the step is reached, and blocks the rollout until the
+Analysis can also be performed as a rollout step as an inline "analysis" step. When analysis is performed
+"inlined," an `AnalysisRun` is started when the step is reached, and blocks the rollout until the
 run is completed. The success or failure of the analysis run decides if the rollout will proceed to
 the next step, or abort the rollout completely.
 
@@ -125,10 +125,6 @@ spec:
           - name: service-name
             value: guestbook-svc.default.svc.cluster.local
 ```
-
-!!! note
-    Previously, the Rollout `analysis` section had a field called "`templateName`" where a user would specify a single
-    `AnalysisTemplate.` This field has be depreciated in lieu of the `templates` field, and the field will be removed in v0.9.0.  
 
 In this example, the `AnalysisTemplate` is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.
@@ -171,56 +167,63 @@ Multiple measurements can be performed over a longer duration period, by specify
         query: ...
 ```
 
-## Cluster analysis templates
+## ClusterAnalysisTemplates
 
-Starting in version `0.9.0` a Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+!!! important
+    Available since v0.9.0
+
+A Rollout can reference a Cluster scoped AnaylsisTemplate called a 
 `ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
-rather than duplicating them in every namespace. Use the field
+in different namespaces, and avoid duplicating the same template in every namespace. Use the field
 `clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
 
-```yaml tab="Rollout"
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: guestbook
-spec:
-...
-  strategy:
-    canary: 
-      steps:
-      - setWeight: 20
-      - pause: {duration: 5m}
-      - analysis:
-          templates:
-          - templateName: success-rate
-            clusterScope: true
-          args:
-          - name: service-name
-            value: guestbook-svc.default.svc.cluster.local
-```
+=== "Rollout"
 
-```yaml tab="ClusterAnalysisTemplate"
-apiVersion: argoproj.io/v1alpha1
-kind: ClusterAnalysisTemplate
-metadata:
-  name: success-rate
-spec:
-  args:
-  - name: service-name
-  metrics:
-  - name: success-rate
-    successCondition: result[0] >= 0.95
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-          )) / 
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
-```
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: guestbook
+    spec:
+    ...
+      strategy:
+        canary: 
+          steps:
+          - setWeight: 20
+          - pause: {duration: 5m}
+          - analysis:
+              templates:
+              - templateName: success-rate
+                clusterScope: true
+              args:
+              - name: service-name
+                value: guestbook-svc.default.svc.cluster.local
+    ```
+
+=== "ClusterAnalysisTemplate"
+ 
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: ClusterAnalysisTemplate
+    metadata:
+      name: success-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        successCondition: result[0] >= 0.95
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) / 
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ```
 
 !!! note
     The resulting `AnalysisRun` will still run in the namespace of the `Rollout`
@@ -231,113 +234,118 @@ analysis from multiple AnalysisTemplates. If multiple templates are referenced, 
 templates together. The controller combines the `metrics` and `args` fields of all the templates.
 
 
+=== "Rollout"
 
-```yaml tab="Rollout"
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: guestbook
-spec:
-...
-  strategy:
-    canary:
-      analysis:
-        templates:
-        - templateName: success-rate
-        - templateName: error-rate
-        args:
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
-```
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: guestbook
+    spec:
+    ...
+      strategy:
+        canary:
+          analysis:
+            templates:
+            - templateName: success-rate
+            - templateName: error-rate
+            args:
+            - name: service-name
+              value: guestbook-svc.default.svc.cluster.local
+    ```
 
-```yaml tab="AnalysisTemplate"
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: success-rate
-spec:
-  args:
-  - name: service-name
-  metrics:
-  - name: success-rate
-    interval: 5m
-    successCondition: result[0] >= 0.95
-    failureLimit: 3
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-          )) /
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
----
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: error-rate
-spec:
-  args:
-  - name: service-name
-  metrics:
-  - name: error-rate
-    interval: 5m
-    successCondition: result <= 0.95
-    failureLimit: 3
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
-          )) /
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
-```
+=== "AnalysisTemplate"
 
-```yaml tab="AnalysisRun"
-# NOTE: The rollouts controller will create this resource
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisRun
-metadata:
-  name: guestbook-CurrentPodHash-multiple-templates
-spec:
-  args:
-  - name: service-name
-    value: guestbook-svc.default.svc.cluster.local
-  metrics:
-  - name: success-rate
-    interval: 5m
-    successCondition: result[0] >= 0.95
-    failureLimit: 3
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-          )) / 
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
-  - name: error-rate
-    interval: 5m
-    successCondition: result <= 0.95
-    failureLimit: 3
-    provider:
-      prometheus:
-        address: http://prometheus.example.com:9090
-        query: |
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
-          )) / 
-          sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
-          ))
-``` 
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: success-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: error-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ```
+
+=== "AnalysisRun"
+
+    ```yaml
+    # NOTE: Generated AnalysisRun from the multiple templates
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisRun
+    metadata:
+      name: guestbook-CurrentPodHash-multiple-templates
+    spec:
+      args:
+      - name: service-name
+        value: guestbook-svc.default.svc.cluster.local
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) / 
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) / 
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ``` 
 
 !!! note 
     The controller will error when merging the templates if:
@@ -347,7 +355,8 @@ spec:
 
 ## Analysis Template Arguments
 
-AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as `{{ args.<name> }}`.
+AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as
+`{{ args.<name> }}`.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -483,7 +492,7 @@ encountered.
   metrics:
   - name: total-errors
     interval: 5m
-    failureCondition: result >= 10
+    failureCondition: result[0] >= 10
     failureLimit: 3
     provider:
       prometheus:
@@ -517,7 +526,7 @@ specified, but the measurement value did not meet either condition.
   metrics:
   - name: success-rate
     successCondition: result[0] >= 0.90
-    failureCondition: result < 0.50
+    failureCondition: result[0] < 0.50
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
@@ -534,10 +543,11 @@ can be configured to have a different delay. In additional to the metric specifi
 with background analysis can delay creating an analysis run until a certain step is reached
 
 Delaying a specific analysis metric:
-```yaml hl_lines="3"
+```yaml hl_lines="3 4"
   metrics:
   - name: success-rate
-    initialDelay: 5m # Do not start this analysis until 5 minutes after the analysis run starts
+    # Do not start this analysis until 5 minutes after the analysis run starts
+    initialDelay: 5m 
     successCondition: result[0] >= 0.90
     provider:
       prometheus:
@@ -547,13 +557,12 @@ Delaying a specific analysis metric:
 
 Delaying starting background analysis run until step 3 (Set Weight 40%):
 
-```yaml hl_lines="12"
+```yaml hl_lines="11"
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: guestbook
 spec:
-...
   strategy:
     canary: 
       analysis:
@@ -593,10 +602,9 @@ spec:
   - name: webmetric
     provider:
       web:
-        ...
         headers:
-          - key: Authorization
-            value: "Bearer {{ args.api-token }}" 
+        - key: Authorization
+          value: "Bearer {{ args.api-token }}" 
 ```
 
 ## Experimentation (e.g. Mann-Whitney Analysis)
@@ -613,99 +621,104 @@ This example demonstrates:
 * The ability to reference and supply pod-template-hash to an AnalysisRun
 * Kayenta metrics
 
-```yaml tab="Rollout"
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: guestbook
-  labels:
-    app: guestbook
-spec:
-...
-  strategy:
-    canary: 
-      steps:
-      - experiment:
-          duration: 1h
-          templates:
-          - name: baseline
-            specRef: stable
-          - name: canary
-            specRef: canary
-          analysis:
-            templateName: mann-whitney
-            args:
-            - name: stable-hash
-              valueFrom:
-                podTemplateHashValue: Stable
-            - name: canary-hash
-              valueFrom:
-                podTemplateHashValue: Latest
-```
+=== "Rollout"
 
-```yaml tab="AnalysisTemplate"
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: mann-whitney
-spec:
-  args:
-  - name: start-time
-  - name: end-time
-  - name: stable-hash
-  - name: canary-hash
-  metrics:
-  - name: mann-whitney
-    provider:
-      kayenta:
-        address: https://kayenta.example.com
-        application: guestbook
-        canaryConfigName: my-test
-        thresholds:
-          pass: 90
-          marginal: 75
-        scopes:
-        - name: default
-          controlScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
-            step: 60
-            start: "{{args.start-time}}"
-            end: "{{args.end-time}}"
-          experimentScope:
-            scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
-            step: 60
-            start: "{{args.start-time}}"
-            end: "{{args.end-time}}"
-```
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: guestbook
+      labels:
+        app: guestbook
+    spec:
+      strategy:
+        canary: 
+          steps:
+          - experiment:
+              duration: 1h
+              templates:
+              - name: baseline
+                specRef: stable
+              - name: canary
+                specRef: canary
+              analysis:
+                templateName: mann-whitney
+                args:
+                - name: stable-hash
+                  valueFrom:
+                    podTemplateHashValue: Stable
+                - name: canary-hash
+                  valueFrom:
+                    podTemplateHashValue: Latest
+    ```
 
-```yaml tab="Experiment"
-apiVersion: argoproj.io/v1alpha1
-kind: Experiment
-name:
-  name: guestbook-6c54544bf9-0
-spec:
-  duration: 1h
-  templates:
-  - name: baseline
-    replicas: 1
+=== "AnalysisTemplate"
+
+    ```yaml 
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: mann-whitney
     spec:
-      containers:
-      - name: guestbook
-        image: guesbook:v1
-  - name: canary
-    replicas: 1
+      args:
+      - name: start-time
+      - name: end-time
+      - name: stable-hash
+      - name: canary-hash
+      metrics:
+      - name: mann-whitney
+        provider:
+          kayenta:
+            address: https://kayenta.example.com
+            application: guestbook
+            canaryConfigName: my-test
+            thresholds:
+              pass: 90
+              marginal: 75
+            scopes:
+            - name: default
+              controlScope:
+                scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
+                step: 60
+                start: "{{args.start-time}}"
+                end: "{{args.end-time}}"
+              experimentScope:
+                scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
+                step: 60
+                start: "{{args.start-time}}"
+                end: "{{args.end-time}}"
+    ```
+
+=== "Experiment"
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Experiment
+    name:
+      name: guestbook-6c54544bf9-0
     spec:
-      containers:
-      - name: guestbook
-        image: guesbook:v2
-  analysis:
-    templateName: mann-whitney
-    args:
-    - name: start-time
-      value: "{{experiment.availableAt}}"
-    - name: end-time
-      value: "{{experiment.finishedAt}}"
-```
+      duration: 1h
+      templates:
+      - name: baseline
+        replicas: 1
+        spec:
+          containers:
+          - name: guestbook
+            image: guesbook:v1
+      - name: canary
+        replicas: 1
+        spec:
+          containers:
+          - name: guestbook
+            image: guesbook:v2
+      analysis:
+        templateName: mann-whitney
+        args:
+        - name: start-time
+          value: "{{experiment.availableAt}}"
+        - name: end-time
+          value: "{{experiment.finishedAt}}"
+    ```
 
 
 In order to perform multiple kayenta runs over some time duration, the `interval` and `count` fields
@@ -856,7 +869,3 @@ For success conditions that need to evaluate a numeric return value the `asInt` 
             value: "Bearer {{ args.api-token }}"
         jsonPath: "{$.results.successPercent}" 
 ```
-
-
-
-
