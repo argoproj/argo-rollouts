@@ -3,6 +3,7 @@ package istio
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,9 +26,9 @@ func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder recor
 		rollout: r,
 		log:     logutil.WithRollout(r),
 
-		client:            client,
-		recorder:          recorder,
-		defaultAPIVersion: defaultAPIVersion,
+		client:                    client,
+		recorder:                  recorder,
+		defaultAPIVersion:         defaultAPIVersion,
 		istioVirtualServiceLister: istioVirtualServiceLister,
 	}
 }
@@ -51,11 +52,11 @@ func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
 
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
-	rollout           *v1alpha1.Rollout
-	log               *logrus.Entry
-	client            dynamic.Interface
-	recorder          record.EventRecorder
-	defaultAPIVersion string
+	rollout                   *v1alpha1.Rollout
+	log                       *logrus.Entry
+	client                    dynamic.Interface
+	recorder                  record.EventRecorder
+	defaultAPIVersion         string
 	istioVirtualServiceLister dynamiclister.Lister
 }
 
@@ -187,10 +188,16 @@ func (r *Reconciler) Type() string {
 
 // Reconcile modifies Istio resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
+	var vsvc *unstructured.Unstructured
+	var err error
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(r.defaultAPIVersion)
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
-	vsvc, err := r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)//client.Get(vsvcName, metav1.GetOptions{})
+	if r.istioVirtualServiceLister != nil {
+		vsvc, err = r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
+	} else {
+		vsvc, err = client.Get(vsvcName, metav1.GetOptions{})
+	}
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			msg := fmt.Sprintf("Virtual Service `%s` not found", vsvcName)

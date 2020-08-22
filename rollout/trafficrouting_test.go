@@ -197,6 +197,9 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
 	rc := Controller{}
+	rc.istioVirtualServiceSynced = func() bool {
+		return true
+	}
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: pointer.Int32Ptr(10),

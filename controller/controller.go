@@ -107,7 +107,7 @@ func NewManager(
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
-	istioVirtualServiceInformer     cache.SharedIndexInformer,
+	istioVirtualServiceInformer cache.SharedIndexInformer,
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,

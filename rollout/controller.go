@@ -3,11 +3,12 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/dynamic/dynamiclister"
-	"reflect"
-	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -83,10 +84,10 @@ type Controller struct {
 	analysisRunLister             listers.AnalysisRunLister
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	// Must include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is later added, then controller must auto-detect change and start istioVirtualServiceInformer
-	istioVirtualServiceInformer   cache.SharedIndexInformer
-	istioVirtualServiceLister     dynamiclister.Lister
-	metricsServer                 *metrics.MetricsServer
+	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is later added, then controller will auto-detect change and start istioVirtualServiceInformer
+	istioVirtualServiceInformer cache.SharedIndexInformer
+	istioVirtualServiceLister   dynamiclister.Lister
+	metricsServer               *metrics.MetricsServer
 
 	podRestarter RolloutPodRestarter
 
@@ -261,7 +262,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	})
 
 	//if cfg.IstioVirtualServiceInformer.HasSynced() {
-	//TODO: Test if successful
+	//TODO: Test EventHandlers
 	cfg.IstioVirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// Not always creation/deletion object
 		// Depends on filter criteria of informer
@@ -302,8 +303,6 @@ func (c *Controller) DoesIstioExist() bool {
 // workers to finish processing their current work items.
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Rollout workers")
-	// Starts new thread
-
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
 			controllerutil.RunWorker(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
@@ -331,29 +330,9 @@ func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
 			cache.WaitForCacheSync(stopCh, c.istioVirtualServiceInformer.HasSynced)
 		}
 	}
-	// check if istio is installed -> test watch resource?
-	// while true {}
-	// list istio vsvc
-	// only look @ vsvcs referenced by ROs (?)
-	// enqueue ROs referencing vsvcs -> check if they change
 
 	// Logic to see if RO actually references vsvc -> Add logic to Add/Delete/Update
-	//func processNextWatchObj(watchEvent watch.Event, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
-	//	obj := watchEvent.Object
-	//	acc, err := meta.Accessor(obj)
-	//	if err != nil {
-	//		log.Errorf("Error processing object from watch: %v", err)
-	//		return
-	//	}
-	//	objsToEnqueue, err := indexer.ByIndex(index, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
-	//	if err != nil {
-	//		log.Errorf("Cannot process indexer: %s", err.Error())
-	//		return
-	//	}
-	//	for i := range objsToEnqueue {
-	//		Enqueue(objsToEnqueue[i], queue)
-	//	}
-	//}
+	// Look at processNextWatchObj
 }
 
 func (c *Controller) processNextEnqueuedObj(obj interface{}) {
@@ -714,11 +693,9 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 	if rollout.Spec.Strategy.Canary != nil {
 		canary := rollout.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
-			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
-
-			// TODO: check if istioVsvcSynced before using lister
 			var vsvc *unstructured.Unstructured
 			var err error
+			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
 			if c.istioVirtualServiceSynced() {
 				vsvc, err = c.istioVirtualServiceLister.Namespace(rollout.Namespace).Get(vsvcName)
 			} else {

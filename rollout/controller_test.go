@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/client-go/dynamic/dynamicinformer"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
@@ -390,6 +392,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), 0)
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(gvk).Informer()
+
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
@@ -412,6 +418,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ServicesInformer:                k8sI.Core().V1().Services(),
 		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
+		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		ResyncPeriod:                    resync(),
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ServiceWorkQueue:                serviceWorkqueue,
@@ -420,6 +427,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        &record.FakeRecorder{},
 		DefaultIstioVersion:             "v1alpha3",
 	})
+
+	c.istioVirtualServiceSynced = func() bool {
+		return true
+	}
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {
