@@ -2,6 +2,10 @@ package istio
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
+	"k8s.io/client-go/tools/cache"
 	"strings"
 	"testing"
 
@@ -50,6 +54,11 @@ func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollo
 			},
 		},
 	}
+}
+
+func (f *fake.FakeDynamicClient) istioVirtualServiceLister(defaultIstioVersion string) {
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(defaultIstioVersion)
+	dynamiclister.New(gvk)
 }
 
 func checkDestination(t *testing.T, route map[string]interface{}, svc string, expectWeight int) {
@@ -116,11 +125,14 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 }
 
 func TestReconcileUpdateVirtualService(t *testing.T) {
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
 	obj := strToUnstructured(regularVsvc)
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
+	indexer := dynamicinformer.NewDynamicSharedInformerFactory(client, 0).ForResource(gvk).Informer().GetIndexer()
+	dynamiclister.New(indexer, gvk)
 	err := r.Reconcile(10)
 	assert.Nil(t, err)
 	actions := client.Actions()
@@ -133,6 +145,7 @@ func TestReconcileNoChanges(t *testing.T) {
 	obj := strToUnstructured(regularVsvc)
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
+
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3")
 	err := r.Reconcile(0)

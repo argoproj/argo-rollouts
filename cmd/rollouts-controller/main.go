@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"os"
 	"strconv"
 	"time"
@@ -108,6 +110,8 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
+			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(defaultIstioVersion)
+			dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
@@ -124,6 +128,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+				dynamicInformerFactory.ForResource(gvk).Informer(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -132,12 +137,17 @@ func newCommand() *cobra.Command {
 				trafficSplitVersion,
 				nginxIngressClasses,
 				albIngressClasses)
-
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
+
+			// Check if Istio installed on cluster before starting dynamicInformerFactory
+			_, err = dynamicClient.Resource(gvk).List(metav1.ListOptions{})
+			if err == nil {
+				dynamicInformerFactory.Start(stopCh)
+			}
 
 			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())

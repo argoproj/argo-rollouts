@@ -119,6 +119,7 @@ rules:
   - watch
   - get
   - update
+  - list
 - apiGroups:
   - split.smi-spec.io
   resources:

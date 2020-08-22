@@ -3,7 +3,6 @@ package istio
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -11,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -20,7 +20,7 @@ import (
 const Type = "Istio"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, defaultAPIVersion string) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, defaultAPIVersion string, istioVirtualServiceLister dynamiclister.Lister) *Reconciler {
 	return &Reconciler{
 		rollout: r,
 		log:     logutil.WithRollout(r),
@@ -28,6 +28,7 @@ func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder recor
 		client:            client,
 		recorder:          recorder,
 		defaultAPIVersion: defaultAPIVersion,
+		istioVirtualServiceLister: istioVirtualServiceLister,
 	}
 }
 
@@ -55,6 +56,7 @@ type Reconciler struct {
 	client            dynamic.Interface
 	recorder          record.EventRecorder
 	defaultAPIVersion string
+	istioVirtualServiceLister dynamiclister.Lister
 }
 
 type virtualServicePatch struct {
@@ -188,7 +190,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(r.defaultAPIVersion)
 	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
-	vsvc, err := client.Get(vsvcName, metav1.GetOptions{})
+	vsvc, err := r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)//client.Get(vsvcName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			msg := fmt.Sprintf("Virtual Service `%s` not found", vsvcName)
