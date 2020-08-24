@@ -1267,7 +1267,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result &gt;= 0.95
+    successCondition: result[0] &gt;= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -1331,7 +1331,7 @@ no interval is specified, the analysis will perform a single measurement and com
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
   <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
@@ -1348,7 +1348,7 @@ no interval is specified, the analysis will perform a single measurement and com
 <code>interval</code> fields:</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
 <span class="hll">    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60s</span>
 </span><span class="hll">    <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
 </span>    <span class="nt">provider</span><span class="p">:</span>
@@ -1391,7 +1391,7 @@ spec:
   - name: service-name
   metrics:
   - name: success-rate
-    successCondition: result &gt;= 0.95
+    successCondition: result[0] &gt;= 0.95
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
@@ -1438,7 +1438,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result &gt;= 0.95
+    successCondition: result[0] &gt;= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -1487,7 +1487,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result &gt;= 0.95
+    successCondition: result[0] &gt;= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -1672,7 +1672,7 @@ could become <code>Inconclusive</code>, is when a metric defines no success or f
 specified, but the measurement value did not meet either condition.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.90</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.90</span>
     <span class="nt">failureCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &lt; 0.50</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
@@ -1691,7 +1691,7 @@ with background analysis can delay creating an analysis run until a certain step
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
 <span class="hll">    <span class="nt">initialDelay</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span> <span class="c1"># Do not start this analysis until 5 minutes after the analysis run starts</span>
-</span>    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.90</span>
+</span>    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.90</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
