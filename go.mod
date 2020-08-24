@@ -3,7 +3,7 @@ module github.com/argoproj/argo-rollouts
 go 1.13
 
 require (
-	github.com/antonmedv/expr v1.4.2
+	github.com/antonmedv/expr v1.8.8
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/bouk/monkey v1.0.0
 	github.com/cucumber/godog v0.10.0
