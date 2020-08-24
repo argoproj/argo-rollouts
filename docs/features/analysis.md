@@ -73,7 +73,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -143,7 +143,7 @@ spec:
   - name: service-name
   metrics:
   - name: success-rate
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
@@ -162,7 +162,7 @@ Multiple measurements can be performed over a longer duration period, by specify
 ```yaml hl_lines="4 5"
   metrics:
   - name: success-rate
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     interval: 60s
     count: 5
     provider:
@@ -209,7 +209,7 @@ spec:
   - name: service-name
   metrics:
   - name: success-rate
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
@@ -261,7 +261,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -311,7 +311,7 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    successCondition: result >= 0.95
+    successCondition: result[0] >= 0.95
     failureLimit: 3
     provider:
       prometheus:
@@ -516,7 +516,7 @@ specified, but the measurement value did not meet either condition.
 ```yaml
   metrics:
   - name: success-rate
-    successCondition: result >= 0.90
+    successCondition: result[0] >= 0.90
     failureCondition: result < 0.50
     provider:
       prometheus:
@@ -538,7 +538,7 @@ Delaying a specific analysis metric:
   metrics:
   - name: success-rate
     initialDelay: 5m # Do not start this analysis until 5 minutes after the analysis run starts
-    successCondition: result >= 0.90
+    successCondition: result[0] >= 0.90
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
