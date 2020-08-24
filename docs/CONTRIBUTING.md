@@ -14,7 +14,12 @@ Install:
 Argo Rollout additionally uses `golangci-lint` to lint the project.
 
 Run the following commands to install them:
+
 ```bash
+# macOS
+brew install golangci-lint
+
+# linux
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 

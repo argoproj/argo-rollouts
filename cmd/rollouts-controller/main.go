@@ -25,11 +25,11 @@ import (
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
+	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
 )
 
 const (
@@ -97,13 +97,9 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
 			instanceIDSelector := controllerutil.InstanceIDRequirement(instanceID)
-			argoRolloutsInformerFactory := informers.NewSharedInformerFactoryWithOptions(
-				rolloutClient,
-				resyncDuration,
-				informers.WithNamespace(namespace),
-				informers.WithTweakListOptions(func(options *metav1.ListOptions) {
-					options.LabelSelector = instanceIDSelector.String()
-				}))
+			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
+				options.LabelSelector = instanceIDSelector.String()
+			}
 			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
@@ -112,7 +108,17 @@ func newCommand() *cobra.Command {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
 			istioGVR := istioutil.GetIstioGVR(istioVersion)
-			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
+			// We need three dynamic informer factories:
+			// 1. The first is the dynamic informer for rollouts, analysisruns, analysistemplates, experiments
+			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, instanceIDTweakListFunc)
+			// 2. The second is for the clusteranalysistemplate. Notice we must instantiate this with
+			// metav1.NamespaceAll. The reason why we need a cluster specific dynamic informer factory
+			// is to support the mode when the rollout controller is started and only operating against
+			// a single namespace (i.e. rollouts-controller --namespace foo).
+			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
+			// 3. We finally need an istio dynamic informer factory which uses different resync
+			// period and does not use a tweakListFunc.
+			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
@@ -124,12 +130,12 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
 				kubeInformerFactory.Core().V1().Secrets(),
 				jobInformerFactory.Batch().V1().Jobs(),
-				argoRolloutsInformerFactory.Argoproj().V1alpha1().Rollouts(),
-				argoRolloutsInformerFactory.Argoproj().V1alpha1().Experiments(),
-				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
-				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
-				argoRolloutsInformerFactory.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
-				dynamicInformerFactory.ForResource(istioGVR).Informer(),
+				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
+				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
+				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+				istioDynamicInformerFactory.ForResource(istioGVR).Informer(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -140,13 +146,14 @@ func newCommand() *cobra.Command {
 				albIngressClasses)
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
+			dynamicInformerFactory.Start(stopCh)
+			clusterDynamicInformerFactory.Start(stopCh)
 			kubeInformerFactory.Start(stopCh)
-			argoRolloutsInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
 			if istioutil.DoesIstioExist(dynamicClient, namespace, istioVersion) {
-				dynamicInformerFactory.Start(stopCh)
+				istioDynamicInformerFactory.Start(stopCh)
 			}
 
 			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, stopCh); err != nil {

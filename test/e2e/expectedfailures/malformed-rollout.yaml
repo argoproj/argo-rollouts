@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: malformed-rollout
+spec:
+  selector:
+    matchLabels:
+      app: malformed-rollout
+  template:
+    metadata:
+      labels:
+        app: malformed-rollout
+    spec:
+      containers:
+      - name: malformed-rollout
+        image: argoproj/rollouts-demo:blue
+        resources:
+          requests:
+            memory: invalid # invalid
+  strategy:
+    canary: {}

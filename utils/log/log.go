@@ -1,7 +1,10 @@
 package log
 
 import (
+	"strings"
+
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -20,6 +23,19 @@ const (
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )
+
+// WithUnstructured returns an logging context for an unstructured object
+func WithUnstructured(un *unstructured.Unstructured) *log.Entry {
+	logCtx := log.NewEntry(log.StandardLogger())
+	kind, _, _ := unstructured.NestedString(un.Object, "kind")
+	if name, ok, _ := unstructured.NestedString(un.Object, "metadata", "name"); ok {
+		logCtx = logCtx.WithField(strings.ToLower(kind), name)
+	}
+	if namespace, ok, _ := unstructured.NestedString(un.Object, "metadata", "namespace"); ok {
+		logCtx = logCtx.WithField("namespace", namespace)
+	}
+	return logCtx
+}
 
 // WithRollout returns a logging context for Rollouts
 func WithRollout(rollout *v1alpha1.Rollout) *log.Entry {

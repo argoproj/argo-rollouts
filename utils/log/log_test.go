@@ -6,11 +6,37 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/stretchr/testify/assert"
 )
+
+func TestWithUnstructured(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	logger := log.New()
+	logger.SetOutput(buf)
+	ro := v1alpha1.Rollout{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Rollout",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ro)
+	un := unstructured.Unstructured{Object: obj}
+	assert.NoError(t, err)
+	logCtx := WithUnstructured(&un)
+	logCtx.Logger = logger
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
+}
 
 func TestWithRollout(t *testing.T) {
 	buf := bytes.NewBufferString("")
