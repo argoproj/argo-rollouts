@@ -260,29 +260,18 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	})
 
-	//if cfg.IstioVirtualServiceInformer.HasSynced() {
-	//TODO: Test EventHandlers
 	cfg.IstioVirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		// Not always creation/deletion object
-		// Depends on filter criteria of informer
 		AddFunc: func(obj interface{}) {
-			// controllerutil.EnqueueParentObject(obj, register.RolloutKind, c.enqueueRollout)
 			controller.processNextEnqueuedObj(obj)
 		},
-		// Not always when object mutated
-		// Can just be for reconciliation
-		// metadata.ResourceVersion -> check for mutation
 		// TODO: DeepEquals on httpRoutes
 		UpdateFunc: func(old, new interface{}) {
-			//controllerutil.EnqueueParentObject(new, register.RolloutKind, c.enqueueRollout)
 			controller.processNextEnqueuedObj(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			//controllerutil.EnqueueParentObject(obj, register.RolloutKind, c.enqueueRollout)
 			controller.processNextEnqueuedObj(obj)
 		},
 	})
-	//}
 
 	return controller
 }
@@ -323,16 +312,13 @@ func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
 	for !c.istioVirtualServiceInformer.HasSynced() {
 		// Should only execute if Istio is not installed on cluster
 		if !c.DoesIstioExist() {
-			//time.Sleep(10 * time.Minute)
+			//time.Sleep(10 * time.Minute) TODO: change 10 min after testing
 			time.Sleep(30 * time.Second)
 		} else {
 			c.istioVirtualServiceInformer.Run(stopCh)
 			cache.WaitForCacheSync(stopCh, c.istioVirtualServiceInformer.HasSynced)
 		}
 	}
-
-	// Logic to see if RO actually references vsvc -> Add logic to Add/Delete/Update
-	// Look at processNextWatchObj
 }
 
 func (c *Controller) processNextEnqueuedObj(obj interface{}) {
