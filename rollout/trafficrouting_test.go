@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -197,9 +202,12 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
 	rc := Controller{}
-	rc.istioVirtualServiceSynced = func() bool {
-		return true
-	}
+	// TODO: mock istio vsvc informer
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+	rc.istioVirtualServiceInformer = dynamicInformerFactory.ForResource(gvk).Informer()
+
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetWeight: pointer.Int32Ptr(10),

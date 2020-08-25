@@ -393,7 +393,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
-	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), 0)
+	// Pass in objects to to dynamicClient
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(gvk).Informer()
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
@@ -409,7 +411,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Namespace:                       metav1.NamespaceAll,
 		KubeClientSet:                   f.kubeclient,
 		ArgoProjClientset:               f.client,
-		DynamicClientSet:                nil,
+		DynamicClientSet:                dynamicClient,
 		ExperimentInformer:              i.Argoproj().V1alpha1().Experiments(),
 		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
 		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
@@ -427,10 +429,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        &record.FakeRecorder{},
 		DefaultIstioVersion:             "v1alpha3",
 	})
-
-	c.istioVirtualServiceSynced = func() bool {
-		return true
-	}
 
 	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj interface{}) {

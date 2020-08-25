@@ -77,7 +77,6 @@ type Controller struct {
 	rolloutsLister                listers.RolloutLister
 	rolloutsSynced                cache.InformerSynced
 	rolloutsIndexer               cache.Indexer
-	istioVirtualServiceSynced     cache.InformerSynced
 	servicesLister                v1.ServiceLister
 	ingressesLister               extensionslisters.IngressLister
 	experimentsLister             listers.ExperimentLister
@@ -178,7 +177,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
 		istioVirtualServiceLister:     dynamiclister.New(cfg.IstioVirtualServiceInformer.GetIndexer(), gvk),
-		istioVirtualServiceSynced:     cfg.IstioVirtualServiceInformer.HasSynced,
+		istioVirtualServiceInformer:   cfg.IstioVirtualServiceInformer,
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
 		metricsServer:                 cfg.MetricsServer,
@@ -321,10 +320,11 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
-	for !c.istioVirtualServiceSynced() {
+	for !c.istioVirtualServiceInformer.HasSynced() {
 		// Should only execute if Istio is not installed on cluster
 		if !c.DoesIstioExist() {
-			time.Sleep(10 * time.Minute)
+			//time.Sleep(10 * time.Minute)
+			time.Sleep(30 * time.Second)
 		} else {
 			c.istioVirtualServiceInformer.Run(stopCh)
 			cache.WaitForCacheSync(stopCh, c.istioVirtualServiceInformer.HasSynced)
@@ -696,17 +696,12 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 			var vsvc *unstructured.Unstructured
 			var err error
 			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
-			if c.istioVirtualServiceSynced() {
+			if c.istioVirtualServiceInformer.HasSynced() {
 				vsvc, err = c.istioVirtualServiceLister.Namespace(rollout.Namespace).Get(vsvcName)
 			} else {
 				gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
 				vsvc, err = c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
 			}
-
-			////vsvcFromLister, err := c.istioVirtualServiceLister.Namespace(rollout.Namespace).Get(vsvcName)
-			////vsvcFromLister.DeepCopyObject() // throwaway line to avoid build error
-			//gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-			//vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
 
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath, vsvcName, err.Error())
