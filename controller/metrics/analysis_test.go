@@ -56,6 +56,7 @@ analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
 analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="WebMetric"} 1
+analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="WebMetric"} 0
 analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="WebMetric"} 0
 analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="WebMetric"} 0
 analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="WebMetric"} 0
@@ -66,6 +67,7 @@ analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",nam
 # HELP analysis_run_phase Information on the state of the Analysis Run
 # TYPE analysis_run_phase gauge
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
+analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed"} 0
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive"} 0
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending"} 0
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running"} 0
