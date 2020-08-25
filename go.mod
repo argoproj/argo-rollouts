@@ -25,15 +25,15 @@ require (
 	github.com/servicemeshinterface/smi-sdk-go v0.3.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spaceapegames/go-wavefront v1.8.1
-	github.com/spf13/cobra v0.0.7
+	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/api v0.17.4
-	k8s.io/apiextensions-apiserver v0.17.0
-	k8s.io/apimachinery v0.17.4
+	k8s.io/api v0.18.2
+	k8s.io/apiextensions-apiserver v0.18.2
+	k8s.io/apimachinery v0.18.2
 	k8s.io/apiserver v0.17.3
 	k8s.io/cli-runtime v0.17.3
 	k8s.io/client-go v0.17.4
@@ -44,7 +44,7 @@ require (
 	k8s.io/kubectl v0.16.4
 	k8s.io/kubernetes v1.17.3
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
-	sigs.k8s.io/controller-tools v0.2.5
+	sigs.k8s.io/controller-tools v0.4.0
 )
 
 replace (
