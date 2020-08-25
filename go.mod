@@ -36,7 +36,7 @@ require (
 	k8s.io/apimachinery v0.17.4
 	k8s.io/apiserver v0.17.3
 	k8s.io/cli-runtime v0.17.3
-	k8s.io/client-go v0.17.4
+	k8s.io/client-go v0.18.8
 	k8s.io/code-generator v0.17.4
 	k8s.io/component-base v0.17.3
 	k8s.io/klog v1.0.0
