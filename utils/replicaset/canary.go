@@ -288,6 +288,9 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	return 0
 }
 
+// UseSetCanaryScale will return a SetCanaryScale if specified and should be used, returns nil otherwise.
+// TrafficRouting is required to be set for SetCanaryScale to be applicable.
+// If MatchTrafficWeight is set after a previous SetCanaryScale step, it will likewise be ignored.
 func UseSetCanaryScale(rollout *v1alpha1.Rollout) *v1alpha1.SetCanaryScale {
 	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
 	if currentStep == nil {
