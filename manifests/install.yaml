@@ -11333,6 +11333,17 @@ spec:
                                 - type: string
                                 x-kubernetes-int-or-string: true
                             type: object
+                          setCanaryScale:
+                            properties:
+                              matchTrafficWeight:
+                                type: boolean
+                              replicas:
+                                format: int32
+                                type: integer
+                              weight:
+                                format: int32
+                                type: integer
+                            type: object
                           setWeight:
                             format: int32
                             type: integer
@@ -14414,7 +14425,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argo-rollouts
-  namespace: argo-rollouts
+  namespace: cluster-addon-argo-rollouts
 ---
 apiVersion: v1
 kind: Service
