@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/client-go/dynamic/dynamiclister"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -202,6 +204,9 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
 	rc := Controller{}
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), 0)
+	rc.istioVirtualServiceInformer = dynamicInformerFactory.ForResource(gvk).Informer()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -231,12 +236,27 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		assert.Nil(t, networkReconciler)
 	}
 	{
-		// Create Istio Vsvc informer
-		gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
-		dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-		dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-		rc.istioVirtualServiceInformer = dynamicInformerFactory.ForResource(gvk).Informer()
-
+		// Without istioVirtualServiceLister
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{},
+		}
+		roCtx := &canaryContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
+		assert.Nil(t, err)
+		assert.NotNil(t, networkReconciler)
+		assert.Equal(t, istio.Type, networkReconciler.Type())
+	}
+	{
+		// With istioVirtualServiceLister
+		stopCh := make(chan struct{})
+		dynamicInformerFactory.Start(stopCh)
+		dynamicInformerFactory.WaitForCacheSync(stopCh)
+		close(stopCh)
+		rc.istioVirtualServiceLister = dynamiclister.New(rc.istioVirtualServiceInformer.GetIndexer(), gvk)
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
