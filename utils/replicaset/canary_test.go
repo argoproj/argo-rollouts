@@ -1,7 +1,6 @@
 package replicaset
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -463,9 +462,6 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
-			if test.name == "setCanaryScale" {
-				fmt.Printf("setCanaryScale replica %v weight v", rollout.Spec.Strategy.Canary.Steps)
-			}
 			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount)
 			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount)
 		})
