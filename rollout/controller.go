@@ -312,8 +312,7 @@ func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
 	for !c.istioVirtualServiceInformer.HasSynced() {
 		// Should only execute if Istio is not installed on cluster
 		if !c.DoesIstioExist() {
-			//time.Sleep(10 * time.Minute) TODO: change 10 min after testing
-			time.Sleep(30 * time.Second)
+			time.Sleep(10 * time.Minute)
 		} else {
 			c.istioVirtualServiceInformer.Run(stopCh)
 			cache.WaitForCacheSync(stopCh, c.istioVirtualServiceInformer.HasSynced)
