@@ -84,11 +84,12 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	setWeight := int32(0)
-	if scs, use := UseSetCanaryScale(rollout); use == true {
+	if scs := UseSetCanaryScale(rollout); scs != nil {
 		if scs.Replicas != nil {
 			return *scs.Replicas, rolloutSpecReplica
+		} else if scs.Weight != nil {
+			setWeight = *scs.Weight
 		}
-		setWeight = *scs.Weight
 	} else {
 		setWeight = GetCurrentSetWeight(rollout)
 	}
@@ -287,10 +288,14 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	return 0
 }
 
-func UseSetCanaryScale(rollout *v1alpha1.Rollout) (v1alpha1.SetCanaryScale, bool) {
+func UseSetCanaryScale(rollout *v1alpha1.Rollout) *v1alpha1.SetCanaryScale {
 	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
 	if currentStep == nil {
-		return v1alpha1.SetCanaryScale{}, false
+		return nil
+	}
+	// SetCanaryScale only works with TrafficRouting
+	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil
 	}
 
 	for i := *currentStepIndex; i >= 0; i-- {
@@ -299,11 +304,11 @@ func UseSetCanaryScale(rollout *v1alpha1.Rollout) (v1alpha1.SetCanaryScale, bool
 			continue
 		}
 		if step.SetCanaryScale.MatchTrafficWeight {
-			return v1alpha1.SetCanaryScale{}, false
+			return nil
 		}
-		return *step.SetCanaryScale, true
+		return step.SetCanaryScale
 	}
-	return v1alpha1.SetCanaryScale{}, false
+	return nil
 }
 
 // GetOlderRSs the function goes through a list of ReplicaSets and returns a list of RS that are not the new or stable RS
