@@ -272,6 +272,9 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 
 	for i := *currentStepIndex; i >= 0; i-- {
 		step := rollout.Spec.Strategy.Canary.Steps[i]
+		if step.SetCanaryScale != nil && step.SetCanaryScale.Weight != nil {
+			return *step.SetCanaryScale.Weight
+		}
 		if step.SetWeight != nil {
 			return *step.SetWeight
 		}
