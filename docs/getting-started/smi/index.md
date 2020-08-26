@@ -1,7 +1,7 @@
 # Getting Started - SMI (Service Mesh Interface)
 
 !!! important
-    This functionality will be part of the upcoming v0.9 release
+    Available since v0.9
 
 This guide covers how Argo Rollouts integrates with the Service Mesh Interface (SMI), using
 [Linkerd](https://linkerd.io) and 

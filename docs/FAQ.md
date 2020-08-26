@@ -29,7 +29,7 @@ Argo Rollouts does not require a service mesh or ingress controller to be used. 
 ### Which deployment strategies does Argo Rollouts support?
 Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.
 
-## Does the Rollout object follow the provided strategy when it is first created?
+### Does the Rollout object follow the provided strategy when it is first created?
 As with Deployments, Rollouts does not follow the strategy parameters on the initial deploy. The controller tries to get the Rollout into a steady state as fast as possible. The controller tries to get the Rollout into a steady state as fast as possible by creating a fully scaled up ReplicaSet from the provided `.spec.template`. Once the Rollout has a stable ReplicaSet to transition from, the controller starts using the provided strategy to transition the previous ReplicaSet to the desired ReplicaSet.
 
 ### How does BlueGreen rollback work?
