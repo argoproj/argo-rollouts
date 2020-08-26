@@ -340,13 +340,13 @@ type CanaryStep struct {
 type SetCanaryScale struct {
 	// Weight sets the percentage of replicas the newRS should have
 	// +optional
-	Weight *int32 `json:"weight"`
+	Weight *int32 `json:"weight,omitempty"`
 	// Replicas sets the number of replicas the newRS should have
 	// +optional
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 	// MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
 	// +optional
-	MatchTrafficWeight bool `json:"matchTrafficWeight"`
+	MatchTrafficWeight bool `json:"matchTrafficWeight,omitempty"`
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
