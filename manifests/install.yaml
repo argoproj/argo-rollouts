@@ -14425,7 +14425,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argo-rollouts
-  namespace: cluster-addon-argo-rollouts
+  namespace: argo-rollouts
 ---
 apiVersion: v1
 kind: Service
