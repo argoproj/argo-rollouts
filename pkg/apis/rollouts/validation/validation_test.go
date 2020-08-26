@@ -133,6 +133,14 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
 	})
 
+	t.Run("invalid setCanaryScale without trafficRouting", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps[0].SetCanaryScale = &v1alpha1.SetCanaryScale{}
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = nil
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetCanaryScaleTrafficPolicy, allErrs[0].Detail)
+	})
+
 	t.Run("invalid canary step", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
