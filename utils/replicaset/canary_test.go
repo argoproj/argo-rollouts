@@ -63,12 +63,8 @@ func newRS(podHashLabel string, specReplicas, availableReplicas int32) *appsv1.R
 
 func newSetCanaryScale(replicas, weight *int32, matchTrafficWeight bool) *v1alpha1.SetCanaryScale {
 	scs := v1alpha1.SetCanaryScale{}
-	if replicas != nil {
-		scs.Replicas = replicas
-	}
-	if weight != nil {
-		scs.Weight = weight
-	}
+	scs.Replicas = replicas
+	scs.Weight = weight
 	scs.MatchTrafficWeight = matchTrafficWeight
 	return &scs
 }
