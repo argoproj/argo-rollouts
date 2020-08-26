@@ -112,7 +112,7 @@ func newCommand() *cobra.Command {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
 			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(defaultIstioVersion)
-			dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,

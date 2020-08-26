@@ -5,6 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,6 +30,17 @@ func strToUnstructured(yamlStr string) *unstructured.Unstructured {
 		panic(err)
 	}
 	return &unstructured.Unstructured{Object: obj}
+}
+
+func getVirtualServiceLister(client dynamic.Interface) dynamiclister.Lister {
+	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(client, 0)
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(gvk).Informer()
+	stopCh := make(chan struct{})
+	dynamicInformerFactory.Start(stopCh)
+	dynamicInformerFactory.WaitForCacheSync(stopCh)
+	close(stopCh)
+	return dynamiclister.New(istioVirtualServiceInformer.GetIndexer(), gvk)
 }
 
 func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollout {
@@ -120,27 +136,26 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
+	vsvcLister := getVirtualServiceLister(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	client.ClearActions()
 	err := r.Reconcile(10)
 	assert.Nil(t, err)
 	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	assert.Equal(t, "get", actions[0].GetVerb())
-	assert.Equal(t, "update", actions[1].GetVerb())
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
 }
 
 func TestReconcileNoChanges(t *testing.T) {
 	obj := strToUnstructured(regularVsvc)
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
-
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
 	err := r.Reconcile(0)
 	assert.Nil(t, err)
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	assert.Equal(t, "get", actions[0].GetVerb())
+	assert.Len(t, client.Actions(), 1)
+	assert.Equal(t, "get", client.Actions()[0].GetVerb())
 }
 
 func TestReconcileInvalidValidation(t *testing.T) {
@@ -148,26 +163,23 @@ func TestReconcileInvalidValidation(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
+	vsvcLister := getVirtualServiceLister(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	client.ClearActions()
 	err := r.Reconcile(0)
 	assert.Equal(t, "Route 'route-not-found' is not found", err.Error())
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	assert.Equal(t, "get", actions[0].GetVerb())
 }
 
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	schema := runtime.NewScheme()
-	obj := strToUnstructured(regularVsvc)
-	client := fake.NewSimpleDynamicClient(schema, obj)
+	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "", nil)
+	vsvcLister := getVirtualServiceLister(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	client.ClearActions()
 	err := r.Reconcile(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	assert.Equal(t, "get", actions[0].GetVerb())
 }
 
 func TestType(t *testing.T) {
