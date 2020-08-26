@@ -11336,12 +11336,6 @@ spec:
                           setWeight:
                             format: int32
                             type: integer
-                          setCanaryScale:
-                            type: object
-                            properties:
-                              weight:
-                                format: int32
-                                type: integer
                         type: object
                       type: array
                     trafficRouting:

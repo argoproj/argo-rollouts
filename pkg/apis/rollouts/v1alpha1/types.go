@@ -332,12 +332,21 @@ type CanaryStep struct {
 	// Analysis defines the AnalysisRun that will run for a step
 	Analysis *RolloutAnalysis `json:"analysis,omitempty"`
 	// SetCanaryScale defines how to scale the newRS without chainging traffic weight
+	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty"`
 }
 
 // SetCanaryScale defines how to scale the newRS without chainging traffic weight
 type SetCanaryScale struct {
+	// Weight sets the percentage of replicas the newRS should have
+	// +optional
 	Weight *int32 `json:"weight"`
+	// Replicas sets the number of replicas the newRS should have
+	// +optional
+	Replicas *int32 `json:"replicas"`
+	// MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
+	// +optional
+	MatchTrafficWeight bool `json:"matchTrafficWeight"`
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun

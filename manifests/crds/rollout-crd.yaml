@@ -384,11 +384,14 @@ spec:
                             type: object
                           setCanaryScale:
                             properties:
+                              matchTrafficWeight:
+                                type: boolean
+                              replicas:
+                                format: int32
+                                type: integer
                               weight:
                                 format: int32
                                 type: integer
-                            required:
-                            - weight
                             type: object
                           setWeight:
                             format: int32
