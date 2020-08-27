@@ -234,7 +234,8 @@ func completedCurrentCanaryStep(roCtx *canaryContext) bool {
 	if currentStep.Pause != nil {
 		return roCtx.PauseContext().CompletedPauseStep(*currentStep.Pause)
 	}
-	if currentStep.SetWeight != nil && replicasetutil.AtDesiredReplicaCountsForCanary(r, roCtx.NewRS(), roCtx.StableRS(), roCtx.OlderRSs()) {
+	modifyReplicasStep := currentStep.SetWeight != nil || currentStep.SetCanaryScale != nil
+	if modifyReplicasStep && replicasetutil.AtDesiredReplicaCountsForCanary(r, roCtx.NewRS(), roCtx.StableRS(), roCtx.OlderRSs()) {
 		logCtx.Info("Rollout has reached the desired state for the correct weight")
 		return true
 	}
