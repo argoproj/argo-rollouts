@@ -9,12 +9,12 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -191,8 +191,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	var vsvc *unstructured.Unstructured
 	var err error
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(r.defaultAPIVersion)
-	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
+	client := r.client.Resource(istioutil.GetIstioGVR(r.defaultAPIVersion)).Namespace(r.rollout.Namespace)
 	if r.istioVirtualServiceLister != nil {
 		vsvc, err = r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
 	} else {

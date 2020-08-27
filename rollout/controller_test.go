@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -392,11 +394,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
 	// Pass in objects to to dynamicClient
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(gvk).Informer()
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioGVR("v1alpha3")).Informer()
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")

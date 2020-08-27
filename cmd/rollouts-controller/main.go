@@ -7,14 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -29,6 +27,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 )
 
@@ -111,7 +110,7 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
-			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(defaultIstioVersion)
+			istioGVR := istioutil.GetIstioGVR(istioVersion)
 			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
 			cm := controller.NewManager(
 				namespace,
@@ -129,7 +128,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
-				dynamicInformerFactory.ForResource(gvk).Informer(),
+				dynamicInformerFactory.ForResource(istioGVR).Informer(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -145,8 +144,7 @@ func newCommand() *cobra.Command {
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			_, err = dynamicClient.Resource(gvk).List(metav1.ListOptions{})
-			if err == nil {
+			if istioutil.DoesIstioExist(dynamicClient, istioVersion) {
 				dynamicInformerFactory.Start(stopCh)
 			}
 

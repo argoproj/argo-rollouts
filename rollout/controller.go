@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/dynamic/dynamiclister"
@@ -19,7 +21,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -151,8 +152,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	}
 
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(cfg.DefaultIstioVersion)
-
 	controller := &Controller{
 		namespace:                     cfg.Namespace,
 		kubeclientset:                 cfg.KubeClientSet,
@@ -176,7 +175,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
-		istioVirtualServiceLister:     dynamiclister.New(cfg.IstioVirtualServiceInformer.GetIndexer(), gvk),
+		istioVirtualServiceLister:     dynamiclister.New(cfg.IstioVirtualServiceInformer.GetIndexer(), istioutil.GetIstioGVR(cfg.DefaultIstioVersion)),
 		istioVirtualServiceInformer:   cfg.IstioVirtualServiceInformer,
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
@@ -276,15 +275,6 @@ func NewController(cfg ControllerConfig) *Controller {
 	return controller
 }
 
-func (c *Controller) DoesIstioExist() bool {
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-	_, err := c.dynamicclientset.Resource(gvk).List(metav1.ListOptions{})
-	if err != nil {
-		return false
-	}
-	return true
-}
-
 // Run will set up the event handlers for types we are interested in, as well
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
@@ -311,7 +301,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
 	for !c.istioVirtualServiceInformer.HasSynced() {
 		// Should only execute if Istio is not installed on cluster
-		if !c.DoesIstioExist() {
+		if !istioutil.DoesIstioExist(c.dynamicclientset, c.defaultIstioVersion) {
 			time.Sleep(10 * time.Minute)
 		} else {
 			c.istioVirtualServiceInformer.Run(stopCh)
@@ -684,8 +674,7 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 			if c.istioVirtualServiceInformer.HasSynced() {
 				vsvc, err = c.istioVirtualServiceLister.Namespace(rollout.Namespace).Get(vsvcName)
 			} else {
-				gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-				vsvc, err = c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
+				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
 			}
 
 			if k8serrors.IsNotFound(err) {

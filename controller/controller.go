@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -88,6 +90,8 @@ type Manager struct {
 
 	defaultIstioVersion        string
 	defaultTrafficSplitVersion string
+
+	dynamicClientSet dynamic.Interface
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -244,6 +248,7 @@ func NewManager(
 		analysisController:            analysisController,
 		defaultIstioVersion:           defaultIstioVersion,
 		defaultTrafficSplitVersion:    defaultTrafficSplitVersion,
+		dynamicClientSet:              dynamicclientset,
 	}
 
 	return cm
@@ -267,7 +272,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 	// Check if Istio exists
-	if c.rolloutController.DoesIstioExist() {
+	if istioutil.DoesIstioExist(c.dynamicClientSet, c.defaultIstioVersion) {
 		// Wait for Istio cache to sync before starting workers
 		if ok := cache.WaitForCacheSync(stopCh, c.istioVirtualServiceSynced); !ok {
 			return fmt.Errorf("failed to wait for istio virtualService cache to sync")

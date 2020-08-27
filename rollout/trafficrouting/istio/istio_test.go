@@ -5,7 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
@@ -33,14 +34,14 @@ func strToUnstructured(yamlStr string) *unstructured.Unstructured {
 }
 
 func getVirtualServiceLister(client dynamic.Interface) dynamiclister.Lister {
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
+	istioGVR := istioutil.GetIstioGVR("v1alpha3")
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(client, 0)
-	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(gvk).Informer()
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioGVR).Informer()
 	stopCh := make(chan struct{})
 	dynamicInformerFactory.Start(stopCh)
 	dynamicInformerFactory.WaitForCacheSync(stopCh)
 	close(stopCh)
-	return dynamiclister.New(istioVirtualServiceInformer.GetIndexer(), gvk)
+	return dynamiclister.New(istioVirtualServiceInformer.GetIndexer(), istioGVR)
 }
 
 func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollout {
