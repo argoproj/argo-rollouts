@@ -387,7 +387,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 0,
 		},
 		{
-			name: "Use setCanaryScale.replicas when specified with trafficRouting",
+			name: "For canary replicas, use setCanaryScale.replicas when specified along with trafficRouting (and ignore setWeight)",
 
 			rolloutSpecReplicas:    1,
 			stableSpecReplica:      1,
@@ -400,7 +400,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
 		},
 		{
-			name: "Use setCanaryScale.weight when specified with trafficRouting",
+			name: "Use setCanaryScale.weight for canary replicas when specified with trafficRouting (and ignore setWeight)",
 
 			rolloutSpecReplicas:    4,
 			stableSpecReplica:      4,
@@ -413,7 +413,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
 		},
 		{
-			name:                "Ignore setCanaryScale when matchTrafficWeight is true",
+			name:                "Ignore setCanaryScale replicas/weight when matchTrafficWeight is true",
 			rolloutSpecReplicas: 10,
 			setWeight:           20,
 			maxSurge:            intstr.FromString("20%"),
@@ -432,7 +432,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 2,
 		},
 		{
-			name:                "Ignore setCanaryScale when trafficRouting is missing",
+			name:                "Ignore setCanaryScale when trafficRouting is missing and use setWeight for replicas",
 			rolloutSpecReplicas: 10,
 			setWeight:           20,
 			maxSurge:            intstr.FromString("20%"),
