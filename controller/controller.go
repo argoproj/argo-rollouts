@@ -93,7 +93,7 @@ type Manager struct {
 
 	dynamicClientSet dynamic.Interface
 
-	namespace        string
+	namespace string
 }
 
 // NewManager returns a new manager to manage all the controllers

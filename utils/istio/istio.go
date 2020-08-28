@@ -7,7 +7,7 @@ import (
 )
 
 func DoesIstioExist(dynamicClient dynamic.Interface, namespace string, version string) bool {
-	_, err := dynamicClient.Resource(GetIstioGVR(version)).Namespace(namespace).List(metav1.ListOptions{Limit:1})
+	_, err := dynamicClient.Resource(GetIstioGVR(version)).Namespace(namespace).List(metav1.ListOptions{Limit: 1})
 	if err != nil {
 		return false
 	}
