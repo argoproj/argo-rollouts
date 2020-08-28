@@ -7,7 +7,6 @@ require (
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/bouk/monkey v1.0.0
 	github.com/cucumber/godog v0.10.0
-	github.com/docker/docker v1.4.2-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.3
@@ -20,12 +19,12 @@ require (
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.5.0
-	github.com/prometheus/common v0.9.1
+	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/common v0.10.0
 	github.com/servicemeshinterface/smi-sdk-go v0.3.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spaceapegames/go-wavefront v1.8.1
-	github.com/spf13/cobra v0.0.7
+	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
@@ -40,10 +39,10 @@ require (
 	k8s.io/code-generator v0.17.4
 	k8s.io/component-base v0.17.3
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
+	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	k8s.io/kubectl v0.16.4
-	k8s.io/kubernetes v1.17.3
-	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
+	k8s.io/kubernetes v1.19.0
+	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 	sigs.k8s.io/controller-tools v0.2.5
 )
 
