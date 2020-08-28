@@ -1,6 +1,7 @@
 package istio
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestDoesIstioExist(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-	assert.True(t, DoesIstioExist(dynamicClient, "v1alpha3"))
+	assert.True(t, DoesIstioExist(dynamicClient, metav1.NamespaceAll, "v1alpha3"))
 	assert.Len(t, dynamicClient.Actions(), 1)
 	assert.Equal(t, "list", dynamicClient.Actions()[0].GetVerb())
 }

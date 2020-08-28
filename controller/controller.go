@@ -92,6 +92,8 @@ type Manager struct {
 	defaultTrafficSplitVersion string
 
 	dynamicClientSet dynamic.Interface
+
+	namespace        string
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -249,6 +251,7 @@ func NewManager(
 		defaultIstioVersion:           defaultIstioVersion,
 		defaultTrafficSplitVersion:    defaultTrafficSplitVersion,
 		dynamicClientSet:              dynamicclientset,
+		namespace:                     namespace,
 	}
 
 	return cm
@@ -272,7 +275,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 	// Check if Istio exists
-	if istioutil.DoesIstioExist(c.dynamicClientSet, c.defaultIstioVersion) {
+	if istioutil.DoesIstioExist(c.dynamicClientSet, c.namespace, c.defaultIstioVersion) {
 		// Wait for Istio cache to sync before starting workers
 		if ok := cache.WaitForCacheSync(stopCh, c.istioVirtualServiceSynced); !ok {
 			return fmt.Errorf("failed to wait for istio virtualService cache to sync")

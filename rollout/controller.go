@@ -261,14 +261,14 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	cfg.IstioVirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			controller.processNextEnqueuedObj(obj)
+			controller.EnqueueIstioVsvc(obj)
 		},
 		// TODO: DeepEquals on httpRoutes
 		UpdateFunc: func(old, new interface{}) {
-			controller.processNextEnqueuedObj(new)
+			controller.EnqueueIstioVsvc(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.processNextEnqueuedObj(obj)
+			controller.EnqueueIstioVsvc(obj)
 		},
 	})
 
@@ -299,30 +299,36 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
-	for !c.istioVirtualServiceInformer.HasSynced() {
+	ticker := time.NewTicker(10 * time.Minute)
+	for !istioutil.DoesIstioExist(c.dynamicclientset, c.namespace, c.defaultIstioVersion) {
 		// Should only execute if Istio is not installed on cluster
-		if !istioutil.DoesIstioExist(c.dynamicclientset, c.defaultIstioVersion) {
-			time.Sleep(10 * time.Minute)
-		} else {
-			c.istioVirtualServiceInformer.Run(stopCh)
-			cache.WaitForCacheSync(stopCh, c.istioVirtualServiceInformer.HasSynced)
+		select {
+		case <-stopCh:
+			ticker.Stop()
+			return
+		case <-ticker.C:
 		}
+	}
+	ticker.Stop()
+	if !c.istioVirtualServiceInformer.HasSynced() {
+		// Should only execute if Istio was installed after Rollout Controller was started
+		c.istioVirtualServiceInformer.Run(stopCh)
 	}
 }
 
-func (c *Controller) processNextEnqueuedObj(obj interface{}) {
-	acc, err := meta.Accessor(obj)
+func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
+	acc, err := meta.Accessor(vsvc)
 	if err != nil {
-		log.Errorf("Error processing object from watch: %v", err)
+		log.Errorf("Error processing istioVirtualService from watch: %v", err)
 		return
 	}
-	objsToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
+	vsvcToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
 	if err != nil {
 		log.Errorf("Cannot process indexer: %s", err.Error())
 		return
 	}
-	for i := range objsToEnqueue {
-		controllerutil.EnqueueParentObject(objsToEnqueue[i], register.RolloutKind, c.enqueueRollout)
+	for i := range vsvcToEnqueue {
+		controllerutil.EnqueueParentObject(vsvcToEnqueue[i], register.RolloutKind, c.enqueueRollout)
 	}
 }
 

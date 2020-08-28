@@ -144,7 +144,7 @@ func newCommand() *cobra.Command {
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			if istioutil.DoesIstioExist(dynamicClient, istioVersion) {
+			if istioutil.DoesIstioExist(dynamicClient, namespace, istioVersion) {
 				dynamicInformerFactory.Start(stopCh)
 			}
 
