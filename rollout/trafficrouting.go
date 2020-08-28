@@ -24,7 +24,11 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficR
 		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
-		return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion), nil
+		if c.istioVirtualServiceInformer.HasSynced() {
+			return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion, c.istioVirtualServiceLister), nil
+		} else {
+			return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion, nil), nil
+		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 		return nginx.NewReconciler(nginx.ReconcilerConfig{
