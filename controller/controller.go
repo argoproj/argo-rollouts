@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -78,6 +80,7 @@ type Manager struct {
 	ingressSynced                 cache.InformerSynced
 	jobSynced                     cache.InformerSynced
 	replicasSetSynced             cache.InformerSynced
+	istioVirtualServiceSynced     cache.InformerSynced
 
 	rolloutWorkqueue     workqueue.RateLimitingInterface
 	serviceWorkqueue     workqueue.RateLimitingInterface
@@ -87,6 +90,10 @@ type Manager struct {
 
 	defaultIstioVersion        string
 	defaultTrafficSplitVersion string
+
+	dynamicClientSet dynamic.Interface
+
+	namespace string
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -106,6 +113,7 @@ func NewManager(
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
+	istioVirtualServiceInformer cache.SharedIndexInformer,
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
@@ -151,6 +159,7 @@ func NewManager(
 		AnalysisRunInformer:             analysisRunInformer,
 		AnalysisTemplateInformer:        analysisTemplateInformer,
 		ClusterAnalysisTemplateInformer: clusterAnalysisTemplateInformer,
+		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		ReplicaSetInformer:              replicaSetInformer,
 		ServicesInformer:                servicesInformer,
 		IngressInformer:                 ingressesInformer,
@@ -228,6 +237,7 @@ func NewManager(
 		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
 		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
 		replicasSetSynced:             replicaSetInformer.Informer().HasSynced,
+		istioVirtualServiceSynced:     istioVirtualServiceInformer.HasSynced,
 		rolloutWorkqueue:              rolloutWorkqueue,
 		experimentWorkqueue:           experimentWorkqueue,
 		analysisRunWorkqueue:          analysisRunWorkqueue,
@@ -240,6 +250,8 @@ func NewManager(
 		analysisController:            analysisController,
 		defaultIstioVersion:           defaultIstioVersion,
 		defaultTrafficSplitVersion:    defaultTrafficSplitVersion,
+		dynamicClientSet:              dynamicclientset,
+		namespace:                     namespace,
 	}
 
 	return cm
@@ -261,6 +273,13 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
+	}
+	// Check if Istio exists
+	if istioutil.DoesIstioExist(c.dynamicClientSet, c.namespace, c.defaultIstioVersion) {
+		// Wait for Istio cache to sync before starting workers
+		if ok := cache.WaitForCacheSync(stopCh, c.istioVirtualServiceSynced); !ok {
+			return fmt.Errorf("failed to wait for istio virtualService cache to sync")
+		}
 	}
 
 	// Start the informer factories to begin populating the informer caches

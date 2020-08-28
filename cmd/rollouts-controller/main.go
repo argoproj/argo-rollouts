@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
@@ -27,6 +28,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 )
 
@@ -109,6 +111,8 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
+			istioGVR := istioutil.GetIstioGVR(istioVersion)
+			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
@@ -125,6 +129,7 @@ func newCommand() *cobra.Command {
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().AnalysisTemplates(),
 				argoRolloutsInformerFactory.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+				dynamicInformerFactory.ForResource(istioGVR).Informer(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -133,12 +138,16 @@ func newCommand() *cobra.Command {
 				trafficSplitVersion,
 				nginxIngressClasses,
 				albIngressClasses)
-
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			kubeInformerFactory.Start(stopCh)
 			argoRolloutsInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
+
+			// Check if Istio installed on cluster before starting dynamicInformerFactory
+			if istioutil.DoesIstioExist(dynamicClient, namespace, istioVersion) {
+				dynamicInformerFactory.Start(stopCh)
+			}
 
 			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
