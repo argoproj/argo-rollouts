@@ -319,7 +319,7 @@ func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
 func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
 	acc, err := meta.Accessor(vsvc)
 	if err != nil {
-		log.Errorf("Error processing istioVirtualService from watch: %v", err)
+		log.Errorf("Error processing istio vsvc from watch: %v: %v", err, vsvc)
 		return
 	}
 	vsvcToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
