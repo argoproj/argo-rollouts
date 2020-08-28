@@ -36,7 +36,7 @@ const (
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
 	// InvalidStepMessage indicates that a step must have either setWeight or pause set
-	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, or pause"
+	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale or pause"
 	// InvalidStrategyMessage indiciates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
