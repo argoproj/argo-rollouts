@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -76,7 +75,8 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	deleteFile("config")
 
 	crds := []*extensionsobj.CustomResourceDefinition{}
-	objs := splitYAML(string(crdYamlBytes))
+	objs, err := unstructuredutil.SplitYAML(string(crdYamlBytes))
+	checkErr(err)
 
 	for i := range objs {
 		obj := objs[i]
@@ -104,29 +104,6 @@ func crdKind(crd *unstructured.Unstructured) string {
 		panic("kind not found")
 	}
 	return kind.(string)
-}
-
-var diffSeparator = regexp.MustCompile(`\n---`)
-
-// splitYAML splits a YAML file into unstructured objects. Returns list of all unstructured objects
-// found in the yaml. Panics if any errors occurred.
-func splitYAML(out string) []*unstructured.Unstructured {
-	parts := diffSeparator.Split(out, -1)
-	var objs []*unstructured.Unstructured
-	for _, part := range parts {
-		var objMap map[string]interface{}
-		err := yaml.Unmarshal([]byte(part), &objMap)
-		checkErr(err)
-		if len(objMap) == 0 {
-			// handles case where theres no content between `---`
-			continue
-		}
-		var obj unstructured.Unstructured
-		err = yaml.Unmarshal([]byte(part), &obj)
-		checkErr(err)
-		objs = append(objs, &obj)
-	}
-	return objs
 }
 
 func deleteFile(path string) {

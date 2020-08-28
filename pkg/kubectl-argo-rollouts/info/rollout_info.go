@@ -107,6 +107,10 @@ func RolloutStatusString(ro *v1alpha1.Rollout) string {
 	if ro.Spec.Paused || len(ro.Status.PauseConditions) > 0 {
 		return "Paused"
 	}
+	if ro.Status.UpdatedReplicas < defaults.GetReplicasOrDefault(ro.Spec.Replicas) {
+		// not enough updated replicas
+		return "Progressing"
+	}
 	if ro.Status.UpdatedReplicas < ro.Status.Replicas {
 		// more replicas need to be updated
 		return "Progressing"

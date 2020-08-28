@@ -255,25 +255,36 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.CurrentPodHash = "def5678"
 		assert.Equal(t, "Progressing", RolloutStatusString(ro))
 	}
+	{
+		// Scenario when a newly created rollout has partially filled in status (with hashes)
+		// but no updated replica count
+		ro := newCanaryRollout()
+		ro.Spec.Replicas = nil
+		ro.Status = v1alpha1.RolloutStatus{
+			StableRS:       "abc1234",
+			CurrentPodHash: "abc1234",
+		}
+		assert.Equal(t, string(v1alpha1.RolloutProgressing), RolloutStatusString(ro))
+	}
 }
 
 func TestRolloutStatusHealthy(t *testing.T) {
 	{
 		ro := newCanaryRollout()
-		ro.Status.Replicas = 1
-		ro.Status.UpdatedReplicas = 1
-		ro.Status.AvailableReplicas = 1
-		ro.Status.ReadyReplicas = 1
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.ReadyReplicas = 5
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
 		assert.Equal(t, "Healthy", RolloutStatusString(ro))
 	}
 	{
 		ro := newBlueGreenRollout()
-		ro.Status.Replicas = 1
-		ro.Status.UpdatedReplicas = 1
-		ro.Status.AvailableReplicas = 1
-		ro.Status.ReadyReplicas = 1
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.ReadyReplicas = 5
 		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
 		assert.Equal(t, "Healthy", RolloutStatusString(ro))

@@ -7,9 +7,10 @@ import (
 	"github.com/spf13/cobra"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	rolloutclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
@@ -42,9 +43,8 @@ func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 			container := imageSplit[0]
 			image := imageSplit[1]
 
-			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
 			for attempt := 0; attempt < maxAttempts; attempt++ {
-				err := setImage(rolloutIf, rollout, container, image)
+				err := SetImage(o.DynamicClientset(), o.Namespace(), rollout, container, image)
 				if err != nil {
 					if k8serr.IsConflict(err) && attempt < maxAttempts {
 						continue
@@ -60,7 +60,12 @@ func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func setImage(rolloutIf rolloutclient.RolloutInterface, rollout string, container string, image string) error {
+// SetImage updates a rollout's container image
+// We use a dynamic clientset instead of a rollout clientset in order to allow an older plugin
+// to still work with a newer version of Rollouts (without dropping newly introduced fields during
+// the marshalling)
+func SetImage(dynamicClient dynamic.Interface, namespace, rollout, container, image string) error {
+	rolloutIf := dynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(namespace)
 	ro, err := rolloutIf.Get(rollout, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -69,35 +74,33 @@ func setImage(rolloutIf rolloutclient.RolloutInterface, rollout string, containe
 	if err != nil {
 		return err
 	}
-	_, err = rolloutIf.Update(newRo)
+	_, err = rolloutIf.Update(newRo, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func newRolloutSetImage(orig *v1alpha1.Rollout, container string, image string) (*v1alpha1.Rollout, error) {
+func newRolloutSetImage(orig *unstructured.Unstructured, container string, image string) (*unstructured.Unstructured, error) {
 	ro := orig.DeepCopy()
 	containerFound := false
-	for i, ctr := range ro.Spec.Template.Spec.InitContainers {
-		if ctr.Name == container || container == "*" {
-			containerFound = true
-			ctr.Image = image
-			ro.Spec.Template.Spec.InitContainers[i] = ctr
+
+	fields := []string{"spec", "template", "spec"}
+	for _, field := range []string{"initContainers", "containers", "ephemeralContainers"} {
+		ctrListIf, ok, err := unstructured.NestedFieldNoCopy(ro.Object, append(fields, field)...)
+		if err != nil {
+			return nil, err
 		}
-	}
-	for i, ctr := range ro.Spec.Template.Spec.Containers {
-		if ctr.Name == container || container == "*" {
-			containerFound = true
-			ctr.Image = image
-			ro.Spec.Template.Spec.Containers[i] = ctr
+		if !ok {
+			continue
 		}
-	}
-	for i, ctr := range ro.Spec.Template.Spec.EphemeralContainers {
-		if ctr.Name == container || container == "*" {
-			containerFound = true
-			ctr.Image = image
-			ro.Spec.Template.Spec.EphemeralContainers[i] = ctr
+		ctrList := ctrListIf.([]interface{})
+		for _, ctrIf := range ctrList {
+			ctr := ctrIf.(map[string]interface{})
+			if name, _, _ := unstructured.NestedString(ctr, "name"); name == container || container == "*" {
+				ctr["image"] = image
+				containerFound = true
+			}
 		}
 	}
 	if !containerFound {
