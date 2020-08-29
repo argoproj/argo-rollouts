@@ -33,7 +33,7 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 	desiredStableRSReplicaCount := int32(0)
 	if replicas != nil {
 		desiredNewRSReplicaCount = *replicas
-		desiredStableRSReplicaCount = *stableRS.Spec.Replicas
+		desiredStableRSReplicaCount = rolloutSpecReplica
 	} else {
 		desiredNewRSReplicaCount = int32(math.Ceil(float64(rolloutSpecReplica) * (float64(weight) / 100)))
 		desiredStableRSReplicaCount = int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(weight) / 100))))
