@@ -1,0 +1,18 @@
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: malformed-analysis
+spec:
+  metrics:
+  - name: test
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                resources:
+                  requests:
+                    memory: invalid # invalid

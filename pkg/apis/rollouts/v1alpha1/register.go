@@ -11,6 +11,15 @@ import (
 // SchemeGroupVersion is group version used to register these objects
 var SchemeGroupVersion = schema.GroupVersion{Group: rollouts.Group, Version: "v1alpha1"}
 
+var (
+	// GroupVersionResource for all rollout types
+	RolloutGVR                 = SchemeGroupVersion.WithResource("rollouts")
+	AnalysisRunGVR             = SchemeGroupVersion.WithResource("analysisruns")
+	AnalysisTemplateGVR        = SchemeGroupVersion.WithResource("analysistemplates")
+	ClusterAnalysisTemplateGVR = SchemeGroupVersion.WithResource("clusteranalysistemplates")
+	ExperimentGVR              = SchemeGroupVersion.WithResource("experiments")
+)
+
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
 func Kind(kind string) schema.GroupKind {
 	return SchemeGroupVersion.WithKind(kind).GroupKind()
