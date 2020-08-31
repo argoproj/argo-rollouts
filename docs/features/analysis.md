@@ -10,7 +10,7 @@ time analysis is performed, it's frequency, and occurrence.
 |---------------------|-------------|
 | Rollout             | A `Rollout` acts as a drop-in replacement for a Deployment resource. It provides additional blueGreen and canary update strategies. These strategies can create AnalysisRuns and Experiments during the update, which will progress the update, or abort it. |
 | AnalysisTemplate    | An `AnalysisTemplate` is a template spec which defines *_how_* to perform a canary analysis, such as the metrics which it should perform, its frequency, and the values which are considered successful or failed. AnalysisTemplates may be parameterized with inputs values. |
-| ClusterAnalysisTemplate    | A `ClusterAnalysisTemplate` is like an `AnalysisTemplate`, but it is not limited to it's namespace. It can be used by any `Rollout` throughout the cluster. |
+| ClusterAnalysisTemplate    | A `ClusterAnalysisTemplate` is like an `AnalysisTemplate`, but it is not limited to its namespace. It can be used by any `Rollout` throughout the cluster. |
 | AnalysisRun         | An `AnalysisRun` is an instantiation of an `AnalysisTemplate`. AnalysisRuns are like Jobs in that they eventually complete. Completed runs are considered Successful, Failed, or Inconclusive, and the result of the run affect if the Rollout's update will continue, abort, or pause, respectively. |
 | Experiment          | An `Experiment` is limited run of one or more ReplicaSets for the purposes of analysis. Experiments typically run for a pre-determined duration, but can also run indefinitely until stopped. Experiments may reference an `AnalysisTemplate` to run during or after the experiment. The canonical use case for an Experiment is to start a baseline and canary deployment in parallel, and compare the metrics produced by the baseline and canary pods for an equal comparison. |
 
@@ -137,12 +137,14 @@ metadata:
 spec:
   args:
   - name: service-name
+  - name: prometheus-port
+    value: 9090
   metrics:
   - name: success-rate
     successCondition: result[0] >= 0.95
     provider:
       prometheus:
-        address: http://prometheus.example.com:9090
+        address: "http://prometheus.example.com:{{args.prometheus-port}}"
         query: |
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
@@ -210,12 +212,14 @@ in different namespaces, and avoid duplicating the same template in every namesp
     spec:
       args:
       - name: service-name
+      - name: prometheus-port
+        value: 9090
       metrics:
       - name: success-rate
         successCondition: result[0] >= 0.95
         provider:
           prometheus:
-            address: http://prometheus.example.com:9090
+            address: "http://prometheus.example.com:{{args.prometheus-port}}"
             query: |
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
