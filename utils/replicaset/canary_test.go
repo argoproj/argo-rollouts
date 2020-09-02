@@ -12,7 +12,16 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.IntOrString, currentPodHash, stablePodHash string) *v1alpha1.Rollout {
+func newRollout(
+	specReplicas,
+	setWeight int32,
+	maxSurge,
+	maxUnavailable intstr.IntOrString,
+	currentPodHash,
+	stablePodHash string,
+	scs *v1alpha1.SetCanaryScale,
+	rtr *v1alpha1.RolloutTrafficRouting,
+) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: &specReplicas,
@@ -21,8 +30,10 @@ func newRollout(specReplicas, setWeight int32, maxSurge, maxUnavailable intstr.I
 					MaxUnavailable: &maxUnavailable,
 					MaxSurge:       &maxSurge,
 					Steps: []v1alpha1.CanaryStep{{
-						SetWeight: &setWeight,
+						SetWeight:      &setWeight,
+						SetCanaryScale: scs,
 					}},
+					TrafficRouting: rtr,
 				},
 			},
 		},
@@ -50,7 +61,18 @@ func newRS(podHashLabel string, specReplicas, availableReplicas int32) *appsv1.R
 	}
 }
 
+func newSetCanaryScale(replicas, weight *int32, matchTrafficWeight bool) *v1alpha1.SetCanaryScale {
+	scs := v1alpha1.SetCanaryScale{}
+	scs.Replicas = replicas
+	scs.Weight = weight
+	scs.MatchTrafficWeight = matchTrafficWeight
+	return &scs
+}
+
 func TestCalculateReplicaCountsForCanary(t *testing.T) {
+	intPnt := func(i int32) *int32 {
+		return &i
+	}
 	tests := []struct {
 		name string
 
@@ -68,7 +90,9 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 		expectedStableReplicaCount int32
 		expectedCanaryReplicaCount int32
 
-		olderRS *appsv1.ReplicaSet
+		olderRS        *appsv1.ReplicaSet
+		setCanaryScale *v1alpha1.SetCanaryScale
+		trafficRouting *v1alpha1.RolloutTrafficRouting
 	}{
 		{
 			name:                "Do not add extra RSs in scaleDownCount when .Spec.Replica < AvailableReplicas",
@@ -362,11 +386,75 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 9,
 			expectedCanaryReplicaCount: 0,
 		},
+		{
+			name: "For canary replicas, use setCanaryScale.replicas when specified along with trafficRouting (and ignore setWeight)",
+
+			rolloutSpecReplicas:    1,
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 9,
+			setWeight:                  100,
+			setCanaryScale:             newSetCanaryScale(intPnt(9), nil, false),
+			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
+		},
+		{
+			name: "Use setCanaryScale.weight for canary replicas when specified with trafficRouting (and ignore setWeight)",
+
+			rolloutSpecReplicas:    4,
+			stableSpecReplica:      4,
+			stableAvailableReplica: 4,
+
+			expectedStableReplicaCount: 4,
+			expectedCanaryReplicaCount: 8,
+			setWeight:                  100,
+			setCanaryScale:             newSetCanaryScale(nil, intPnt(200), false),
+			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
+		},
+		{
+			name:                "Ignore setCanaryScale replicas/weight when matchTrafficWeight is true",
+			rolloutSpecReplicas: 10,
+			setWeight:           20,
+			maxSurge:            intstr.FromString("20%"),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      10,
+			stableAvailableReplica: 10,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			setCanaryScale: newSetCanaryScale(intPnt(9), intPnt(100), true),
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{},
+
+			expectedStableReplicaCount: 10,
+			expectedCanaryReplicaCount: 2,
+		},
+		{
+			name:                "Ignore setCanaryScale when trafficRouting is missing and use setWeight for replicas",
+			rolloutSpecReplicas: 10,
+			setWeight:           20,
+			maxSurge:            intstr.FromString("20%"),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      10,
+			stableAvailableReplica: 10,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			setCanaryScale: newSetCanaryScale(intPnt(9), intPnt(100), false),
+			trafficRouting: nil,
+
+			expectedStableReplicaCount: 10,
+			expectedCanaryReplicaCount: 2,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable")
+			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable", test.setCanaryScale, test.trafficRouting)
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
@@ -377,7 +465,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 }
 
 func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
-	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable")
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	stableRS := newRS("stable", 10, 10)
 	newRS := newRS("canary", 0, 0)
@@ -387,7 +475,7 @@ func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 }
 
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
-	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	newRS := newRS("stable", 9, 9)
 	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
@@ -483,7 +571,7 @@ func TestBeforeStartingStep(t *testing.T) {
 }
 
 func TestGetCurrentCanaryStep(t *testing.T) {
-	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	rollout.Spec.Strategy.Canary.Steps = nil
 	noCurrentSteps, _ := GetCurrentCanaryStep(rollout)
 	assert.Nil(t, noCurrentSteps)
@@ -504,7 +592,7 @@ func TestGetCurrentCanaryStep(t *testing.T) {
 
 func TestGetCurrentSetWeight(t *testing.T) {
 	stepIndex := int32(1)
-	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "")
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	rollout.Status.CurrentStepIndex = &stepIndex
 
 	setWeight := GetCurrentSetWeight(rollout)
