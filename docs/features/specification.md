@@ -31,7 +31,7 @@ spec:
   revisionHistoryLimit: 3
   # Pause allows a user to manually pause a rollout at any time. A rollout will not advance through
   # its steps while it is manually paused, but HPA auto-scaling will still occur.
-  # If true, at initial creation of Rollout, replicas are not scaled up automatically from zero unless manually promoted.
+  # Usually not used in the manifest, but if true at initial creation of Rollout, replicas are not scaled up automatically from zero unless manually promoted.
   paused: true
   # The maximum time in seconds in which a rollout must make progress during an update, before it is
   # considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition
