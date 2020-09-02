@@ -73,6 +73,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
+- Roadmap: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
