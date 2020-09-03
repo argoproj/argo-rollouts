@@ -23,11 +23,6 @@ brew install golangci-lint
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
-Argo Rollouts runs BDD tests using the tool [godog](https://github.com/cucumber/godog). Run the following command to install godog:
-```bash
-go get -u github.com/cucumber/godog/cmd/godog@v0.10.0
-```
-
 Brew users can quickly install the lot:
     
 ```bash
@@ -49,6 +44,7 @@ cd ~/go/src/github.com/argoproj/argo-rollouts
 ```
 
 Run the following command to download all the dependencies:
+
 ```
 go mod download
 ```
@@ -66,7 +62,7 @@ and modifies the open-api spec. This command fails if the user has not run `go m
 dependencies of the project. 
 
 
-## Running Tests
+## Running Unit Tests
 
 To run unit tests:
 
@@ -74,11 +70,55 @@ To run unit tests:
 make test
 ```
 
-To run bdd tests:
-```bash
-make test-bdd
+## Running E2E tests
+
+The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
+running. The rollout controller can be started with the command: 
+
+```
+make start-e2e
 ```
 
+Then run the e2e tests:
+
+```
+make test-e2e
+```
+
+### Tips
+
+1. You can run the tests using a different kubeconfig by setting the `KUBECONFIG` environment variable:
+
+```shell
+KUBECONFIG=~/.kube/minikube make start-e2e
+KUBECONFIG=~/.kube/minikube make test-e2e
+```
+
+2. To run a specific e2e test, set the `E2E_TEST_OPTIONS` environment variable to specify the test
+(or test regex):
+
+```shell
+make test-e2e E2E_TEST_OPTIONS="-testify.m ^TestRolloutRestart$" 
+```
+
+3. The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
+delays. However, it is often desired to artificially slow down the tests for debugging purposes,
+as well as to understand what the test is doing. To delay startup and termination of pods, set the `E2E_POD_DELAY` to a integer value in seconds. This environment variable is often coupled with `E2E_TEST_OPTIONS` to debug and slow down a specific test.
+
+```shell
+make test-e2e E2E_POD_DELAY=10
+```
+
+4. The e2e tests leverage a feature of the controller allowing the controller to be sharded with
+a user-specific "instance id" label. This allows the tests to operate only on rollouts with the
+specified label, and prevents any other controllers (including the system rollouts controller),
+from also operating on the same set of rollouts. This value can be changed (from the default of
+`argo-rollouts-e2e`), using the `E2E_INSTANCE_ID` environment variable:
+
+```shell
+make start-e2e E2E_INSTANCE_ID=foo
+make test-e2e E2E_INSTANCE_ID=foo
+```
 
 ## Running Locally
 
@@ -86,8 +126,7 @@ It is much easier to run and debug if you run Argo Rollout in your local machine
 
 ```bash
 cd ~/go/src/github.com/argoproj/argo-rollouts
-make controller
-./dist/rollouts-controller
+go run ./cmd/rollouts-controller/main.go
 ```
 
 ## Running Local Containers

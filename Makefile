@@ -13,6 +13,10 @@ GIT_REMOTE_REPO=upstream
 # build development images
 DEV_IMAGE=false
 
+# E2E variables
+E2E_INSTANCE_ID ?= argo-rollouts-e2e
+E2E_TEST_OPTIONS ?= 
+
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
   -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \
@@ -98,6 +102,14 @@ test: test-kustomize
 .PHONY: test-kustomize
 test-kustomize:
 	./test/kustomize/test.sh
+
+.PHONY: start-e2e
+start-e2e:
+	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID}
+
+.PHONY: test-e2e
+test-e2e:
+	go test -timeout 15m -v -count 1 --tags e2e -p 1 --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: test-bdd
 test-bdd:

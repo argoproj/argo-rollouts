@@ -11,12 +11,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	cliopts "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
+
+// getRollout helper to get the rollout using the dynamic interface
+func getRollout(t *testing.T, o *cliopts.ArgoRolloutsOptions, namespace, name string) *v1alpha1.Rollout {
+	t.Helper()
+	un, err := o.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		t.FailNow()
+	}
+	var ro v1alpha1.Rollout
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ro)
+	if err != nil {
+		panic(err)
+	}
+	return &ro
+}
 
 func TestSetCmdUsage(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
@@ -106,7 +122,7 @@ func TestSetImageCmd(t *testing.T) {
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
-	modifiedRo, err := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(metav1.NamespaceDefault).Get(ro.Name, metav1.GetOptions{})
+	modifiedRo := getRollout(t, o, ro.Namespace, ro.Name)
 	assert.NoError(t, err)
 	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", modifiedRo.Spec.Template.Spec.Containers[1].Image)
 	assert.Equal(t, "alpine:3.8", modifiedRo.Spec.Template.Spec.Containers[0].Image)
@@ -171,8 +187,7 @@ func TestSetImageCmdStar(t *testing.T) {
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
-	modifiedRo, err := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(metav1.NamespaceDefault).Get(ro.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
+	modifiedRo := getRollout(t, o, ro.Namespace, ro.Name)
 	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", modifiedRo.Spec.Template.Spec.Containers[1].Image)
 	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", modifiedRo.Spec.Template.Spec.Containers[0].Image)
 	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", modifiedRo.Spec.Template.Spec.Containers[2].Image)
@@ -262,7 +277,7 @@ func TestSetImageConflict(t *testing.T) {
 	defer tf.Cleanup()
 
 	updateCalls := 0
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient := o.DynamicClient.(*dynamicfake.FakeDynamicClient)
 	fakeClient.PrependReactor("update", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if updateCalls > 0 {
 			return true, &ro, nil

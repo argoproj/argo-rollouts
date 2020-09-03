@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	types "k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
@@ -39,7 +41,7 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
 			for _, name := range args {
-				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(abortPatch))
+				ro, err := AbortRollout(rolloutIf, name)
 				if err != nil {
 					return err
 				}
@@ -49,4 +51,9 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+// AbortRollout aborts a rollout
+func AbortRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
+	return rolloutIf.Patch(name, types.MergePatchType, []byte(abortPatch))
 }

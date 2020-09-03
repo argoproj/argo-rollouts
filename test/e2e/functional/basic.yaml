@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: basic
+spec:
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 50
+      - pause: {}
+  selector:
+    matchLabels:
+      app: basic
+  template:
+    metadata:
+      labels:
+        app: basic
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: IfNotPresent
+        # reduce termination delay (default 10s) for e2e tests
+        args: [--termination-delay, "0"]
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m

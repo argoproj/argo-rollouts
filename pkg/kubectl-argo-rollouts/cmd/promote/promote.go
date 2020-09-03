@@ -8,6 +8,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -67,20 +68,7 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			name := args[0]
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
-			ro, err := rolloutIf.Get(name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			if skipCurrentStep || skipAllSteps {
-				if ro.Spec.Strategy.BlueGreen != nil {
-					return fmt.Errorf(skipFlagsWithBlueGreenError)
-				}
-				if ro.Spec.Strategy.Canary != nil && len(ro.Spec.Strategy.Canary.Steps) == 0 {
-					return fmt.Errorf(skipFlagWithNoStepCanaryError)
-				}
-			}
-			patch := getPatch(ro, skipCurrentStep, skipAllSteps)
-			ro, err = rolloutIf.Patch(name, types.MergePatchType, patch)
+			ro, err := PromoteRollout(rolloutIf, name, skipCurrentStep, skipAllSteps)
 			if err != nil {
 				return err
 			}
@@ -91,6 +79,28 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.Flags().BoolVarP(&skipCurrentStep, "skip-current-step", "c", false, "Skip current step")
 	cmd.Flags().BoolVarP(&skipAllSteps, "skip-all-steps", "a", false, "Skip remaining steps")
 	return cmd
+}
+
+// PromoteRollout promotes a rollout to the next step, or to end of all steps
+func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurrentStep, skipAllSteps bool) (*v1alpha1.Rollout, error) {
+	ro, err := rolloutIf.Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if skipCurrentStep || skipAllSteps {
+		if ro.Spec.Strategy.BlueGreen != nil {
+			return nil, fmt.Errorf(skipFlagsWithBlueGreenError)
+		}
+		if ro.Spec.Strategy.Canary != nil && len(ro.Spec.Strategy.Canary.Steps) == 0 {
+			return nil, fmt.Errorf(skipFlagWithNoStepCanaryError)
+		}
+	}
+	patch := getPatch(ro, skipCurrentStep, skipAllSteps)
+	ro, err = rolloutIf.Patch(name, types.MergePatchType, patch)
+	if err != nil {
+		return nil, err
+	}
+	return ro, nil
 }
 
 func getPatch(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep bool) []byte {

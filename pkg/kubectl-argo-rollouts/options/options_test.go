@@ -84,6 +84,7 @@ func TestClientsets(t *testing.T) {
 			assert.Equal(t, "foo", o.Namespace())
 			_ = o.RolloutsClientset()
 			_ = o.KubeClientset()
+			_ = o.DynamicClientset()
 			return nil
 		},
 	}
