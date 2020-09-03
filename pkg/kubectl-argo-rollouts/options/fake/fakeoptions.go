@@ -1,14 +1,17 @@
 package options
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // NewFakeArgoRolloutsOptions returns a options.ArgoRolloutsOptions suitable for testing
@@ -20,17 +23,54 @@ func NewFakeArgoRolloutsOptions(obj ...runtime.Object) (*cmdtesting.TestFactory,
 
 	var rolloutObjs []runtime.Object
 	var kubeObjs []runtime.Object
+	var allObjs []runtime.Object
 
+	// Loop through supplied fake objects. Set TypeMeta if it wasn't set in the test
+	// so that the objects can also go into the fake dynamic client
 	for _, o := range obj {
-		switch o.(type) {
-		case *v1alpha1.Rollout, *v1alpha1.AnalysisRun, *v1alpha1.AnalysisTemplate, *v1alpha1.Experiment:
+		switch typedO := o.(type) {
+		case *v1alpha1.Rollout:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "Rollout",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
+			rolloutObjs = append(rolloutObjs, o)
+		case *v1alpha1.AnalysisRun:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "AnalysisRun",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
+			rolloutObjs = append(rolloutObjs, o)
+		case *v1alpha1.AnalysisTemplate:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "AnalysisTemplate",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
+			rolloutObjs = append(rolloutObjs, o)
+		case *v1alpha1.ClusterAnalysisTemplate:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "ClusterAnalysisTemplate",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
+			rolloutObjs = append(rolloutObjs, o)
+		case *v1alpha1.Experiment:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "Experiment",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
 			rolloutObjs = append(rolloutObjs, o)
 		default:
 			kubeObjs = append(kubeObjs, o)
 		}
+		allObjs = append(allObjs, o)
 	}
 
 	o.RolloutsClient = fakeroclient.NewSimpleClientset(rolloutObjs...)
 	o.KubeClient = k8sfake.NewSimpleClientset(kubeObjs...)
+	err := v1alpha1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		panic(err)
+	}
+	o.DynamicClient = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, allObjs...)
 	return tf, o
 }

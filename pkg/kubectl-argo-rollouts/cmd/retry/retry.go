@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	types "k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
@@ -63,7 +65,7 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
 			for _, name := range args {
-				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(retryRolloutPatch))
+				ro, err := RetryRollout(rolloutIf, name)
 				if err != nil {
 					return err
 				}
@@ -73,6 +75,11 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+// RetryRollout retries a rollout after it's been aborted
+func RetryRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
+	return rolloutIf.Patch(name, types.MergePatchType, []byte(retryRolloutPatch))
 }
 
 // NewCmdRetryExperiment returns a new instance of an `argo rollouts retry experiment` command
@@ -91,14 +98,19 @@ func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			experimentIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns)
 			for _, name := range args {
-				ro, err := experimentIf.Patch(name, types.MergePatchType, []byte(retryExperimentPatch))
+				ex, err := RetryExperiment(experimentIf, name)
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(o.Out, "experiment '%s' retried\n", ro.Name)
+				fmt.Fprintf(o.Out, "experiment '%s' retried\n", ex.Name)
 			}
 			return nil
 		},
 	}
 	return cmd
+}
+
+// RetryExperiment retries an experiment after it's been aborted
+func RetryExperiment(experimentIf clientset.ExperimentInterface, name string) (*v1alpha1.Experiment, error) {
+	return experimentIf.Patch(name, types.MergePatchType, []byte(retryExperimentPatch))
 }

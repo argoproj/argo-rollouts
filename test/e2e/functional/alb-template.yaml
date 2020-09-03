@@ -1,0 +1,76 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: REPLACEME
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: REPLACEME
+  template:
+    metadata:
+      labels:
+        app: REPLACEME
+    spec:
+      containers:
+      - name: REPLACEME
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 5m
+  strategy:
+    canary:
+      canaryService: REPLACEME-canary
+      stableService: REPLACEME-stable
+      trafficRouting:
+        alb:
+          ingress: REPLACEME-ingress
+          servicePort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: REPLACEME-canary
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: REPLACEME
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: REPLACEME-stable
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: REPLACEME
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: REPLACEME-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            backend:
+              serviceName: REPLACEME-stable
+              servicePort: use-annotation

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
@@ -31,6 +32,7 @@ type ArgoRolloutsOptions struct {
 	LogLevel         string
 	RolloutsClient   roclientset.Interface
 	KubeClient       kubernetes.Interface
+	DynamicClient    dynamic.Interface
 
 	Log *log.Logger
 	genericclioptions.IOStreams
@@ -128,6 +130,23 @@ func (o *ArgoRolloutsOptions) KubeClientset() kubernetes.Interface {
 	}
 	o.KubeClient = kubeClient
 	return o.KubeClient
+}
+
+// DynamicClientset returns a Dynamic client interface based on client flags
+func (o *ArgoRolloutsOptions) DynamicClientset() dynamic.Interface {
+	if o.DynamicClient != nil {
+		return o.DynamicClient
+	}
+	config, err := o.RESTClientGetter.ToRESTConfig()
+	if err != nil {
+		panic(err)
+	}
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+	o.DynamicClient = dynamicClient
+	return o.DynamicClient
 }
 
 // Namespace returns the namespace based on client flags or kube context

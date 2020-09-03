@@ -56,3 +56,46 @@ func TestStrToUnstructuredFails(t *testing.T) {
 		assert.Nil(t, obj)
 	})
 }
+
+func TestSplitYAML(t *testing.T) {
+	rsStr := `
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: test1
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: test2
+spec:
+  replicas: 2
+`
+	uns, err := SplitYAML(rsStr)
+	assert.NoError(t, err)
+	assert.Len(t, uns, 2)
+
+	{
+		obj := uns[0]
+		assert.Equal(t, "test1", obj.GetName())
+		assert.Equal(t, "ReplicaSet", obj.GetKind())
+		assert.Equal(t, "apps/v1", obj.GetAPIVersion())
+		replicas, exists, err := unstructured.NestedFloat64(obj.Object, "spec", "replicas")
+		assert.True(t, exists)
+		assert.Nil(t, err)
+		assert.Equal(t, float64(1), replicas)
+	}
+	{
+		obj := uns[1]
+		assert.Equal(t, "test2", obj.GetName())
+		assert.Equal(t, "ReplicaSet", obj.GetKind())
+		assert.Equal(t, "apps/v1", obj.GetAPIVersion())
+		replicas, exists, err := unstructured.NestedFloat64(obj.Object, "spec", "replicas")
+		assert.True(t, exists)
+		assert.Nil(t, err)
+		assert.Equal(t, float64(2), replicas)
+	}
+
+}
