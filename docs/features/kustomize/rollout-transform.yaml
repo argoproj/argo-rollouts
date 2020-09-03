@@ -125,6 +125,8 @@ nameReference:
     kind: Rollout
   - path: spec/strategy/canary/stableService
     kind: Rollout
+  - path: spec/strategy/canary/trafficRouting/alb/rootService
+    kind: Rollout
 - kind: VirtualService
   group: networking.istio.io
   fieldSpecs:
