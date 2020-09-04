@@ -299,6 +299,7 @@ func TestValidateMetrics(t *testing.T) {
 						Wavefront:  &v1alpha1.WavefrontMetric{},
 						Kayenta:    &v1alpha1.KayentaMetric{},
 						Web:        &v1alpha1.WebMetric{},
+						Datadog:    &v1alpha1.DatadogMetric{},
 					},
 				},
 			},

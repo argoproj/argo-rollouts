@@ -5,6 +5,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
@@ -61,6 +62,8 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return webmetric.NewWebMetricProvider(logCtx, c, p), nil
+	case datadog.ProviderType:
+		return datadog.NewDatadogProvider(logCtx), nil
 	case wavefront.ProviderType:
 		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
 		if err != nil {
@@ -81,6 +84,8 @@ func Type(metric v1alpha1.Metric) string {
 		return kayenta.ProviderType
 	} else if metric.Provider.Web != nil {
 		return webmetric.ProviderType
+	} else if metric.Provider.Datadog != nil {
+		return datadog.ProviderType
 	} else if metric.Provider.Wavefront != nil {
 		return wavefront.ProviderType
 	}

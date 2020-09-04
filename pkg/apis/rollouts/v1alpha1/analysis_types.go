@@ -128,6 +128,8 @@ type MetricProvider struct {
 	Kayenta *KayentaMetric `json:"kayenta,omitempty"`
 	// Web specifies a generic HTTP web metric
 	Web *WebMetric `json:"web,omitempty"`
+	// Datadog specifies a datadog metric to query
+	Datadog *DatadogMetric `json:"datadog,omitempty"`
 	// Wavefront specifies the wavefront metric to query
 	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
 	// Job specifies the job metric run
@@ -349,4 +351,11 @@ type WebMetric struct {
 type WebMetricHeader struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type DatadogMetric struct {
+	URL    string `json:"url"`
+	Query  string `json:"query"`
+	APIKey string `json:"apikey"`
+	APPKey string `json:"appkey"`
 }

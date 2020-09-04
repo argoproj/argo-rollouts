@@ -881,3 +881,40 @@ was greater than `0.90`
 NOTE: if the result is a string, two convenience functions `asInt` and `asFloat` are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. >, <, >=, <=).
+
+## Datadog Metrics
+
+A [Datadog](https://www.datadoghq.com/) query can be used to obtain measurements for analysis.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: loq-error-rate
+spec:
+  args:
+  - name: service-name
+  - name: datadog-api-key
+    valueFrom:
+      secretKeyRef:
+        name: datadog
+        key: apikey
+  - name: datadog-app-key
+    valueFrom:
+      secretKeyRef:
+        name: datadog
+        key: appkey  
+  metrics:
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.01
+    failureLimit: 3
+    provider:
+      datadog:
+        URL: https://api.datadoghq.com
+        apikey: {{args.datadog-api-key}}
+        appkey: {{args.datadog-app-key}}
+        query: |
+          sum:requests.error.count{service:{{args.service-name}}} /
+          sum:requests.request.count{service:{{args.service-name}}}
+```

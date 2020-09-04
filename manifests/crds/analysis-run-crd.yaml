@@ -80,6 +80,22 @@ spec:
                     type: string
                   provider:
                     properties:
+                      datadog:
+                        properties:
+                          apikey:
+                            type: string
+                          appkey:
+                            type: string
+                          query:
+                            type: string
+                          url:
+                            type: string
+                        required:
+                        - apikey
+                        - appkey
+                        - query
+                        - url
+                        type: object
                       job:
                         properties:
                           metadata:
