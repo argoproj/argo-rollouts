@@ -12,7 +12,6 @@ import (
 
 type Then struct {
 	Common
-	rollout *rov1.Rollout
 }
 
 type RolloutExpectation func(*rov1.Rollout) bool
@@ -100,7 +99,6 @@ func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpect
 
 func (t *Then) When() *When {
 	return &When{
-		Common:  t.Common,
-		rollout: t.rollout,
+		Common: t.Common,
 	}
 }

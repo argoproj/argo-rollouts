@@ -213,6 +213,7 @@ func NewManager(
 	})
 
 	ingressController := ingress.NewController(ingress.ControllerConfig{
+		Client:           kubeclientset,
 		IngressInformer:  ingressesInformer,
 		IngressWorkQueue: ingressWorkqueue,
 

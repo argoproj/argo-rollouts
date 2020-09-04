@@ -15,7 +15,6 @@ import (
 
 type Given struct {
 	Common
-	rollout *rov1.Rollout
 }
 
 // Rollout sets up the rollout objects for the test environment given a YAML string or file path:
@@ -104,7 +103,6 @@ func (g *Given) HealthyRollout(text string) *Given {
 
 func (g *Given) When() *When {
 	return &When{
-		Common:  g.Common,
-		rollout: g.rollout,
+		Common: g.Common,
 	}
 }
