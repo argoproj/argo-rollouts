@@ -15,6 +15,7 @@ type CanarySuite struct {
 }
 
 func (s *CanarySuite) TestCanarySetCanaryScale() {
+	s.T().Skip("skipping v0.10 feature")
 	canarySteps := `
 - pause: {}
 - setCanaryScale:
