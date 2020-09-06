@@ -2,8 +2,8 @@ package rollout
 
 import (
 	log "github.com/sirupsen/logrus"
-
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -12,22 +12,94 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-type rolloutContext interface {
-	Rollout() *v1alpha1.Rollout
-	Log() *log.Entry
-	NewRS() *appsv1.ReplicaSet
-	StableRS() *appsv1.ReplicaSet
-	AllRSs() []*appsv1.ReplicaSet
+type rolloutContext struct {
+	rollout *v1alpha1.Rollout
+	log     *log.Entry
 
-	CurrentAnalysisRuns() analysisutil.CurrentAnalysisRuns
-	OtherAnalysisRuns() []*v1alpha1.AnalysisRun
-	CurrentExperiment() *v1alpha1.Experiment
-	OtherExperiments() []*v1alpha1.Experiment
+	newRS    *appsv1.ReplicaSet
+	stableRS *appsv1.ReplicaSet
+	olderRSs []*appsv1.ReplicaSet
+	allRSs   []*appsv1.ReplicaSet
 
-	PauseContext() *pauseContext
-	NewStatus() v1alpha1.RolloutStatus
-	SetCurrentAnalysisRuns(analysisutil.CurrentAnalysisRuns)
-	SetRestartedAt()
+	currentArs analysisutil.CurrentAnalysisRuns
+	otherArs   []*v1alpha1.AnalysisRun
+
+	currentEx *v1alpha1.Experiment
+	otherExs  []*v1alpha1.Experiment
+
+	newStatus    v1alpha1.RolloutStatus
+	pauseContext *pauseContext
+
+	reconcilerBase
+}
+
+func newRolloutCtx(r *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, otherRSs []*appsv1.ReplicaSet, exList []*v1alpha1.Experiment, arList []*v1alpha1.AnalysisRun) *rolloutContext {
+	allRSs := append(otherRSs, newRS)
+	stableRS := replicasetutil.GetStableRS(r, newRS, otherRSs)
+	oldRSs := replicasetutil.GetOlderRSs(r, newRS, stableRS, otherRSs)
+
+	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, r)
+	currentEx := experimentutil.GetCurrentExperiment(r, exList)
+	otherExs := experimentutil.GetOldExperiments(r, exList)
+	logCtx := logutil.WithRollout(r)
+	return &rolloutContext{
+		rollout:  r,
+		log:      logCtx,
+		newRS:    newRS,
+		stableRS: stableRS,
+		olderRSs: oldRSs,
+		allRSs:   allRSs,
+
+		currentArs: currentArs,
+		otherArs:   otherArs,
+
+		currentEx: currentEx,
+		otherExs:  otherExs,
+
+		newStatus: v1alpha1.RolloutStatus{
+			RestartedAt: r.Status.RestartedAt,
+		},
+		pauseContext: &pauseContext{
+			rollout: r,
+			log:     logCtx,
+		},
+	}
+}
+
+func (c *rolloutContext) reconcile() error {
+	// Get Rollout Validation errors
+	err := c.getRolloutValidationErrors()
+	if err != nil {
+		if vErr, ok := err.(*field.Error); ok {
+			return c.createInvalidRolloutCondition(vErr, c.rollout)
+		}
+		return err
+	}
+
+	err = c.checkPausedConditions()
+	if err != nil {
+		return err
+	}
+
+	isScalingEvent, err := c.isScalingEvent()
+	if err != nil {
+		return err
+	}
+
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || c.rollout.Spec.Paused || isScalingEvent {
+		return c.syncReplicasOnly(c.rollout, c.allRSs, isScalingEvent)
+	}
+
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		return c.rolloutBlueGreen()
+	}
+
+	// Due to the rollout validation before this, when we get here strategy is canary
+	return c.rolloutCanary()
+}
+
+func (c *rolloutContext) SetRestartedAt() {
+	c.newStatus.RestartedAt = c.rollout.Spec.RestartAt
 }
 
 type blueGreenContext struct {
@@ -252,13 +324,13 @@ func (cCtx *canaryContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 	return cCtx.otherArs
 }
 
-func (cCtx *canaryContext) SetCurrentExperiment(ex *v1alpha1.Experiment) {
-	cCtx.currentEx = ex
-	cCtx.newStatus.Canary.CurrentExperiment = ex.Name
-	for i, otherEx := range cCtx.otherExs {
+func (c *rolloutContext) SetCurrentExperiment(ex *v1alpha1.Experiment) {
+	c.currentEx = ex
+	c.newStatus.Canary.CurrentExperiment = ex.Name
+	for i, otherEx := range c.otherExs {
 		if otherEx.Name == ex.Name {
-			cCtx.log.Infof("Rescued %s from inadvertent termination", ex.Name)
-			cCtx.otherExs = append(cCtx.otherExs[:i], cCtx.otherExs[i+1:]...)
+			c.log.Infof("Rescued %s from inadvertent termination", ex.Name)
+			c.otherExs = append(c.otherExs[:i], c.otherExs[i+1:]...)
 			break
 		}
 	}
@@ -282,4 +354,48 @@ func (cCtx *canaryContext) NewStatus() v1alpha1.RolloutStatus {
 
 func (cCtx *canaryContext) SetRestartedAt() {
 	cCtx.newStatus.RestartedAt = cCtx.rollout.Spec.RestartAt
+}
+
+func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnalysisRuns) {
+	c.currentArs = currARs
+
+	if c.rollout.Spec.Strategy.Canary != nil {
+		currBackgroundAr := currARs.CanaryBackground
+		if currBackgroundAr != nil && currBackgroundAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			c.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
+			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+				Name:    currBackgroundAr.Name,
+				Status:  currBackgroundAr.Status.Phase,
+				Message: currBackgroundAr.Status.Message,
+			}
+		}
+		currStepAr := currARs.CanaryStep
+		if currStepAr != nil && currStepAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			c.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
+			c.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+				Name:    currStepAr.Name,
+				Status:  currStepAr.Status.Phase,
+				Message: currStepAr.Status.Message,
+			}
+		}
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
+		currPrePromoAr := currARs.BlueGreenPrePromotion
+		if currPrePromoAr != nil && currPrePromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			c.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
+			c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+				Name:    currPrePromoAr.Name,
+				Status:  currPrePromoAr.Status.Phase,
+				Message: currPrePromoAr.Status.Message,
+			}
+		}
+		currPostPromoAr := currARs.BlueGreenPostPromotion
+		if currPostPromoAr != nil && currPostPromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			c.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
+			c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+				Name:    currPostPromoAr.Name,
+				Status:  currPostPromoAr.Status.Phase,
+				Message: currPostPromoAr.Status.Message,
+			}
+		}
+	}
 }

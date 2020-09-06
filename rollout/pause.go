@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 type pauseContext struct {
@@ -124,14 +123,13 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully or the rollout passed
 // the auto promote seconds.
-func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
-	rollout := roCtx.Rollout()
-	if rollout.Spec.Strategy.BlueGreen == nil || rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
+func completedPrePromotionAnalysis(c *rolloutContext) bool {
+	if c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
 		return true
 	}
 
-	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
-	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
+	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
+	autoPromoteActiveServiceDelaySeconds := c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
 	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
 		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
 		now := metav1.Now()
@@ -141,7 +139,7 @@ func completedPrePromotionAnalysis(roCtx *blueGreenContext) bool {
 		return false
 	}
 
-	currentAr := roCtx.CurrentAnalysisRuns().BlueGreenPrePromotion
+	currentAr := c.currentArs.BlueGreenPrePromotion
 	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
@@ -189,14 +187,13 @@ func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
 	return false
 }
 
-func (c *Controller) checkEnqueueRolloutDuringWait(rollout *v1alpha1.Rollout, startTime metav1.Time, durationInSeconds int32) {
-	logCtx := logutil.WithRollout(rollout)
+func (c *rolloutContext) checkEnqueueRolloutDuringWait(startTime metav1.Time, durationInSeconds int32) {
 	now := metav1.Now()
 	expiredTime := startTime.Add(time.Duration(durationInSeconds) * time.Second)
 	nextResync := now.Add(c.resyncPeriod)
 	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 		timeRemaining := expiredTime.Sub(now.Time)
-		logCtx.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
-		c.enqueueRolloutAfter(rollout, timeRemaining)
+		c.log.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
+		c.enqueueRolloutAfter(c.rollout, timeRemaining)
 	}
 }

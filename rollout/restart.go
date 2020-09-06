@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,27 +32,25 @@ type RolloutPodRestarter struct {
 }
 
 // checkEnqueueRollout enqueues a Rollout if the Rollout's restartedAt is within the next resync
-func (p RolloutPodRestarter) checkEnqueueRollout(roCtx rolloutContext) {
-	r := roCtx.Rollout()
-	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
+func (p RolloutPodRestarter) checkEnqueueRollout(roCtx *rolloutContext) {
+	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	now := nowFn().UTC()
-	if r.Spec.RestartAt == nil || now.After(r.Spec.RestartAt.Time) {
+	if roCtx.rollout.Spec.RestartAt == nil || now.After(roCtx.rollout.Spec.RestartAt.Time) {
 		return
 	}
 	nextResync := now.Add(p.resyncPeriod)
 	// Only enqueue if the Restart time is before the next sync period
-	if nextResync.After(r.Spec.RestartAt.Time) {
-		timeRemaining := r.Spec.RestartAt.Sub(now)
+	if nextResync.After(roCtx.rollout.Spec.RestartAt.Time) {
+		timeRemaining := roCtx.rollout.Spec.RestartAt.Sub(now)
 		logCtx.Infof("Enqueueing Rollout in %s seconds for restart", timeRemaining.String())
-		p.enqueueAfter(r, timeRemaining)
+		p.enqueueAfter(roCtx.rollout, timeRemaining)
 	}
 }
 
-func (p *RolloutPodRestarter) Reconcile(roCtx rolloutContext) error {
-	rollout := roCtx.Rollout()
-	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
+func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
+	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	p.checkEnqueueRollout(roCtx)
-	if !replicaset.NeedsRestart(rollout) {
+	if !replicaset.NeedsRestart(roCtx.rollout) {
 		return nil
 	}
 	logCtx.Info("Reconcile pod restarts")
@@ -103,9 +100,9 @@ func (p RolloutPodRestarter) getPodsOwnedByReplicaSet(rs *appsv1.ReplicaSet) ([]
 // restarter cannot restart any more pods since it needs to wait for the current pod finish its deletion. In this case,
 // the restarter enqueues itself to check if the pod has been deleted and returns false. If the restarter deletes
 // a pod, it returns false as the restarter needs to make sure the pod is deleted before marking the ReplicaSet done.
-func (p RolloutPodRestarter) restartReplicaSetPod(roCtx rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
-	logCtx := roCtx.Log().WithField("Reconciler", "PodRestarter")
-	restartedAt := roCtx.Rollout().Spec.RestartAt
+func (p RolloutPodRestarter) restartReplicaSetPod(roCtx *rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
+	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
+	restartedAt := roCtx.rollout.Spec.RestartAt
 	pods, err := p.getPodsOwnedByReplicaSet(rs)
 	if err != nil {
 		return false, err
@@ -114,7 +111,7 @@ func (p RolloutPodRestarter) restartReplicaSetPod(roCtx rolloutContext, rs *apps
 	for _, pod := range pods {
 		if pod.DeletionTimestamp != nil {
 			logCtx.Info("cannot reconcile any more pods as pod with deletionTimestamp exists")
-			p.enqueueAfter(roCtx.Rollout(), restartPodCheckTime)
+			p.enqueueAfter(roCtx.rollout, restartPodCheckTime)
 			return false, nil
 		}
 	}
@@ -130,19 +127,18 @@ func (p RolloutPodRestarter) restartReplicaSetPod(roCtx rolloutContext, rs *apps
 	return true, nil
 }
 
-func NewSortReplicaSetsByPriority(roCtx rolloutContext) SortReplicaSetsByPriority {
-	newRS := roCtx.NewRS()
+func NewSortReplicaSetsByPriority(roCtx *rolloutContext) SortReplicaSetsByPriority {
 	newRSName := ""
-	if newRS != nil {
-		newRSName = newRS.Name
+	if roCtx.newRS != nil {
+		newRSName = roCtx.newRS.Name
 	}
-	stableRS := roCtx.StableRS()
+	stableRS := roCtx.stableRS
 	stableRSName := ""
 	if stableRS != nil {
 		stableRSName = stableRS.Name
 	}
 	return SortReplicaSetsByPriority{
-		allRSs:   roCtx.AllRSs(),
+		allRSs:   roCtx.allRSs,
 		newRS:    newRSName,
 		stableRS: stableRSName,
 	}

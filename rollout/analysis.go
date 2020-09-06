@@ -45,73 +45,70 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 	return ownedByRollout, nil
 }
 
-func (c *Controller) reconcileAnalysisRuns(roCtx rolloutContext) error {
-	otherArs := roCtx.OtherAnalysisRuns()
-	if roCtx.PauseContext().IsAborted() {
-		allArs := append(roCtx.CurrentAnalysisRuns().ToArray(), otherArs...)
-		roCtx.SetCurrentAnalysisRuns(roCtx.CurrentAnalysisRuns())
-		return c.cancelAnalysisRuns(roCtx, allArs)
+func (c *rolloutContext) reconcileAnalysisRuns() error {
+	if c.pauseContext.IsAborted() {
+		allArs := append(c.currentArs.ToArray(), c.otherArs...)
+		c.SetCurrentAnalysisRuns(c.currentArs)
+		return c.cancelAnalysisRuns(allArs)
 	}
 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
-	rollout := roCtx.Rollout()
-	if rollout.Spec.Strategy.Canary != nil {
-		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)
+	if c.rollout.Spec.Strategy.Canary != nil {
+		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun()
 		if err != nil {
 			return err
 		}
 		newCurrentAnalysisRuns.CanaryStep = stepAnalysisRun
 
-		backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun(roCtx)
+		backgroundAnalysisRun, err := c.reconcileBackgroundAnalysisRun()
 		if err != nil {
 			return err
 		}
 		newCurrentAnalysisRuns.CanaryBackground = backgroundAnalysisRun
 
 	}
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		prePromotionAr, err := c.reconcilePrePromotionAnalysisRun(roCtx)
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		prePromotionAr, err := c.reconcilePrePromotionAnalysisRun()
 		if err != nil {
 			return err
 		}
 		newCurrentAnalysisRuns.BlueGreenPrePromotion = prePromotionAr
 
-		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun(roCtx)
+		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun()
 		if err != nil {
 			return err
 		}
 		newCurrentAnalysisRuns.BlueGreenPostPromotion = postPromotionAr
 	}
-	roCtx.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
+	c.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
 
 	// Due to the possibility that we are operating on stale/inconsistent data in the informer, it's
 	// possible that otherArs includes the current analysis runs that we just created or reclaimed
 	// in newCurrentAnalysisRuns, despite the fact that our rollout status did not have those set.
 	// To prevent us from terminating the runs that we just created moments ago, rebuild otherArs
 	// to ensure it does not include the newly created runs.
-	otherArs, _ = analysisutil.FilterAnalysisRuns(otherArs, func(ar *v1alpha1.AnalysisRun) bool {
+	otherArs, _ := analysisutil.FilterAnalysisRuns(c.otherArs, func(ar *v1alpha1.AnalysisRun) bool {
 		for _, curr := range newCurrentAnalysisRuns.ToArray() {
 			if ar.Name == curr.Name {
-				roCtx.Log().Infof("Rescued %s from inadvertent termination", ar.Name)
+				c.log.Infof("Rescued %s from inadvertent termination", ar.Name)
 				return false
 			}
 		}
 		return true
 	})
 
-	err := c.cancelAnalysisRuns(roCtx, otherArs)
+	err := c.cancelAnalysisRuns(otherArs)
 	if err != nil {
 		return err
 	}
 
-	allRSs := roCtx.AllRSs()
-	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, allRSs)
-	err = c.deleteAnalysisRuns(roCtx, arsToDelete)
+	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs)
+	err = c.deleteAnalysisRuns(arsToDelete)
 	if err != nil {
 		return err
 	}
 
-	c.reconcileAnalysisRunStatusChanges(roCtx, newCurrentAnalysisRuns)
+	c.reconcileAnalysisRunStatusChanges(newCurrentAnalysisRuns)
 	return nil
 }
 
@@ -134,7 +131,7 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 }
 
 // emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status
-func (c *Controller) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
+func (c *rolloutContext) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
 	if ar != nil {
 		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
 			prevStatusStr := "NoPreviousStatus"
@@ -154,75 +151,71 @@ func (c *Controller) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevStatu
 
 // reconcileAnalysisRunStatusChanges for each analysisRun type, the controller checks if the analysis run status has changed
 // for that type
-func (c *Controller) reconcileAnalysisRunStatusChanges(ctx rolloutContext, currARs analysisutil.CurrentAnalysisRuns) {
-	rollout := ctx.Rollout()
+func (c *rolloutContext) reconcileAnalysisRunStatusChanges(currARs analysisutil.CurrentAnalysisRuns) {
 	c.emitAnalysisRunStatusChanges(
-		rollout,
-		rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
+		c.rollout,
+		c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
 		currARs.BlueGreenPostPromotion,
 		v1alpha1.RolloutTypePostPromotionLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		rollout,
-		rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
+		c.rollout,
+		c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
 		currARs.BlueGreenPrePromotion,
 		v1alpha1.RolloutTypePrePromotionLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		rollout,
-		rollout.Status.Canary.CurrentStepAnalysisRunStatus,
+		c.rollout,
+		c.rollout.Status.Canary.CurrentStepAnalysisRunStatus,
 		currARs.CanaryStep,
 		v1alpha1.RolloutTypeStepLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		rollout,
-		rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
+		c.rollout,
+		c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
 		currARs.CanaryBackground,
 		v1alpha1.RolloutTypeBackgroundRunLabel,
 	)
 }
 
-func (c *Controller) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
-	rollout := roCtx.Rollout()
-	newRS := roCtx.NewRS()
-	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := currentArs.BlueGreenPrePromotion
-	if rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
+	currentAr := c.currentArs.BlueGreenPrePromotion
+	if c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
-	roCtx.Log().Info("Reconciling Pre Promotion Analysis")
+	c.log.Info("Reconciling Pre Promotion Analysis")
 
-	activeSelector := rollout.Status.BlueGreen.ActiveSelector
-	currentPodHash := rollout.Status.CurrentPodHash
+	activeSelector := c.rollout.Status.BlueGreen.ActiveSelector
+	currentPodHash := c.rollout.Status.CurrentPodHash
 	// Do not create an analysis run if the rollout is active promotion happened, the rollout was just created, the newRS is not saturated
-	if activeSelector == "" || activeSelector == rollout.Status.CurrentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS) {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+	if activeSelector == "" || activeSelector == c.rollout.Status.CurrentPodHash || currentPodHash == "" || !annotations.IsSaturated(c.rollout, c.newRS) {
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 
-	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 
-	if needsNewAnalysisRun(currentAr, rollout) {
-		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		instanceID := analysisutil.GetInstanceID(rollout)
+	if needsNewAnalysisRun(currentAr, c.rollout) {
+		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
+		instanceID := analysisutil.GetInstanceID(c.rollout)
 		prePromotionLabels := analysisutil.PrePromotionLabels(podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis, nil, prePromotionLabels)
+		currentAr, err := c.createAnalysisRun(c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis, nil, prePromotionLabels)
 		if err == nil {
-			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Pre Promotion AnalysisRun")
+			c.log.WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Pre Promotion AnalysisRun")
 		}
 		return currentAr, err
 	}
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
+		c.pauseContext.AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
@@ -236,146 +229,134 @@ func needPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Repli
 	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
 }
 
-func (c *Controller) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
-	rollout := roCtx.Rollout()
-	newRS := roCtx.NewRS()
-	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := currentArs.BlueGreenPostPromotion
-	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
+	currentAr := c.currentArs.BlueGreenPostPromotion
+	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
-	roCtx.Log().Info("Reconciling Post Promotion Analysis")
+	c.log.Info("Reconciling Post Promotion Analysis")
 
-	if needPostPromotionAnalysisRun(rollout, newRS) {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+	if needPostPromotionAnalysisRun(c.rollout, c.newRS) {
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 
-	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 
-	if needsNewAnalysisRun(currentAr, rollout) {
-		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		instanceID := analysisutil.GetInstanceID(rollout)
+	if needsNewAnalysisRun(currentAr, c.rollout) {
+		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
+		instanceID := analysisutil.GetInstanceID(c.rollout)
 		postPromotionLabels := analysisutil.PostPromotionLabels(podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis, nil, postPromotionLabels)
+		currentAr, err := c.createAnalysisRun(c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis, nil, postPromotionLabels)
 		if err == nil {
-			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Post Promotion AnalysisRun")
+			c.log.WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created Post Promotion AnalysisRun")
 		}
 		return currentAr, err
 	}
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
+		c.pauseContext.AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
 
-func (c *Controller) reconcileBackgroundAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
-	rollout := roCtx.Rollout()
-	newRS := roCtx.NewRS()
-	currentArs := roCtx.CurrentAnalysisRuns()
-	currentAr := currentArs.CanaryBackground
-	if rollout.Spec.Strategy.Canary.Analysis == nil {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
+	currentAr := c.currentArs.CanaryBackground
+	if c.rollout.Spec.Strategy.Canary.Analysis == nil {
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if rollout.Status.StableRS == rollout.Status.CurrentPodHash || rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(rollout) {
+	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
 		return nil, nil
 	}
 
-	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
 
-	if needsNewAnalysisRun(currentAr, rollout) {
-		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		instanceID := analysisutil.GetInstanceID(rollout)
+	if needsNewAnalysisRun(currentAr, c.rollout) {
+		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
+		instanceID := analysisutil.GetInstanceID(c.rollout)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, &rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis, nil, backgroundLabels)
+		currentAr, err := c.createAnalysisRun(&c.rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis, nil, backgroundLabels)
 		if err == nil {
-			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
+			c.log.WithField(logutil.AnalysisRunKey, currentAr.Name).Info("Created background AnalysisRun")
 		}
 		return currentAr, err
 	}
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
+		c.pauseContext.AddAbort(currentAr.Status.Message)
 	}
 	return currentAr, nil
 }
 
-func (c *Controller) createAnalysisRun(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
-	newRS := roCtx.NewRS()
-	stableRS := roCtx.StableRS()
-	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS)
-	podHash := replicasetutil.GetPodTemplateHash(newRS)
+func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnalysis, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+	args := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS)
+	podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 	if podHash == "" {
-		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", newRS.Name)
+		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", c.newRS.Name)
 	}
-	ar, err := c.newAnalysisRunFromRollout(roCtx, rolloutAnalysis, args, podHash, stepIdx, labels)
+	ar, err := c.newAnalysisRunFromRollout(rolloutAnalysis, args, podHash, stepIdx, labels)
 	if err != nil {
 		return nil, err
 	}
-	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(roCtx.Rollout().Namespace)
-	return analysisutil.CreateWithCollisionCounter(roCtx.Log(), analysisRunIf, *ar)
+	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
+	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
 }
 
-func (c *Controller) reconcileStepBasedAnalysisRun(roCtx rolloutContext) (*v1alpha1.AnalysisRun, error) {
-	rollout := roCtx.Rollout()
-	currentArs := roCtx.CurrentAnalysisRuns()
-	newRS := roCtx.NewRS()
-	step, index := replicasetutil.GetCurrentCanaryStep(rollout)
-	currentAr := currentArs.CanaryStep
+func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun, error) {
+	step, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentAr := c.currentArs.CanaryStep
 
-	if len(rollout.Status.PauseConditions) > 0 || rollout.Status.Abort {
+	if len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Status.Abort {
 		return currentAr, nil
 	}
 
 	if step == nil || step.Analysis == nil || index == nil {
-		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
+		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
-	if needsNewAnalysisRun(currentAr, rollout) {
-		podHash := replicasetutil.GetPodTemplateHash(newRS)
-		instanceID := analysisutil.GetInstanceID(rollout)
+	if needsNewAnalysisRun(currentAr, c.rollout) {
+		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
+		instanceID := analysisutil.GetInstanceID(c.rollout)
 		stepLabels := analysisutil.StepLabels(*index, podHash, instanceID)
-		currentAr, err := c.createAnalysisRun(roCtx, step.Analysis, index, stepLabels)
+		currentAr, err := c.createAnalysisRun(step.Analysis, index, stepLabels)
 		if err == nil {
-			roCtx.Log().WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
+			c.log.WithField(logutil.AnalysisRunKey, currentAr.Name).Infof("Created AnalysisRun for step '%d'", *index)
 		}
 		return currentAr, err
 	}
 
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
-		roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		roCtx.PauseContext().AddAbort(currentAr.Status.Message)
+		c.pauseContext.AddAbort(currentAr.Status.Message)
 	}
 
 	return currentAr, nil
 }
 
-func (c *Controller) cancelAnalysisRuns(roCtx rolloutContext, analysisRuns []*v1alpha1.AnalysisRun) error {
-	logctx := roCtx.Log()
+func (c *rolloutContext) cancelAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun) error {
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
 		isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
 		if ar != nil && !ar.Spec.Terminate && isNotCompleted {
-			logctx.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
+			c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun))
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					logctx.Warnf("AnalysisRun '%s' not found", ar.Name)
+					c.log.Warnf("AnalysisRun '%s' not found", ar.Name)
 					continue
 				}
 				return err
@@ -386,11 +367,9 @@ func (c *Controller) cancelAnalysisRuns(roCtx rolloutContext, analysisRuns []*v1
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
-	r := roCtx.Rollout()
-	logctx := roCtx.Log()
-	revision := r.Annotations[annotations.RevisionAnnotation]
-	nameParts := []string{r.Name, podHash, revision}
+func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, stepIdx *int32, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+	revision := c.rollout.Annotations[annotations.RevisionAnnotation]
+	nameParts := []string{c.rollout.Name, podHash, revision}
 	if stepIdx != nil {
 		nameParts = append(nameParts, strconv.Itoa(int(*stepIdx)))
 	}
@@ -403,14 +382,14 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 	var err error
 	if rolloutAnalysis.TemplateName != "" {
 		//TODO(dthomson) remove this code block in v0.9.0
-		template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(rolloutAnalysis.TemplateName)
+		template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(rolloutAnalysis.TemplateName)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+				c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
 			}
 			return nil, err
 		}
-		run, err = analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", r.Namespace)
+		run, err = analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", c.rollout.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -423,16 +402,16 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 				if err != nil {
 					if k8serrors.IsNotFound(err) {
-						logctx.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+						c.log.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
 					}
 					return nil, err
 				}
 				clusterTemplates = append(clusterTemplates, template)
 			} else {
-				template, err := c.analysisTemplateLister.AnalysisTemplates(r.Namespace).Get(templateRef.TemplateName)
+				template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
 				if err != nil {
 					if k8serrors.IsNotFound(err) {
-						logctx.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
+						c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
 					}
 					return nil, err
 				}
@@ -440,7 +419,7 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 			}
 
 		}
-		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", r.Namespace)
+		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", c.rollout.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -449,17 +428,17 @@ func (c *Controller) newAnalysisRunFromRollout(roCtx rolloutContext, rolloutAnal
 	run.Annotations = map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}
-	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)}
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
 	return run, nil
 }
 
-func (c *Controller) deleteAnalysisRuns(roCtx rolloutContext, ars []*v1alpha1.AnalysisRun) error {
+func (c *rolloutContext) deleteAnalysisRuns(ars []*v1alpha1.AnalysisRun) error {
 	for i := range ars {
 		ar := ars[i]
 		if ar.DeletionTimestamp != nil {
 			continue
 		}
-		roCtx.Log().Infof("Trying to cleanup analysis run '%s'", ar.Name)
+		c.log.Infof("Trying to cleanup analysis run '%s'", ar.Name)
 		err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ar.Name, nil)
 		if err != nil && !errors.IsNotFound(err) {
 			return err

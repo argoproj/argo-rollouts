@@ -143,70 +143,64 @@ func (c *Controller) getExperimentsForRollout(rollout *v1alpha1.Rollout) ([]*v1a
 	return ownedByRollout, nil
 }
 
-func (c *Controller) reconcileExperiments(roCtx *canaryContext) error {
-	rollout := roCtx.Rollout()
-	logCtx := roCtx.Log()
-	newRS := roCtx.NewRS()
-	stableRS := roCtx.StableRS()
-
-	if roCtx.PauseContext().IsAborted() {
-		otherExs := roCtx.OtherExperiments()
-		allExs := append(otherExs, roCtx.CurrentExperiment())
-		return c.cancelExperiments(roCtx, allExs)
+func (c *rolloutContext) reconcileExperiments() error {
+	if c.pauseContext.IsAborted() {
+		allExs := append(c.otherExs, c.currentEx)
+		return c.cancelExperiments(allExs)
 	}
 
-	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return nil
 	}
 
-	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
+	step, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
 
-	currentEx := roCtx.CurrentExperiment()
+	currentEx := c.currentEx
 	if step != nil && step.Experiment != nil {
 		if currentEx == nil {
 			// An new experiment can not be created if the stableRS is not created yet
-			if stableRS == nil {
-				logCtx.Infof("Cannot create experiment until stableRS exists")
+			if c.stableRS == nil {
+				c.log.Infof("Cannot create experiment until stableRS exists")
 				return nil
 			}
 
-			newEx, err := GetExperimentFromTemplate(rollout, stableRS, newRS)
+			newEx, err := GetExperimentFromTemplate(c.rollout, c.stableRS, c.newRS)
 			if err != nil {
 				return err
 			}
 
-			currentEx, err = c.createExperimentWithCollisionHandling(roCtx, newEx)
+			currentEx, err = c.createExperimentWithCollisionHandling(newEx)
 			if err != nil {
 				return err
 			}
 
 			msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
-			logCtx.Info(msg)
-			c.recorder.Event(rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
+			c.log.Info(msg)
+			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
 		}
 		switch currentEx.Status.Phase {
 		case v1alpha1.AnalysisPhaseInconclusive:
-			roCtx.PauseContext().AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
+			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-			roCtx.PauseContext().AddAbort(currentEx.Status.Message)
+			c.pauseContext.AddAbort(currentEx.Status.Message)
 		case v1alpha1.AnalysisPhaseSuccessful:
 			// Do not set current Experiment after successful experiment
 		default:
-			roCtx.SetCurrentExperiment(currentEx)
+			c.SetCurrentExperiment(currentEx)
 		}
 	}
 
-	otherExs := roCtx.OtherExperiments()
+	otherExs := c.otherExs
 	if currentEx != nil && (step == nil || step.Experiment == nil) {
 		otherExs = append(otherExs, currentEx)
 	}
-	err := c.cancelExperiments(roCtx, otherExs)
+	err := c.cancelExperiments(otherExs)
 	if err != nil {
 		return err
 	}
 
-	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, roCtx.AllRSs())
-	err = c.deleteExperiments(roCtx, exsToDelete)
+	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, c.allRSs)
+	err = c.deleteExperiments(exsToDelete)
 	if err != nil {
 		return err
 	}
@@ -216,7 +210,7 @@ func (c *Controller) reconcileExperiments(roCtx *canaryContext) error {
 
 // createExperimentWithCollisionHandling creates the given experiment, but with a new name
 // in the event that an experiment with the same name already exists
-func (c *Controller) createExperimentWithCollisionHandling(roCtx *canaryContext, newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+func (c *rolloutContext) createExperimentWithCollisionHandling(newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
 	collisionCount := 1
 	baseName := newEx.Name
 	for {
@@ -233,8 +227,8 @@ func (c *Controller) createExperimentWithCollisionHandling(roCtx *canaryContext,
 		}
 		existingEqual := experimentutil.IsSemanticallyEqual(newEx.Spec, existingEx.Spec)
 		controllerRef := metav1.GetControllerOf(existingEx)
-		controllerUIDEqual := controllerRef != nil && controllerRef.UID == roCtx.Rollout().UID
-		roCtx.log.Infof("Encountered collision of existing experiment %s (phase: %s, equal: %v, controllerUIDEqual: %v)", existingEx.Name, existingEx.Status.Phase, existingEqual, controllerUIDEqual)
+		controllerUIDEqual := controllerRef != nil && controllerRef.UID == c.rollout.UID
+		c.log.Infof("Encountered collision of existing experiment %s (phase: %s, equal: %v, controllerUIDEqual: %v)", existingEx.Name, existingEx.Status.Phase, existingEqual, controllerUIDEqual)
 		if !existingEx.Status.Phase.Completed() && existingEqual && controllerUIDEqual {
 			// If we get here, the existing experiment has been determined to be our experiment and
 			// we likely reconciled the rollout with a stale cache (quite common).
@@ -245,14 +239,14 @@ func (c *Controller) createExperimentWithCollisionHandling(roCtx *canaryContext,
 	}
 }
 
-func (c *Controller) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Experiment) error {
+func (c *rolloutContext) cancelExperiments(exs []*v1alpha1.Experiment) error {
 	for i := range exs {
 		ex := exs[i]
 		if ex == nil {
 			continue
 		}
 		if !ex.Spec.Terminate && !experimentutil.HasFinished(ex) {
-			roCtx.Log().Infof("Canceling other running experiment '%s' owned by rollout", ex.Name)
+			c.log.Infof("Canceling other running experiment '%s' owned by rollout", ex.Name)
 			err := experimentutil.Terminate(c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace), ex.Name)
 			if err != nil {
 				return err
@@ -262,13 +256,13 @@ func (c *Controller) cancelExperiments(roCtx *canaryContext, exs []*v1alpha1.Exp
 	return nil
 }
 
-func (c *Controller) deleteExperiments(roCtx rolloutContext, exs []*v1alpha1.Experiment) error {
+func (c *rolloutContext) deleteExperiments(exs []*v1alpha1.Experiment) error {
 	for i := range exs {
 		ex := exs[i]
 		if ex.DeletionTimestamp != nil {
 			continue
 		}
-		roCtx.Log().Infof("Trying to cleanup experiment '%s'", ex.Name)
+		c.log.Infof("Trying to cleanup experiment '%s'", ex.Name)
 		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ex.Name, nil)
 		if err != nil && !errors.IsNotFound(err) {
 			return err

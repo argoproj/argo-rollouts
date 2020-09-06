@@ -44,7 +44,7 @@ func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r
 }
 
 // switchSelector switch the selector on an existing service to a new value
-func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
+func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
@@ -65,17 +65,14 @@ func (c Controller) switchServiceSelector(service *corev1.Service, newRolloutUni
 	return err
 }
 
-func (c *Controller) reconcilePreviewService(roCtx *blueGreenContext, previewSvc *corev1.Service) error {
-	r := roCtx.Rollout()
-	logCtx := roCtx.Log()
-	newRS := roCtx.NewRS()
+func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) error {
 	if previewSvc == nil {
 		return nil
 	}
-	logCtx.Infof("Reconciling preview service '%s'", previewSvc.Name)
+	c.log.Infof("Reconciling preview service '%s'", previewSvc.Name)
 
-	newPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	err := c.switchServiceSelector(previewSvc, newPodHash, r)
+	newPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	err := c.switchServiceSelector(previewSvc, newPodHash, c.rollout)
 	if err != nil {
 		return err
 	}
@@ -83,28 +80,24 @@ func (c *Controller) reconcilePreviewService(roCtx *blueGreenContext, previewSvc
 	return nil
 }
 
-func (c *Controller) reconcileActiveService(roCtx *blueGreenContext, previewSvc, activeSvc *corev1.Service) error {
-	r := roCtx.Rollout()
-	newRS := roCtx.NewRS()
-	allRSs := roCtx.AllRSs()
-
-	if !replicasetutil.ReadyForPause(r, newRS, allRSs) || !annotations.IsSaturated(r, newRS) {
-		roCtx.log.Infof("New RS '%s' is not fully saturated", newRS.Name)
+func (c *rolloutContext) reconcileActiveService(previewSvc, activeSvc *corev1.Service) error {
+	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
+		c.log.Infof("New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if skipPause(roCtx, activeSvc) {
-		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if skipPause(c, activeSvc) {
+		newPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
-	if roCtx.PauseContext().CompletedBlueGreenPause() && completedPrePromotionAnalysis(roCtx) {
-		newPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if c.pauseContext.CompletedBlueGreenPause() && completedPrePromotionAnalysis(c) {
+		newPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 
-	if r.Status.Abort {
+	if c.rollout.Status.Abort {
 		currentRevision := int(0)
-		for _, rs := range controller.FilterActiveReplicaSets(roCtx.OlderRSs()) {
-			revision := replicasetutil.GetReplicaSetRevision(r, rs)
+		for _, rs := range controller.FilterActiveReplicaSets(c.olderRSs) {
+			revision := replicasetutil.GetReplicaSetRevision(c.rollout, rs)
 			if revision > currentRevision {
 				newPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				currentRevision = revision
@@ -112,14 +105,14 @@ func (c *Controller) reconcileActiveService(roCtx *blueGreenContext, previewSvc,
 		}
 	}
 
-	err := c.switchServiceSelector(activeSvc, newPodHash, r)
+	err := c.switchServiceSelector(activeSvc, newPodHash, c.rollout)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+func (c *rolloutContext) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
@@ -137,33 +130,30 @@ func (c *Controller) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.S
 	return previewSvc, activeSvc, nil
 }
 
-func (c *Controller) reconcileStableAndCanaryService(roCtx *canaryContext) error {
-	r := roCtx.Rollout()
-	newRS := roCtx.NewRS()
-	stableRS := roCtx.StableRS()
-	if r.Spec.Strategy.Canary == nil {
+func (c *rolloutContext) reconcileStableAndCanaryService() error {
+	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
-	if r.Spec.Strategy.Canary.StableService != "" && stableRS != nil {
-		svc, err := c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.Canary.StableService)
+	if c.rollout.Spec.Strategy.Canary.StableService != "" && c.stableRS != nil {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
 		if err != nil {
 			return err
 		}
-		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-			err = c.switchServiceSelector(svc, stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
 			if err != nil {
 				return err
 			}
 		}
 
 	}
-	if r.Spec.Strategy.Canary.CanaryService != "" && newRS != nil {
-		svc, err := c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.Canary.CanaryService)
+	if c.rollout.Spec.Strategy.Canary.CanaryService != "" && c.newRS != nil {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
 		if err != nil {
 			return err
 		}
-		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-			err = c.switchServiceSelector(svc, newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r)
+		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			err = c.switchServiceSelector(svc, c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
 			if err != nil {
 				return err
 			}

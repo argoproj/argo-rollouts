@@ -6,24 +6,19 @@ import (
 	"reflect"
 	"time"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/client-go/dynamic/dynamiclister"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamiclister"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
@@ -41,13 +36,19 @@ import (
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
@@ -57,44 +58,14 @@ const (
 
 // Controller is the controller implementation for Rollout resources
 type Controller struct {
+	reconcilerBase
+
 	// namespace which namespace(s) operates on
 	namespace string
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	// kubeclientset is a standard kubernetes clientset
-	kubeclientset kubernetes.Interface
-	// argoprojclientset is a clientset for our own API group
-	argoprojclientset clientset.Interface
-	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
-	// It is used to interact with TrafficRouting resources
-	dynamicclientset           dynamic.Interface
-	smiclientset               smiclientset.Interface
-	defaultIstioVersion        string
-	defaultTrafficSplitVersion string
-
-	replicaSetLister              appslisters.ReplicaSetLister
-	replicaSetSynced              cache.InformerSynced
-	rolloutsLister                listers.RolloutLister
-	rolloutsSynced                cache.InformerSynced
-	rolloutsIndexer               cache.Indexer
-	servicesLister                v1.ServiceLister
-	ingressesLister               extensionslisters.IngressLister
-	experimentsLister             listers.ExperimentLister
-	analysisRunLister             listers.AnalysisRunLister
-	analysisTemplateLister        listers.AnalysisTemplateLister
-	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is later added, then controller will auto-detect change and start istioVirtualServiceInformer
-	istioVirtualServiceInformer cache.SharedIndexInformer
-	istioVirtualServiceLister   dynamiclister.Lister
-	metricsServer               *metrics.MetricsServer
-
-	podRestarter RolloutPodRestarter
-
-	// used for unit testing
-	enqueueRollout              func(obj interface{})
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
-	newTrafficRoutingReconciler func(roCtx rolloutContext) (TrafficRoutingReconciler, error)
+	metricsServer *metrics.MetricsServer
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -104,10 +75,6 @@ type Controller struct {
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
 	ingressWorkqueue workqueue.RateLimitingInterface
-	// recorder is an event recorder for recording Event resources to the
-	// Kubernetes API.
-	recorder     record.EventRecorder
-	resyncPeriod time.Duration
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
@@ -136,6 +103,46 @@ type ControllerConfig struct {
 	DefaultTrafficSplitVersion      string
 }
 
+type reconcilerBase struct {
+	// kubeclientset is a standard kubernetes clientset
+	kubeclientset kubernetes.Interface
+	// argoprojclientset is a clientset for our own API group
+	argoprojclientset clientset.Interface
+	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
+	// It is used to interact with TrafficRouting resources
+	dynamicclientset           dynamic.Interface
+	smiclientset               smiclientset.Interface
+	defaultIstioVersion        string
+	defaultTrafficSplitVersion string
+
+	replicaSetLister              appslisters.ReplicaSetLister
+	replicaSetSynced              cache.InformerSynced
+	rolloutsLister                listers.RolloutLister
+	rolloutsSynced                cache.InformerSynced
+	rolloutsIndexer               cache.Indexer
+	servicesLister                v1.ServiceLister
+	ingressesLister               extensionslisters.IngressLister
+	experimentsLister             listers.ExperimentLister
+	analysisRunLister             listers.AnalysisRunLister
+	analysisTemplateLister        listers.AnalysisTemplateLister
+	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
+	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is later added, then controller will auto-detect change and start istioVirtualServiceInformer
+	istioVirtualServiceInformer cache.SharedIndexInformer
+	istioVirtualServiceLister   dynamiclister.Lister
+
+	podRestarter RolloutPodRestarter
+
+	// used for unit testing
+	enqueueRollout              func(obj interface{})
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
+	newTrafficRoutingReconciler func(roCtx rolloutContext) (TrafficRoutingReconciler, error)
+
+	// recorder is an event recorder for recording Event resources to the
+	// Kubernetes API.
+	recorder     record.EventRecorder
+	resyncPeriod time.Duration
+}
+
 // NewController returns a new rollout controller
 func NewController(cfg ControllerConfig) *Controller {
 
@@ -152,23 +159,18 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	}
 
-	controller := &Controller{
-		namespace:                     cfg.Namespace,
+	base := reconcilerBase{
 		kubeclientset:                 cfg.KubeClientSet,
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
 		smiclientset:                  cfg.SmiClientSet,
 		defaultIstioVersion:           cfg.DefaultIstioVersion,
 		defaultTrafficSplitVersion:    cfg.DefaultTrafficSplitVersion,
-		replicaSetControl:             replicaSetControl,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
 		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
 		rolloutsLister:                cfg.RolloutsInformer.Lister(),
 		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
-		rolloutWorkqueue:              cfg.RolloutWorkQueue,
-		serviceWorkqueue:              cfg.ServiceWorkQueue,
-		ingressWorkqueue:              cfg.IngressWorkQueue,
 		servicesLister:                cfg.ServicesInformer.Lister(),
 		ingressesLister:               cfg.IngressInformer.Lister(),
 		experimentsLister:             cfg.ExperimentInformer.Lister(),
@@ -179,8 +181,17 @@ func NewController(cfg ControllerConfig) *Controller {
 		istioVirtualServiceInformer:   cfg.IstioVirtualServiceInformer,
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
-		metricsServer:                 cfg.MetricsServer,
 		podRestarter:                  podRestarter,
+	}
+
+	controller := &Controller{
+		reconcilerBase:    base,
+		namespace:         cfg.Namespace,
+		replicaSetControl: replicaSetControl,
+		rolloutWorkqueue:  cfg.RolloutWorkQueue,
+		serviceWorkqueue:  cfg.ServiceWorkQueue,
+		ingressWorkqueue:  cfg.IngressWorkQueue,
+		metricsServer:     cfg.MetricsServer,
 	}
 	controller.enqueueRollout = func(obj interface{}) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -382,63 +393,84 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	// Get Rollout Validation errors
-	err = c.getRolloutValidationErrors(rollout)
-	if err != nil {
-		if vErr, ok := err.(*field.Error); ok {
-			return c.createInvalidRolloutCondition(vErr, r)
-		}
-		return err
-	}
-
-	// List ReplicaSets owned by this Rollout, while reconciling ControllerRef
-	// through adoption/orphaning.
-	rsList, err := c.getReplicaSetsForRollouts(r)
+	roCtx, err := c.newRolloutContext(r)
 	if err != nil {
 		return err
 	}
-
-	err = c.checkPausedConditions(r)
-	if err != nil {
-		return err
-	}
-
-	isScalingEvent, err := c.isScalingEvent(r, rsList)
-	if err != nil {
-		return err
-	}
-
-	if getPauseCondition(r, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || r.Spec.Paused || isScalingEvent {
-		return c.syncReplicasOnly(r, rsList, isScalingEvent)
-	}
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		return c.rolloutBlueGreen(r, rsList)
-	}
-
-	// Due to the rollout validation before this, when we get here strategy is canary
-	return c.rolloutCanary(r, rsList)
+	return roCtx.reconcile()
 }
 
-func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {
-	rolloutValidationErrors := validation.ValidateRollout(rollout)
+func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+	rsList, err := c.getReplicaSetsForRollouts(rollout)
+	if err != nil {
+		return nil, err
+	}
+
+	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
+	otherRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
+	allRSs := append(otherRSs, newRS)
+	stableRS := replicasetutil.GetStableRS(rollout, newRS, otherRSs)
+	oldRSs := replicasetutil.GetOlderRSs(rollout, newRS, stableRS, otherRSs)
+
+	exList, err := c.getExperimentsForRollout(rollout)
+	if err != nil {
+		return nil, err
+	}
+	currentEx := experimentutil.GetCurrentExperiment(rollout, exList)
+	otherExs := experimentutil.GetOldExperiments(rollout, exList)
+
+	arList, err := c.getAnalysisRunsForRollout(rollout)
+	if err != nil {
+		return nil, err
+	}
+	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, rollout)
+
+	logCtx := logutil.WithRollout(rollout)
+	roCtx := rolloutContext{
+		rollout:  rollout,
+		log:      logCtx,
+		newRS:    newRS,
+		stableRS: stableRS,
+		olderRSs: oldRSs,
+		allRSs:   allRSs,
+
+		currentArs: currentArs,
+		otherArs:   otherArs,
+
+		currentEx: currentEx,
+		otherExs:  otherExs,
+
+		newStatus: v1alpha1.RolloutStatus{
+			RestartedAt: rollout.Status.RestartedAt,
+		},
+		pauseContext: &pauseContext{
+			rollout: rollout,
+			log:     logCtx,
+		},
+		reconcilerBase: c.reconcilerBase,
+	}
+	return &roCtx, nil
+}
+
+func (c *rolloutContext) getRolloutValidationErrors() error {
+	rolloutValidationErrors := validation.ValidateRollout(c.rollout)
 	if len(rolloutValidationErrors) > 0 {
 		return rolloutValidationErrors[0]
 	}
 
-	refResources, err := c.getRolloutReferencedResources(rollout)
+	refResources, err := c.getRolloutReferencedResources()
 	if err != nil {
 		return err
 	}
 
-	rolloutValidationErrors = validation.ValidateRolloutReferencedResources(rollout, *refResources)
+	rolloutValidationErrors = validation.ValidateRolloutReferencedResources(c.rollout, *refResources)
 	if len(rolloutValidationErrors) > 0 {
 		return rolloutValidationErrors[0]
 	}
 	return nil
 }
 
-func (c *Controller) createInvalidRolloutCondition(validationError error, r *v1alpha1.Rollout) error {
+func (c *rolloutContext) createInvalidRolloutCondition(validationError error, r *v1alpha1.Rollout) error {
 	prevCond := conditions.GetRolloutCondition(r.Status, v1alpha1.InvalidSpec)
 	invalidSpecCond := prevCond
 	errorMessage := fmt.Sprintf("The Rollout \"%s\" is invalid: %s", r.Name, validationError.Error())
@@ -462,27 +494,27 @@ func (c *Controller) createInvalidRolloutCondition(validationError error, r *v1a
 	return nil
 }
 
-func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*validation.ReferencedResources, error) {
+func (c *rolloutContext) getRolloutReferencedResources() (*validation.ReferencedResources, error) {
 	refResources := validation.ReferencedResources{}
-	services, err := c.getReferencedServices(rollout)
+	services, err := c.getReferencedServices()
 	if err != nil {
 		return nil, err
 	}
 	refResources.ServiceWithType = *services
 
-	analysisTemplates, err := c.getReferencedRolloutAnalyses(rollout)
+	analysisTemplates, err := c.getReferencedRolloutAnalyses()
 	if err != nil {
 		return nil, err
 	}
 	refResources.AnalysisTemplateWithType = *analysisTemplates
 
-	ingresses, err := c.getReferencedIngresses(rollout)
+	ingresses, err := c.getReferencedIngresses()
 	if err != nil {
 		return nil, err
 	}
 	refResources.Ingresses = *ingresses
 
-	virtualServices, err := c.getReferencedVirtualServices(rollout)
+	virtualServices, err := c.getReferencedVirtualServices()
 	if err != nil {
 		return nil, err
 	}
@@ -491,14 +523,14 @@ func (c *Controller) getRolloutReferencedResources(rollout *v1alpha1.Rollout) (*
 	return &refResources, nil
 }
 
-func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]validation.ServiceWithType, error) {
+func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType, error) {
 	services := []validation.ServiceWithType{}
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
-			activeSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.ActiveService)
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		if c.rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
+			activeSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.ActiveService)
 			if k8serrors.IsNotFound(err) {
 				fldPath := validation.GetServiceWithTypeFieldPath(validation.ActiveService)
-				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
+				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -508,11 +540,11 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 				Type:    validation.ActiveService,
 			})
 		}
-		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			previewSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.BlueGreen.PreviewService)
+		if c.rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+			previewSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.PreviewService)
 			if k8serrors.IsNotFound(err) {
 				fldPath := validation.GetServiceWithTypeFieldPath(validation.PreviewService)
-				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
+				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -522,12 +554,12 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 				Type:    validation.PreviewService,
 			})
 		}
-	} else if rollout.Spec.Strategy.Canary != nil {
-		if rollout.Spec.Strategy.Canary.StableService != "" {
-			stableSvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.StableService)
+	} else if c.rollout.Spec.Strategy.Canary != nil {
+		if c.rollout.Spec.Strategy.Canary.StableService != "" {
+			stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
 			if k8serrors.IsNotFound(err) {
 				fldPath := validation.GetServiceWithTypeFieldPath(validation.StableService)
-				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.StableService, err.Error())
+				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.StableService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -537,11 +569,11 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 				Type:    validation.StableService,
 			})
 		}
-		if rollout.Spec.Strategy.Canary.CanaryService != "" {
-			canarySvc, err := c.servicesLister.Services(rollout.Namespace).Get(rollout.Spec.Strategy.Canary.CanaryService)
+		if c.rollout.Spec.Strategy.Canary.CanaryService != "" {
+			canarySvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
 			if k8serrors.IsNotFound(err) {
 				fldPath := validation.GetServiceWithTypeFieldPath(validation.CanaryService)
-				return nil, field.Invalid(fldPath, rollout.Spec.Strategy.Canary.CanaryService, err.Error())
+				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.CanaryService, err.Error())
 			}
 			if err != nil {
 				return nil, err
@@ -555,13 +587,13 @@ func (c *Controller) getReferencedServices(rollout *v1alpha1.Rollout) (*[]valida
 	return &services, nil
 }
 
-func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[]validation.AnalysisTemplateWithType, error) {
+func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplateWithType, error) {
 	analysisTemplates := []validation.AnalysisTemplateWithType{}
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		blueGreen := rollout.Spec.Strategy.BlueGreen
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		blueGreen := c.rollout.Spec.Strategy.BlueGreen
 		if blueGreen.PrePromotionAnalysis != nil {
 			// CanaryStepIndex will be ignored
-			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis, 0)
+			templates, err := c.getReferencedAnalysisTemplates(c.rollout, blueGreen.PrePromotionAnalysis, validation.PrePromotionAnalysis, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -570,19 +602,19 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 
 		if blueGreen.PostPromotionAnalysis != nil {
 			// CanaryStepIndex will be ignored
-			templates, err := c.getReferencedAnalysisTemplates(rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis, 0)
+			templates, err := c.getReferencedAnalysisTemplates(c.rollout, blueGreen.PostPromotionAnalysis, validation.PostPromotionAnalysis, 0)
 			if err != nil {
 				return nil, err
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
 		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
-	} else if rollout.Spec.Strategy.Canary != nil {
-		canary := rollout.Spec.Strategy.Canary
+	} else if c.rollout.Spec.Strategy.Canary != nil {
+		canary := c.rollout.Spec.Strategy.Canary
 		if canary.Steps != nil {
 			for i, step := range canary.Steps {
 				if step.Analysis != nil {
-					templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStep, i)
+					templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.CanaryStep, i)
 					if err != nil {
 						return nil, err
 					}
@@ -594,7 +626,7 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 	return &analysisTemplates, nil
 }
 
-func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
+func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
 	analysisTemplates := []validation.AnalysisTemplateWithType{}
 	if rolloutAnalysis.Templates != nil {
 		for i, template := range rolloutAnalysis.Templates {
@@ -610,7 +642,7 @@ func (c *Controller) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, r
 	return analysisTemplates, nil
 }
 
-func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
+func (c *rolloutContext) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
 	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
@@ -639,13 +671,13 @@ func (c *Controller) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, te
 	}, nil
 }
 
-func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1beta1.Ingress, error) {
+func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 	ingresses := []v1beta1.Ingress{}
-	canary := rollout.Spec.Strategy.Canary
+	canary := c.rollout.Spec.Strategy.Canary
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	if canary != nil && canary.TrafficRouting != nil {
 		if canary.TrafficRouting.ALB != nil {
-			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
+			ingress, err := c.ingressesLister.Ingresses(c.rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
 			}
@@ -654,7 +686,7 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 			}
 			ingresses = append(ingresses, *ingress)
 		} else if canary.TrafficRouting.Nginx != nil {
-			ingress, err := c.ingressesLister.Ingresses(rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
+			ingress, err := c.ingressesLister.Ingresses(c.rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
 			}
@@ -667,19 +699,19 @@ func (c *Controller) getReferencedIngresses(rollout *v1alpha1.Rollout) (*[]v1bet
 	return &ingresses, nil
 }
 
-func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
+func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstructured, error) {
 	virtualServices := []unstructured.Unstructured{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
-	if rollout.Spec.Strategy.Canary != nil {
-		canary := rollout.Spec.Strategy.Canary
+	if c.rollout.Spec.Strategy.Canary != nil {
+		canary := c.rollout.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			var vsvc *unstructured.Unstructured
 			var err error
 			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
 			if c.istioVirtualServiceInformer.HasSynced() {
-				vsvc, err = c.istioVirtualServiceLister.Namespace(rollout.Namespace).Get(vsvcName)
+				vsvc, err = c.istioVirtualServiceLister.Namespace(c.rollout.Namespace).Get(vsvcName)
 			} else {
-				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
+				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(c.rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
 			}
 
 			if k8serrors.IsNotFound(err) {
