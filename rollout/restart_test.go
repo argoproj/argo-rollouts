@@ -64,7 +64,7 @@ func replicaSet(selector string, replicas, available int32) *appsv1.ReplicaSet {
 func TestCheckEnqueueRollout(t *testing.T) {
 	now := metav1.Now()
 	t.Run(".Spec.Restart not set", func(t *testing.T) {
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: &v1alpha1.Rollout{},
 			log:     logrus.WithField("", ""),
 		}
@@ -77,7 +77,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	})
 	t.Run(".Spec.Restart has already past", func(t *testing.T) {
 		ro := rollout(metav1.NewTime(now.Add(-10*time.Minute)), nil)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     logrus.WithField("", ""),
 		}
@@ -92,7 +92,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	t.Run("Enqueue Rollout since before next resync", func(t *testing.T) {
 		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
 		enqueued := false
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     logrus.WithField("", ""),
 		}
@@ -108,7 +108,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	t.Run("Do not enqueue Rollout since after next resync", func(t *testing.T) {
 		enqueued := false
 		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     logrus.WithField("", ""),
 		}
@@ -133,7 +133,7 @@ func TestReconcile(t *testing.T) {
 		client := fake.NewSimpleClientset()
 		r := RolloutPodRestarter{client: client}
 		noRestartRo := rollout(now, &now)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: noRestartRo,
 			log:     log.WithRollout(noRestartRo),
 		}
@@ -149,7 +149,7 @@ func TestReconcile(t *testing.T) {
 		buf := bytes.NewBufferString("")
 		logger := logrus.New()
 		logger.SetOutput(buf)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: rollout(now, nil),
 			log:     logrus.NewEntry(logger),
 			allRSs:  []*appsv1.ReplicaSet{notFullyAvailable},
@@ -164,7 +164,7 @@ func TestReconcile(t *testing.T) {
 	t.Run("Fails to delete Pod", func(t *testing.T) {
 		expectedErrMsg := "big bad error"
 		client := fake.NewSimpleClientset(rs, olderPod)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: rollout(now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
@@ -178,7 +178,7 @@ func TestReconcile(t *testing.T) {
 	})
 	t.Run("Deletes Pod", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: rollout(now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
@@ -193,7 +193,7 @@ func TestReconcile(t *testing.T) {
 	})
 	t.Run("No more pods to delete", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, newerPod)
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: rollout(now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
@@ -202,14 +202,14 @@ func TestReconcile(t *testing.T) {
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		assert.Len(t, client.Actions(), 1)
-		assert.Equal(t, now, *roCtx.NewStatus().RestartedAt)
+		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 	})
 }
 
 func TestRestartReplicaSetPod(t *testing.T) {
 	now := metav1.Now()
 	ro := rollout(now, nil)
-	roCtx := &canaryContext{
+	roCtx := &rolloutContext{
 		rollout: ro,
 		log:     log.WithRollout(ro),
 	}
@@ -256,7 +256,7 @@ func TestRestartReplicaSetPod(t *testing.T) {
 			return true, nil, fmt.Errorf(expectedErrMsg)
 		})
 		r := RolloutPodRestarter{client: client}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     log.WithRollout(ro),
 		}
@@ -292,7 +292,7 @@ func TestSortReplicaSetsByPriority(t *testing.T) {
 	allRS := []*appsv1.ReplicaSet{rs1, rs2}
 
 	t.Run("NewSortReplicaSetsByPriority()", func(t *testing.T) {
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			newRS:    rs1,
 			stableRS: rs2,
 			allRSs:   allRS,

@@ -452,7 +452,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx rolloutContext) (TrafficRoutingReconciler, error) {
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
 		return f.fakeTrafficRouting, nil
 	}
 
@@ -1016,7 +1016,9 @@ func TestRequeueStuckRollout(t *testing.T) {
 			f := newFixture(t)
 			defer f.Close()
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			duration := c.requeueStuckRollout(test.rollout, test.rollout.Status)
+			roCtx, err := c.newRolloutContext(test.rollout)
+			assert.NoError(t, err)
+			duration := roCtx.requeueStuckRollout(test.rollout.Status)
 			if test.noRequeue {
 				assert.Equal(t, time.Duration(-1), duration)
 			} else if test.requeueImmediately {
@@ -1339,7 +1341,9 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
 		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0, 0), roAnalysisTemplate.TemplateName, "clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
@@ -1347,7 +1351,9 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedAnalysisTemplate(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
 		assert.NoError(t, err)
 	})
 }
@@ -1365,7 +1371,9 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedIngresses(r)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedIngresses()
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), "alb-ingress-name", "ingress.extensions \"alb-ingress-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
@@ -1379,7 +1387,9 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 		}
 		f.ingressLister = append(f.ingressLister, ingress)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedIngresses(r)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
 	})
 }
@@ -1397,7 +1407,9 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 
 	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedIngresses(r)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedIngresses()
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
@@ -1411,7 +1423,9 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		}
 		f.ingressLister = append(f.ingressLister, ingress)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.getReferencedIngresses(r)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
 	})
 }
@@ -1433,7 +1447,9 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		schema := runtime.NewScheme()
 		c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
-		_, err := c.getReferencedVirtualServices(r)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedVirtualServices()
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})

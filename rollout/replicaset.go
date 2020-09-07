@@ -85,6 +85,7 @@ func (c *rolloutContext) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet) (b
 		// Can't scale down further
 		return false, nil
 	}
+	c.log.Infof("Reconciling old replica sets (count: %d)", oldPodsCount)
 
 	var err error
 	hasScaled := false

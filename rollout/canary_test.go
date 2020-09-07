@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -54,26 +55,36 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	fake := fake.Clientset{}
 	k8sfake := k8sfake.Clientset{}
-	controller := &Controller{
-		argoprojclientset: &fake,
-		kubeclientset:     &k8sfake,
-		recorder:          &record.FakeRecorder{},
-	}
 
 	// Handle case with no steps
 	r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	roCtx := newCanaryCtx(r, nil, nil, nil, nil)
-	stepResult := controller.reconcileCanaryPause(roCtx)
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			argoprojclientset: &fake,
+			kubeclientset:     &k8sfake,
+			recorder:          &record.FakeRecorder{},
+		},
+	}
+	stepResult := roCtx.reconcileCanaryPause()
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
 
 	r2 := newCanaryRollout("test", 1, nil, []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r2.Status.CurrentStepIndex = int32Ptr(1)
-	roCtx2 := newCanaryCtx(r2, nil, nil, nil, nil)
-	stepResult = controller.reconcileCanaryPause(roCtx2)
+	roCtx2 := &rolloutContext{
+		rollout: r2,
+		log:     logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			argoprojclientset: &fake,
+			kubeclientset:     &k8sfake,
+			recorder:          &record.FakeRecorder{},
+		},
+	}
+	stepResult = roCtx2.reconcileCanaryPause()
 	assert.False(t, stepResult)
 	assert.Len(t, fake.Actions(), 0)
-
 }
 
 func TestCanaryRolloutEnterPauseState(t *testing.T) {

@@ -761,7 +761,6 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
 	rs := newReplicaSetWithStatus(ro, 1, 1)
-	roCtx := newBlueGreenCtx(ro, rs, nil, nil)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	ro.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""}, ro)
@@ -775,9 +774,11 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, ro)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
-	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(ro)
+	assert.NoError(t, err)
 
-	err := c.syncRolloutStatusBlueGreen(nil, activeSvc, roCtx)
+	err = roCtx.syncRolloutStatusBlueGreen(nil, activeSvc)
 	assert.Nil(t, err)
 	assert.Len(t, f.client.Actions(), 1)
 	result := f.client.Actions()[0].(core.PatchAction).GetPatch()

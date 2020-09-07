@@ -103,6 +103,8 @@ type ControllerConfig struct {
 	DefaultTrafficSplitVersion      string
 }
 
+// reconcilerBase is a shared datastructure containing all clients and configuration necessary to
+// reconcile a rollout. This is shared between the controller and the rolloutContext
 type reconcilerBase struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
@@ -126,19 +128,19 @@ type reconcilerBase struct {
 	analysisRunLister             listers.AnalysisRunLister
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is later added, then controller will auto-detect change and start istioVirtualServiceInformer
+	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is
+	// later added, then controller will auto-detect change and start istioVirtualServiceInformer
 	istioVirtualServiceInformer cache.SharedIndexInformer
 	istioVirtualServiceLister   dynamiclister.Lister
 
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)
-	newTrafficRoutingReconciler func(roCtx rolloutContext) (TrafficRoutingReconciler, error)
+	enqueueRollout              func(obj interface{})                                         //nolint:structcheck
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                 //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) //nolint:structcheck
 
-	// recorder is an event recorder for recording Event resources to the
-	// Kubernetes API.
+	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder
 	resyncPeriod time.Duration
 }
@@ -370,7 +372,7 @@ func (c *Controller) syncHandler(key string) error {
 	// TODO(dthomson) remove in v0.9.0
 	migrated := c.migrateCanaryStableRS(r)
 	if migrated {
-		logutil.WithRollout(r).Info("Migrated stableRS field")
+		logCtx.Info("Migrated stableRS field")
 		return nil
 	}
 
@@ -408,10 +410,15 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 	otherRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
-	allRSs := append(otherRSs, newRS)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, otherRSs)
-	oldRSs := replicasetutil.GetOlderRSs(rollout, newRS, stableRS, otherRSs)
 
+	// TODO: standardize meaning of "olderRSs" between canary and blue-green
+	var oldRSs []*appsv1.ReplicaSet
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		oldRSs = otherRSs
+	} else {
+		oldRSs = replicasetutil.GetOlderRSs(rollout, newRS, stableRS, otherRSs)
+	}
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
 		return nil, err
@@ -427,19 +434,16 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 
 	logCtx := logutil.WithRollout(rollout)
 	roCtx := rolloutContext{
-		rollout:  rollout,
-		log:      logCtx,
-		newRS:    newRS,
-		stableRS: stableRS,
-		olderRSs: oldRSs,
-		allRSs:   allRSs,
-
+		rollout:    rollout,
+		log:        logCtx,
+		newRS:      newRS,
+		stableRS:   stableRS,
+		olderRSs:   oldRSs,
+		allRSs:     rsList,
 		currentArs: currentArs,
 		otherArs:   otherArs,
-
-		currentEx: currentEx,
-		otherExs:  otherExs,
-
+		currentEx:  currentEx,
+		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
 		},
@@ -477,7 +481,7 @@ func (c *rolloutContext) createInvalidRolloutCondition(validationError error, r 
 	if prevCond == nil || prevCond.Message != errorMessage {
 		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errorMessage)
 	}
-	logutil.WithRollout(r).Error(errorMessage)
+	c.log.Error(errorMessage)
 	generation := conditions.ComputeGenerationHash(r.Spec)
 	if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 		newStatus := r.Status.DeepCopy()
@@ -630,7 +634,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 	analysisTemplates := []validation.AnalysisTemplateWithType{}
 	if rolloutAnalysis.Templates != nil {
 		for i, template := range rolloutAnalysis.Templates {
-			analysisTemplate, err := c.getReferencedAnalysisTemplate(rollout, template, templateType, i, canaryStepIndex)
+			analysisTemplate, err := c.getReferencedAnalysisTemplate(template, templateType, i, canaryStepIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -642,7 +646,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 	return analysisTemplates, nil
 }
 
-func (c *rolloutContext) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout, template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
+func (c *rolloutContext) getReferencedAnalysisTemplate(template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
 	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
 	if template.ClusterScope {
 		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
@@ -658,7 +662,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplate(rollout *v1alpha1.Rollout
 			AnalysisIndex:           analysisIndex,
 		}, nil
 	}
-	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(rollout.Namespace).Get(template.TemplateName)
+	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(template.TemplateName)
 	if k8serrors.IsNotFound(err) {
 		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
 	}

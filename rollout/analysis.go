@@ -131,7 +131,7 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 }
 
 // emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status
-func (c *rolloutContext) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
+func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
 	if ar != nil {
 		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
 			prevStatusStr := "NoPreviousStatus"
@@ -144,7 +144,7 @@ func (c *rolloutContext) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevS
 				eventType = corev1.EventTypeWarning
 			}
 			msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-			c.recorder.Event(r, eventType, "AnalysisRunStatusChange", msg)
+			c.recorder.Event(c.rollout, eventType, "AnalysisRunStatusChange", msg)
 		}
 	}
 }
@@ -153,28 +153,24 @@ func (c *rolloutContext) emitAnalysisRunStatusChanges(r *v1alpha1.Rollout, prevS
 // for that type
 func (c *rolloutContext) reconcileAnalysisRunStatusChanges(currARs analysisutil.CurrentAnalysisRuns) {
 	c.emitAnalysisRunStatusChanges(
-		c.rollout,
 		c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
 		currARs.BlueGreenPostPromotion,
 		v1alpha1.RolloutTypePostPromotionLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		c.rollout,
 		c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
 		currARs.BlueGreenPrePromotion,
 		v1alpha1.RolloutTypePrePromotionLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		c.rollout,
 		c.rollout.Status.Canary.CurrentStepAnalysisRunStatus,
 		currARs.CanaryStep,
 		v1alpha1.RolloutTypeStepLabel,
 	)
 
 	c.emitAnalysisRunStatusChanges(
-		c.rollout,
 		c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
 		currARs.CanaryBackground,
 		v1alpha1.RolloutTypeBackgroundRunLabel,

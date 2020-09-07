@@ -123,7 +123,7 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully or the rollout passed
 // the auto promote seconds.
-func completedPrePromotionAnalysis(c *rolloutContext) bool {
+func (c *rolloutContext) completedPrePromotionAnalysis() bool {
 	if c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
 		return true
 	}

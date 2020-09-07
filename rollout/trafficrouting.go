@@ -18,7 +18,7 @@ type TrafficRoutingReconciler interface {
 }
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficRoutingReconciler, error) {
+func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
 	rollout := roCtx.rollout
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
@@ -61,7 +61,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficR
 }
 
 func (c *rolloutContext) reconcileTrafficRouting() error {
-	reconciler, err := c.newTrafficRoutingReconciler(*c)
+	reconciler, err := c.newTrafficRoutingReconciler(c)
 	if err != nil {
 		return err
 	}

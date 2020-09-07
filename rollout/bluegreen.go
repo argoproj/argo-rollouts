@@ -18,11 +18,11 @@ import (
 
 // rolloutBlueGreen implements the logic for rolling a new replica set.
 func (c *rolloutContext) rolloutBlueGreen() error {
-	previewSvc, activeSvc, err := c.getPreviewAndActiveServices(c.rollout)
+	previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
 	if err != nil {
 		return err
 	}
-	err = c.getAllReplicaSetsAndSyncRevision(true)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,6 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
-	c.log.Info("Reconciling pause")
 	c.reconcileBlueGreenPause(activeSvc, previewSvc)
 
 	err = c.reconcileActiveService(previewSvc, activeSvc)
@@ -99,12 +98,10 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	}
 	// Scale down old non-active replicasets, if we can.
 	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-	c.log.Info("Reconciling old replica sets")
 	_, err = c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS))
 	if err != nil {
 		return err
 	}
-	c.log.Info("Cleaning up old replicasets")
 	if err := c.cleanupRollouts(filteredOldRS); err != nil {
 		return err
 	}
@@ -120,14 +117,14 @@ func (c *rolloutContext) reconcileBlueGreenTemplateChange() bool {
 	return c.rollout.Status.CurrentPodHash != c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
-func skipPause(c *rolloutContext, activeSvc *corev1.Service) bool {
+func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
 	if _, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 		c.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", c.newRS.Name)
 		return true
 	}
 
 	// If a rollout has a PrePromotionAnalysis, the controller only skips the pause after the analysis passes
-	if defaults.GetAutoPromotionEnabledOrDefault(c.rollout) && completedPrePromotionAnalysis(c) {
+	if defaults.GetAutoPromotionEnabledOrDefault(c.rollout) && c.completedPrePromotionAnalysis() {
 		return true
 	}
 
@@ -141,6 +138,7 @@ func skipPause(c *rolloutContext, activeSvc *corev1.Service) bool {
 }
 
 func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service) {
+	c.log.Info("Reconciling pause")
 	if c.rollout.Status.Abort {
 		return
 	}
@@ -153,7 +151,7 @@ func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.S
 		return
 	}
 
-	if skipPause(c, activeSvc) {
+	if c.skipPause(activeSvc) {
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		return
 	}

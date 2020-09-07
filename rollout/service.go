@@ -9,7 +9,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
@@ -59,7 +58,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 		return err
 	}
 	msg := fmt.Sprintf("Switched selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
-	logutil.WithRollout(r).Info(msg)
+	c.log.Info(msg)
 	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
 	return err
@@ -87,10 +86,10 @@ func (c *rolloutContext) reconcileActiveService(previewSvc, activeSvc *corev1.Se
 	}
 
 	newPodHash := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if skipPause(c, activeSvc) {
+	if c.skipPause(activeSvc) {
 		newPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
-	if c.pauseContext.CompletedBlueGreenPause() && completedPrePromotionAnalysis(c) {
+	if c.pauseContext.CompletedBlueGreenPause() && c.completedPrePromotionAnalysis() {
 		newPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
 
@@ -112,18 +111,18 @@ func (c *rolloutContext) reconcileActiveService(previewSvc, activeSvc *corev1.Se
 	return nil
 }
 
-func (c *rolloutContext) getPreviewAndActiveServices(r *v1alpha1.Rollout) (*corev1.Service, *corev1.Service, error) {
+func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1.Service, error) {
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
 	var err error
 
-	if r.Spec.Strategy.BlueGreen.PreviewService != "" {
-		previewSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreen.PreviewService)
+	if c.rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+		previewSvc, err = c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.PreviewService)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	activeSvc, err = c.servicesLister.Services(r.Namespace).Get(r.Spec.Strategy.BlueGreen.ActiveService)
+	activeSvc, err = c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.ActiveService)
 	if err != nil {
 		return nil, nil, err
 	}

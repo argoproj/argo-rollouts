@@ -21,13 +21,10 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
-//
-// rsList should come from getReplicaSetsForRollout(r).
 //
 // 1. Get all old RSes this rollout targets, and calculate the max revision number among them (maxOldV).
 // 2. Get new RS this rollout targets (whose pod template matches rollout's), and update new RS's revision number to (maxOldV + 1),
@@ -38,20 +35,19 @@ import (
 //
 // Note that currently the rollout controller is using caches to avoid querying the server for reads.
 // This may lead to stale reads of replica sets, thus incorrect  v status.
-func (c *rolloutContext) getAllReplicaSetsAndSyncRevision(createIfNotExisted bool) error {
+func (c *rolloutContext) getAllReplicaSetsAndSyncRevision(createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
 	// Get new replica set with the updated revision number
 	newRS, err := c.syncReplicaSetRevision()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if newRS == nil && createIfNotExisted {
 		newRS, err = c.createDesiredReplicaSet()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	c.newRS = newRS
-	return nil
+	return newRS, nil
 }
 
 // Returns a replica set that matches the intent of the given rollout. Returns nil if the new replica set doesn't exist yet.
@@ -85,7 +81,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
-	needsUpdate := annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
+	revisionNeedsUpdate := annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
+	if revisionNeedsUpdate {
+		c.log.Info("Updating rollout revision annotation")
+	}
 	// If no other Progressing condition has been recorded and we need to estimate the progress
 	// of this rollout then it is likely that old users started caring about progress. In that
 	// case we need to take into account the first time we noticed their new replica set.
@@ -94,18 +93,15 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		msg := fmt.Sprintf(conditions.FoundNewRSMessage, rsCopy.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FoundNewRSReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
-		needsUpdate = true
+		c.log.Infof("Initializing Progressing condition: %v", condition)
 	}
 
-	if needsUpdate {
-		var err error
-		c.log.Info("Setting revision annotation after creating a new replicaset")
-		rollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(c.rollout)
+	if revisionNeedsUpdate || cond == nil {
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(c.rollout)
 		if err != nil {
-			c.log.WithError(err).Error("Error: Setting rollout revision annotation after creating a new replicaset")
+			c.log.WithError(err).Error("Error: updating rollout")
 			return nil, err
 		}
-		c.rollout = rollout
 	}
 	return rsCopy, nil
 }
@@ -221,16 +217,16 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 }
 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
-func (c *rolloutContext) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, isScaling bool) error {
-	c.log.Infof("Syncing replicas only (userPaused %v, isScaling: %v)", r.Spec.Paused, isScaling)
-	err := c.getAllReplicaSetsAndSyncRevision(false)
+func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
+	c.log.Infof("Syncing replicas only (userPaused %v, isScaling: %v)", c.rollout.Spec.Paused, isScaling)
+	_, err := c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return err
 	}
 
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
-	if r.Spec.Strategy.BlueGreen != nil {
-		previewSvc, activeSvc, err := c.getPreviewAndActiveServices(r)
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
 		// Keep existing analysis runs if the rollout is paused
 		c.SetCurrentAnalysisRuns(c.currentArs)
 		if err != nil {
@@ -249,7 +245,7 @@ func (c *rolloutContext) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
-	if r.Spec.Strategy.Canary != nil {
+	if c.rollout.Spec.Strategy.Canary != nil {
 		err = c.podRestarter.Reconcile(c)
 		if err != nil {
 			return err
@@ -291,7 +287,7 @@ func (c *rolloutContext) syncReplicasOnly(r *v1alpha1.Rollout, rsList []*appsv1.
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
-	err := c.getAllReplicaSetsAndSyncRevision(false)
+	_, err := c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return false, err
 	}
@@ -360,11 +356,11 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 
 	var currentPodHash string
 	if c.newRS == nil {
-		// newRS potentially might be nil when called by Controller::syncReplicasOnly(). For this
+		// newRS potentially might be nil when called by syncReplicasOnly(). For this
 		// to happen, the user would have had to simultaneously change the number of replicas, and
 		// the pod template spec at the same time.
 		currentPodHash = controller.ComputeHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
-		logutil.WithRollout(c.rollout).Warnf("Assuming %s for new replicaset pod hash", currentPodHash)
+		c.log.Warnf("Assuming %s for new replicaset pod hash", currentPodHash)
 	} else {
 		currentPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
@@ -396,6 +392,7 @@ func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
 	if diff <= 0 {
 		return nil
 	}
+	c.log.Infof("Cleaning up %d old replicasets from revision history limit %d", len(cleanableRSes), revHistoryLimit)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
 	podHashToArList := analysisutil.SortAnalysisRunByPodHash(c.otherArs)
@@ -471,7 +468,6 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	conditions.SetRolloutCondition(newStatus, *condition)
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
 
-	logCtx := logutil.WithRollout(r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: r.Status,
@@ -480,20 +476,20 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})
 	if err != nil {
-		logCtx.Errorf("Error constructing app status patch: %v", err)
+		c.log.Errorf("Error constructing app status patch: %v", err)
 		return err
 	}
 	if !modified {
-		logCtx.Info("No status changes. Skipping patch")
+		c.log.Info("No status changes. Skipping patch")
 		return nil
 	}
-	logCtx.Debugf("Rollout Condition Patch: %s", patch)
+	c.log.Debugf("Rollout Condition Patch: %s", patch)
 	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
-		logCtx.Warningf("Error patching rollout: %v", err)
+		c.log.Warnf("Error patching rollout: %v", err)
 		return err
 	}
-	logCtx.Info("Condition Patch status successfully")
+	c.log.Info("Condition Patch status successfully")
 	return nil
 }
 
@@ -608,7 +604,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	}
 	if !modified {
 		c.log.Info("No status changes. Skipping patch")
-		c.requeueStuckRollout(c.rollout, *newStatus)
+		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
 	c.log.Debugf("Rollout Patch: %s", patch)
@@ -627,16 +623,15 @@ var nowFn = func() time.Time { return time.Now() }
 // requeueStuckRollout checks whether the provided rollout needs to be synced for a progress
 // check. It returns the time after the rollout will be requeued for the progress check, 0 if it
 // will be requeued now, or -1 if it does not need to be requeued.
-func (c *rolloutContext) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1alpha1.RolloutStatus) time.Duration {
-	logctx := logutil.WithRollout(r)
-	currentCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutProgressing)
+func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) time.Duration {
+	currentCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
 	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
 	if currentCond == nil {
 		return time.Duration(-1)
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
-	isPaused := len(r.Status.PauseConditions) > 0 || r.Spec.Paused
-	if conditions.RolloutComplete(r, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || r.Status.Abort || isIndefiniteStep(r) {
+	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
+	if conditions.RolloutComplete(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the
@@ -654,20 +649,20 @@ func (c *rolloutContext) requeueStuckRollout(r *v1alpha1.Rollout, newStatus v1al
 	// progressDeadlineSeconds: 600 (10 minutes)
 	//
 	// lastUpdated + progressDeadlineSeconds - now => 00:00:00 + 00:10:00 - 00:03:00 => 07:00
-	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(r)
+	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(c.rollout)
 	after := currentCond.LastUpdateTime.Time.Add(time.Duration(progressDeadlineSeconds) * time.Second).Sub(nowFn())
 	// If the remaining time is less than a second, then requeue the deployment immediately.
 	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
 		c.log.Infof("Queueing up Rollout for a progress check now")
-		c.enqueueRollout(r)
+		c.enqueueRollout(c.rollout)
 		return time.Duration(0)
 	}
-	logctx.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
+	c.log.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
-	c.enqueueRolloutAfter(r, after+time.Second)
+	c.enqueueRolloutAfter(c.rollout, after+time.Second)
 	return after
 }
 
