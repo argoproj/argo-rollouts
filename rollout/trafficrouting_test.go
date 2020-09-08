@@ -216,7 +216,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -227,7 +227,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -241,7 +241,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -261,7 +261,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -275,7 +275,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Nginx: &v1alpha1.NginxTrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -289,7 +289,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			ALB: &v1alpha1.ALBTrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -303,7 +303,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
@@ -318,7 +318,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
-		roCtx := &canaryContext{
+		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -153,15 +154,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			test := tests[i]
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
-			bgCtx := newBlueGreenCtx(rollout, newRS, nil, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			controller := &Controller{
-				argoprojclientset: &fake,
-				kubeclientset:     &k8sfake,
-				recorder:          &record.FakeRecorder{},
+			roCtx := rolloutContext{
+				log:     logutil.WithRollout(rollout),
+				rollout: rollout,
+				newRS:   newRS,
+				reconcilerBase: reconcilerBase{
+					argoprojclientset: &fake,
+					kubeclientset:     &k8sfake,
+					recorder:          &record.FakeRecorder{},
+				},
 			}
-			scaled, err := controller.reconcileNewReplicaSet(bgCtx)
+			scaled, err := roCtx.reconcileNewReplicaSet()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -243,17 +248,19 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
-			roCtx := newBlueGreenCtx(rollout, newRS, oldRSs, nil)
-
 			f := newFixture(t)
 			defer f.Close()
+			f.objects = append(f.objects, rollout)
 			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
 			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
 			c, informers, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
-			defer close(stopCh)
 			informers.Start(stopCh)
-			scaled, err := c.reconcileOldReplicaSets(oldRSs, roCtx)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+			roCtx, err := c.newRolloutContext(rollout)
+			assert.NoError(t, err)
+			scaled, err := roCtx.reconcileOldReplicaSets(oldRSs)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

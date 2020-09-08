@@ -112,7 +112,7 @@ func (w *When) WaitForRolloutStatus(status string) *When {
 		}
 		return false
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), DefaultTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), E2EWaitTimeout)
 }
 
 func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
@@ -133,7 +133,7 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 		}
 		return true
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), DefaultTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), E2EWaitTimeout)
 }
 
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {

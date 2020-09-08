@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -187,17 +188,20 @@ func TestCleanupRollouts(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			r := newBlueGreenRollout("baz", 1, test.revisionHistoryLimit, "", "")
-			roCtx := newBlueGreenCtx(r, nil, test.replicaSets, nil)
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
-			c := &Controller{
-				argoprojclientset: &fake,
-				kubeclientset:     &k8sfake,
-				recorder:          &record.FakeRecorder{},
+			roCtx := &rolloutContext{
+				rollout:  r,
+				log:      logutil.WithRollout(r),
+				olderRSs: test.replicaSets,
+				reconcilerBase: reconcilerBase{
+					argoprojclientset: &fake,
+					kubeclientset:     &k8sfake,
+					recorder:          &record.FakeRecorder{},
+				},
 			}
-			err := c.cleanupRollouts(test.replicaSets, roCtx)
+			err := roCtx.cleanupRollouts(test.replicaSets)
 			assert.Nil(t, err)
-
 			assert.Equal(t, len(test.expectedDeleted), len(k8sfake.Actions()))
 			for _, action := range k8sfake.Actions() {
 				rsName := action.(testclient.DeleteAction).GetName()

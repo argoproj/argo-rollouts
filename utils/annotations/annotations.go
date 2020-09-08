@@ -121,7 +121,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	if oldRevisionInt < newRevisionInt {
 		newRS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
-		logCtx.Infof("Updating replica set '%s' revision to %s", newRS.Name, newRevision)
+		logCtx.Infof("Updating replica set '%s' revision from %d to %d", newRS.Name, oldRevisionInt, newRevisionInt)
 	}
 	// If a revision annotation already existed and this replica set was updated with a new revision
 	// then that means we are rolling back to this replica set. We need to preserve the old revisions

@@ -18,8 +18,8 @@ type TrafficRoutingReconciler interface {
 }
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficRoutingReconciler, error) {
-	rollout := roCtx.Rollout()
+func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+	rollout := roCtx.rollout
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
 	}
@@ -60,47 +60,43 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx rolloutContext) (TrafficR
 	return nil, nil
 }
 
-func (c *Controller) reconcileTrafficRouting(roCtx *canaryContext) error {
-	rollout := roCtx.Rollout()
-	reconciler, err := c.newTrafficRoutingReconciler(roCtx)
+func (c *rolloutContext) reconcileTrafficRouting() error {
+	reconciler, err := c.newTrafficRoutingReconciler(c)
 	if err != nil {
 		return err
 	}
 	if reconciler == nil {
 		return nil
 	}
-	roCtx.Log().Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
-	newRS := roCtx.NewRS()
-	stableRS := roCtx.StableRS()
-	olderRS := roCtx.OlderRSs()
+	c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-	_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+	_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
 	if index != nil {
-		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, olderRS)
+		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.olderRSs)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
 			for i := *index - 1; i >= 0; i-- {
-				step := rollout.Spec.Strategy.Canary.Steps[i]
+				step := c.rollout.Spec.Strategy.Canary.Steps[i]
 				if step.SetWeight != nil {
 					desiredWeight = *step.SetWeight
 					break
 				}
 			}
-		} else if *index != int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+		} else if *index != int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
 			// This if statement prevents the desiredWeight from being set to 100
 			// when the rollout has progressed through all the steps. The rollout
 			// should send all traffic to the stable service by using a weight of
 			// 0. If the rollout is progressing through the steps, the desired
 			// weight of the traffic routing service should be at the value of the
 			// last setWeight step, which is set by GetCurrentSetWeight.
-			desiredWeight = replicasetutil.GetCurrentSetWeight(rollout)
+			desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 		}
 	}
 
 	err = reconciler.Reconcile(desiredWeight)
 	if err != nil {
-		c.recorder.Event(rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
+		c.recorder.Event(c.rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
 	}
 	return err
 }

@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -27,11 +28,11 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
-const (
-	DefaultTimeout time.Duration = time.Second * 30
-)
-
 var (
+	// E2EWaitTimeout is the timeout when waiting for a condition to become true
+	E2EWaitTimeout time.Duration = time.Second * 60
+
+	// E2E Label is the
 	E2ELabel = "argo-rollouts-e2e"
 
 	serviceGVR = schema.GroupVersionResource{
@@ -39,7 +40,8 @@ var (
 		Resource: "services",
 	}
 	ingressGVR = schema.GroupVersionResource{
-		Version:  "networking.k8s.io",
+		Group:    "networking.k8s.io",
+		Version:  "v1",
 		Resource: "ingresses",
 	}
 )
@@ -47,6 +49,13 @@ var (
 func init() {
 	if e2elabel, ok := os.LookupEnv("E2E_INSTANCE_ID"); ok {
 		E2ELabel = e2elabel
+	}
+	if e2eWaitTimeout, ok := os.LookupEnv("E2E_WAIT_TIMEOUT"); ok {
+		timeout, err := strconv.Atoi(e2eWaitTimeout)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid wait timeout seconds: %s", e2eWaitTimeout))
+		}
+		E2EWaitTimeout = time.Duration(timeout) * time.Second
 	}
 }
 

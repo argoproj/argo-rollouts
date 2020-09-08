@@ -66,7 +66,9 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	}
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
-		preview, active, err := c.getPreviewAndActiveServices(rollout)
+		roCtx, err := c.newRolloutContext(rollout)
+		assert.NoError(t, err)
+		preview, active, err := roCtx.getPreviewAndActiveServices()
 		assert.Nil(t, err)
 		assert.Equal(t, expPreview, preview)
 		assert.Equal(t, expActive, active)
@@ -74,14 +76,18 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	t.Run("Preview not found", func(t *testing.T) {
 		noPreviewSvcRollout := rollout.DeepCopy()
 		noPreviewSvcRollout.Spec.Strategy.BlueGreen.PreviewService = "not-preview"
-		_, _, err := c.getPreviewAndActiveServices(noPreviewSvcRollout)
+		roCtx, err := c.newRolloutContext(noPreviewSvcRollout)
+		assert.NoError(t, err)
+		_, _, err = roCtx.getPreviewAndActiveServices()
 		assert.NotNil(t, err)
 		assert.True(t, errors.IsNotFound(err))
 	})
 	t.Run("Active not found", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "not-active"
-		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
+		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
+		assert.NoError(t, err)
+		_, _, err = roCtx.getPreviewAndActiveServices()
 		assert.NotNil(t, err)
 		assert.True(t, errors.IsNotFound(err))
 	})
@@ -89,7 +95,9 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	t.Run("Invalid Spec: No Active Svc", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
-		_, _, err := c.getPreviewAndActiveServices(noActiveSvcRollout)
+		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
+		assert.NoError(t, err)
+		_, _, err = roCtx.getPreviewAndActiveServices()
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "service \"\" not found")
 	})
