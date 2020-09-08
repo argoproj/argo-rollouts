@@ -24,7 +24,6 @@ import (
 
 type When struct {
 	Common
-	rollout *rov1.Rollout
 }
 
 func (w *When) ApplyManifests() *When {
@@ -118,10 +117,21 @@ func (w *When) WaitForRolloutStatus(status string) *When {
 
 func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
-		if ro.Status.CurrentStepIndex == nil {
+		if ro.Status.CurrentStepIndex == nil || *ro.Status.CurrentStepIndex != index {
 			return false
 		}
-		return *ro.Status.CurrentStepIndex == index
+		if ro.Spec.Strategy.Canary.Steps[*ro.Status.CurrentStepIndex].Pause != nil {
+			// Special case for pause to deal with test timing issues. If we are waiting for a step
+			// index, and that step is a pause step, we should also block until we *also* see the
+			// pause condition saved in the rollout. This is because the controller increments the
+			// step index in one reconciliation, and adds the pause condition in the next.
+			// Without this convenience check, tests would always have to do
+			//      WaitForRolloutCanaryStepIndex(N).
+			//      WaitForRolloutStatus("Paused").
+			// which would be annoying.
+			return info.RolloutStatusString(ro) == "Paused"
+		}
+		return true
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), DefaultTimeout)
 }
@@ -141,9 +151,10 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 	for {
 		select {
 		case event := <-watch.ResultChan():
-			wf, ok := event.Object.(*rov1.Rollout)
+			ro, ok := event.Object.(*rov1.Rollout)
 			if ok {
-				if test(wf) {
+				if test(ro) {
+					//w.PrintRollout(ro)
 					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
 					return w
 				}
@@ -165,14 +176,12 @@ func (w *When) DeleteRollout() *When {
 
 func (w *When) Then() *Then {
 	return &Then{
-		Common:  w.Common,
-		rollout: w.rollout,
+		Common: w.Common,
 	}
 }
 
 func (w *When) Given() *Given {
 	return &Given{
-		Common:  w.Common,
-		rollout: w.rollout,
+		Common: w.Common,
 	}
 }

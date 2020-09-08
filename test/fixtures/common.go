@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
+	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 )
 
@@ -22,6 +23,7 @@ type Common struct {
 	dynamicClient  dynamic.Interface
 	rolloutClient  clientset.Interface
 
+	rollout *rov1.Rollout
 	objects []*unstructured.Unstructured
 	// podDelay slows down pod startup and shutdown by the value in seconds
 	// Used humans slow down rollout activity during a test
@@ -35,11 +37,11 @@ func (c *Common) CheckError(err error) {
 	}
 }
 
-func (c *Common) printJSON(obj interface{}) {
-	// print status
-	bytes, err := json.Marshal(obj)
+func (c *Common) PrintRollout(ro *rov1.Rollout) {
+	// clean up output
+	ro.ManagedFields = nil
+	delete(ro.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	bytes, err := json.Marshal(ro)
 	c.CheckError(err)
-	c.log.Debug("---")
-	c.log.Debug(string(bytes))
-	c.log.Debug("---")
+	c.log.Info(string(bytes))
 }

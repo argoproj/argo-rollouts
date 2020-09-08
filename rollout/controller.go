@@ -341,15 +341,14 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing rollout at (%v)", startTime)
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
-		log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Info("Rollout has been deleted")
 		return nil
 	}
 	if err != nil {
 		return err
 	}
+	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing rollout at (%v)", startTime)
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
