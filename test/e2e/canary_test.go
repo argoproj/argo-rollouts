@@ -23,7 +23,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - setWeight: 50
 - pause: {}
 - setCanaryScale:
-    replicas: 6
+    replicas: 3
 - pause: {}
 - setCanaryScale:
     matchTrafficWeight: true
@@ -57,7 +57,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 		WaitForRolloutCanaryStepIndex(6).
 		Then().
 		// at step 6
-		ExpectCanaryPodCount(6).
+		ExpectCanaryPodCount(3).
 		When().
 		PromoteRollout().
 		WaitForRolloutCanaryStepIndex(8).
