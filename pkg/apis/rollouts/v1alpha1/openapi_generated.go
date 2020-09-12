@@ -1026,7 +1026,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"url": {
+					"address": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -1051,7 +1051,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"url", "query", "apikey", "appkey"},
+				Required: []string{"query", "apikey", "appkey"},
 			},
 		},
 	}

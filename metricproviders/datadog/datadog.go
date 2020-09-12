@@ -46,8 +46,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	endpoint := "https://api.datadoghq.com/api/v1/query"
-	if metric.Provider.Datadog.URL != "" {
-		endpoint = metric.Provider.Datadog.URL + "/api/v1/query"
+	if metric.Provider.Datadog.Address != "" {
+		endpoint = metric.Provider.Datadog.Address + "/api/v1/query"
 	}
 
 	url, _ := url.Parse(endpoint)

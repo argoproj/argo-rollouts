@@ -154,7 +154,7 @@ func TestRunSuite(t *testing.T) {
 		}))
 		defer server.Close()
 
-		test.metric.Provider.Datadog.URL = server.URL
+		test.metric.Provider.Datadog.Address = server.URL
 
 		logCtx := log.WithField("test", "test")
 

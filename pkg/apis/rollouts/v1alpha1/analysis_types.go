@@ -354,8 +354,8 @@ type WebMetricHeader struct {
 }
 
 type DatadogMetric struct {
-	URL    string `json:"url"`
-	Query  string `json:"query"`
-	APIKey string `json:"apikey"`
-	APPKey string `json:"appkey"`
+	Address string `json:"address,omitempty"`
+	Query   string `json:"query"`
+	APIKey  string `json:"apikey"`
+	APPKey  string `json:"appkey"`
 }
