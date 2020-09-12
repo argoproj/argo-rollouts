@@ -21,12 +21,13 @@ func TestRunSuite(t *testing.T) {
 
 	// Test Cases
 	var tests = []struct {
-		webServerStatus      int
-		webServerResponse    string
-		metric               v1alpha1.Metric
-		expectedValue        string
-		expectedPhase        v1alpha1.AnalysisPhase
-		expectedErrorMessage string
+		webServerStatus         int
+		webServerResponse       string
+		metric                  v1alpha1.Metric
+		expectedIntervalSeconds int64
+		expectedValue           string
+		expectedPhase           v1alpha1.AnalysisPhase
+		expectedErrorMessage    string
 	}{
 		// When last value of time series matches condition then succeed.
 		{
@@ -38,14 +39,16 @@ func TestRunSuite(t *testing.T) {
 				FailureCondition: "asFloat(result) >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
-						Query:  "avg:kubernetes.cpu.user.total{*}",
-						APIKey: expectedApiKey,
-						APPKey: expectedAppKey,
+						Query:    "avg:kubernetes.cpu.user.total{*}",
+						Interval: "10m",
+						APIKey:   expectedApiKey,
+						APPKey:   expectedAppKey,
 					},
 				},
 			},
-			expectedValue: "0.0003332881882246533",
-			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+			expectedIntervalSeconds: 600,
+			expectedValue:           "0.0003332881882246533",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 		},
 		// When last value of time series does not match condition then fail.
 		{
@@ -63,8 +66,9 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedValue: "0.006121378742186943",
-			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 		},
 		// Error if the request is invalid
 		{
@@ -82,8 +86,9 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
 		},
 		// Error if there is an authentication issue
 		{
@@ -101,8 +106,9 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 		},
 	}
 
@@ -121,8 +127,8 @@ func TestRunSuite(t *testing.T) {
 				t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
 			}
 
-			if from, err := strconv.ParseInt(actualFrom, 10, 64); err == nil && from != unixNow()-300 {
-				t.Errorf("\nfrom %d expected be equal to %d", from, unixNow()-300)
+			if from, err := strconv.ParseInt(actualFrom, 10, 64); err == nil && from != unixNow()-test.expectedIntervalSeconds {
+				t.Errorf("\nfrom %d expected be equal to %d", from, unixNow()-test.expectedIntervalSeconds)
 			} else if err != nil {
 				t.Errorf("\nfailed to parse from: %v", err)
 			}

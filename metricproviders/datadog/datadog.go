@@ -53,9 +53,19 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	url, _ := url.Parse(endpoint)
 
 	now := unixNow()
+	var interval int64 = 300
+	if metric.Provider.Datadog.Interval != "" {
+		expDuration, err := metric.Provider.Datadog.Interval.Duration()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		// Convert to seconds as DataDog expects unix timestamp
+		interval = int64(expDuration.Seconds())
+	}
+
 	q := url.Query()
 	q.Set("query", metric.Provider.Datadog.Query)
-	q.Set("from", strconv.FormatInt(now-300, 10))
+	q.Set("from", strconv.FormatInt(now-interval, 10))
 	q.Set("to", strconv.FormatInt(now, 10))
 	url.RawQuery = q.Encode()
 

@@ -89,6 +89,8 @@ spec:
                             type: string
                           appkey:
                             type: string
+                          interval:
+                            type: string
                           query:
                             type: string
                         required:
@@ -2911,6 +2913,8 @@ spec:
                             type: string
                           appkey:
                             type: string
+                          interval:
+                            type: string
                           query:
                             type: string
                         required:
@@ -5660,6 +5664,8 @@ spec:
                           apikey:
                             type: string
                           appkey:
+                            type: string
+                          interval:
                             type: string
                           query:
                             type: string
