@@ -894,16 +894,6 @@ metadata:
 spec:
   args:
   - name: service-name
-  - name: datadog-api-key
-    valueFrom:
-      secretKeyRef:
-        name: datadog
-        key: apikey
-  - name: datadog-app-key
-    valueFrom:
-      secretKeyRef:
-        name: datadog
-        key: appkey  
   metrics:
   - name: error-rate
     interval: 5m
@@ -913,9 +903,20 @@ spec:
       datadog:
         address: https://api.datadoghq.com
         interval: 5m
-        apikey: {{args.datadog-api-key}}
-        appkey: {{args.datadog-app-key}}
         query: |
           sum:requests.error.count{service:{{args.service-name}}} /
           sum:requests.request.count{service:{{args.service-name}}}
+```
+
+Datadog api and app tokens can be configured in a kubernetes secret in argo-rollouts namespace.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wavefront-api-tokens
+type: Opaque
+data:
+  api-key: <datadog-api-key>
+  app-key: <datadog-app-key>
 ```

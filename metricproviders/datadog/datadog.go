@@ -3,33 +3,39 @@ package datadog
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
-
-	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
+	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/jsonpath"
 )
 
 var unixNow = func() int64 { return time.Now().Unix() }
 
 const (
 	//ProviderType indicates the provider is datadog
-	ProviderType = "Datadog"
+	ProviderType            = "Datadog"
+	DatadogTokensSecretName = "datadog"
 )
 
 // Provider contains all the required components to run a Datadog query
 // Implements the Provider Interface
 type Provider struct {
 	logCtx log.Entry
+	apiKey string
+	appKey string
 }
 
 // Type incidates provider is a Datadog provider
@@ -73,8 +79,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.URL = url
 	request.Header = make(http.Header)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("DD-API-KEY", metric.Provider.Datadog.APIKey)
-	request.Header.Set("DD-APPLICATION-KEY", metric.Provider.Datadog.APPKey)
+	request.Header.Set("DD-API-KEY", p.apiKey)
+	request.Header.Set("DD-APPLICATION-KEY", p.appKey)
 
 	// Send Request
 	httpClient := &http.Client{
@@ -150,8 +156,39 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func NewDatadogProvider(logCtx log.Entry) *Provider {
-	return &Provider{
-		logCtx: logCtx,
+func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
+	ns := Namespace()
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(DatadogTokensSecretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
 	}
+
+	apiKey := string(secret.Data["api-key"])
+	appKey := string(secret.Data["app-key"])
+
+	if apiKey != "" && appKey != "" {
+		return &Provider{
+			logCtx: logCtx,
+			apiKey: apiKey,
+			appKey: appKey,
+		}, nil
+	} else {
+		return nil, errors.New("API or App token not found")
+	}
+
+}
+
+func Namespace() string {
+	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
+	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
+	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
+		return ns
+	}
+	// Fall back to the namespace associated with the service account token, if available
+	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+			return ns
+		}
+	}
+	return "argo-rollouts"
 }

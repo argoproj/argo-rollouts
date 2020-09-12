@@ -10,12 +10,27 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 func TestRunSuite(t *testing.T) {
 
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
+
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: DatadogTokensSecretName,
+		},
+		Data: map[string][]byte{
+			"api-key": []byte(expectedApiKey),
+			"app-key": []byte(expectedAppKey),
+		},
+	}
 
 	unixNow = func() int64 { return 1599076435 }
 
@@ -41,8 +56,6 @@ func TestRunSuite(t *testing.T) {
 					Datadog: &v1alpha1.DatadogMetric{
 						Query:    "avg:kubernetes.cpu.user.total{*}",
 						Interval: "10m",
-						APIKey:   expectedApiKey,
-						APPKey:   expectedAppKey,
 					},
 				},
 			},
@@ -60,9 +73,7 @@ func TestRunSuite(t *testing.T) {
 				FailureCondition: "asFloat(result) >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
-						Query:  "avg:kubernetes.cpu.user.total{*}",
-						APIKey: expectedApiKey,
-						APPKey: expectedAppKey,
+						Query: "avg:kubernetes.cpu.user.total{*}",
 					},
 				},
 			},
@@ -80,9 +91,7 @@ func TestRunSuite(t *testing.T) {
 				FailureCondition: "asFloat(result) >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
-						Query:  "avg:kubernetes.cpu.user.total{*}",
-						APIKey: expectedApiKey,
-						APPKey: expectedAppKey,
+						Query: "avg:kubernetes.cpu.user.total{*}",
 					},
 				},
 			},
@@ -100,9 +109,7 @@ func TestRunSuite(t *testing.T) {
 				FailureCondition: "asFloat(result) >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
-						Query:  "avg:kubernetes.cpu.user.total{*}",
-						APIKey: expectedApiKey,
-						APPKey: expectedAppKey,
+						Query: "avg:kubernetes.cpu.user.total{*}",
 					},
 				},
 			},
@@ -164,7 +171,12 @@ func TestRunSuite(t *testing.T) {
 
 		logCtx := log.WithField("test", "test")
 
-		provider := NewDatadogProvider(*logCtx)
+		fakeClient := k8sfake.NewSimpleClientset()
+		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, tokenSecret, nil
+		})
+
+		provider, _ := NewDatadogProvider(*logCtx, fakeClient)
 
 		// Get our result
 		measurement := provider.Run(newAnalysisRun(), test.metric)

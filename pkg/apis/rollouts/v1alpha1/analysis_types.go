@@ -357,6 +357,4 @@ type DatadogMetric struct {
 	Address  string         `json:"address,omitempty"`
 	Interval DurationString `json:"interval,omitempty"`
 	Query    string         `json:"query"`
-	APIKey   string         `json:"apikey"`
-	APPKey   string         `json:"appkey"`
 }
