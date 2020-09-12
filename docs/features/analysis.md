@@ -911,7 +911,7 @@ spec:
     failureLimit: 3
     provider:
       datadog:
-        Address: https://api.datadoghq.com
+        address: https://api.datadoghq.com
         apikey: {{args.datadog-api-key}}
         appkey: {{args.datadog-app-key}}
         query: |
