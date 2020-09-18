@@ -66,6 +66,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                          schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider":                                  schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                                    schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric":                                  schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
@@ -1843,6 +1844,12 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric"),
 						},
 					},
+					"newrelic": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NewRelic specifies the newrelic metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric"),
+						},
+					},
 					"job": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Job specifies the job metric run",
@@ -1853,7 +1860,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
 	}
 }
 
@@ -1946,6 +1953,38 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NewRelicMetric defines the newrelic query to perform canary analysis",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"accountID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is a raw newrelic query to perform",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

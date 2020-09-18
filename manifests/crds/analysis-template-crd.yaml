@@ -2683,6 +2683,15 @@ spec:
                         - storageAccountName
                         - threshold
                         type: object
+                      newrelic:
+                        properties:
+                          accountID:
+                            type: integer
+                          query:
+                            type: string
+                          region:
+                            type: string
+                        type: object
                       prometheus:
                         properties:
                           address:

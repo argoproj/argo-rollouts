@@ -920,3 +920,41 @@ data:
   api-key: <datadog-api-key>
   app-key: <datadog-app-key>
 ```
+
+## NewRelic Metrics
+
+A [New Relic](https://newrelic.com/) NRQL query can be used to obtain measurements for analysis.  
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: application-name
+  metrics:
+  - name: success-rate
+    successCondition: result.successRate >= 0.95
+    provider:
+      newrelic:
+        region: "us"
+        accountID: 1234
+        query: |
+          FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
+```
+
+The `result` evaluated for the condition will always be map or list of maps. The name will follow the pattern of either `function` or `function.field`, e.g. `SELECT average(duration) from Transation` will yield `average.duration`. In this case the field result cannot be accessed with dot notation and instead should be accessed like `result['average.duration']`. Query results can be renamed using the [NRQL clause `AS`](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as) as seen above.
+
+New Relic personal API keys can be configured using a Kubernetes secret in the `argo-rollouts` namespace. Each token is specific to a New Relic account ID.  
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newrelic-api-tokens
+type: Opaque
+data:
+  1234: <newrelic-api-key>
+  5678: <newrelic-app-key>
+```
