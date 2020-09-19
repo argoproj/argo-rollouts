@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 // Controller is the controller implementation for Experiment resources
@@ -141,9 +143,15 @@ func NewController(cfg ControllerConfig) *Controller {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newExperiment := new.(*v1alpha1.Experiment)
-			oldExperiment := old.(*v1alpha1.Experiment)
-			if newExperiment.ResourceVersion == oldExperiment.ResourceVersion {
+			oldAcc, err := meta.Accessor(old)
+			if err != nil {
+				return
+			}
+			newAcc, err := meta.Accessor(new)
+			if err != nil {
+				return
+			}
+			if oldAcc.GetResourceVersion() == newAcc.GetResourceVersion() {
 				// Periodic resync will send update events for all known replicas.
 				// Two different versions of the same Replica will always have different RVs.
 				return
@@ -311,8 +319,8 @@ func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStat
 
 // enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
 func (ec *Controller) enqueueIfCompleted(obj interface{}) {
-	run, ok := obj.(*v1alpha1.AnalysisRun)
-	if !ok {
+	run := unstructuredutil.ObjectToAnalysisRun(obj)
+	if run == nil {
 		return
 	}
 	if run.Status.Phase.Completed() {

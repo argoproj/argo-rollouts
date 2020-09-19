@@ -153,10 +153,11 @@ func (c *rolloutContext) reconcileExperiments() error {
 		return nil
 	}
 
-	step, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	step, stepIdx := replicasetutil.GetCurrentCanaryStep(c.rollout)
 
 	currentEx := c.currentEx
 	if step != nil && step.Experiment != nil {
+		c.log.Infof("Reconciling experiment step (stepIndex: %d)", *stepIdx)
 		if currentEx == nil {
 			// An new experiment can not be created if the stableRS is not created yet
 			if c.stableRS == nil {

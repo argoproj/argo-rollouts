@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: web-background
+spec:
+  metrics:
+  - name: web
+    interval: 20s
+    successCondition: result.major == '1'
+    provider:
+      web:
+        url: http://kubernetes.default.svc/version
+        jsonPath: "{$.}" 

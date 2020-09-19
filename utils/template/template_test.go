@@ -29,7 +29,7 @@ func TestResolveExperimentArgsValueInvalidDuration(t *testing.T) {
 		},
 	}
 	_, err := ResolveExperimentArgsValue("test", ex, nil)
-	assert.Equal(t, fmt.Errorf("time: invalid duration asdf"), err)
+	assert.Regexp(t, `time: invalid duration (")?asdf(")?`, err)
 }
 
 func TestResolveExperimentArgsValue(t *testing.T) {

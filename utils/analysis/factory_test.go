@@ -169,7 +169,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: invalid interval string: time: unknown unit s-typo in duration 60s-typo")
+		assert.Regexp(t, `metrics\[0\]: invalid interval string: time: unknown unit (")?s-typo(")? in duration (")?60s-typo(")?`, err)
 	})
 	t.Run("Ensure valid intialDelay string", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
@@ -187,7 +187,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: invalid startDelay string: time: unknown unit s-typo in duration 60s-typo")
+		assert.Regexp(t, `metrics\[0\]: invalid startDelay string: time: unknown unit (")?s-typo(")? in duration (")?60s-typo(")?`, err)
 	})
 	t.Run("Ensure metric provider listed", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
