@@ -174,6 +174,52 @@ func (w *When) DeleteRollout() *When {
 	return w
 }
 
+func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for AnalysisRun %s condition: %s", name, condition)
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+	watch, err := w.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(w.namespace).Watch(opts)
+	w.CheckError(err)
+	defer watch.Stop()
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-watch.ResultChan():
+			ar, ok := event.Object.(*rov1.AnalysisRun)
+			if ok {
+				if test(ar) {
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
+	}
+}
+
+func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
+	checkPhase := func(ar *rov1.AnalysisRun) bool {
+		return string(ar.Status.Phase) == phase
+	}
+	arun := w.GetBackgroundAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) WaitForInlineAnalysisRunPhase(phase string) *When {
+	checkPhase := func(ar *rov1.AnalysisRun) bool {
+		return string(ar.Status.Phase) == phase
+	}
+	arun := w.GetInlineAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
 func (w *When) Then() *Then {
 	return &Then{
 		Common: w.Common,
