@@ -386,6 +386,9 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 		now := metav1.Now()
 		run.Status.StartedAt = &now
 	}
+	if run.Spec.Terminate {
+		worstMessage = "run terminated"
+	}
 
 	// Iterate all metrics and update MetricResult.Phase fields based on lastest measurement(s)
 	for _, metric := range run.Spec.Metrics {
@@ -426,10 +429,15 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 			}
 		}
 	}
-	if !everythingCompleted || worstStatus == "" {
+	if !everythingCompleted {
 		return v1alpha1.AnalysisPhaseRunning, ""
 	}
-
+	if worstStatus == "" {
+		if terminating {
+			return v1alpha1.AnalysisPhaseSuccessful, worstMessage
+		}
+		return v1alpha1.AnalysisPhaseRunning, ""
+	}
 	return worstStatus, worstMessage
 }
 
