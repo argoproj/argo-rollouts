@@ -83,7 +83,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// Should use the revision in existingNewRS's annotation, since it set by before
 	revisionNeedsUpdate := annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
 	if revisionNeedsUpdate {
-		c.log.Info("Updating rollout revision annotation")
+		c.log.Infof("Updating rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
 	}
 	// If no other Progressing condition has been recorded and we need to estimate the progress
 	// of this rollout then it is likely that old users started caring about progress. In that

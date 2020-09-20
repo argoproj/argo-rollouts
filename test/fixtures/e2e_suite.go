@@ -43,7 +43,10 @@ const (
 var (
 	E2EWaitTimeout time.Duration = time.Second * 60
 
-	E2ELabel = "argo-rollouts-e2e"
+	// All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
+	E2ELabelValueInstanceID = "argo-rollouts-e2e"
+	// All e2e tests will be labeled with their test name
+	E2ELabelKeyTestName = "e2e-test-name"
 
 	serviceGVR = schema.GroupVersionResource{
 		Version:  "v1",
@@ -57,8 +60,8 @@ var (
 )
 
 func init() {
-	if e2elabel, ok := os.LookupEnv(EnvVarE2EInstanceID); ok {
-		E2ELabel = e2elabel
+	if instanceID, ok := os.LookupEnv(EnvVarE2EInstanceID); ok {
+		E2ELabelValueInstanceID = instanceID
 	}
 	if e2eWaitTimeout, ok := os.LookupEnv(EnvVarE2EWaitTimeout); ok {
 		timeout, err := strconv.Atoi(e2eWaitTimeout)
@@ -113,17 +116,17 @@ func (s *E2ESuite) TearDownSuite() {
 		s.log.Info("skipping resource cleanup")
 		return
 	}
-	s.DeleteResources(E2ELabel)
+	s.DeleteResources()
 }
 
 func (s *E2ESuite) BeforeTest(suiteName, testName string) {
-	s.DeleteResources(E2ELabel)
+	s.DeleteResources()
 }
 
 func (s *E2ESuite) AfterTest(_, _ string) {
 }
 
-func (s *E2ESuite) DeleteResources(label string) {
+func (s *E2ESuite) DeleteResources() {
 	resources := []schema.GroupVersionResource{
 		rov1.RolloutGVR,
 		rov1.AnalysisRunGVR,
@@ -134,7 +137,7 @@ func (s *E2ESuite) DeleteResources(label string) {
 		ingressGVR,
 		istioutil.GetIstioGVR("v1alpha3"),
 	}
-	req, err := labels.NewRequirement(rov1.LabelKeyControllerInstanceID, selection.Equals, []string{E2ELabel})
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Exists, []string{})
 	s.CheckError(err)
 
 	foregroundDelete := metav1.DeletePropagationForeground
@@ -145,9 +148,9 @@ func (s *E2ESuite) DeleteResources(label string) {
 		var err error
 		var lst *unstructured.UnstructuredList
 		if gvr == rov1.ClusterAnalysisTemplateGVR {
-			lst, err = s.dynamicClient.Resource(gvr).List(metav1.ListOptions{LabelSelector: req.String()})
+			lst, err = s.dynamicClient.Resource(gvr).List(listOpts)
 		} else {
-			lst, err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).List(metav1.ListOptions{LabelSelector: req.String()})
+			lst, err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).List(listOpts)
 		}
 		if err != nil && !k8serrors.IsNotFound(err) {
 			s.CheckError(err)
@@ -158,7 +161,7 @@ func (s *E2ESuite) DeleteResources(label string) {
 		return lst.Items
 	}
 
-	// Delete all resources with test instance id
+	// Delete all resources with test label
 	resourcesRemaining := resources[:0]
 	for _, gvr := range resources {
 		switch gvr {

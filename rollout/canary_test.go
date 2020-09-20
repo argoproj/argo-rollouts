@@ -52,6 +52,42 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return newRollout
 }
 
+// TestCanaryRolloutBumpVersion verifies we correctly bump revision of Rollout and new ReplicaSet
+func TestCanaryRolloutBumpVersion(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	r1.Status.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1.Status.Canary.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 := bumpVersion(r1)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs2 := newReplicaSetWithStatus(r2, 1, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+	updatedRolloutIndex := f.expectUpdateRolloutAction(r2)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	createdRS := f.getCreatedReplicaSet(createdRSIndex)
+	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
+	assert.Equal(t, "2", createdRS.Annotations[annotations.RevisionAnnotation])
+
+	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.Equal(t, "2", updatedRollout.Annotations[annotations.RevisionAnnotation])
+	assert.NotNil(t, progessingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progessingCondition.Message)
+}
+
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 	fake := fake.Clientset{}
 	k8sfake := k8sfake.Clientset{}

@@ -248,8 +248,8 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS := GetStableRS(rollout, newRS, allRSs)
-		olderRSs := GetOlderRSs(rollout, newRS, stableRS, allRSs)
-		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, olderRSs)
+		otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
+		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, otherRSs)
 		return newRSReplicaCount, nil
 	}
 	return 0, fmt.Errorf("no rollout strategy provided")

@@ -73,7 +73,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
 	if index != nil {
-		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.olderRSs)
+		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
 			for i := *index - 1; i >= 0; i-- {

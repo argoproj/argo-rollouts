@@ -9,13 +9,6 @@ import (
 	"testing"
 	"time"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-
-	"k8s.io/client-go/dynamic/dynamicinformer"
-
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
-
 	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -31,6 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
@@ -49,6 +45,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 var (

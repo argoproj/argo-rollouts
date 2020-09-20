@@ -328,9 +328,9 @@ func UseSetCanaryScale(rollout *v1alpha1.Rollout) *v1alpha1.SetCanaryScale {
 	return nil
 }
 
-// GetOlderRSs the function goes through a list of ReplicaSets and returns a list of RS that are not the new or stable RS
-func GetOlderRSs(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
-	olderRSs := []*appsv1.ReplicaSet{}
+// GetOtherRSs the function goes through a list of ReplicaSets and returns a list of RS that are not the new or stable RS
+func GetOtherRSs(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
+	otherRSs := []*appsv1.ReplicaSet{}
 	for _, rs := range allRSs {
 		if rs != nil {
 			if stableRS != nil && rs.Name == stableRS.Name {
@@ -339,10 +339,10 @@ func GetOlderRSs(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, 
 			if newRS != nil && rs.Name == newRS.Name {
 				continue
 			}
-			olderRSs = append(olderRSs, rs)
+			otherRSs = append(otherRSs, rs)
 		}
 	}
-	return olderRSs
+	return otherRSs
 }
 
 // GetStableRS finds the stable RS using the RS's RolloutUniqueLabelKey and the stored StableRS in the rollout status
