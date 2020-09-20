@@ -15,6 +15,8 @@ type rolloutContext struct {
 	log *log.Entry
 	// rollout is the rollout being reconciled
 	rollout *v1alpha1.Rollout
+	// newRollout is the rollout after reconciliation. used to write back to informer
+	newRollout *v1alpha1.Rollout
 	// newRS is the "new" ReplicaSet. Also referred to as current, or desired.
 	// newRS will be nil when the pod template spec changes.
 	newRS *appsv1.ReplicaSet
