@@ -24,6 +24,7 @@ import (
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -101,8 +102,8 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		serviceIndexName: func(obj interface{}) (strings []string, e error) {
-			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
-				return serviceutil.GetRolloutServiceKeys(rollout), nil
+			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				return serviceutil.GetRolloutServiceKeys(ro), nil
 			}
 			return []string{}, nil
 		},
@@ -209,9 +210,9 @@ func (c *Controller) getRolloutsByService(namespace string, serviceName string) 
 		return nil, err
 	}
 	var rollouts []*v1alpha1.Rollout
-	for i := range objs {
-		if r, ok := objs[i].(*v1alpha1.Rollout); ok {
-			rollouts = append(rollouts, r)
+	for _, obj := range objs {
+		if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+			rollouts = append(rollouts, ro)
 		}
 	}
 	return rollouts, nil

@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -17,13 +18,20 @@ type Given struct {
 	Common
 }
 
-// Rollout sets up the rollout objects for the test environment given a YAML string or file path:
+// RolloutObjects sets up the rollout objects for the test environment given a YAML string or file path:
 // 1. A file name if it starts with "@"
 // 2. Raw YAML.
-func (g *Given) Rollout(text string) *Given {
+func (g *Given) RolloutObjects(text string) *Given {
 	g.t.Helper()
 	yamlBytes := g.yamlBytes(text)
-	objs, err := unstructuredutil.SplitYAML(string(yamlBytes))
+
+	// Some E2E AnalysisTemplates use http://kubernetes.default.svc/version as a fake metric provider.
+	// This doesn't work outside the cluster, so the following replaces it with the host from the
+	// rest config.
+	newKubernetesURL := fmt.Sprintf("%s/version", g.kubernetesHost)
+	yamlString := strings.ReplaceAll(string(yamlBytes), "http://kubernetes.default.svc/version", newKubernetesURL)
+
+	objs, err := unstructuredutil.SplitYAML(yamlString)
 	g.CheckError(err)
 	for _, obj := range objs {
 		labels := obj.GetLabels()
@@ -59,16 +67,13 @@ func (g *Given) Rollout(text string) *Given {
 			g.objects = append(g.objects, obj)
 		}
 	}
-	if g.rollout == nil {
-		g.t.Fatal("rollout not in objects")
-	}
 	return g
 }
 
 func (g *Given) RolloutTemplate(text, name string) *Given {
 	yamlBytes := g.yamlBytes(text)
 	newText := strings.ReplaceAll(string(yamlBytes), "REPLACEME", name)
-	return g.Rollout(newText)
+	return g.RolloutObjects(newText)
 }
 
 func (g *Given) yamlBytes(text string) []byte {
@@ -94,7 +99,7 @@ func (g *Given) SetSteps(text string) *Given {
 
 // HealthyRollout is a convenience around creating a rollout and waiting for it to become healthy
 func (g *Given) HealthyRollout(text string) *Given {
-	return g.Rollout(text).
+	return g.RolloutObjects(text).
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").

@@ -62,6 +62,7 @@ func (s *E2ESuite) SetupSuite() {
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
+	s.Common.kubernetesHost = restConfig.Host
 	restConfig.Burst = 50
 	restConfig.QPS = 20
 	s.namespace, _, err = config.Namespace()

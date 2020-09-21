@@ -49,6 +49,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -196,16 +197,19 @@ func NewController(cfg ControllerConfig) *Controller {
 	cfg.RolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueRollout,
 		UpdateFunc: func(old, new interface{}) {
-			if r, ok := old.(*v1alpha1.Rollout); ok {
-				for _, s := range serviceutil.GetRolloutServiceKeys(r) {
-					controller.serviceWorkqueue.AddRateLimited(s)
-				}
+			oldRollout := unstructuredutil.ObjectToRollout(old)
+			newRollout := unstructuredutil.ObjectToRollout(new)
+			if old == nil || new == nil {
+				return
 			}
-			controller.enqueueRollout(new)
+			for _, s := range serviceutil.GetRolloutServiceKeys(oldRollout) {
+				controller.serviceWorkqueue.AddRateLimited(s)
+			}
+			controller.enqueueRollout(newRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
-			if r, ok := obj.(*v1alpha1.Rollout); ok {
-				for _, s := range serviceutil.GetRolloutServiceKeys(r) {
+			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
 					controller.serviceWorkqueue.AddRateLimited(s)
 				}
 			}
@@ -215,8 +219,8 @@ func NewController(cfg ControllerConfig) *Controller {
 	// Indexer to frequently check/enqueue Rollouts that reference virtualServices
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
-			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
-				return istio.GetRolloutVirtualServiceKeys(rollout), nil
+			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				return istio.GetRolloutVirtualServiceKeys(ro), nil
 			}
 			return
 		},
@@ -246,8 +250,11 @@ func NewController(cfg ControllerConfig) *Controller {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newAR := new.(*v1alpha1.AnalysisRun)
-			oldAR := old.(*v1alpha1.AnalysisRun)
+			oldAR := unstructuredutil.ObjectToAnalysisRun(old)
+			newAR := unstructuredutil.ObjectToAnalysisRun(new)
+			if oldAR == nil || newAR == nil {
+				return
+			}
 			if newAR.Status.Phase == oldAR.Status.Phase {
 				// Only enqueue rollout if the status changed
 				return

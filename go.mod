@@ -45,7 +45,6 @@ require (
 	k8s.io/kubernetes v1.17.3
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 	sigs.k8s.io/controller-tools v0.2.5
-	sigs.k8s.io/yaml v1.1.0
 )
 
 replace (

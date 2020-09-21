@@ -19,6 +19,7 @@ type Common struct {
 	t              *testing.T
 	namespace      string
 	log            *log.Entry
+	kubernetesHost string
 	kubeClient     kubernetes.Interface
 	dynamicClient  dynamic.Interface
 	rolloutClient  clientset.Interface

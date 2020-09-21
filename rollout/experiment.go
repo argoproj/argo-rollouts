@@ -159,10 +159,11 @@ func (c *Controller) reconcileExperiments(roCtx *canaryContext) error {
 		return nil
 	}
 
-	step, _ := replicasetutil.GetCurrentCanaryStep(rollout)
+	step, stepIdx := replicasetutil.GetCurrentCanaryStep(rollout)
 
 	currentEx := roCtx.CurrentExperiment()
 	if step != nil && step.Experiment != nil {
+		logCtx.Infof("Reconciling experiment step (stepIndex: %d)", *stepIdx)
 		if currentEx == nil {
 			// An new experiment can not be created if the stableRS is not created yet
 			if stableRS == nil {

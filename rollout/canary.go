@@ -64,13 +64,11 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 		return err
 	}
 
-	logCtx.Info("Reconciling Experiment step")
 	err = c.reconcileExperiments(roCtx)
 	if err != nil {
 		return err
 	}
 
-	logCtx.Info("Reconciling AnalysisRun step")
 	err = c.reconcileAnalysisRuns(roCtx)
 	if roCtx.PauseContext().HasAddPause() {
 		logCtx.Info("Detected pause due to inconclusive AnalysisRun")
@@ -89,7 +87,6 @@ func (c *Controller) rolloutCanary(rollout *v1alpha1.Rollout, rsList []*appsv1.R
 		return c.syncRolloutStatusCanary(roCtx)
 	}
 
-	logCtx.Info("Reconciling Canary Pause")
 	stillReconciling := c.reconcileCanaryPause(roCtx)
 	if stillReconciling {
 		logCtx.Infof("Not finished reconciling Canary Pause")
@@ -136,6 +133,7 @@ func (c *Controller) reconcileCanaryPause(roCtx *canaryContext) bool {
 	if currentStep.Pause == nil {
 		return false
 	}
+	logCtx.Infof("Reconciling canary pause step (stepIndex: %d)", *currentStepIndex)
 	cond := getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
