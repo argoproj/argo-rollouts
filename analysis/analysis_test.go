@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -1492,4 +1493,42 @@ func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
 	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.Message)
+}
+
+func TestTerminateAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseError), nil)
+
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Terminate: true,
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "service",
+					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				InitialDelay:     "20s",
+				Interval:         "20s",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			StartedAt: &now,
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, "run terminated", newRun.Status.Message)
+
 }
