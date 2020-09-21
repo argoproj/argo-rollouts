@@ -2,6 +2,7 @@
 # Preloads Prometheus as a datasource as well as the official Istio dashboards.
 # Tested with:
 #  * Grafana helm chart: stable/grafana-5.1.4 (grafana 7.0.3)
+#  * Istio v1.7.1 dashboards
 service:
   type: NodePort
 
@@ -73,19 +74,19 @@ dashboardProviders:
 dashboards:
   istio-mesh:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/istio-mesh-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-mesh-dashboard.json
   istio-performance:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/istio-performance-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-performance-dashboard.json
   istio-service:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/istio-service-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-service-dashboard.json
   istio-workload:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/istio-workload-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-workload-dashboard.json
   mixer:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/mixer-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/mixer-dashboard.json
   pilot:
     local-dashboard:
-      url: https://raw.githubusercontent.com/istio/istio/master/manifests/charts/istio-telemetry/grafana/dashboards/pilot-dashboard.json
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/pilot-dashboard.json
