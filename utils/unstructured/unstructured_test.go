@@ -97,5 +97,69 @@ spec:
 		assert.Nil(t, err)
 		assert.Equal(t, float64(2), replicas)
 	}
+}
 
+func TestObjectToRollout(t *testing.T) {
+	roYAML := `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: basic
+spec:
+  strategy:
+    canary: {}
+    matchLabels:
+      app: basic
+  template:
+    metadata:
+      labels:
+        app: basic
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+`
+	obj, err := StrToUnstructured(roYAML)
+	assert.NotNil(t, obj)
+	assert.NoError(t, err)
+	ro := ObjectToRollout(obj)
+	assert.NotNil(t, ro)
+	ro2 := ObjectToRollout(ro)
+	assert.Equal(t, ro, ro2)
+	var invalid struct{}
+	ro3 := ObjectToRollout(&invalid)
+	assert.Nil(t, ro3)
+}
+
+func TestObjectToAnalysisRun(t *testing.T) {
+	arYAML := `
+kind: AnalysisRun
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  generateName: analysis-run-job-
+spec:
+  metrics:
+  - name: test
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [sleep, "30"]
+              restartPolicy: Never
+          backoffLimit: 0
+`
+	obj, err := StrToUnstructured(arYAML)
+	assert.NotNil(t, obj)
+	assert.NoError(t, err)
+	ar := ObjectToRollout(obj)
+	assert.NotNil(t, ar)
+	ar2 := ObjectToRollout(ar)
+	assert.Equal(t, ar, ar2)
+	var invalid struct{}
+	ar3 := ObjectToRollout(&invalid)
+	assert.Nil(t, ar3)
 }

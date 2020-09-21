@@ -21,6 +21,7 @@ import (
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -71,8 +72,8 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		ingressIndexName: func(obj interface{}) ([]string, error) {
-			if rollout, ok := obj.(*v1alpha1.Rollout); ok {
-				return ingressutil.GetRolloutIngressKeys(rollout), nil
+			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				return ingressutil.GetRolloutIngressKeys(ro), nil
 			}
 			return []string{}, nil
 		},
@@ -174,9 +175,9 @@ func (c *Controller) getRolloutsByIngress(namespace string, ingressName string) 
 		return nil, err
 	}
 	var rollouts []*v1alpha1.Rollout
-	for i := range objs {
-		if r, ok := objs[i].(*v1alpha1.Rollout); ok {
-			rollouts = append(rollouts, r)
+	for _, obj := range objs {
+		if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+			rollouts = append(rollouts, ro)
 		}
 	}
 	return rollouts, nil

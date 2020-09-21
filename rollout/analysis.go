@@ -322,6 +322,7 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
+	c.log.Infof("Reconciling analysis step (stepIndex: %d)", *index)
 	if needsNewAnalysisRun(currentAr, c.rollout) {
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)

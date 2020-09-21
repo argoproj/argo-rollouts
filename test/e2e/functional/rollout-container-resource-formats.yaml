@@ -4,28 +4,31 @@ kind: Rollout
 metadata:
   name: container-resource-formats
 spec:
-  revisionHistoryLimit: 3
+  replicas: 0
   selector:
     matchLabels:
-      app: rollouts-demo
+      app: container-resource-formats
   template:
     metadata:
       labels:
-        app: rollouts-demo
+        app: container-resource-formats
     spec:
       containers:
       - name: a
-        image: "alpine:latest"
+        image: argoproj/rollouts-demo:blue
+        args: [--termination-delay, "0"]
         resources:
           requests:
             cpu: 0.001
       - name: b
-        image: "alpine:latest"
+        image: argoproj/rollouts-demo:blue
+        args: ["--termination-delay", "0", "-listen-addr", ":8081"]
         resources:
           requests:
             cpu: '0.001'
       - name: c
-        image: "alpine:latest"
+        image: argoproj/rollouts-demo:blue
+        args: ["--termination-delay", "0", "-listen-addr", ":8082"]
         resources:
           requests:
             cpu: 1m

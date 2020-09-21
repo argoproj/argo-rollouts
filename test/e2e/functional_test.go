@@ -23,7 +23,7 @@ func countReplicaSets(count int) fixtures.ReplicaSetExpectation {
 
 func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 	s.Given().
-		HealthyRollout(`@functional/basic.yaml`).
+		HealthyRollout(`@functional/rollout-basic.yaml`).
 		When().
 		UpdateImage("argoproj/rollouts-demo:yellow").
 		WaitForRolloutStatus("Paused").
@@ -40,11 +40,16 @@ func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 
 func (s *FunctionalSuite) TestRolloutRestart() {
 	s.Given().
-		HealthyRollout(`@functional/basic.yaml`).
+		HealthyRollout(`@functional/rollout-basic.yaml`).
 		When().
 		RestartRollout().
 		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Healthy")
+}
+
+func (s *FunctionalSuite) TestContainerResourceFormats() {
+	s.Given().
+		HealthyRollout(`@functional/rollout-container-resource-formats.yaml`)
 }
 
 func TestFunctionalSuite(t *testing.T) {
