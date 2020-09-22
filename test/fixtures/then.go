@@ -90,11 +90,48 @@ func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpect
 	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
 	if !expectFunc(replicasets) {
-		t.log.Warnf("Replicaset expectation '%s' failed", expectation)
+		t.log.Errorf("Replicaset expectation '%s' failed", expectation)
 		t.t.FailNow()
 	}
 	t.log.Infof("Replicaset expectation '%s' met", expectation)
 	return t
+}
+
+type AnalysisRunListExpectation func(*rov1.AnalysisRunList) bool
+type AnalysisRunExpectation func(*rov1.AnalysisRun) bool
+
+func (t *Then) ExpectAnalysisRuns(expectation string, expectFunc AnalysisRunListExpectation) *Then {
+	aruns := t.GetRolloutAnalysisRuns()
+	if !expectFunc(&aruns) {
+		t.log.Errorf("AnalysisRun expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("AnalysisRun expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectAnalysisRunCount(expectedCount int) *Then {
+	return t.ExpectAnalysisRuns(fmt.Sprintf("analysisrun count == %d", expectedCount), func(aruns *rov1.AnalysisRunList) bool {
+		return len(aruns.Items) == expectedCount
+	})
+}
+
+func (t *Then) ExpectBackgroundAnalysisRun(expectation string, expectFunc AnalysisRunExpectation) *Then {
+	bgArun := t.GetBackgroundAnalysisRun()
+	if !expectFunc(bgArun) {
+		t.log.Errorf("Background AnalysisRun expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Background AnalysisRun expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
+	return t.ExpectBackgroundAnalysisRun(fmt.Sprintf("background analysis phase == %s", phase),
+		func(run *rov1.AnalysisRun) bool {
+			return string(run.Status.Phase) == phase
+		},
+	)
 }
 
 func (t *Then) When() *When {

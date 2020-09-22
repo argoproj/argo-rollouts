@@ -269,7 +269,7 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
+	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
 		return nil, nil
 	}
 

@@ -21,15 +21,40 @@ func (s *AnalysisSuite) TestRolloutWithBackgroundAnalysis() {
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
-		// TODO: verify there are no analysisruns
 		Then().
+		ExpectAnalysisRunCount(0).
 		When().
 		UpdateImage("argoproj/rollouts-demo:yellow").
 		WaitForRolloutStatus("Paused").
-		// TODO: verify there is one analysis running
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectBackgroundAnalysisRunPhase("Running").
+		When().
 		PromoteRollout().
-		WaitForRolloutStatus("Healthy")
-	// TODO: verify analysisrun is terminated
+		WaitForRolloutStatus("Healthy").
+		WaitForBackgroundAnalysisRunPhase("Successful")
+}
+
+func (s *AnalysisSuite) TestRolloutWithInlineAnalysis() {
+	s.Given().
+		RolloutObjects("@functional/analysistemplate-echo-job.yaml").
+		RolloutObjects("@functional/rollout-inline-analysis.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateImage("argoproj/rollouts-demo:yellow").
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForInlineAnalysisRunPhase("Successful").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(3)
 }
 
 func TestAnalysisSuite(t *testing.T) {

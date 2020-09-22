@@ -2,9 +2,11 @@ package fixtures
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -45,4 +47,67 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 	bytes, err := json.Marshal(ro)
 	c.CheckError(err)
 	c.log.Info(string(bytes))
+}
+
+func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
+	e2eLabel := fmt.Sprintf("%s=%s", rov1.LabelKeyControllerInstanceID, E2ELabel)
+	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(metav1.ListOptions{LabelSelector: e2eLabel})
+	c.CheckError(err)
+	// filter analysis runs by ones owned by rollout to allow test parallellism
+	var newAruns rov1.AnalysisRunList
+	for _, ar := range aruns.Items {
+		controllerRef := metav1.GetControllerOf(&ar)
+		if controllerRef != nil && controllerRef.Name == c.rollout.Name {
+			newAruns.Items = append(newAruns.Items, ar)
+		}
+	}
+	return newAruns
+}
+
+func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutAnalysisRuns()
+	var found *rov1.AnalysisRun
+	for _, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypeBackgroundRunLabel {
+			continue
+		}
+		if found != nil {
+			c.log.Error("Found multiple background analysis runs")
+			c.t.FailNow()
+		}
+		found = &arun
+	}
+	if found == nil {
+		c.log.Error("Background AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return found
+}
+
+// GetInlineAnalysisRun returns the latest Step analysis run. This should generally be coupled with
+// a count check, to ensure we are not checking the previous one. This may fail to accurately return
+// the latest if the creationTimestamps are the same
+func (c *Common) GetInlineAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutAnalysisRuns()
+	var latest *rov1.AnalysisRun
+	for _, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypeStepLabel {
+			continue
+		}
+		if latest == nil {
+			latest = &arun
+			continue
+		}
+		if arun.CreationTimestamp.After(latest.CreationTimestamp.Time) {
+			latest = &arun
+		}
+		if arun.CreationTimestamp.Equal(&latest.CreationTimestamp) {
+			c.log.Warnf("Found multiple inline analysis runs with same creationTimestamp: %s, %s", arun.Name, latest.Name)
+		}
+	}
+	if latest == nil {
+		c.log.Error("Inline AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return latest
 }

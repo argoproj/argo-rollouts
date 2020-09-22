@@ -1,23 +1,29 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-background-analysis
+  name: rollout-inline-analysis
 spec:
   strategy:
     canary:
-      analysis:
-        templates:
-        - templateName: web-background
       steps:
       - setWeight: 10
+      - analysis:
+          templates:
+          - templateName: echo-job
       - pause: {}
+      - analysis:
+          templates:
+          - templateName: echo-job
+      - analysis:
+          templates:
+          - templateName: echo-job
   selector:
     matchLabels:
-      app: rollout-background-analysis
+      app: rollout-inline-analysis
   template:
     metadata:
       labels:
-        app: rollout-background-analysis
+        app: rollout-inline-analysis
     spec:
       containers:
       - name: rollouts-demo
