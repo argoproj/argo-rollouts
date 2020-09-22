@@ -2,7 +2,6 @@ package fixtures
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -50,8 +49,7 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
-	e2eLabel := fmt.Sprintf("%s=%s", rov1.LabelKeyControllerInstanceID, E2ELabel)
-	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(metav1.ListOptions{LabelSelector: e2eLabel})
+	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(metav1.ListOptions{})
 	c.CheckError(err)
 	// filter analysis runs by ones owned by rollout to allow test parallellism
 	var newAruns rov1.AnalysisRunList

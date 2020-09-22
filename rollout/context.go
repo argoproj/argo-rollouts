@@ -23,10 +23,10 @@ type rolloutContext struct {
 	stableRS *appsv1.ReplicaSet
 	// allRSs are all the ReplicaSets associated with the Rollout
 	allRSs []*appsv1.ReplicaSet
-	// olderRSs are "older" ReplicaSets
-	// For canary, this is anything which is not new or stable
-	// For blueGreen, this is anything which is not new
+	// olderRSs are "older" ReplicaSets -- anything which is not the new. includes stableRS
 	olderRSs []*appsv1.ReplicaSet
+	// otherRSs are ReplicaSets which are neither new or stable (allRSs - newRS - stableRS)
+	otherRSs []*appsv1.ReplicaSet
 
 	currentArs analysisutil.CurrentAnalysisRuns
 	otherArs   []*v1alpha1.AnalysisRun

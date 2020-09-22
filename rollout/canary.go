@@ -37,7 +37,7 @@ func (c *rolloutContext) rolloutCanary() error {
 	}
 
 	c.log.Info("Cleaning up old replicasets, experiments, and analysis runs")
-	if err := c.cleanupRollouts(c.olderRSs); err != nil {
+	if err := c.cleanupRollouts(c.otherRSs); err != nil {
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (c *rolloutContext) reconcileStableRS() (bool, error) {
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
-	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.olderRSs)
+	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, stableRSReplicaCount)
 	return scaled, err
 }
@@ -205,7 +205,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		return c.pauseContext.CompletedPauseStep(*currentStep.Pause)
 	}
 	modifyReplicasStep := currentStep.SetWeight != nil || currentStep.SetCanaryScale != nil
-	if modifyReplicasStep && replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.olderRSs) {
+	if modifyReplicasStep && replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
 		c.log.Info("Rollout has reached the desired state for the correct weight")
 		return true
 	}
@@ -350,7 +350,7 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	}
 
 	c.log.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSetsCanary(c.allRSs, controller.FilterActiveReplicaSets(c.olderRSs))
+	scaledDown, err := c.reconcileOldReplicaSetsCanary(c.allRSs, controller.FilterActiveReplicaSets(c.otherRSs))
 	if err != nil {
 		return false, err
 	}

@@ -416,16 +416,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	}
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
-	otherRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
-	stableRS := replicasetutil.GetStableRS(rollout, newRS, otherRSs)
+	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
+	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
+	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, olderRSs)
 
-	// TODO: standardize meaning of "olderRSs" between canary and blue-green
-	var oldRSs []*appsv1.ReplicaSet
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		oldRSs = otherRSs
-	} else {
-		oldRSs = replicasetutil.GetOlderRSs(rollout, newRS, stableRS, otherRSs)
-	}
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
 		return nil, err
@@ -445,7 +439,8 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		log:        logCtx,
 		newRS:      newRS,
 		stableRS:   stableRS,
-		olderRSs:   oldRSs,
+		olderRSs:   olderRSs,
+		otherRSs:   otherRSs,
 		allRSs:     rsList,
 		currentArs: currentArs,
 		otherArs:   otherArs,

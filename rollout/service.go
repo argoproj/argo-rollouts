@@ -95,7 +95,7 @@ func (c *rolloutContext) reconcileActiveService(previewSvc, activeSvc *corev1.Se
 
 	if c.rollout.Status.Abort {
 		currentRevision := int(0)
-		for _, rs := range controller.FilterActiveReplicaSets(c.olderRSs) {
+		for _, rs := range controller.FilterActiveReplicaSets(c.otherRSs) {
 			revision := replicasetutil.GetReplicaSetRevision(c.rollout, rs)
 			if revision > currentRevision {
 				newPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

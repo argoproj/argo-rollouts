@@ -38,7 +38,10 @@ func (g *Given) RolloutObjects(text string) *Given {
 		if labels == nil {
 			labels = make(map[string]string)
 		}
-		labels[rov1.LabelKeyControllerInstanceID] = E2ELabel
+		if E2ELabelValueInstanceID != "" {
+			labels[rov1.LabelKeyControllerInstanceID] = E2ELabelValueInstanceID
+		}
+		labels[E2ELabelKeyTestName] = g.t.Name()
 		obj.SetLabels(labels)
 
 		if obj.GetKind() == "Rollout" {
