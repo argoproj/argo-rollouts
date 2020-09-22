@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -120,6 +121,7 @@ type reconcilerBase struct {
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
+	rolloutsInformer              cache.SharedIndexInformer
 	rolloutsLister                listers.RolloutLister
 	rolloutsSynced                cache.InformerSynced
 	rolloutsIndexer               cache.Indexer
@@ -171,6 +173,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		defaultTrafficSplitVersion:    cfg.DefaultTrafficSplitVersion,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
 		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
 		rolloutsLister:                cfg.RolloutsInformer.Lister(),
 		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
@@ -406,7 +409,28 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	return roCtx.reconcile()
+	err = roCtx.reconcile()
+	if roCtx.newRollout != nil {
+		c.writeBackToInformer(roCtx.newRollout)
+	}
+	return err
+}
+
+// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
+// This prevents the situation where the controller operates on a stale rollout and repeats work
+func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
+	logCtx := logutil.WithRollout(ro)
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
+	if err != nil {
+		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
+		return
+	}
+	un := unstructured.Unstructured{Object: obj}
+	err = c.rolloutsInformer.GetStore().Update(&un)
+	if err != nil {
+		logCtx.Errorf("failed to update informer store: %v", err)
+		return
+	}
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {

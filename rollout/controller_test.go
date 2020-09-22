@@ -18,6 +18,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -1473,4 +1474,34 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.run(getKey(r, t))
 	patchedRolout := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patchedRolout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
+}
+
+// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
+// is written back to the informer
+func TestWriteBackToInformer(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.StableRS = ""
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	f.expectPatchRolloutAction(r1)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	roKey := getKey(r1, t)
+	f.runController(roKey, true, false, c, i, k8sI)
+
+	// Verify the informer was updated with the new unstructured object after reconciliation
+	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
+	un := obj.(*unstructured.Unstructured)
+	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
+	assert.NotEmpty(t, stableRS)
+	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }

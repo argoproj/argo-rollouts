@@ -607,13 +607,13 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
-	c.log.Debugf("Rollout Patch: %s", patch)
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(c.rollout.Name, patchtypes.MergePatchType, patch)
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(c.rollout.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
 		c.log.Warningf("Error updating application: %v", err)
 		return err
 	}
-	c.log.Info("Patch status successfully")
+	c.log.Infof("Patched: %s", patch)
+	c.newRollout = newRollout
 	return nil
 }
 
