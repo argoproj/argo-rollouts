@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    rollout.argoproj.io/desired-replicas: "1"
+    rollout.argoproj.io/revision: "1"
+  creationTimestamp: "2020-09-22T09:09:46Z"
+  generation: 1
+  labels:
+    app: rollout-background-analysis
+    rollouts-pod-template-hash: 7d84d44bb8
+  name: rollout-background-analysis-7d84d44bb8
+  namespace: default
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: rollout-background-analysis
+    uid: aeddde25-f8bd-4a68-a4a1-523a559bdb83
+  resourceVersion: "877905"
+  selfLink: /apis/apps/v1/namespaces/default/replicasets/rollout-background-analysis-7d84d44bb8
+  uid: 6f122e62-48fc-4f51-9629-24367b2460fb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rollout-background-analysis
+      rollouts-pod-template-hash: 7d84d44bb8
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rollout-background-analysis
+        rollouts-pod-template-hash: 7d84d44bb8
+    spec:
+      containers:
+      - args:
+        - --termination-delay
+        - "0"
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: IfNotPresent
+        name: rollouts-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  fullyLabeledReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1

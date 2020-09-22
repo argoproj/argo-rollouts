@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2020-09-22T09:10:04Z"
+  generation: 2
+  labels:
+    rollout-type: Background
+    rollouts-pod-template-hash: db976bc44
+  name: rollout-background-analysis-db976bc44-2
+  namespace: default
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: rollout-background-analysis
+    uid: aeddde25-f8bd-4a68-a4a1-523a559bdb83
+  resourceVersion: "877974"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/analysisruns/rollout-background-analysis-db976bc44-2
+  uid: f453c075-5964-4330-bb30-6bedad22d08b
+spec:
+  metrics:
+  - interval: 5s
+    name: web
+    provider:
+      web:
+        jsonPath: '{$.completed}'
+        url: https://jsonplaceholder.typicode.com/todos/1
+    successCondition: result == "true"
+status:
+  message: metric "web" assessed Failed due to failed (1) > failureLimit (0)
+  metricResults:
+  - count: 1
+    failed: 1
+    measurements:
+    - finishedAt: "2020-09-22T09:10:04Z"
+      phase: Failed
+      startedAt: "2020-09-22T09:10:04Z"
+      value: "false"
+    name: web
+    phase: Failed
+  phase: Failed
+  startedAt: "2020-09-22T09:10:04Z"

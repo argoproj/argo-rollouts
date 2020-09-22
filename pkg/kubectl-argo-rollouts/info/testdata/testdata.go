@@ -67,6 +67,14 @@ func NewExperimentAnalysisJobRollout() *RolloutObjects {
 	return discoverObjects(testDir + "/experiment-step")
 }
 
+func NewInvalidRollout() *RolloutObjects {
+	return discoverObjects(testDir + "/rollout-invalid")
+}
+
+func NewAbortedRollout() *RolloutObjects {
+	return discoverObjects(testDir + "/rollout-aborted")
+}
+
 func discoverObjects(path string) *RolloutObjects {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {

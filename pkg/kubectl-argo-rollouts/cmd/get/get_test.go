@@ -414,3 +414,78 @@ NAME                                                           KIND         STAT
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }
+
+func TestGetInvalidRollout(t *testing.T) {
+	rolloutObjs := testdata.NewInvalidRollout()
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	expectedOut := strings.TrimPrefix(`
+Name:            rollout-invalid
+Namespace:       default
+Status:          ⚠ InvalidSpec
+Strategy:        Canary
+  Step:
+  SetWeight:     100
+  ActualWeight:  100
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+Errors:
+* The Rollout "rollout-invalid" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{"app":"doesnt-match"}: `+"`selector`"+` does not match template `+"`labels`"+`
+
+NAME               KIND     STATUS         AGE  INFO
+⟳ rollout-invalid  Rollout  ⚠ InvalidSpec  7d
+`, "\n")
+	assertStdout(t, expectedOut, o.IOStreams)
+}
+
+func TestGetAbortedRollout(t *testing.T) {
+	rolloutObjs := testdata.NewAbortedRollout()
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	expectedOut := strings.TrimPrefix(`
+Name:            rollout-background-analysis
+Namespace:       default
+Status:          ✖ Degraded
+Strategy:        Canary
+  Step:          0/2
+  SetWeight:     0
+  ActualWeight:  0
+Images:          argoproj/rollouts-demo:blue (stable)
+Replicas:
+  Desired:       1
+  Current:       1
+  Updated:       0
+  Ready:         1
+  Available:     1
+Errors:
+* metric "web" assessed Failed due to failed (1) > failureLimit (0)
+
+NAME                                                     KIND         STATUS        AGE  INFO
+⟳ rollout-background-analysis                            Rollout      ✖ Degraded    7d
+├──# revision:2
+│  ├──⧉ rollout-background-analysis-db976bc44            ReplicaSet   • ScaledDown  7d   canary
+│  └──α rollout-background-analysis-db976bc44-2          AnalysisRun  ✖ Failed      7d   ✖ 1
+└──# revision:1
+   └──⧉ rollout-background-analysis-7d84d44bb8           ReplicaSet   ✔ Healthy     7d   stable
+      └──□ rollout-background-analysis-7d84d44bb8-z5wps  Pod          ✔ Running     7d   ready:1/1
+`, "\n")
+	assertStdout(t, expectedOut, o.IOStreams)
+}
