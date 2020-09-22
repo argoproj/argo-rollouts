@@ -1444,6 +1444,37 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.run(getKey(r1, t))
 }
 
+// Same as TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout but when Status.StableRS is ""
+// https://github.com/argoproj/argo-rollouts/issues/721
+func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			TemplateName: at.Name,
+		},
+	}
+	r1.Status.StableRS = ""
+	rs1 := newReplicaSet(r1, 1)
+
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r1, at)
+
+	f.expectCreateReplicaSetAction(rs1)
+	// Update the revision
+	f.expectUpdateRolloutAction(r1)
+	f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+}
+
 func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

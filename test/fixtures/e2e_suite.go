@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -32,6 +33,20 @@ const (
 )
 
 var (
+	// E2E_INSTANCE_ID is the instance id label attached to objects created by the e2e tests
+	EnvVarE2EInstanceID = "E2E_INSTANCE_ID"
+	// E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 60)
+	EnvVarE2EWaitTimeout = "E2E_WAIT_TIMEOUT"
+	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
+	// Used humans slow down rollout activity during a test
+	EnvVarE2EPodDelay = "E2E_POD_DELAY"
+	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
+	EnvVarE2EDebug = "E2E_DEBUG"
+)
+
+var (
+	E2EWaitTimeout time.Duration = time.Second * 60
+
 	E2ELabel = "argo-rollouts-e2e"
 
 	serviceGVR = schema.GroupVersionResource{
@@ -45,8 +60,15 @@ var (
 )
 
 func init() {
-	if e2elabel, ok := os.LookupEnv("E2E_INSTANCE_ID"); ok {
+	if e2elabel, ok := os.LookupEnv(EnvVarE2EInstanceID); ok {
 		E2ELabel = e2elabel
+	}
+	if e2eWaitTimeout, ok := os.LookupEnv(EnvVarE2EWaitTimeout); ok {
+		timeout, err := strconv.Atoi(e2eWaitTimeout)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid wait timeout seconds: %s", e2eWaitTimeout))
+		}
+		E2EWaitTimeout = time.Duration(timeout) * time.Second
 	}
 }
 
@@ -82,7 +104,7 @@ func (s *E2ESuite) SetupSuite() {
 		flag.Parse()
 	}
 
-	if delayStr := os.Getenv("E2E_POD_DELAY"); delayStr != "" {
+	if delayStr := os.Getenv(EnvVarE2EPodDelay); delayStr != "" {
 		delay, err := strconv.Atoi(delayStr)
 		s.CheckError(err)
 		s.podDelay = delay
@@ -90,6 +112,10 @@ func (s *E2ESuite) SetupSuite() {
 }
 
 func (s *E2ESuite) TearDownSuite() {
+	if os.Getenv(EnvVarE2EDebug) == "true" {
+		s.log.Info("skipping resource cleanup")
+		return
+	}
 	s.DeleteResources(E2ELabel)
 }
 

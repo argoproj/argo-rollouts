@@ -5,7 +5,7 @@ metadata:
 spec:
   metrics:
   - name: web
-    interval: 20s
+    interval: 5s
     successCondition: result.major == '1'
     provider:
       web:
