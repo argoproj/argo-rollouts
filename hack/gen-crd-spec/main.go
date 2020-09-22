@@ -57,6 +57,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
+		"crd:preserveUnknownFields=false",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
