@@ -72,6 +72,11 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	// clean up stuff left by controller-gen
 	deleteFile("config/webhook/manifests.yaml")
 	deleteFile("config/webhook")
+	deleteFile("config/argoproj.io_analysisruns.yaml")
+	deleteFile("config/argoproj.io_analysistemplates.yaml")
+	deleteFile("config/argoproj.io_clusteranalysistemplates.yaml")
+	deleteFile("config/argoproj.io_experiments.yaml")
+	deleteFile("config/argoproj.io_rollouts.yaml")
 	deleteFile("config")
 
 	crds := []*extensionsobj.CustomResourceDefinition{}
