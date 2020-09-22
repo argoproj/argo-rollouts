@@ -21,6 +21,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -76,6 +77,7 @@ type Controller struct {
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
+	rolloutsInformer              cache.SharedIndexInformer
 	rolloutsLister                listers.RolloutLister
 	rolloutsSynced                cache.InformerSynced
 	rolloutsIndexer               cache.Indexer
@@ -164,6 +166,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		replicaSetControl:             replicaSetControl,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
+		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
 		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
 		rolloutsLister:                cfg.RolloutsInformer.Lister(),
 		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
@@ -426,6 +429,23 @@ func (c *Controller) syncHandler(key string) error {
 		return c.rolloutCanary(r, rsList)
 	}
 	return fmt.Errorf("no rollout strategy selected")
+}
+
+// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
+// This prevents the situation where the controller operates on a stale rollout and repeats work
+func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
+	logCtx := logutil.WithRollout(ro)
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
+	if err != nil {
+		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
+		return
+	}
+	un := unstructured.Unstructured{Object: obj}
+	err = c.rolloutsInformer.GetStore().Update(&un)
+	if err != nil {
+		logCtx.Errorf("failed to update informer store: %v", err)
+		return
+	}
 }
 
 func (c *Controller) getRolloutValidationErrors(rollout *v1alpha1.Rollout) error {

@@ -628,13 +628,13 @@ func (c *Controller) persistRolloutStatus(roCtx rolloutContext, newStatus *v1alp
 		c.requeueStuckRollout(orig, *newStatus)
 		return nil
 	}
-	logCtx.Debugf("Rollout Patch: %s", patch)
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
 	if err != nil {
 		logCtx.Warningf("Error updating application: %v", err)
 		return err
 	}
-	logCtx.Info("Patch status successfully")
+	logCtx.Infof("Patched: %s", patch)
+	c.writeBackToInformer(newRollout)
 	return nil
 }
 

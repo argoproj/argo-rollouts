@@ -50,7 +50,11 @@ type canaryContext struct {
 	rollout *v1alpha1.Rollout
 	log     *log.Entry
 
-	newRS    *appsv1.ReplicaSet
+	// newRS is the "new" ReplicaSet. Also referred to as current, or desired.
+	// newRS will be nil when the pod template spec changes.
+	newRS *appsv1.ReplicaSet
+	// stableRS is the "stable" ReplicaSet which will be scaled up upon an abort.
+	// stableRS will be nil when a Rollout is first deployed.
 	stableRS *appsv1.ReplicaSet
 	olderRSs []*appsv1.ReplicaSet
 	allRSs   []*appsv1.ReplicaSet
