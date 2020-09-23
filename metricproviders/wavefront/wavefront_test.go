@@ -190,7 +190,7 @@ func TestProcessNaNResponse(t *testing.T) {
 
 }
 
-func TestProcessMutipleTimeseriesResponse(t *testing.T) {
+func TestProcessMultipleTimeseriesResponse(t *testing.T) {
 	logCtx := log.WithField("test", "test")
 	p := Provider{
 		logCtx: *logCtx,
