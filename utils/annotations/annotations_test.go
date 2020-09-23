@@ -151,14 +151,14 @@ func TestAnnotationUtils(t *testing.T) {
 		assert.Equal(t, "value", newRS.Annotations["key"])
 	})
 
-	t.Run("SetNewReplicaSetAnnotationsHandleBadOldRevison", func(t *testing.T) {
+	t.Run("SetNewReplicaSetAnnotationsHandleBadOldRevision", func(t *testing.T) {
 		badRS := tRS.DeepCopy()
 		badRS.Annotations[RevisionAnnotation] = "Not an int"
 		assert.False(t, SetNewReplicaSetAnnotations(&tRollout, badRS, "not an int", true))
 		assert.Equal(t, tRollout.Annotations[RevisionAnnotation], "1")
 	})
 
-	t.Run("SetNewReplicaSetAnnotationsHandleBadNewRevison", func(t *testing.T) {
+	t.Run("SetNewReplicaSetAnnotationsHandleBadNewRevision", func(t *testing.T) {
 		assert.False(t, SetNewReplicaSetAnnotations(&tRollout, &tRS, "not an int", true))
 		assert.Equal(t, tRS.Annotations[RevisionAnnotation], "20")
 	})
