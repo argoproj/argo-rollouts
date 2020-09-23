@@ -59,7 +59,7 @@ func newRunWithJobMetric() *v1alpha1.AnalysisRun {
 											{
 												Name: "dummy",
 												Command: []string{
-													"dosomthing",
+													"dosomething",
 												},
 											},
 										},
