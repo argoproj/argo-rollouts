@@ -150,7 +150,7 @@ func TestExperimentByCreationTimestamp(t *testing.T) {
 	})
 }
 
-func TestIsTeriminating(t *testing.T) {
+func TestIsTerminating(t *testing.T) {
 	{
 		e := &v1alpha1.Experiment{
 			Spec: v1alpha1.ExperimentSpec{
