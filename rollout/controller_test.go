@@ -251,11 +251,11 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 
 func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string) string {
 	_, availableCondition := newAvailableCondition(available)
-	_, progressingConditon := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s]", availableCondition, progressingConditon)
+		return fmt.Sprintf("[%s, %s]", availableCondition, progressingCondition)
 	}
-	return fmt.Sprintf("[%s, %s]", progressingConditon, availableCondition)
+	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
@@ -1165,8 +1165,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	rs.Spec.Selector = &selector
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
-	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
-	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
+	conditions.SetRolloutCondition(&r.Status, progressingCondition)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,
@@ -1212,8 +1212,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "fakepodhash"
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
-	progressingConditon, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
-	conditions.SetRolloutCondition(&r.Status, progressingConditon)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
+	conditions.SetRolloutCondition(&r.Status, progressingCondition)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,
@@ -1291,7 +1291,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditons := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
@@ -1302,7 +1302,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 				"currentStepHash": "%s",
 				"selector": "foo=bar"
 			}
-		}`, addedConditons, conditions.ComputeStepHash(r))
+		}`, addedConditions, conditions.ComputeStepHash(r))
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 

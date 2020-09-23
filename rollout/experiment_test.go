@@ -307,8 +307,8 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	generatedConditons := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditons)), patch)
+	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions)), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {

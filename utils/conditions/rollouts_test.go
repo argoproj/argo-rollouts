@@ -485,7 +485,7 @@ func TestRolloutTimedOut(t *testing.T) {
 		Time: metav1.Now().Add(-10 * time.Second),
 	}
 
-	conditons := func(reason string, lastUpdate metav1.Time) []v1alpha1.RolloutCondition {
+	conditions := func(reason string, lastUpdate metav1.Time) []v1alpha1.RolloutCondition {
 		return []v1alpha1.RolloutCondition{{
 			Type:           v1alpha1.RolloutProgressing,
 			Reason:         reason,
@@ -509,7 +509,7 @@ func TestRolloutTimedOut(t *testing.T) {
 		{
 			name: "Rollout is already has timed out condition",
 			newStatus: v1alpha1.RolloutStatus{
-				Conditions: conditons(TimedOutReason, metav1.Now()),
+				Conditions: conditions(TimedOutReason, metav1.Now()),
 			},
 			expected: true,
 		},
@@ -517,7 +517,7 @@ func TestRolloutTimedOut(t *testing.T) {
 			name:                    "Rollout has not timed out",
 			progressDeadlineSeconds: 30,
 			newStatus: v1alpha1.RolloutStatus{
-				Conditions: conditons(ReplicaSetUpdatedReason, before),
+				Conditions: conditions(ReplicaSetUpdatedReason, before),
 			},
 			expected: false,
 		},
@@ -525,7 +525,7 @@ func TestRolloutTimedOut(t *testing.T) {
 			name:                    "Rollout has timed out",
 			progressDeadlineSeconds: 5,
 			newStatus: v1alpha1.RolloutStatus{
-				Conditions: conditons(ReplicaSetUpdatedReason, before),
+				Conditions: conditions(ReplicaSetUpdatedReason, before),
 			},
 			expected: true,
 		},
