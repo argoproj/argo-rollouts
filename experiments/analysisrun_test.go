@@ -146,7 +146,7 @@ func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	assert.Equal(t, "my-instance-id", createdAr.Labels[v1alpha1.LabelKeyControllerInstanceID])
 }
 
-// TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availablility)
+// TestAnalysisTemplateNotExists verifies we error the run the template does not exist (before availability)
 func TestAnalysisTemplateNotExists(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
@@ -171,7 +171,7 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 	assert.Contains(t, message, "analysistemplate")
 }
 
-// TestClusterAnalysisTemplateNotExists verifies we error the run the cluster template does not exist (before availablility)
+// TestClusterAnalysisTemplateNotExists verifies we error the run the cluster template does not exist (before availability)
 func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
