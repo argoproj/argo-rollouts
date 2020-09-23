@@ -204,11 +204,11 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		}
 		return err
 	}
-	modifiedVsvc, modifed, err := r.reconcileVirtualService(vsvc, desiredWeight)
+	modifiedVsvc, modified, err := r.reconcileVirtualService(vsvc, desiredWeight)
 	if err != nil {
 		return err
 	}
-	if !modifed {
+	if !modified {
 		return nil
 	}
 	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, desiredWeight)
