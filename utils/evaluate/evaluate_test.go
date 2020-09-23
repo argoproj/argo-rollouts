@@ -149,21 +149,58 @@ func TestEvaluateAsIntPanic(t *testing.T) {
 }
 
 func TestEvaluateAsInt(t *testing.T) {
-	b, err := EvalCondition("1", "asInt(result) == 1")
-	assert.NoError(t, err)
-	assert.True(t, b)
+	tests := []struct {
+		input       interface{}
+		expression  string
+		expectation bool
+	}{
+		{"1", "asInt(result) == 1", true},
+		{1, "asInt(result) == 1", true},
+		{1.123, "asInt(result) == 1", true},
+	}
+	for _, test := range tests {
+		b, err := EvalCondition(test.input, test.expression)
+		assert.NoError(t, err)
+		assert.Equal(t, test.expectation, b)
+	}
 }
 
-func TestEvaluateAsFloatPanic(t *testing.T) {
-	b, err := EvalCondition("NotANum", "asFloat(result) == 1.1")
-	assert.Errorf(t, err, "got expected error: %v", err)
-	assert.False(t, b)
+func TestEvaluateAsFloatError(t *testing.T) {
+	tests := []struct {
+		input      interface{}
+		expression string
+		errRegexp  string
+	}{
+		{"NotANum", "asFloat(result) == 1.1", `strconv.ParseFloat: parsing "NotANum": invalid syntax`},
+		{"1.1", "asFloat(result) == \"1.1\"", `invalid operation: == \(mismatched types float64 and string\)`},
+	}
+	for _, test := range tests {
+		b, err := EvalCondition(test.input, test.expression)
+		assert.Error(t, err)
+		assert.False(t, b)
+		assert.Regexp(t, test.errRegexp, err.Error())
+	}
 }
 
 func TestEvaluateAsFloat(t *testing.T) {
-	b, err := EvalCondition("1.1", "asFloat(result) == 1.1")
-	assert.NoError(t, err)
-	assert.True(t, b)
+	tests := []struct {
+		input       interface{}
+		expression  string
+		expectation bool
+	}{
+		{"1.1", "asFloat(result) == 1.1", true},
+		{"1.1", "asFloat(result) >= 1.1", true},
+		{"1.1", "asFloat(result) <= 1.1", true},
+		{1.1, "asFloat(result) == 1.1", true},
+		{1, "asFloat(result) == 1", true},
+		{1, "asFloat(result) >= 1", true},
+		{1, "asFloat(result) >= 1", true},
+	}
+	for _, test := range tests {
+		b, err := EvalCondition(test.input, test.expression)
+		assert.NoError(t, err)
+		assert.Equal(t, test.expectation, b)
+	}
 }
 
 func TestAsInt(t *testing.T) {
