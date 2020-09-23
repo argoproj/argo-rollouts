@@ -107,7 +107,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"ingress": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Ingress refers to the name of an `Ingress` resource in the same namepace as the `Rollout`",
+							Description: "Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`",
 							Type:        []string{"string"},
 							Format:      "",
 						},

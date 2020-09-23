@@ -194,7 +194,7 @@ type CanaryStrategy struct {
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 type ALBTrafficRouting struct {
-	// Ingress refers to the name of an `Ingress` resource in the same namepace as the `Rollout`
+	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
 	Ingress string `json:"ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort"`
