@@ -7,6 +7,8 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -15,24 +17,29 @@ import (
 )
 
 type RolloutInfo struct {
-	Metadata
+	metav1.TypeMeta `json:",inline"`
+	Metadata        `json:"metadata,omitempty"`
 
-	Status       string
-	Icon         string
-	Strategy     string
-	Step         string
-	SetWeight    string
-	ActualWeight string
+	Spec RolloutInfoSpec `json:"spec"`
+}
 
-	Ready     int32
-	Current   int32
-	Desired   int32
-	Updated   int32
-	Available int32
+type RolloutInfoSpec struct {
+	Status       string `json:"status"`
+	Icon         string `json:"-"`
+	Strategy     string `json:"strategy,omitempty"`
+	Step         string `json:"step,omitempty"`
+	SetWeight    string `json:"setWeight,omitempty"`
+	ActualWeight string `json:"actualWeight,omitempty"`
 
-	ReplicaSets  []ReplicaSetInfo
-	Experiments  []ExperimentInfo
-	AnalysisRuns []AnalysisRunInfo
+	Ready     int32 `json:"ready"`
+	Current   int32 `json:"current"`
+	Desired   int32 `json:"desired"`
+	Updated   int32 `json:"updated"`
+	Available int32 `json:"available"`
+
+	ReplicaSets  []ReplicaSetInfo  `json:"replicaSets,omitempty"`
+	Experiments  []ExperimentInfo  `json:"experiments,omitempty"`
+	AnalysisRuns []AnalysisRunInfo `json:"analysisRuns,omitempty"`
 }
 
 func NewRolloutInfo(
@@ -44,52 +51,55 @@ func NewRolloutInfo(
 ) *RolloutInfo {
 
 	roInfo := RolloutInfo{
-		Metadata: Metadata{
-			Name:              ro.Name,
-			Namespace:         ro.Namespace,
-			UID:               ro.UID,
-			CreationTimestamp: ro.CreationTimestamp,
-		},
+		Spec: RolloutInfoSpec{},
 	}
-	roInfo.ReplicaSets = getReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
-	roInfo.Experiments = getExperimentInfo(ro, allExperiments, allReplicaSets, allARs, allPods)
-	roInfo.AnalysisRuns = getAnalysisRunInfo(ro.UID, allARs)
+	roInfo.Kind = "RolloutInfo"
+	roInfo.APIVersion = "argoproj.io/v1alpha1"
+	roInfo.Name = ro.Name
+	roInfo.Namespace = ro.Namespace
+	roInfo.UID = ro.UID
+	roInfo.Labels = ro.Labels
+	roInfo.Annotations = ro.Annotations
+	roInfo.CreationTimestamp = ro.CreationTimestamp
+	roInfo.Spec.ReplicaSets = getReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
+	roInfo.Spec.Experiments = getExperimentInfo(ro, allExperiments, allReplicaSets, allARs, allPods)
+	roInfo.Spec.AnalysisRuns = getAnalysisRunInfo(ro.UID, allARs)
 
 	if ro.Spec.Strategy.Canary != nil {
-		roInfo.Strategy = "Canary"
+		roInfo.Spec.Strategy = "Canary"
 		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.Canary.Steps) > 0 {
-			roInfo.Step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
+			roInfo.Spec.Step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
 		}
 		// NOTE that this is desired weight, not the actual current weight
-		roInfo.SetWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(ro)))
+		roInfo.Spec.SetWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(ro)))
 
-		roInfo.ActualWeight = "0"
+		roInfo.Spec.ActualWeight = "0"
 		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 
 		if currentStep == nil {
-			roInfo.ActualWeight = "100"
+			roInfo.Spec.ActualWeight = "100"
 		} else if ro.Status.AvailableReplicas > 0 {
 			if ro.Spec.Strategy.Canary.TrafficRouting == nil {
-				for _, rs := range roInfo.ReplicaSets {
-					if rs.Canary {
-						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*100)/ro.Status.AvailableReplicas)
+				for _, rs := range roInfo.Spec.ReplicaSets {
+					if rs.Spec.Canary {
+						roInfo.Spec.ActualWeight = fmt.Sprintf("%d", (rs.Spec.Available*100)/ro.Status.AvailableReplicas)
 					}
 				}
 			} else {
-				roInfo.ActualWeight = roInfo.SetWeight
+				roInfo.Spec.ActualWeight = roInfo.Spec.SetWeight
 			}
 		}
 	} else if ro.Spec.Strategy.BlueGreen != nil {
-		roInfo.Strategy = "BlueGreen"
+		roInfo.Spec.Strategy = "BlueGreen"
 	}
-	roInfo.Status = RolloutStatusString(ro)
-	roInfo.Icon = rolloutIcon(roInfo.Status)
+	roInfo.Spec.Status = RolloutStatusString(ro)
+	roInfo.Spec.Icon = rolloutIcon(roInfo.Spec.Status)
 
-	roInfo.Desired = defaults.GetReplicasOrDefault(ro.Spec.Replicas)
-	roInfo.Ready = ro.Status.ReadyReplicas
-	roInfo.Current = ro.Status.Replicas
-	roInfo.Updated = ro.Status.UpdatedReplicas
-	roInfo.Available = ro.Status.AvailableReplicas
+	roInfo.Spec.Desired = defaults.GetReplicasOrDefault(ro.Spec.Replicas)
+	roInfo.Spec.Ready = ro.Status.ReadyReplicas
+	roInfo.Spec.Current = ro.Status.Replicas
+	roInfo.Spec.Updated = ro.Status.UpdatedReplicas
+	roInfo.Spec.Available = ro.Status.AvailableReplicas
 	return &roInfo
 }
 
@@ -169,30 +179,30 @@ func rolloutIcon(status string) string {
 // 2. which experiment template they are part of
 func (r *RolloutInfo) Images() []ImageInfo {
 	var images []ImageInfo
-	for _, rsInfo := range r.ReplicaSets {
-		if rsInfo.Replicas > 0 {
-			for _, image := range rsInfo.Images {
+	for _, rsInfo := range r.Spec.ReplicaSets {
+		if rsInfo.Spec.Replicas > 0 {
+			for _, image := range rsInfo.Spec.Images {
 				newImage := ImageInfo{
 					Image: image,
 				}
-				if rsInfo.Canary {
+				if rsInfo.Spec.Canary {
 					newImage.Tags = append(newImage.Tags, InfoTagCanary)
 				}
-				if rsInfo.Stable {
+				if rsInfo.Spec.Stable {
 					newImage.Tags = append(newImage.Tags, InfoTagStable)
 				}
-				if rsInfo.Active {
+				if rsInfo.Spec.Active {
 					newImage.Tags = append(newImage.Tags, InfoTagActive)
 				}
-				if rsInfo.Preview {
+				if rsInfo.Spec.Preview {
 					newImage.Tags = append(newImage.Tags, InfoTagPreview)
 				}
 				images = mergeImageAndTags(newImage, images)
 			}
 		}
 	}
-	for _, expInfo := range r.Experiments {
-		for _, expImage := range expInfo.Images() {
+	for _, expInfo := range r.Spec.Experiments {
+		for _, expImage := range expInfo.Spec.Images() {
 			images = mergeImageAndTags(expImage, images)
 		}
 	}
@@ -239,14 +249,14 @@ func mergeTags(newTags []string, existingTags []string) []string {
 
 func (r *RolloutInfo) Revisions() []int {
 	revisionMap := make(map[int]bool)
-	for _, rsInfo := range r.ReplicaSets {
-		revisionMap[rsInfo.Revision] = true
+	for _, rsInfo := range r.Spec.ReplicaSets {
+		revisionMap[rsInfo.Spec.Revision] = true
 	}
-	for _, expInfo := range r.Experiments {
-		revisionMap[expInfo.Revision] = true
+	for _, expInfo := range r.Spec.Experiments {
+		revisionMap[expInfo.Spec.Revision] = true
 	}
-	for _, arInfo := range r.AnalysisRuns {
-		revisionMap[arInfo.Revision] = true
+	for _, arInfo := range r.Spec.AnalysisRuns {
+		revisionMap[arInfo.Spec.Revision] = true
 	}
 	revisions := make([]int, 0, len(revisionMap))
 	for k := range revisionMap {
@@ -258,8 +268,8 @@ func (r *RolloutInfo) Revisions() []int {
 
 func (r *RolloutInfo) ReplicaSetsByRevision(rev int) []ReplicaSetInfo {
 	var replicaSets []ReplicaSetInfo
-	for _, rs := range r.ReplicaSets {
-		if rs.Revision == rev {
+	for _, rs := range r.Spec.ReplicaSets {
+		if rs.Spec.Revision == rev {
 			replicaSets = append(replicaSets, rs)
 		}
 	}
@@ -268,8 +278,8 @@ func (r *RolloutInfo) ReplicaSetsByRevision(rev int) []ReplicaSetInfo {
 
 func (r *RolloutInfo) ExperimentsByRevision(rev int) []ExperimentInfo {
 	var experiments []ExperimentInfo
-	for _, e := range r.Experiments {
-		if e.Revision == rev {
+	for _, e := range r.Spec.Experiments {
+		if e.Spec.Revision == rev {
 			experiments = append(experiments, e)
 		}
 	}
@@ -278,10 +288,17 @@ func (r *RolloutInfo) ExperimentsByRevision(rev int) []ExperimentInfo {
 
 func (r *RolloutInfo) AnalysisRunsByRevision(rev int) []AnalysisRunInfo {
 	var runs []AnalysisRunInfo
-	for _, run := range r.AnalysisRuns {
-		if run.Revision == rev {
+	for _, run := range r.Spec.AnalysisRuns {
+		if run.Spec.Revision == rev {
 			runs = append(runs, run)
 		}
 	}
 	return runs
+}
+
+func (r *RolloutInfo) DeepCopyObject() runtime.Object {
+	out := new(RolloutInfo)
+	*out = *r
+	out.TypeMeta = r.TypeMeta
+	return out
 }

@@ -15,20 +15,25 @@ import (
 )
 
 type ReplicaSetInfo struct {
-	Metadata
-	Status            string
-	Icon              string
-	Revision          int
-	Stable            bool
-	Canary            bool
-	Active            bool
-	Preview           bool
-	Replicas          int32
-	Available         int32
-	Template          string
-	ScaleDownDeadline string
-	Images            []string
-	Pods              []PodInfo
+	metav1.TypeMeta `json:",inline"`
+	Metadata        `json:"metadata,omitempty"`
+	Spec            ReplicaSetInfoSpec `json:"spec,omitempty"`
+}
+
+type ReplicaSetInfoSpec struct {
+	Status            string    `json:"status"`
+	Icon              string    `json:"-"`
+	Revision          int       `json:"revision"`
+	Stable            bool      `json:"stable"`
+	Canary            bool      `json:"canary"`
+	Active            bool      `json:"active"`
+	Preview           bool      `json:"preview"`
+	Replicas          int32     `json:"replicas"`
+	Available         int32     `json:"available"`
+	Template          string    `json:"template,omitempty"`
+	ScaleDownDeadline string    `json:"scaleDownDeadline,omitempty"`
+	Images            []string  `json:"images,omitempty"`
+	Pods              []PodInfo `json:"pods,omitempty"`
 }
 
 func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []ReplicaSetInfo {
@@ -38,47 +43,52 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		if ownerRef(rs.OwnerReferences, []types.UID{ownerUID}) == nil {
 			continue
 		}
+		rsStatus := getReplicaSetHealth(rs)
 		rsInfo := ReplicaSetInfo{
 			Metadata: Metadata{
-				Name:              rs.Name,
-				Namespace:         rs.Namespace,
-				CreationTimestamp: rs.CreationTimestamp,
-				UID:               rs.UID,
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              rs.Name,
+					Namespace:         rs.Namespace,
+					CreationTimestamp: rs.CreationTimestamp,
+					UID:               rs.UID,
+				},
 			},
-			Status:    getReplicaSetHealth(rs),
-			Replicas:  rs.Status.Replicas,
-			Available: rs.Status.AvailableReplicas,
+			Spec: ReplicaSetInfoSpec{
+				Status:            rsStatus,
+				Replicas:          rs.Status.Replicas,
+				Available:         rs.Status.AvailableReplicas,
+				Icon:              replicaSetIcon(rsStatus),
+				Revision:          parseRevision(rs.ObjectMeta.Annotations),
+				Template:          parseExperimentTemplateName(rs.ObjectMeta.Annotations),
+				ScaleDownDeadline: parseScaleDownDeadline(rs.ObjectMeta.Annotations),
+			},
 		}
-		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
-		rsInfo.Revision = parseRevision(rs.ObjectMeta.Annotations)
-		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
-		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
 		if ro != nil {
 			if ro.Spec.Strategy.Canary != nil && rs.Labels != nil {
 				if ro.Status.StableRS == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-					rsInfo.Stable = true
+					rsInfo.Spec.Stable = true
 				} else if ro.Status.CurrentPodHash == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-					rsInfo.Canary = true
+					rsInfo.Spec.Canary = true
 				}
 			}
 			if ro.Spec.Strategy.BlueGreen != nil {
 				if ro.Status.BlueGreen.ActiveSelector == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-					rsInfo.Active = true
+					rsInfo.Spec.Active = true
 				} else if ro.Status.BlueGreen.PreviewSelector == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-					rsInfo.Preview = true
+					rsInfo.Spec.Preview = true
 				}
 			}
 		}
 
 		for _, ctr := range rs.Spec.Template.Spec.Containers {
-			rsInfo.Images = append(rsInfo.Images, ctr.Image)
+			rsInfo.Spec.Images = append(rsInfo.Spec.Images, ctr.Image)
 		}
 		rsInfos = append(rsInfos, rsInfo)
 	}
 	sort.Slice(rsInfos[:], func(i, j int) bool {
-		if rsInfos[i].Revision != rsInfos[j].Revision {
-			return rsInfos[i].Revision > rsInfos[j].Revision
+		if rsInfos[i].Spec.Revision != rsInfos[j].Spec.Revision {
+			return rsInfos[i].Spec.Revision > rsInfos[j].Spec.Revision
 		}
 		if rsInfos[i].CreationTimestamp != rsInfos[j].CreationTimestamp {
 			rsInfos[i].CreationTimestamp.Before(&rsInfos[j].CreationTimestamp)
@@ -129,7 +139,7 @@ func getReplicaSetCondition(status appsv1.ReplicaSetStatus, condType appsv1.Repl
 	return nil
 }
 
-func (rs ReplicaSetInfo) ScaleDownDelay() string {
+func (rs ReplicaSetInfoSpec) ScaleDownDelay() string {
 	if deadline, err := time.Parse(time.RFC3339, rs.ScaleDownDeadline); err == nil {
 		now := metav1.Now().Time
 		if deadline.Before(now) {

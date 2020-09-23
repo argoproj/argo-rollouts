@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
@@ -98,6 +99,7 @@ type GetOptions struct {
 	Watch   bool
 	NoColor bool
 
+	PrintFlags *genericclioptions.PrintFlags
 	options.ArgoRolloutsOptions
 }
 

@@ -6,19 +6,27 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 type ExperimentInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Message      string
-	ReplicaSets  []ReplicaSetInfo
-	AnalysisRuns []AnalysisRunInfo
+	metav1.TypeMeta `json:",inline"`
+	Metadata        `json:"metadata,omitempty"`
+
+	Spec ExperimentInfoSpec `json:"spec"`
+}
+
+type ExperimentInfoSpec struct {
+	Icon         string            `json:"-"`
+	Revision     int               `json:"revision"`
+	Status       string            `json:"status"`
+	Message      string            `json:"message,omitempty"`
+	ReplicaSets  []ReplicaSetInfo  `json:"replicaSets,omitempty"`
+	AnalysisRuns []AnalysisRunInfo `json:"analysisRuns,omitempty"`
 }
 
 func NewExperimentInfo(
@@ -27,21 +35,28 @@ func NewExperimentInfo(
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
 ) *ExperimentInfo {
-
 	expInfo := ExperimentInfo{
-		Metadata: Metadata{
-			Name:              exp.Name,
-			Namespace:         exp.Namespace,
-			CreationTimestamp: exp.CreationTimestamp,
-			UID:               exp.UID,
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ExperimentInfo",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
-		Status:  string(exp.Status.Phase),
-		Message: exp.Status.Message,
+		Metadata: Metadata{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              exp.Name,
+				Namespace:         exp.Namespace,
+				CreationTimestamp: exp.CreationTimestamp,
+				UID:               exp.UID,
+			},
+		},
+		Spec: ExperimentInfoSpec{
+			Status:       string(exp.Status.Phase),
+			Message:      exp.Status.Message,
+			Icon:         analysisIcon(exp.Status.Phase),
+			Revision:     parseRevision(exp.ObjectMeta.Annotations),
+			ReplicaSets:  getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods),
+			AnalysisRuns: getAnalysisRunInfo(exp.UID, allAnalysisRuns),
+		},
 	}
-	expInfo.Icon = analysisIcon(exp.Status.Phase)
-	expInfo.Revision = parseRevision(exp.ObjectMeta.Annotations)
-	expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
-	expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
 	return &expInfo
 }
 
@@ -62,7 +77,7 @@ func getExperimentInfo(
 		expInfos = append(expInfos, *expInfo)
 	}
 	sort.Slice(expInfos[:], func(i, j int) bool {
-		if expInfos[i].Revision > expInfos[j].Revision {
+		if expInfos[i].Spec.Revision > expInfos[j].Spec.Revision {
 			return true
 		}
 		return expInfos[i].CreationTimestamp.Before(&expInfos[j].CreationTimestamp)
@@ -71,16 +86,16 @@ func getExperimentInfo(
 }
 
 // Images returns a list of images that are currently running along with tags on which stack they belong to
-func (r *ExperimentInfo) Images() []ImageInfo {
+func (r *ExperimentInfoSpec) Images() []ImageInfo {
 	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
-		if rsInfo.Replicas > 0 {
-			for _, image := range rsInfo.Images {
+		if rsInfo.Spec.Replicas > 0 {
+			for _, image := range rsInfo.Spec.Images {
 				newImage := ImageInfo{
 					Image: image,
 				}
-				if rsInfo.Template != "" {
-					newImage.Tags = append(newImage.Tags, fmt.Sprintf("Σ:%s", rsInfo.Template))
+				if rsInfo.Spec.Template != "" {
+					newImage.Tags = append(newImage.Tags, fmt.Sprintf("Σ:%s", rsInfo.Spec.Template))
 				}
 				images = mergeImageAndTags(newImage, images)
 			}
@@ -105,4 +120,11 @@ func analysisIcon(status v1alpha1.AnalysisPhase) string {
 		return IconWaiting
 	}
 	return " "
+}
+
+func (r *ExperimentInfo) DeepCopyObject() runtime.Object {
+	out := new(ExperimentInfo)
+	*out = *r
+	out.TypeMeta = r.TypeMeta
+	return out
 }

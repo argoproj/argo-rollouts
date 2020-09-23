@@ -2,17 +2,20 @@ package get
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -413,4 +416,100 @@ NAME                                                           KIND         STAT
       └──□ canary-demo-877894d5b-zhh6x                         Pod          ✔ Running      7d   ready:1/1
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
+}
+
+func TestGetRolloutJsonPathPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewBlueGreenRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--output", "jsonpath={.spec.status}"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	assertStdout(t, "Paused", o.IOStreams)
+}
+
+func TestGetRolloutYamlPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewBlueGreenRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--output", "yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	txt := o.Out.(*bytes.Buffer).String()
+	var info info.RolloutInfo
+	err = yaml.Unmarshal([]byte(txt), &info)
+	assert.NoError(t, err)
+}
+
+func TestGetRolloutJsonPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewBlueGreenRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--output", "json"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	txt := o.Out.(*bytes.Buffer).String()
+	var info info.RolloutInfo
+	err = json.Unmarshal([]byte(txt), &info)
+	assert.NoError(t, err)
+}
+
+func TestGetExperimentJsonPathPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Experiments[0].Name, "--output", "jsonpath={.spec.status}"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	assertStdout(t, "Running", o.IOStreams)
+}
+
+func TestGetExperimentYamlPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Experiments[0].Name, "--output", "yaml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	txt := o.Out.(*bytes.Buffer).String()
+	var info info.ExperimentInfo
+	err = yaml.Unmarshal([]byte(txt), &info)
+	assert.NoError(t, err)
+}
+
+func TestGetExperimentJsonPrinter(t *testing.T) {
+	rolloutObjs := testdata.NewExperimentAnalysisRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetExperiment(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Experiments[0].Name, "--output", "json"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	txt := o.Out.(*bytes.Buffer).String()
+	var info info.ExperimentInfo
+	err = json.Unmarshal([]byte(txt), &info)
+	assert.NoError(t, err)
 }

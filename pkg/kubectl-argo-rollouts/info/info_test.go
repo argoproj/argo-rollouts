@@ -72,7 +72,9 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 
 func TestAge(t *testing.T) {
 	m := Metadata{
-		CreationTimestamp: metav1.NewTime(time.Now().Add(-7 * time.Hour * time.Duration(24))),
+		ObjectMeta: metav1.ObjectMeta{
+			CreationTimestamp: metav1.NewTime(time.Now().Add(-7 * time.Hour * time.Duration(24))),
+		},
 	}
 	assert.Equal(t, "7d", m.Age())
 }
@@ -106,8 +108,8 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		assert.Len(t, roInfo.ReplicaSetsByRevision(10), 1)
 		assert.Len(t, roInfo.ReplicaSetsByRevision(8), 1)
 
-		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDeadline, "")
-		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDelay(), "")
+		assert.Equal(t, roInfo.Spec.ReplicaSets[0].Spec.ScaleDownDeadline, "")
+		assert.Equal(t, roInfo.Spec.ReplicaSets[0].Spec.ScaleDownDelay(), "")
 
 		assert.Equal(t, roInfo.Images(), []ImageInfo{
 			{
@@ -127,9 +129,9 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
 
-		assert.Equal(t, roInfo.ReplicaSets[1].UID, delayedRs)
-		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDeadline, inFourHours)
-		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDelay(), "3h59m")
+		assert.Equal(t, roInfo.Spec.ReplicaSets[1].UID, delayedRs)
+		assert.Equal(t, roInfo.Spec.ReplicaSets[1].Spec.ScaleDownDeadline, inFourHours)
+		assert.Equal(t, roInfo.Spec.ReplicaSets[1].Spec.ScaleDownDelay(), "3h59m")
 	}
 }
 
@@ -161,7 +163,7 @@ func TestExperimentInfo(t *testing.T) {
 	expInfo := NewExperimentInfo(rolloutObjs.Experiments[0], rolloutObjs.ReplicaSets, rolloutObjs.AnalysisRuns, rolloutObjs.Pods)
 	assert.Equal(t, expInfo.Name, rolloutObjs.Experiments[0].Name)
 
-	assert.Equal(t, expInfo.Images(), []ImageInfo{
+	assert.Equal(t, expInfo.Spec.Images(), []ImageInfo{
 		{
 			Image: "argoproj/rollouts-demo:blue",
 		},

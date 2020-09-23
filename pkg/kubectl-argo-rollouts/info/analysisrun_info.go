@@ -3,6 +3,8 @@ package info
 import (
 	"sort"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/job"
@@ -11,21 +13,26 @@ import (
 )
 
 type AnalysisRunInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Successful   int32
-	Failed       int32
-	Inconclusive int32
-	Error        int32
-	Jobs         []JobInfo
+	metav1.TypeMeta `json:",inline"`
+	Metadata        `json:"metadata,omitempty"`
+	Spec            AnalysisRunInfoSpec `json:"spec,omitempty"`
+}
+
+type AnalysisRunInfoSpec struct {
+	Icon         string    `json:"-"`
+	Revision     int       `json:"revision"`
+	Status       string    `json:"status"`
+	Successful   int32     `json:"successful"`
+	Failed       int32     `json:"failed"`
+	Inconclusive int32     `json:"inconclusive"`
+	Error        int32     `json:"error"`
+	Jobs         []JobInfo `json:"jobs,omitempty"`
 }
 
 type JobInfo struct {
 	Metadata
-	Status string
-	Icon   string
+	Status string `json:"status"`
+	Icon   string `json:"-"`
 }
 
 func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []AnalysisRunInfo {
@@ -36,24 +43,28 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 		}
 		arInfo := AnalysisRunInfo{
 			Metadata: Metadata{
-				Name:              run.Name,
-				Namespace:         run.Namespace,
-				CreationTimestamp: run.CreationTimestamp,
-				UID:               run.UID,
+				ObjectMeta: v1.ObjectMeta{
+					Name:              run.Name,
+					Namespace:         run.Namespace,
+					CreationTimestamp: run.CreationTimestamp,
+					UID:               run.UID,
+				},
 			},
 		}
-		arInfo.Status = string(run.Status.Phase)
+		arInfo.Spec.Status = string(run.Status.Phase)
 		for _, mr := range run.Status.MetricResults {
-			arInfo.Successful += mr.Successful
-			arInfo.Failed += mr.Failed
-			arInfo.Inconclusive += mr.Inconclusive
-			arInfo.Error += mr.Error
+			arInfo.Spec.Successful += mr.Successful
+			arInfo.Spec.Failed += mr.Failed
+			arInfo.Spec.Inconclusive += mr.Inconclusive
+			arInfo.Spec.Error += mr.Error
 			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
 			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
 				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
 					jobInfo := JobInfo{
 						Metadata: Metadata{
-							Name: jobName,
+							ObjectMeta: v1.ObjectMeta{
+								Name: jobName,
+							},
 						},
 						Icon:   analysisIcon(lastMeasurement.Phase),
 						Status: string(lastMeasurement.Phase),
@@ -61,18 +72,18 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 					if lastMeasurement.StartedAt != nil {
 						jobInfo.CreationTimestamp = *lastMeasurement.StartedAt
 					}
-					arInfo.Jobs = append(arInfo.Jobs, jobInfo)
+					arInfo.Spec.Jobs = append(arInfo.Spec.Jobs, jobInfo)
 				}
 			}
 		}
-		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)
+		arInfo.Spec.Icon = analysisIcon(run.Status.Phase)
+		arInfo.Spec.Revision = parseRevision(run.ObjectMeta.Annotations)
 
 		arInfos = append(arInfos, arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {
-		if arInfos[i].Revision != arInfos[j].Revision {
-			return arInfos[i].Revision > arInfos[j].Revision
+		if arInfos[i].Spec.Revision != arInfos[j].Spec.Revision {
+			return arInfos[i].Spec.Revision > arInfos[j].Spec.Revision
 		}
 		if arInfos[i].CreationTimestamp != arInfos[j].CreationTimestamp {
 			return arInfos[i].CreationTimestamp.Before(&arInfos[j].CreationTimestamp)

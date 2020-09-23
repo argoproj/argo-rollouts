@@ -6,16 +6,17 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
 type PodInfo struct {
-	Metadata
-	Status   string
-	Icon     string
-	Ready    string
-	Restarts int
+	Metadata `json:"metadata,omitempty"`
+	Status   string `json:"status"`
+	Icon     string `json:"-"`
+	Ready    string `json:"ready,omitempty"`
+	Restarts int    `json:"restarts"`
 }
 
 func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetInfo {
@@ -34,15 +35,15 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 
 		podInfo := newPodInfo(pod)
 		idx := uidToRSInfoIdx[owner.UID]
-		rsInfos[idx].Pods = append(rsInfos[idx].Pods, podInfo)
+		rsInfos[idx].Spec.Pods = append(rsInfos[idx].Spec.Pods, podInfo)
 	}
 
 	for _, rsInfo := range rsInfos {
-		sort.Slice(rsInfo.Pods[:], func(i, j int) bool {
-			if rsInfo.Pods[i].CreationTimestamp != rsInfo.Pods[j].CreationTimestamp {
-				return rsInfo.Pods[i].CreationTimestamp.Before(&rsInfo.Pods[j].CreationTimestamp)
+		sort.Slice(rsInfo.Spec.Pods[:], func(i, j int) bool {
+			if rsInfo.Spec.Pods[i].CreationTimestamp != rsInfo.Spec.Pods[j].CreationTimestamp {
+				return rsInfo.Spec.Pods[i].CreationTimestamp.Before(&rsInfo.Spec.Pods[j].CreationTimestamp)
 			}
-			return rsInfo.Pods[i].Name < rsInfo.Pods[j].Name
+			return rsInfo.Spec.Pods[i].Name < rsInfo.Spec.Pods[j].Name
 		})
 	}
 
@@ -52,10 +53,12 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo := PodInfo{
 		Metadata: Metadata{
-			Name:              pod.Name,
-			Namespace:         pod.Namespace,
-			CreationTimestamp: pod.CreationTimestamp,
-			UID:               pod.UID,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              pod.Name,
+				Namespace:         pod.Namespace,
+				CreationTimestamp: pod.CreationTimestamp,
+				UID:               pod.UID,
+			},
 		},
 	}
 	restarts := 0

@@ -30,15 +30,12 @@ const (
 )
 
 type Metadata struct {
-	Name              string
-	Namespace         string
-	UID               types.UID
-	CreationTimestamp metav1.Time
+	metav1.ObjectMeta
 }
 
 type ImageInfo struct {
-	Image string
-	Tags  []string
+	Image string   `json:"image"`
+	Tags  []string `json:"tags"`
 }
 
 func (m Metadata) Age() string {
