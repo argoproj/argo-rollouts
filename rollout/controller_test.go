@@ -1472,8 +1472,8 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
-	patchedRolout := f.getPatchedRollout(patchIndex)
-	assert.Contains(t, patchedRolout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
+	patchedRollout := f.getPatchedRollout(patchIndex)
+	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
 
 // TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout

@@ -243,7 +243,7 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 		}
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
-	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
+	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
 		err = c.podRestarter.Reconcile(c)

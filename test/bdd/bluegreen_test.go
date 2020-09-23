@@ -111,7 +111,7 @@ func (c *FunctionalTestContext) promoteTheRollout() error {
 		return err
 	}
 	if !isSuccess {
-		return fmt.Errorf("Unable to promote rollut %s. Rollout did not enter paused state.", c.RolloutName)
+		return fmt.Errorf("Unable to promote rollout %s. Rollout did not enter paused state.", c.RolloutName)
 	}
 
 	cmdPromote := promote.NewCmdPromote(c.Options)
