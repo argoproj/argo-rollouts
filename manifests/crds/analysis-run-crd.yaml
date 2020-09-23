@@ -18,6 +18,7 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
+  preserveUnknownFields: false
   scope: Namespaced
   subresources: {}
   validation:

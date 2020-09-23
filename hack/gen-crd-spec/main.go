@@ -57,6 +57,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
+		"crd:preserveUnknownFields=false",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
@@ -72,6 +73,11 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	// clean up stuff left by controller-gen
 	deleteFile("config/webhook/manifests.yaml")
 	deleteFile("config/webhook")
+	deleteFile("config/argoproj.io_analysisruns.yaml")
+	deleteFile("config/argoproj.io_analysistemplates.yaml")
+	deleteFile("config/argoproj.io_clusteranalysistemplates.yaml")
+	deleteFile("config/argoproj.io_experiments.yaml")
+	deleteFile("config/argoproj.io_rollouts.yaml")
 	deleteFile("config")
 
 	crds := []*extensionsobj.CustomResourceDefinition{}

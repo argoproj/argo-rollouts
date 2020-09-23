@@ -18,6 +18,7 @@ spec:
     shortNames:
     - exp
     singular: experiment
+  preserveUnknownFields: false
   scope: Namespaced
   subresources: {}
   validation:
