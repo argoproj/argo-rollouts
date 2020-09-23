@@ -69,7 +69,7 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 //
 // If the rollout has not reached its max number of replicas, it will scale up the RS whose desired replica
 // count is greater than its current count to the desired number. The rollout will either scale the RS up as much as it
-// can unless the rollout can reach the RS desired count. In order to give precenence to the stableRS, the function will
+// can unless the rollout can reach the RS desired count. In order to give precedence to the stableRS, the function will
 // scale up the stable RS to desired count before scaling up the new RS.
 //
 // At this point, the function then finds the number of replicas it can scale down using the following equation:
