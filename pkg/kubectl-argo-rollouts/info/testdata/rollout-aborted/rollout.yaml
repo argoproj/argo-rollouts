@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2020-09-22T09:09:46Z"
+  generation: 15
+  name: rollout-background-analysis
+  namespace: default
+  resourceVersion: "877993"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/rollout-background-analysis
+  uid: aeddde25-f8bd-4a68-a4a1-523a559bdb83
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rollout-background-analysis
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: web-background
+      steps:
+      - setWeight: 10
+      - pause: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rollout-background-analysis
+    spec:
+      containers:
+      - args:
+        - --termination-delay
+        - "0"
+        image: argoproj/rollouts-demo:yellow
+        name: rollouts-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  HPAReplicas: 1
+  abort: true
+  abortedAt: "2020-09-22T09:10:05Z"
+  availableReplicas: 1
+  blueGreen: {}
+  canary:
+    currentBackgroundAnalysisRun: rollout-background-analysis-db976bc44-2
+    currentBackgroundAnalysisRunStatus:
+      message: metric "web" assessed Failed due to failed (1) > failureLimit (0)
+      name: rollout-background-analysis-db976bc44-2
+      status: Failed
+    stableRS: 7d84d44bb8
+  conditions:
+  - lastTransitionTime: "2020-09-22T09:09:47Z"
+    lastUpdateTime: "2020-09-22T09:09:47Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2020-09-22T09:10:04Z"
+    lastUpdateTime: "2020-09-22T09:10:04Z"
+    message: metric "web" assessed Failed due to failed (1) > failureLimit (0)
+    reason: RolloutAborted
+    status: "False"
+    type: Progressing
+  currentPodHash: db976bc44
+  currentStepHash: 849b756fd4
+  currentStepIndex: 0
+  observedGeneration: 7d77fd9646
+  readyReplicas: 1
+  replicas: 1
+  selector: app=rollout-background-analysis
+  stableRS: 7d84d44bb8

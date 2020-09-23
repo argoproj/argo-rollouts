@@ -30,9 +30,10 @@ type RolloutInfo struct {
 	Updated   int32
 	Available int32
 
-	ReplicaSets  []ReplicaSetInfo
-	Experiments  []ExperimentInfo
-	AnalysisRuns []AnalysisRunInfo
+	ReplicaSets     []ReplicaSetInfo
+	Experiments     []ExperimentInfo
+	AnalysisRuns    []AnalysisRunInfo
+	ErrorConditions []string
 }
 
 func NewRolloutInfo(
@@ -90,7 +91,36 @@ func NewRolloutInfo(
 	roInfo.Current = ro.Status.Replicas
 	roInfo.Updated = ro.Status.UpdatedReplicas
 	roInfo.Available = ro.Status.AvailableReplicas
+	roInfo.ErrorConditions = RolloutErrorConditions(ro)
 	return &roInfo
+}
+
+func RolloutErrorConditions(ro *v1alpha1.Rollout) []string {
+	var errorConditions []string
+	for _, status := range ro.Status.Conditions {
+		if status.Type == v1alpha1.InvalidSpec {
+			errorConditions = append(errorConditions, status.Message)
+		}
+	}
+	arStatuses := []*v1alpha1.RolloutAnalysisRunStatus{
+		ro.Status.Canary.CurrentStepAnalysisRunStatus,
+		ro.Status.Canary.CurrentBackgroundAnalysisRunStatus,
+		ro.Status.BlueGreen.PrePromotionAnalysisRunStatus,
+		ro.Status.BlueGreen.PostPromotionAnalysisRunStatus,
+	}
+	if ro.Status.Abort {
+		for _, arStatus := range arStatuses {
+			if arStatus == nil {
+				continue
+			}
+			if arStatus.Status.Completed() &&
+				arStatus.Status != v1alpha1.AnalysisPhaseSuccessful &&
+				arStatus.Message != "" {
+				errorConditions = append(errorConditions, arStatus.Message)
+			}
+		}
+	}
+	return errorConditions
 }
 
 // RolloutStatusString returns a status string to print in the STATUS column

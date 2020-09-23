@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2020-09-22T09:09:46Z"
+  generateName: rollout-background-analysis-7d84d44bb8-
+  labels:
+    app: rollout-background-analysis
+    rollouts-pod-template-hash: 7d84d44bb8
+  name: rollout-background-analysis-7d84d44bb8-z5wps
+  namespace: default
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: rollout-background-analysis-7d84d44bb8
+    uid: 6f122e62-48fc-4f51-9629-24367b2460fb
+  resourceVersion: "877904"
+  selfLink: /api/v1/namespaces/default/pods/rollout-background-analysis-7d84d44bb8-z5wps
+  uid: b8b2d6d6-4c15-4e49-ab78-78c40e285ff6
+spec:
+  containers:
+  - args:
+    - --termination-delay
+    - "0"
+    image: argoproj/rollouts-demo:blue
+    imagePullPolicy: IfNotPresent
+    name: rollouts-demo
+    ports:
+    - containerPort: 8080
+      name: http
+      protocol: TCP
+    resources:
+      requests:
+        cpu: 5m
+        memory: 32Mi
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-d8v2q
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: minikube
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: default-token-d8v2q
+    secret:
+      defaultMode: 420
+      secretName: default-token-d8v2q
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2020-09-22T09:09:46Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2020-09-22T09:09:47Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2020-09-22T09:09:47Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2020-09-22T09:09:46Z"
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: docker://adb92f1611b818df8aa6e33633e2c3336ebe7c16ed7d57993c4fd667fdeacbea
+    image: argoproj/rollouts-demo:blue
+    imageID: docker-pullable://argoproj/rollouts-demo@sha256:abe71372b176947a10b27d12559a7e33057d70301fed78ea8bc9551d1503aef9
+    lastState: {}
+    name: rollouts-demo
+    ready: true
+    restartCount: 0
+    started: true
+    state:
+      running:
+        startedAt: "2020-09-22T09:09:47Z"
+  hostIP: 192.168.64.3
+  phase: Running
+  podIP: 172.17.0.9
+  podIPs:
+  - ip: 172.17.0.9
+  qosClass: Burstable
+  startTime: "2020-09-22T09:09:46Z"
