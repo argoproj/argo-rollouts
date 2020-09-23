@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func TestStrToUnstructuredSuccesfully(t *testing.T) {
+func TestStrToUnstructuredSuccessfully(t *testing.T) {
 	rsStr := `apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
