@@ -66,7 +66,7 @@ func WatchResource(client dynamic.Interface, namespace string, gvk schema.GroupV
 }
 
 // WatchResourceWithExponentialBackoff creates a watch for the gvk provided. If there are any error,
-// the function will rety again using exponetial backoff. It starts at 1 second wait, and wait afterwards
+// the function will rety again using exponential backoff. It starts at 1 second wait, and wait afterwards
 // increases by a factor of 2 and caps at 5 minutes.
 func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.Interface, namespace string, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
 	backoff := wait.Backoff{
