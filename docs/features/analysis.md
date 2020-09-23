@@ -387,7 +387,7 @@ spec:
     successCondition: result == 'true'
     provider:
       web:
-        # paceholders are resolved when an AnalysisRun is created 
+        # placeholders are resolved when an AnalysisRun is created 
         url: "{{ args.api-url }}?service={{ args.service-name }}"
         headers:
           - key: Authorization
