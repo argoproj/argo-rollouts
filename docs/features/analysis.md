@@ -708,13 +708,13 @@ This example demonstrates:
         spec:
           containers:
           - name: guestbook
-            image: guesbook:v1
+            image: guestbook:v1
       - name: canary
         replicas: 1
         spec:
           containers:
           - name: guestbook
-            image: guesbook:v2
+            image: guestbook:v2
       analysis:
         templateName: mann-whitney
         args:
