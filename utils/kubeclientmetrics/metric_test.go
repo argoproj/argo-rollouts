@@ -106,7 +106,7 @@ func TestResolveK8sRequestVerb(t *testing.T) {
 		assert.Equal(t, List, verb)
 	})
 	t.Run("VirtualService GET", func(t *testing.T) {
-		r := request("https://127.0.0.1/apis/networking.istio.io/v1alpha3/namespaces/default/virtualservices/virutal-service")
+		r := request("https://127.0.0.1/apis/networking.istio.io/v1alpha3/namespaces/default/virtualservices/virtual-service")
 		verb := m.resolveK8sRequestVerb(r)
 		assert.Equal(t, Get, verb)
 	})
