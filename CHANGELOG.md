@@ -321,7 +321,7 @@ Check out the [Analysis Docs](https://github.com/argoproj/argo-rollouts/blob/rel
 - Add metric knob for maxInconclusive (##181)
 - Simplify provider interfaces to set error messages (##189)
 - Implement ResumeAt logic (##232)
-- Define explict args in AnalysisTemplates and simplify AnalysisRun spec (##283)
+- Define explicit args in AnalysisTemplates and simplify AnalysisRun spec (##283)
 - Use a duration string instead of int to represent duration (##286)
 - Truncate measurements when greater than default (10) (##191)
 - Add counter for consecutiveError (##191)
