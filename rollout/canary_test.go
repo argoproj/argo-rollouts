@@ -80,12 +80,12 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	assert.Equal(t, "2", createdRS.Annotations[annotations.RevisionAnnotation])
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
-	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
 	assert.Equal(t, "2", updatedRollout.Annotations[annotations.RevisionAnnotation])
-	assert.NotNil(t, progessingCondition)
-	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
-	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
-	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progessingCondition.Message)
+	assert.NotNil(t, progressingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progressingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progressingCondition.Message)
 }
 
 func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
@@ -466,11 +466,11 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	f.run(getKey(r, t))
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
-	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
-	assert.NotNil(t, progessingCondition)
-	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
-	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
-	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progessingCondition.Message)
+	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progressingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progressingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progressingCondition.Message)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -508,11 +508,11 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	f.run(getKey(r, t))
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
-	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
-	assert.NotNil(t, progessingCondition)
-	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
-	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
-	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progessingCondition.Message)
+	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progressingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progressingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progressingCondition.Message)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithSub := `{
@@ -560,11 +560,11 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
-	progessingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
-	assert.NotNil(t, progessingCondition)
-	assert.Equal(t, conditions.NewReplicaSetReason, progessingCondition.Reason)
-	assert.Equal(t, corev1.ConditionTrue, progessingCondition.Status)
-	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progessingCondition.Message)
+	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+	assert.NotNil(t, progressingCondition)
+	assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
+	assert.Equal(t, corev1.ConditionTrue, progressingCondition.Status)
+	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progressingCondition.Message)
 }
 
 func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {

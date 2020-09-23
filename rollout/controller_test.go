@@ -942,11 +942,11 @@ func TestAdoptReplicaSet(t *testing.T) {
 }
 
 func TestRequeueStuckRollout(t *testing.T) {
-	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progessDeadlineSeconds *int32) *v1alpha1.Rollout {
+	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas:                pointer.Int32Ptr(0),
-				ProgressDeadlineSeconds: progessDeadlineSeconds,
+				ProgressDeadlineSeconds: progressDeadlineSeconds,
 			},
 		}
 		if rolloutPaused {
