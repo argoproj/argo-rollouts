@@ -200,7 +200,7 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 
 ### Analysis
 
-#### Genernal
+#### General
 * Allow controller to delay analysis #350
 * Create one background analysis per revision #309
 * Allow AnalysisRun to complete an experiment #345
