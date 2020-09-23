@@ -171,7 +171,7 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.Regexp(t, `metrics\[0\]: invalid interval string: time: unknown unit (")?s-typo(")? in duration (")?60s-typo(")?`, err)
 	})
-	t.Run("Ensure valid intialDelay string", func(t *testing.T) {
+	t.Run("Ensure valid initialDelay string", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
