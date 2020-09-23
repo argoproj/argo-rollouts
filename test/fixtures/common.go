@@ -51,7 +51,7 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
 	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(metav1.ListOptions{})
 	c.CheckError(err)
-	// filter analysis runs by ones owned by rollout to allow test parallellism
+	// filter analysis runs by ones owned by rollout to allow test parallelism
 	var newAruns rov1.AnalysisRunList
 	for _, ar := range aruns.Items {
 		controllerRef := metav1.GetControllerOf(&ar)
