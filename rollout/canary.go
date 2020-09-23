@@ -63,11 +63,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	noScalingOccured, err := c.reconcileCanaryReplicaSets()
+	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
 	if err != nil {
 		return err
 	}
-	if noScalingOccured {
+	if noScalingOccurred {
 		c.log.Info("Not finished reconciling ReplicaSets")
 		return c.syncRolloutStatusCanary()
 	}
