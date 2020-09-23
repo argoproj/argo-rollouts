@@ -16,7 +16,7 @@ Kubernetes Deployments provides the `RollingUpdate` strategy which provide a bas
 * No ability to query external metrics to verify an update
 * Can halt the progression, but unable to automatically abort and rollback the update
 
-For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too agressively, and provides no automated rollback upon failures.
+For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too aggressively, and provides no automated rollback upon failures.
 
 ## Features
 * Blue-Green (aka red-black) update strategy
