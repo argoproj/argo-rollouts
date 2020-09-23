@@ -38,7 +38,7 @@ func NewCmdRetry(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "retry <rollout|experiment> RESOURCE_NAME",
 		Short:        "Retry a rollout or experiment",
-		Long:         "This command consists of multiple subcommands which can be used to restart an aborted rollout or a failed experiement.",
+		Long:         "This command consists of multiple subcommands which can be used to restart an aborted rollout or a failed experiment.",
 		Example:      o.Example(retryExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
