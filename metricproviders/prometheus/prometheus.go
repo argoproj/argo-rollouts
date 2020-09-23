@@ -40,7 +40,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configuriable
+	//TODO(dthomson) make timeout configurable
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
