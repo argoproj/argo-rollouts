@@ -621,7 +621,7 @@ func TestMaxUnavailable(t *testing.T) {
 }
 
 func TestCheckPodSpecChange(t *testing.T) {
-	ro := generateRollout("ngnix")
+	ro := generateRollout("nginx")
 	rs := generateRS(ro)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
 	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
@@ -632,7 +632,7 @@ func TestCheckPodSpecChange(t *testing.T) {
 }
 
 func TestCheckStepHashChange(t *testing.T) {
-	ro := generateRollout("ngnix")
+	ro := generateRollout("nginx")
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
 	assert.True(t, checkStepHashChange(&ro))
 	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
@@ -643,7 +643,7 @@ func TestCheckStepHashChange(t *testing.T) {
 }
 
 func TestResetCurrentStepIndex(t *testing.T) {
-	ro := generateRollout("ngnix")
+	ro := generateRollout("nginx")
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{
 			{

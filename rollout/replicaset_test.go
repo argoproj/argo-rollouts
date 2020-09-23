@@ -34,10 +34,10 @@ func int32Ptr(i int32) *int32 { return &i }
 func TestGetReplicaSetsForRollouts(t *testing.T) {
 	newTimestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
 	selector := map[string]string{
-		"app": "ngnix",
+		"app": "nginx",
 	}
 	diffSelector := map[string]string{
-		"app": "ngnix2",
+		"app": "nginx2",
 	}
 	rollout := newRollout("foo", 1, int32Ptr(1), selector)
 	diffRollout := newRollout("bar", 1, int32Ptr(1), selector)
