@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  creationTimestamp: "2020-09-22T07:48:29Z"
+  generation: 3
+  name: rollout-invalid
+  namespace: default
+  resourceVersion: "864018"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/rollout-invalid
+  uid: e4bab69c-dac6-49e9-8f5e-36909c596ce6
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basic
+  strategy:
+    canary: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: doesnt-match
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:blue
+        name: rollouts-demo
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi
+status:
+  blueGreen: {}
+  canary: {}
+  conditions:
+  - lastTransitionTime: "2020-09-22T07:48:42Z"
+    lastUpdateTime: "2020-09-22T07:48:42Z"
+    message: 'The Rollout "rollout-invalid" is invalid: spec.template.metadata.labels:
+      Invalid value: map[string]string{"app":"doesnt-match"}: `selector` does not
+      match template `labels`'
+    reason: InvalidSpec
+    status: "True"
+    type: InvalidSpec
+  observedGeneration: 67655ff475

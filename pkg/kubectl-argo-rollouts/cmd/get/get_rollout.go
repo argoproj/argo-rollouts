@@ -129,6 +129,12 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "  Ready:", roInfo.Ready)
 	fmt.Fprintf(o.Out, tableFormat, "  Available:", roInfo.Available)
 
+	if len(roInfo.ErrorConditions) > 0 {
+		fmt.Fprintf(o.Out, "Errors:\n")
+		for _, msg := range roInfo.ErrorConditions {
+			fmt.Fprintf(o.Out, "* %s\n", msg)
+		}
+	}
 	fmt.Fprintf(o.Out, "\n")
 	o.PrintRolloutTree(roInfo)
 }
