@@ -331,12 +331,12 @@ type CanaryStep struct {
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 	// Analysis defines the AnalysisRun that will run for a step
 	Analysis *RolloutAnalysis `json:"analysis,omitempty"`
-	// SetCanaryScale defines how to scale the newRS without chainging traffic weight
+	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty"`
 }
 
-// SetCanaryScale defines how to scale the newRS without chainging traffic weight
+// SetCanaryScale defines how to scale the newRS without changing traffic weight
 type SetCanaryScale struct {
 	// Weight sets the percentage of replicas the newRS should have
 	// +optional
