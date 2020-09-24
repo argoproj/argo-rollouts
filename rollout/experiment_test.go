@@ -561,10 +561,10 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Annotations = map[string]string{"abc": "def"}
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Labels = map[string]string{"123": "456"}
-	modifiedLabelAndAnnonations, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	modifiedLabelAndAnnotations, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, err)
-	assert.Equal(t, modifiedLabelAndAnnonations.Spec.Templates[0].Template.ObjectMeta.Annotations["abc"], "def")
-	assert.Equal(t, modifiedLabelAndAnnonations.Spec.Templates[0].Template.ObjectMeta.Labels["123"], "456")
+	assert.Equal(t, modifiedLabelAndAnnotations.Spec.Templates[0].Template.ObjectMeta.Annotations["abc"], "def")
+	assert.Equal(t, modifiedLabelAndAnnotations.Spec.Templates[0].Template.ObjectMeta.Labels["123"], "456")
 
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].SpecRef = v1alpha1.ReplicaSetSpecRef("test")
 	invalidRef, err := GetExperimentFromTemplate(r2, rs1, rs2)

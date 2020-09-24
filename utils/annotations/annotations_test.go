@@ -91,7 +91,7 @@ func TestAnnotationUtils(t *testing.T) {
 	tRS := generateRS(&tRollout)
 	tRollout.Annotations[RevisionAnnotation] = "1"
 
-	// Check if revision anotations can be set
+	// Check if revision annotations can be set
 	t.Run("SetRolloutRevision", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()
 		updated := SetRolloutRevision(copyRollout, "2")
@@ -126,7 +126,7 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	// Check if anotations are copied properly from rollout to RS
+	// Check if annotations are copied properly from rollout to RS
 	t.Run("SetNewReplicaSetAnnotations", func(t *testing.T) {
 		//Try to set the increment revision from 1 through 20
 		tRS.Annotations = nil
