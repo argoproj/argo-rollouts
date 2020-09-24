@@ -450,6 +450,22 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
 		},
+		{
+			name:                "scale down not  available stableRS",
+			rolloutSpecReplicas: 10,
+			setWeight:           30,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 3,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
