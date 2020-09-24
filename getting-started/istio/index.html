@@ -1183,7 +1183,7 @@ and 0% on the canary. During an update, these values will be modified by the con
   <span class="nt">hosts</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span>
   <span class="nt">http</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">primary</span>  <span class="c1"># Should match spec.strategy.canary.stableSertrafficRouting.istio.virtualService.routes</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">primary</span>  <span class="c1"># Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes</span>
     <span class="nt">route</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
         <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match spec.strategy.canary.stableService</span>

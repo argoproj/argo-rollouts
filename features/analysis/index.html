@@ -1508,7 +1508,7 @@ no interval is specified, the analysis will perform a single measurement and com
 <p class="admonition-title">Important</p>
 <p>Available since v0.9.0</p>
 </div>
-<p>A Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+<p>A Rollout can reference a Cluster scoped AnalysisTemplate called a 
 <code>ClusterAnalysisTemplate</code>. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
 in different namespaces, and avoid duplicating the same template in every namespace. Use the field
 <code>clusterScope: true</code> to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.</p>
@@ -1715,7 +1715,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
     <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == &#39;true&#39;</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">web</span><span class="p">:</span>
-        <span class="c1"># paceholders are resolved when an AnalysisRun is created </span>
+        <span class="c1"># placeholders are resolved when an AnalysisRun is created </span>
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.api-url</span><span class="nv"> </span><span class="s">}}?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">headers</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
@@ -2002,13 +2002,13 @@ short-lived experiment and an asynchronous analysis.</p>
     <span class="nt">spec</span><span class="p">:</span>
       <span class="nt">containers</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guesbook:v1</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook:v1</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
     <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
     <span class="nt">spec</span><span class="p">:</span>
       <span class="nt">containers</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guesbook:v2</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook:v2</span>
   <span class="nt">analysis</span><span class="p">:</span>
     <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
     <span class="nt">args</span><span class="p">:</span>

@@ -1349,7 +1349,7 @@ basic ingress support, only the "ingress" addon needs to be enabled:</p>
 <div class="highlight"><pre><span></span><code>minikube addons <span class="nb">enable</span> ingress
 </code></pre></div>
 
-<p>Optionaly, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
+<p>Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
 <div class="highlight"><pre><span></span><code># Install Prometheus
 kubectl create ns monitoring
 helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
@@ -1511,7 +1511,7 @@ transfer-encoding: chunked
 
 <h4 id="browser-extension">Browser Extension<a class="headerlink" href="#browser-extension" title="Permanent link">&para;</a></h4>
 <p>Similar to curl's ability to explicitly set a header, browsers can also achieve this via browser
-extensions. One example of a brower extension which can do this, is
+extensions. One example of a browser extension which can do this, is
 <a href="https://bewisse.com/modheader/">ModHeader</a>.</p>
                 
               
