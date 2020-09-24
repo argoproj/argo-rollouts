@@ -264,7 +264,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	// setAnalysisRunStatus is a convenience method to:
 	// 1. update the runStatus
-	// 2. log a message and emit an event on status changess
+	// 2. log a message and emit an event on status changes
 	defer func() {
 		if prevStatus.Phase != newStatus.Phase {
 			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Phase, newStatus.Phase)
