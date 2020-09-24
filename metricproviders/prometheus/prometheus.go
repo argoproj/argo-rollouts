@@ -28,7 +28,7 @@ type Provider struct {
 	logCtx log.Entry
 }
 
-// Type incidates provider is a prometheus provider
+// Type indicates provider is a prometheus provider
 func (p *Provider) Type() string {
 	return ProviderType
 }

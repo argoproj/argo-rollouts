@@ -57,7 +57,7 @@ type canaryConfig struct {
 	Applications        []string
 }
 
-// Type incidates provider is a kayenta provider
+// Type indicates provider is a kayenta provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
