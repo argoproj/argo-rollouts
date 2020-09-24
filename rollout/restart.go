@@ -17,7 +17,7 @@ const (
 	// restartPodCheckTime prevents the Rollout from not making any progress with restarting Pods. When pods can be restarted
 	// faster than the old pods can be scaled down, the parent's ReplicaSet's availableReplicas does not change. A rollout
 	// relies on changes to the availableReplicas of the ReplicaSet to detect when the controller should requeue and continue
-	// deleting pods. In this situation, the rollout does not renqueue and wont make any more progress restarting pods until
+	// deleting pods. In this situation, the rollout does not requeue and wont make any more progress restarting pods until
 	// the resync period passes or another change is made to the Rollout. The controller requeue Rollouts with deleted
 	// Polls every 30 seconds to make sure the rollout is not stuck.
 	restartPodCheckTime = 30 * time.Second
