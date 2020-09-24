@@ -39,9 +39,9 @@ const (
                                 }
                             }`
 
-	resumeDelay          time.Duration = 15 * time.Second
-	httpConnectionTimout time.Duration = 15 * time.Second
-	scopeFormat                        = `"%s":{"controlScope": %s, "experimentScope": %s}`
+	resumeDelay           time.Duration = 15 * time.Second
+	httpConnectionTimeout time.Duration = 15 * time.Second
+	scopeFormat                         = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {
@@ -254,7 +254,7 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 func NewHttpClient() http.Client {
 
 	c := http.Client{
-		Timeout: httpConnectionTimout,
+		Timeout: httpConnectionTimeout,
 	}
 
 	return c
