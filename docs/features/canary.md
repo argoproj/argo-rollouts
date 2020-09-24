@@ -45,7 +45,7 @@ spec:
 ```
 
 ## Pause Duration
-Pause duration can be specied with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. 
+Pause duration can be specified with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. 
 
 ```yaml
 spec:
