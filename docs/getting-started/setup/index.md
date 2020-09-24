@@ -23,7 +23,7 @@ basic ingress support, only the "ingress" addon needs to be enabled:
 minikube addons enable ingress
 ```
 
-Optionaly, Prometheus and Grafana can be installed to utilize progressive delivery functionality:
+Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:
 
 ```
 # Install Prometheus
