@@ -229,5 +229,5 @@ transfer-encoding: chunked
 #### Browser Extension
 
 Similar to curl's ability to explicitly set a header, browsers can also achieve this via browser
-extensions. One example of a brower extension which can do this, is
+extensions. One example of a browser extension which can do this, is
 [ModHeader](https://bewisse.com/modheader/).
