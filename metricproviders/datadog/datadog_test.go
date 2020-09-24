@@ -50,8 +50,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) < 0.001",
-				FailureCondition: "asFloat(result) >= 0.001",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query:    "avg:kubernetes.cpu.user.total{*}",
@@ -69,8 +69,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) < 0.001",
-				FailureCondition: "asFloat(result) >= 0.001",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",
@@ -87,8 +87,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"status":"error","error":"error messsage"}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) < 0.001",
-				FailureCondition: "asFloat(result) >= 0.001",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",
@@ -105,8 +105,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"errors": ["No authenticated user."]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) < 0.001",
-				FailureCondition: "asFloat(result) >= 0.001",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",

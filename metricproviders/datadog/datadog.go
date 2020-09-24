@@ -1,7 +1,6 @@
 package datadog
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -128,15 +127,19 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
-	buf := new(bytes.Buffer)
-	err = jsonParser.Execute(buf, data)
+	results, err := jsonParser.FindResults(data)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not find JSONPath in body: %s", err)
 	}
-	out := buf.String()
+
+	if len(results) < 1 && len(results[0]) < 1 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value")
+	}
+
+	var out float64 = results[0][0].Interface().(float64)
 
 	status := evaluate.EvaluateResult(out, metric, p.logCtx)
-	return out, status, nil
+	return strconv.FormatFloat(out, 'f', -1, 64), status, nil
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
