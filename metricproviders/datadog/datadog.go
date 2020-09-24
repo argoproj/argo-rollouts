@@ -116,9 +116,9 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
 
-	if response.StatusCode == 401 || response.StatusCode == 403 {
+	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
-	} else if response.StatusCode < 200 || response.StatusCode >= 300 {
+	} else if response.StatusCode != http.StatusOK {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
 	}
 
