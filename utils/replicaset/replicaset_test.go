@@ -359,7 +359,7 @@ func TestFindActiveOrLatest(t *testing.T) {
 			expectedRS: rs(0, now),
 		},
 		{
-			name: "No active replicas and no newRS return newests old",
+			name: "No active replicas and no newRS return newest old",
 			oldRSs: []*appsv1.ReplicaSet{
 				rs(0, before),
 				rs(0, now),
