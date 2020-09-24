@@ -55,7 +55,7 @@ spec:
   hosts:
   - rollouts-demo.local
   http:
-  - name: primary  # Should match spec.strategy.canary.stableSertrafficRouting.istio.virtualService.routes
+  - name: primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
