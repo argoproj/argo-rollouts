@@ -914,7 +914,7 @@ Datadog api and app tokens can be configured in a kubernetes secret in argo-roll
 apiVersion: v1
 kind: Secret
 metadata:
-  name: wavefront-api-tokens
+  name: datadog
 type: Opaque
 data:
   api-key: <datadog-api-key>
