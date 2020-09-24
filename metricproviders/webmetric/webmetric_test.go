@@ -40,7 +40,7 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "1",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
-		// When_numberReturnedInJson_And_DoesNotMatcheConditions_Then_Failure
+		// When_numberReturnedInJson_And_DoesNotMatchConditions_Then_Failure
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": 0}}]}`,

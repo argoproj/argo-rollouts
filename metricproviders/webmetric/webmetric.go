@@ -31,7 +31,7 @@ type Provider struct {
 	jsonParser *jsonpath.JSONPath
 }
 
-// Type incidates provider is a WebMetric provider
+// Type indicates provider is a WebMetric provider
 func (p *Provider) Type() string {
 	return ProviderType
 }

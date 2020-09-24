@@ -56,25 +56,25 @@ func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.Owner
 	return nil
 }
 
-func parseRevision(annots map[string]string) int {
-	if annots != nil {
-		if revision, err := strconv.Atoi(annots[annotations.RevisionAnnotation]); err == nil {
+func parseRevision(annotations_ map[string]string) int {
+	if annotations_ != nil {
+		if revision, err := strconv.Atoi(annotations_[annotations.RevisionAnnotation]); err == nil {
 			return revision
 		}
 	}
 	return 0
 }
 
-func parseExperimentTemplateName(annots map[string]string) string {
-	if annots != nil {
-		return annots[v1alpha1.ExperimentTemplateNameAnnotationKey]
+func parseExperimentTemplateName(annotations_ map[string]string) string {
+	if annotations_ != nil {
+		return annotations_[v1alpha1.ExperimentTemplateNameAnnotationKey]
 	}
 	return ""
 }
 
-func parseScaleDownDeadline(annots map[string]string) string {
-	if annots != nil {
-		return annots[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+func parseScaleDownDeadline(annotations_ map[string]string) string {
+	if annotations_ != nil {
+		return annotations_[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 	}
 	return ""
 }

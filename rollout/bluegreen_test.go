@@ -247,8 +247,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		addedConditons := generateConditionsPatch(true, conditions.PausedRolloutReason, rs2, true, "")
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditons)), patch)
+		addedConditions := generateConditionsPatch(true, conditions.PausedRolloutReason, rs2, true, "")
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditions)), patch)
 	})
 
 	t.Run("NoActionsAfterPausing", func(t *testing.T) {

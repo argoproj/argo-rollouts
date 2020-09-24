@@ -18,7 +18,7 @@ const (
 	# Promote a paused rollout
 	%[1]s promote guestbook
 
-	# Promote a canary rollout and skip all remaining stpes
+	# Promote a canary rollout and skip all remaining steps
 	%[1]s promote guestbook --skip-all-steps`
 
 	promoteUsage = `Unpause a Canary or BlueGreen rollout or skip Canary rollout steps.

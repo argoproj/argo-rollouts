@@ -58,7 +58,7 @@ func HasRequiredAnalysisRuns(ex *v1alpha1.Experiment) bool {
 	return false
 }
 
-// RequiredAnalysisRunsSuccessful has at least one required for completition analysis run
+// RequiredAnalysisRunsSuccessful has at least one required for completion analysis run
 // and it completed successfully
 func RequiredAnalysisRunsSuccessful(ex *v1alpha1.Experiment, exStatus *v1alpha1.ExperimentStatus) bool {
 	if exStatus == nil {

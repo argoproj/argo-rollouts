@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func TestGetCurrentnalysisRunByKind(t *testing.T) {
+func TestGetCurrentAnalysisRunByKind(t *testing.T) {
 	arsWithSteps := []*v1alpha1.AnalysisRun{
 		{
 			ObjectMeta: metav1.ObjectMeta{

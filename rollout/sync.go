@@ -243,7 +243,7 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 		}
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
-	// The controller wants to use the rolloutCanary method to reconcile the rolllout if the rollout is not paused.
+	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
 		err = c.podRestarter.Reconcile(c)
@@ -443,24 +443,24 @@ func (c *rolloutContext) checkPausedConditions() error {
 	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
 
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
-	var updatedConditon *v1alpha1.RolloutCondition
+	var updatedCondition *v1alpha1.RolloutCondition
 	if isPaused && !pausedCondExists {
-		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
+		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
 	} else if !isPaused && pausedCondExists {
-		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
+		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
 	}
 
 	abortCondExists := cond != nil && cond.Reason == conditions.RolloutAbortedReason
 	if !c.rollout.Status.Abort && abortCondExists {
-		updatedConditon = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutRetryReason, conditions.RolloutRetryMessage)
+		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutRetryReason, conditions.RolloutRetryMessage)
 	}
 
-	if updatedConditon == nil {
+	if updatedCondition == nil {
 		return nil
 	}
 
 	newStatus := c.rollout.Status.DeepCopy()
-	err := c.patchCondition(c.rollout, newStatus, updatedConditon)
+	err := c.patchCondition(c.rollout, newStatus, updatedCondition)
 	return err
 }
 

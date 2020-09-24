@@ -65,7 +65,7 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	}
 
 	// Setup a clean recovery in case the eval code panics.
-	// TODO: this actually might not be nessary since it seems evaluation lib handles panics from functions internally
+	// TODO: this actually might not be necessary since it seems evaluation lib handles panics from functions internally
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("evaluation logic panicked: %v", r)

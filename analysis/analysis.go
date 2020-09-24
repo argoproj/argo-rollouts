@@ -100,7 +100,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		if enqueueSeconds < 0 {
 			enqueueSeconds = 0
 		}
-		log.Infof("enqueuing analysis after %v", enqueueSeconds)
+		log.Infof("enqueueing analysis after %v", enqueueSeconds)
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
@@ -390,7 +390,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 		worstMessage = "run terminated"
 	}
 
-	// Iterate all metrics and update MetricResult.Phase fields based on lastest measurement(s)
+	// Iterate all metrics and update MetricResult.Phase fields based on latest measurement(s)
 	for _, metric := range run.Spec.Metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)

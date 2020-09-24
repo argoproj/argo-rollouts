@@ -223,7 +223,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 
-func TestCreateWithCollisionCounterNoControlller(t *testing.T) {
+func TestCreateWithCollisionCounterNoController(t *testing.T) {
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",

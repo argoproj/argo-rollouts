@@ -132,7 +132,7 @@ func (o *GetOptions) Clear() {
 	fmt.Fprint(o.Out, "\033[0;0H")
 }
 
-// colorize adds ansii color codes to the string based on well known words
+// colorize adds ansi color codes to the string based on well known words
 func (o *GetOptions) colorize(s string) string {
 	if o.NoColor {
 		return s
@@ -141,7 +141,7 @@ func (o *GetOptions) colorize(s string) string {
 	return o.ansiFormat(s, color)
 }
 
-// colorizeStatus adds ansii color codes to the string based on supplied status string
+// colorizeStatus adds ansi color codes to the string based on supplied status string
 func (o *GetOptions) colorizeStatus(s string, status string) string {
 	if o.NoColor {
 		return s

@@ -360,13 +360,13 @@ func TestVerifyExperimentSpecBaseCases(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(MissingFieldMessage, missingField), noSelectorCond.Message)
 	assert.Equal(t, InvalidSpecReason, noSelectorCond.Reason)
 
-	minReadyLongerThanProgessDeadline := ex.DeepCopy()
-	minReadyLongerThanProgessDeadline.Spec.Templates[0].MinReadySeconds = 1000
-	minReadyLongerThanProgessDeadlineCond := VerifyExperimentSpec(minReadyLongerThanProgessDeadline, nil)
-	assert.NotNil(t, minReadyLongerThanProgessDeadlineCond)
-	assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgessDeadlineCond.Reason)
+	minReadyLongerThanProgressDeadline := ex.DeepCopy()
+	minReadyLongerThanProgressDeadline.Spec.Templates[0].MinReadySeconds = 1000
+	minReadyLongerThanProgressDeadlineCond := VerifyExperimentSpec(minReadyLongerThanProgressDeadline, nil)
+	assert.NotNil(t, minReadyLongerThanProgressDeadlineCond)
+	assert.Equal(t, InvalidSpecReason, minReadyLongerThanProgressDeadlineCond.Reason)
 	minReadyLongerMessage := fmt.Sprintf(ExperimentMinReadyLongerThanDeadlineMessage, 0)
-	assert.Equal(t, minReadyLongerMessage, minReadyLongerThanProgessDeadlineCond.Message)
+	assert.Equal(t, minReadyLongerMessage, minReadyLongerThanProgressDeadlineCond.Message)
 
 	//Test switching from a prev invalid spec to another
 	prevLastUpdateTime := selectorEverythingConf.LastUpdateTime

@@ -34,7 +34,7 @@ const (
 func NewCmdTerminate(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:          "terminate <analysisrun|experiment> RESOURCE_NAME",
-		Short:        "Terminate an AalysisRun or Experiment",
+		Short:        "Terminate an AnalysisRun or Experiment",
 		Long:         "This command consists of multiple subcommands which can be used to terminate an AnalysisRun or Experiment that is in progress.",
 		Example:      o.Example(terminateExample),
 		SilenceUsage: true,

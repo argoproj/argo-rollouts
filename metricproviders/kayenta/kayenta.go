@@ -39,9 +39,9 @@ const (
                                 }
                             }`
 
-	resumeDelay          time.Duration = 15 * time.Second
-	httpConnectionTimout time.Duration = 15 * time.Second
-	scopeFormat                        = `"%s":{"controlScope": %s, "experimentScope": %s}`
+	resumeDelay           time.Duration = 15 * time.Second
+	httpConnectionTimeout time.Duration = 15 * time.Second
+	scopeFormat                         = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {
@@ -57,7 +57,7 @@ type canaryConfig struct {
 	Applications        []string
 }
 
-// Type incidates provider is a kayenta provider
+// Type indicates provider is a kayenta provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
@@ -254,7 +254,7 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 func NewHttpClient() http.Client {
 
 	c := http.Client{
-		Timeout: httpConnectionTimout,
+		Timeout: httpConnectionTimeout,
 	}
 
 	return c

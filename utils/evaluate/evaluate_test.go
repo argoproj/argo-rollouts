@@ -92,13 +92,13 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 
 }
 
-func TestEvaluateConditonWithSucces(t *testing.T) {
+func TestEvaluateConditionWithSucces(t *testing.T) {
 	b, err := EvalCondition(true, "result == true")
 	assert.Nil(t, err)
 	assert.True(t, b)
 }
 
-func TestEvaluateConditonWithFailure(t *testing.T) {
+func TestEvaluateConditionWithFailure(t *testing.T) {
 	b, err := EvalCondition(true, "result == false")
 	assert.Nil(t, err)
 	assert.False(t, b)
@@ -123,7 +123,7 @@ func TestEvaluateArray(t *testing.T) {
 	assert.True(t, b)
 }
 
-func TestEvaluatInOperator(t *testing.T) {
+func TestEvaluateInOperator(t *testing.T) {
 	floats := []float64{float64(2), float64(2)}
 	b, err := EvalCondition(floats, "2 in result")
 	assert.Nil(t, err)

@@ -26,7 +26,7 @@ func TestCreateTwoWayMergeInvalidNewObj(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestCreateTwoWayMergeInvalidDataStructj(t *testing.T) {
+func TestCreateTwoWayMergeInvalidDataStruct(t *testing.T) {
 	rollout := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",

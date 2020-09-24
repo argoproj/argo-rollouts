@@ -78,7 +78,7 @@ Argo CD has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913
 
 Instead of the controller modifying a reference to a Virtual Service, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
 
-*  To provide the same flexibility as referencing Virtual Service within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unecessary complicated.
+*  To provide the same flexibility as referencing Virtual Service within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unnecessary complicated.
 * If Istio introduces a feature, that feature will not be available in Argo Rollouts until implemented within Argo Rollouts.
 
 Both of these issues adds more complexity to the users and Argo Rollouts developers compared to referencing a Virtual Service.

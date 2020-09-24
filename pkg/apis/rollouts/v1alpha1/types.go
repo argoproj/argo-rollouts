@@ -182,7 +182,7 @@ type CanaryStrategy struct {
 	// Example: when this is set to 30%, the new RC can be scaled up by 30%
 	// immediately when the rolling update starts. Once old pods have been killed,
 	// new RC can be scaled up further, ensuring that total number of pods running
-	// at any time during the update is atmost 130% of original pods.
+	// at any time during the update is at most 130% of original pods.
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 	// Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
@@ -194,7 +194,7 @@ type CanaryStrategy struct {
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 type ALBTrafficRouting struct {
-	// Ingress refers to the name of an `Ingress` resource in the same namepace as the `Rollout`
+	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
 	Ingress string `json:"ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort"`
@@ -331,12 +331,12 @@ type CanaryStep struct {
 	Experiment *RolloutExperimentStep `json:"experiment,omitempty"`
 	// Analysis defines the AnalysisRun that will run for a step
 	Analysis *RolloutAnalysis `json:"analysis,omitempty"`
-	// SetCanaryScale defines how to scale the newRS without chainging traffic weight
+	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty"`
 }
 
-// SetCanaryScale defines how to scale the newRS without chainging traffic weight
+// SetCanaryScale defines how to scale the newRS without changing traffic weight
 type SetCanaryScale struct {
 	// Weight sets the percentage of replicas the newRS should have
 	// +optional

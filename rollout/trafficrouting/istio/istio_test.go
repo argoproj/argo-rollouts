@@ -116,10 +116,10 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 		rollout: rollout("stable", "canary", "vsvc", []string{"primary"}),
 	}
 	obj := strToUnstructured(regularVsvc)
-	modifedObj, _, err := r.reconcileVirtualService(obj, 10)
+	modifiedObj, _, err := r.reconcileVirtualService(obj, 10)
 	assert.Nil(t, err)
-	assert.NotNil(t, modifedObj)
-	routes, ok, err := unstructured.NestedSlice(modifedObj.Object, "spec", "http")
+	assert.NotNil(t, modifiedObj)
+	routes, ok, err := unstructured.NestedSlice(modifiedObj.Object, "spec", "http")
 	assert.Nil(t, err)
 	assert.True(t, ok)
 	route := routes[0].(map[string]interface{})

@@ -174,7 +174,7 @@ Multiple measurements can be performed over a longer duration period, by specify
 !!! important
     Available since v0.9.0
 
-A Rollout can reference a Cluster scoped AnaylsisTemplate called a 
+A Rollout can reference a Cluster scoped AnalysisTemplate called a 
 `ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
 in different namespaces, and avoid duplicating the same template in every namespace. Use the field
 `clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
@@ -387,7 +387,7 @@ spec:
     successCondition: result == 'true'
     provider:
       web:
-        # paceholders are resolved when an AnalysisRun is created 
+        # placeholders are resolved when an AnalysisRun is created 
         url: "{{ args.api-url }}?service={{ args.service-name }}"
         headers:
           - key: Authorization
@@ -708,13 +708,13 @@ This example demonstrates:
         spec:
           containers:
           - name: guestbook
-            image: guesbook:v1
+            image: guestbook:v1
       - name: canary
         replicas: 1
         spec:
           containers:
           - name: guestbook
-            image: guesbook:v2
+            image: guestbook:v2
       analysis:
         templateName: mann-whitney
         args:
