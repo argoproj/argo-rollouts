@@ -163,10 +163,12 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
 
 	totalAvailableOlderReplicaCount := GetAvailableReplicaCountForReplicaSets(oldRSs)
-	scaleDownCount := GetReplicasForScaleDown(newRS) + GetReplicasForScaleDown(stableRS) + totalAvailableOlderReplicaCount - minAvailableReplicaCount
+	stableRSReplicasForScaleDown := GetReplicasForScaleDown(stableRS)
+	scaleDownCount := GetReplicasForScaleDown(newRS) + stableRSReplicasForScaleDown + totalAvailableOlderReplicaCount - minAvailableReplicaCount
 
 	if scaleDownCount <= 0 {
 		// Cannot scale down stableRS or newRS without going below min available replica count
+		stableRSReplicaCount = stableRSReplicasForScaleDown
 		return newRSReplicaCount, stableRSReplicaCount
 	}
 
