@@ -100,7 +100,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		if enqueueSeconds < 0 {
 			enqueueSeconds = 0
 		}
-		log.Infof("enqueuing analysis after %v", enqueueSeconds)
+		log.Infof("enqueueing analysis after %v", enqueueSeconds)
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
