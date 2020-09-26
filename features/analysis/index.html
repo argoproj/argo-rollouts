@@ -2118,7 +2118,7 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 </code></pre></div>
 
 <h2 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h2>
-<p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced in the <code>successCondition</code> and <code>failureCondition</code> expressions.</p>
+<p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the optional <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced in the <code>successCondition</code> and <code>failureCondition</code> expressions. If omitted, will use the entire body of the as the result variable.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
     <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == &#39;true&#39;</span>
@@ -2132,22 +2132,31 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </code></pre></div>
 
-<p>In this example, the measurement is successful if the json response returns <code>"true"</code> for the nested <code>ok</code> field.  </p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span> <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&quot;ok&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="nt">&quot;successPercent&quot;</span><span class="p">:</span> <span class="mf">0.95</span> <span class="p">}</span> <span class="p">}</span>
+<p>In the following example, given the payload, the measurement will be Successful if the <code>data.ok</code> field was <code>true</code>, and the <code>data.successPercent</code>
+was greater than <code>0.90</code></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+    <span class="nt">&quot;successPercent&quot;</span><span class="p">:</span> <span class="mf">0.95</span>
+  <span class="p">}</span>
+<span class="p">}</span>
 </code></pre></div>
 
-<p>For success conditions that need to evaluate a numeric return value the <code>asInt</code> or <code>asFloat</code> functions can be used to convert the result value.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;asFloat(result)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">0.90&quot;</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;result.ok</span><span class="nv"> </span><span class="s">&amp;&amp;</span><span class="nv"> </span><span class="s">result.successPercent</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">0.90&quot;</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">web</span><span class="p">:</span>
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">headers</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
             <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
-        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.successPercent}&quot;</span> 
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.data}&quot;</span> 
 </code></pre></div>
+
+<p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
+to convert a result value to a numeric type so that mathematical comparison operators can be used
+(e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
                 
               
               
