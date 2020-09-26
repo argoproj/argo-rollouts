@@ -5,12 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
+
+	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 type Given struct {
@@ -51,16 +51,16 @@ func (g *Given) RolloutObjects(text string) *Given {
 			g.CheckError(err)
 			g.log = g.log.WithField("rollout", g.rollout.Name)
 
-			// Modify pod termination delay if set
-			if g.podDelay > 0 {
-				g.rollout.Spec.Template.Spec.Containers[0].Args = []string{"--termination-delay", strconv.Itoa(g.podDelay)}
-				g.rollout.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-					InitialDelaySeconds: int32(g.podDelay),
-					Handler: corev1.Handler{
-						TCPSocket: &corev1.TCPSocketAction{
-							Port: intstr.FromInt(8080),
-						},
+			if E2EPodDelay > 0 {
+				// Add postStart/preStop handlers to slow down readiness/termination
+				sleepHandler := corev1.Handler{
+					Exec: &corev1.ExecAction{
+						Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
 					},
+				}
+				g.rollout.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+					PostStart: &sleepHandler,
+					PreStop:   &sleepHandler,
 				}
 			}
 		} else {

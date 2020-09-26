@@ -24,7 +24,7 @@ func (s *AnalysisSuite) TestRolloutWithBackgroundAnalysis() {
 		Then().
 		ExpectAnalysisRunCount(0).
 		When().
-		UpdateImage("argoproj/rollouts-demo:yellow").
+		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectAnalysisRunCount(1).
@@ -45,7 +45,7 @@ func (s *AnalysisSuite) TestRolloutWithInlineAnalysis() {
 		Then().
 		ExpectAnalysisRunCount(0).
 		When().
-		UpdateImage("argoproj/rollouts-demo:yellow").
+		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectAnalysisRunCount(1).

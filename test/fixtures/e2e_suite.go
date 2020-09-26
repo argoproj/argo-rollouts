@@ -42,6 +42,7 @@ const (
 
 var (
 	E2EWaitTimeout time.Duration = time.Second * 60
+	E2EPodDelay                  = 0
 
 	// All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
@@ -69,6 +70,13 @@ func init() {
 			panic(fmt.Sprintf("Invalid wait timeout seconds: %s", e2eWaitTimeout))
 		}
 		E2EWaitTimeout = time.Duration(timeout) * time.Second
+	}
+	if e2ePodDelay, ok := os.LookupEnv(EnvVarE2EPodDelay); ok {
+		delay, err := strconv.Atoi(e2ePodDelay)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid pod delay value: %s", e2ePodDelay))
+		}
+		E2EPodDelay = delay
 	}
 }
 
@@ -103,12 +111,6 @@ func (s *E2ESuite) SetupSuite() {
 		_ = flag.Set("v", strconv.Itoa(7))
 		flag.Parse()
 	}
-
-	if delayStr := os.Getenv(EnvVarE2EPodDelay); delayStr != "" {
-		delay, err := strconv.Atoi(delayStr)
-		s.CheckError(err)
-		s.podDelay = delay
-	}
 }
 
 func (s *E2ESuite) TearDownSuite() {
@@ -124,6 +126,9 @@ func (s *E2ESuite) BeforeTest(suiteName, testName string) {
 }
 
 func (s *E2ESuite) AfterTest(_, _ string) {
+	if s.Common.t.Failed() && s.rollout != nil {
+		s.PrintRollout(s.rollout)
+	}
 }
 
 func (s *E2ESuite) DeleteResources() {

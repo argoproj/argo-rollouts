@@ -17,14 +17,8 @@ spec:
         app: basic
     spec:
       containers:
-      - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
-        imagePullPolicy: IfNotPresent
-        # reduce termination delay (default 10s) for e2e tests
-        args: [--termination-delay, "0"]
-        ports:
-        - name: http
-          containerPort: 8080
+      - name: basic
+        image: nginx:1.19-alpine
         resources:
           requests:
             memory: 16Mi
