@@ -2707,6 +2707,8 @@ spec:
                               - value
                               type: object
                             type: array
+                          insecure:
+                            type: boolean
                           jsonPath:
                             type: string
                           timeoutSeconds:
@@ -2714,7 +2716,6 @@ spec:
                           url:
                             type: string
                         required:
-                        - jsonPath
                         - url
                         type: object
                     type: object
@@ -5511,6 +5512,8 @@ spec:
                               - value
                               type: object
                             type: array
+                          insecure:
+                            type: boolean
                           jsonPath:
                             type: string
                           timeoutSeconds:
@@ -5518,7 +5521,6 @@ spec:
                           url:
                             type: string
                         required:
-                        - jsonPath
                         - url
                         type: object
                     type: object
@@ -8243,6 +8245,8 @@ spec:
                               - value
                               type: object
                             type: array
+                          insecure:
+                            type: boolean
                           jsonPath:
                             type: string
                           timeoutSeconds:
@@ -8250,7 +8254,6 @@ spec:
                           url:
                             type: string
                         required:
-                        - jsonPath
                         - url
                         type: object
                     type: object

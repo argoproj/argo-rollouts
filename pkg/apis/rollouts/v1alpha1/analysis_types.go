@@ -124,8 +124,10 @@ func (m *Metric) EffectiveCount() *int32 {
 type MetricProvider struct {
 	// Prometheus specifies the prometheus metric to query
 	Prometheus *PrometheusMetric `json:"prometheus,omitempty"`
-	Kayenta    *KayentaMetric    `json:"kayenta,omitempty"`
-	Web        *WebMetric        `json:"web,omitempty"`
+	// Kayenta specifies a Kayenta metric
+	Kayenta *KayentaMetric `json:"kayenta,omitempty"`
+	// Web specifies a generic HTTP web metric
+	Web *WebMetric `json:"web,omitempty"`
 	// Wavefront specifies the wavefront metric to query
 	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
 	// Job specifies the job metric run
@@ -330,12 +332,18 @@ type ScopeDetail struct {
 }
 
 type WebMetric struct {
+	// URL is the address of the web metric
 	URL string `json:"url"`
 	// +patchMergeKey=key
 	// +patchStrategy=merge
-	Headers        []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key"`
-	TimeoutSeconds int               `json:"timeoutSeconds,omitempty"`
-	JSONPath       string            `json:"jsonPath"`
+	// Headers are optional HTTP headers to use in the request
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key"`
+	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+	// JSONPath is a JSON Path to use as the result variable (default: "{$}")
+	JSONPath string `json:"jsonPath,omitempty"`
+	// Insecure skips host TLS verification
+	Insecure bool `json:"insecure,omitempty"`
 }
 
 type WebMetricHeader struct {

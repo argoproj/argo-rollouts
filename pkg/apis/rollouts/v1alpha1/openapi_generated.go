@@ -1789,12 +1789,14 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 					},
 					"kayenta": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric"),
+							Description: "Kayenta specifies a Kayenta metric",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric"),
 						},
 					},
 					"web": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"),
+							Description: "Web specifies a generic HTTP web metric",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"),
 						},
 					},
 					"wavefront": {
@@ -3180,8 +3182,9 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "URL is the address of the web metric",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"headers": {
@@ -3192,7 +3195,8 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Headers are optional HTTP headers to use in the request",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -3204,18 +3208,27 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 					},
 					"timeoutSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Description: "TimeoutSeconds is the timeout for the request in seconds (default: 10)",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"jsonPath": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "JSONPath is a JSON Path to use as the result variable (default: \"{$}\")",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Insecure skips host TLS verification",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
-				Required: []string{"url", "jsonPath"},
+				Required: []string{"url"},
 			},
 		},
 		Dependencies: []string{

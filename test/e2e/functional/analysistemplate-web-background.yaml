@@ -1,3 +1,4 @@
+# A dummy web metric which uses the kubernetes version endpoint as a metric provider
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -9,5 +10,5 @@ spec:
     successCondition: result.major == '1'
     provider:
       web:
-        url: http://kubernetes.default.svc/version
-        jsonPath: "{$.}" 
+        url: https://kubernetes.default.svc/version
+        insecure: true
