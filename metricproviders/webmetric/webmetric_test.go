@@ -21,14 +21,123 @@ func TestRunSuite(t *testing.T) {
 		expectedPhase        v1alpha1.AnalysisPhase
 		expectedErrorMessage string
 	}{
+		// When_noJSONPathSpecified_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedValue: `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_matchesNeitherCondition_Then_Inconclusive
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a >= 2 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				FailureCondition: "result.a <= 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedValue: `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase: v1alpha1.AnalysisPhaseInconclusive,
+		},
+		// When_intStringReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "1"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "asInt(result) > 0",
+				FailureCondition: "asInt(result) <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedValue: "\"1\"",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_intStringReturnedInJson_And_DoesNotMatcheConditions_Then_Failure
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "0"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "asInt(result) > 0",
+				FailureCondition: "asInt(result) <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: "\"0\"",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_floatStringReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "1.2"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "asFloat(result) > 1.1",
+				FailureCondition: "asFloat(result) <= 0",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedValue: `"1.2"`,
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_floatStringReturnedInJson_And_DoesNotMatcheConditions_Then_Failure
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "1.2"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "asFloat(result) > 1.1",
+				FailureCondition: "asFloat(result) < 1.3",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: `"1.2"`,
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
 		// When_numberReturnedInJson_And_MatchesConditions_Then_Succeed
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"key": [{"key2": {"value": 1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asInt(result) > 0",
-				FailureCondition: "asInt(result) <= 0",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -46,8 +155,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": 0}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asInt(result) > 0",
-				FailureCondition: "asInt(result) <= 0",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -64,8 +173,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": 1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) > 0",
-				FailureCondition: "asFloat(result) <= 0",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -82,8 +191,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": -1.1}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "asFloat(result) > 0",
-				FailureCondition: "asFloat(result) <= 0",
+				SuccessCondition: "result > 0",
+				FailureCondition: "result <= 0",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -100,8 +209,44 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "true",
-				FailureCondition: "false",
+				SuccessCondition: `result == "true"`,
+				FailureCondition: `result == "false"`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: `"true"`,
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_stringReturnedInJson_And_DoesNotMatchConditions_Then_Fail
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: `result == "true"`,
+				FailureCondition: `result == "true"`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key[0].key2.value}",
+					},
+				},
+			},
+			expectedValue: `"true"`,
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_boolReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [{"key2": {"value": true}}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result == true",
+				FailureCondition: "result == false",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -112,14 +257,14 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "true",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
-		// When_stringReturnedInJson_And_DoesNotMatchConditions_Then_Fail
+		// When_boolReturnedInJson_And_DoesNotMatchConditions_Then_Fail
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"key": [{"key2": {"value": "true"}}]}`,
+			webServerResponse: `{"key": [{"key2": {"value": false}}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "true",
-				FailureCondition: "true",
+				SuccessCondition: "result == true",
+				FailureCondition: "result == false",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						// URL:      server.URL,
@@ -127,7 +272,76 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedValue: "true",
+			expectedValue: "false",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_listReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [1, 2, 3, 4, 5, 6]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "any(result, {# > 5})",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key}",
+					},
+				},
+			},
+			expectedValue: "[1,2,3,4,5,6]",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_listReturnedInJson_And_DoesNotMatchConditions_Then_Fail
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key": [1, 2, 3, 4, 5, 6]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "any(result, {# > 6})",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key}",
+					},
+				},
+			},
+			expectedValue: "[1,2,3,4,5,6]",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
+		// When_mapReturnedInJson_And_MatchesConditions_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key":{"num":1.2, "bool":true, "mapfield":{"foo":"bar"}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: `result.num > 1.1 && result.bool && result.mapfield.foo == "bar"`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key}",
+					},
+				},
+			},
+			expectedValue: `{"bool":true,"mapfield":{"foo":"bar"},"num":1.2}`,
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_mapReturnedInJson_And_DoesNotMatchConditions_Then_Fail
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"key":{"num":1.2, "bool":true, "mapfield":{"foo":"bar"}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: `result.num > 1.1 && result.bool && result.mapfield.foo == "bar"`,
+				FailureCondition: `result.num > 1.1 && result.bool && result.mapfield.foo == "bar"`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						JSONPath: "{$.key}",
+					},
+				},
+			},
+			expectedValue: `{"bool":true,"mapfield":{"foo":"bar"},"num":1.2}`,
 			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
 		// When_non200_Then_Error
@@ -255,7 +469,9 @@ func TestRunSuite(t *testing.T) {
 
 		// Common Asserts
 		assert.NotNil(t, measurement)
-		assert.Equal(t, string(test.expectedPhase), string(measurement.Phase))
+		if !assert.Equal(t, string(test.expectedPhase), string(measurement.Phase)) {
+			assert.NotNil(t, measurement)
+		}
 
 		// Phase specific cases
 		switch test.expectedPhase {

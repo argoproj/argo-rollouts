@@ -1,7 +1,6 @@
 package fixtures
 
 import (
-	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -28,8 +27,7 @@ func (g *Given) RolloutObjects(text string) *Given {
 	// Some E2E AnalysisTemplates use http://kubernetes.default.svc/version as a fake metric provider.
 	// This doesn't work outside the cluster, so the following replaces it with the host from the
 	// rest config.
-	newKubernetesURL := fmt.Sprintf("%s/version", g.kubernetesHost)
-	yamlString := strings.ReplaceAll(string(yamlBytes), "http://kubernetes.default.svc/version", newKubernetesURL)
+	yamlString := strings.ReplaceAll(string(yamlBytes), "https://kubernetes.default.svc", g.kubernetesHost)
 
 	objs, err := unstructuredutil.SplitYAML(yamlString)
 	g.CheckError(err)

@@ -1,12 +1,14 @@
 package webmetric
 
 import (
-	"bytes"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"time"
 
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
@@ -19,7 +21,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is prometheus
+	// ProviderType indicates the provider is a web metric
 	ProviderType = "WebMetric"
 )
 
@@ -96,15 +98,28 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
-	buf := new(bytes.Buffer)
-	err = p.jsonParser.Execute(buf, data)
+	fullResults, err := p.jsonParser.FindResults(data)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not find JSONPath in body: %s", err)
 	}
-	out := buf.String()
+	val, valString, err := getValue(fullResults)
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, err
+	}
 
-	status := evaluate.EvaluateResult(out, metric, p.logCtx)
-	return out, status, nil
+	status := evaluate.EvaluateResult(val, metric, p.logCtx)
+	return valString, status, nil
+}
+
+func getValue(fullResults [][]reflect.Value) (interface{}, string, error) {
+	for _, results := range fullResults {
+		for _, r := range results {
+			val := r.Interface()
+			valBytes, err := json.Marshal(val)
+			return val, string(valBytes), err
+		}
+	}
+	return nil, "", errors.New("result of web metric produced no value")
 }
 
 // Resume should not be used the WebMetric provider since all the work should occur in the Run method
@@ -137,14 +152,22 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
 	c := &http.Client{
 		Timeout: timeout,
 	}
+	if metric.Provider.Web.Insecure {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		c.Transport = tr
+	}
 	return c
 }
 
 func NewWebMetricJsonParser(metric v1alpha1.Metric) (*jsonpath.JSONPath, error) {
 	jsonParser := jsonpath.New("metrics")
-
-	err := jsonParser.Parse(metric.Provider.Web.JSONPath)
-
+	jsonPath := metric.Provider.Web.JSONPath
+	if jsonPath == "" {
+		jsonPath = "{$}"
+	}
+	err := jsonParser.Parse(jsonPath)
 	return jsonParser, err
 }
 

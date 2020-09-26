@@ -837,7 +837,7 @@ data:
 
 ## Web Metrics
 
-A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the `jsonPath` expression will be assigned to the `result` variable that can be referenced in the `successCondition` and `failureCondition` expressions.
+A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the optional `jsonPath` expression will be assigned to the `result` variable that can be referenced in the `successCondition` and `failureCondition` expressions. If omitted, will use the entire body of the as the result variable.
 
 ```yaml
   metrics:
@@ -853,23 +853,31 @@ A webhook can be used to call out to some external service to obtain the measure
         jsonPath: "{$.results.ok}" 
 ```
 
-In this example, the measurement is successful if the json response returns `"true"` for the nested `ok` field.  
+In the following example, given the payload, the measurement will be Successful if the `data.ok` field was `true`, and the `data.successPercent`
+was greater than `0.90`
 
 ```json
-{ "results": { "ok": "true", "successPercent": 0.95 } }
+{
+  "data": {
+    "ok": true,
+    "successPercent": 0.95
+  }
+}
 ```
-
-For success conditions that need to evaluate a numeric return value the `asInt` or `asFloat` functions can be used to convert the result value.
 
 ```yaml
   metrics:
   - name: webmetric
-    successCondition: "asFloat(result) >= 0.90"
+    successCondition: "result.ok && result.successPercent >= 0.90"
     provider:
       web:
         url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
         headers:
           - key: Authorization
             value: "Bearer {{ args.api-token }}"
-        jsonPath: "{$.results.successPercent}" 
+        jsonPath: "{$.data}" 
 ```
+
+NOTE: if the result is a string, two convenience functions `asInt` and `asFloat` are provided
+to convert a result value to a numeric type so that mathematical comparison operators can be used
+(e.g. >, <, >=, <=).
