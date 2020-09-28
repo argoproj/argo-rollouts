@@ -12,7 +12,7 @@ spec:
             spec:
               containers:
               - name: sleep
-                image: alpine:3.12
+                image: nginx:1.19-alpine
                 command: [echo, done]
               restartPolicy: Never
           backoffLimit: 0

@@ -27,9 +27,6 @@ type Common struct {
 
 	rollout *rov1.Rollout
 	objects []*unstructured.Unstructured
-	// podDelay slows down pod startup and shutdown by the value in seconds
-	// Used humans slow down rollout activity during a test
-	podDelay int
 }
 
 func (c *Common) CheckError(err error) {

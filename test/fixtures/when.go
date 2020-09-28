@@ -8,17 +8,19 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 )
 
@@ -55,13 +57,13 @@ func (w *When) ApplyManifests() *When {
 	return w
 }
 
-func (w *When) UpdateImage(image string) *When {
+func (w *When) UpdateSpec() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	err := set.SetImage(w.dynamicClient, w.namespace, w.rollout.Name, "*", image)
+	patchStr := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, time.Now())
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.Name, types.MergePatchType, []byte(patchStr))
 	w.CheckError(err)
-	w.log.Infof("Updated image to %s", image)
 	return w
 }
 
@@ -105,6 +107,45 @@ func (w *When) RestartRollout() *When {
 	return w
 }
 
+func (w *When) ScaleRollout(scale int) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+	patchStr := fmt.Sprintf(`{"spec":{"replicas":%d}}`, scale)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.Name, types.MergePatchType, []byte(patchStr))
+	w.CheckError(err)
+	w.log.Infof("Scaled rollout to %d", scale)
+	return w
+}
+
+// PatchSpec patches the rollout
+func (w *When) PatchSpec(patch string) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+	// convert YAML patch to JSON patch
+	var patchObj map[string]interface{}
+	err := yaml.Unmarshal([]byte(patch), &patchObj)
+	w.CheckError(err)
+	jsonPatch, err := json.Marshal(patchObj)
+	w.CheckError(err)
+
+	// Apply patch
+	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.rollout.Name, metav1.GetOptions{})
+	w.CheckError(err)
+	originalBytes, err := json.Marshal(ro)
+	w.CheckError(err)
+	newRolloutBytes, err := strategicpatch.StrategicMergePatch(originalBytes, jsonPatch, rov1.Rollout{})
+	w.CheckError(err)
+	var newRollout rov1.Rollout
+	err = json.Unmarshal(newRolloutBytes, &newRollout)
+	w.CheckError(err)
+	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(&newRollout)
+	w.CheckError(err)
+	w.log.Infof("Patched rollout: %s", string(jsonPatch))
+	return w
+}
+
 func (w *When) WaitForRolloutStatus(status string) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		if info.RolloutStatusString(ro) == status {
@@ -134,6 +175,20 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 		return true
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), DefaultTimeout)
+}
+
+func (w *When) WaitForRolloutAvailableReplicas(count int32) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		return ro.Status.AvailableReplicas == count
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.availableReplicas=%d", count), E2EWaitTimeout)
+}
+
+func (w *When) WaitForRolloutReplicas(count int32) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		return ro.Status.Replicas == count
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), E2EWaitTimeout)
 }
 
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {

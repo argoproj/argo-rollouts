@@ -25,13 +25,8 @@ spec:
     spec:
       containers:
       - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
-        args: [--termination-delay, "0"]
-        ports:
-        - name: http
-          containerPort: 8080
-          protocol: TCP
+        image: nginx:1.19-alpine
         resources:
           requests:
-            memory: 32Mi
+            memory: 16Mi
             cpu: 5m

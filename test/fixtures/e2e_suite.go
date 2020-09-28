@@ -46,6 +46,7 @@ var (
 
 var (
 	E2EWaitTimeout time.Duration = time.Second * 60
+	E2EPodDelay                  = 0
 
 	// All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
@@ -72,6 +73,13 @@ func init() {
 			panic(fmt.Sprintf("Invalid wait timeout seconds: %s", e2eWaitTimeout))
 		}
 		E2EWaitTimeout = time.Duration(timeout) * time.Second
+	}
+	if e2ePodDelay, ok := os.LookupEnv(EnvVarE2EPodDelay); ok {
+		delay, err := strconv.Atoi(e2ePodDelay)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid pod delay value: %s", e2ePodDelay))
+		}
+		E2EPodDelay = delay
 	}
 }
 
@@ -106,12 +114,6 @@ func (s *E2ESuite) SetupSuite() {
 		_ = flag.Set("v", strconv.Itoa(7))
 		flag.Parse()
 	}
-
-	if delayStr := os.Getenv(EnvVarE2EPodDelay); delayStr != "" {
-		delay, err := strconv.Atoi(delayStr)
-		s.CheckError(err)
-		s.podDelay = delay
-	}
 }
 
 func (s *E2ESuite) TearDownSuite() {
@@ -119,17 +121,30 @@ func (s *E2ESuite) TearDownSuite() {
 		s.log.Info("skipping resource cleanup")
 		return
 	}
-	s.DeleteResources()
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Exists, []string{})
+	s.CheckError(err)
+	s.deleteResources(req, metav1.DeletePropagationBackground)
 }
 
 func (s *E2ESuite) BeforeTest(suiteName, testName string) {
-	s.DeleteResources()
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
+	s.CheckError(err)
+	s.deleteResources(req, metav1.DeletePropagationForeground)
 }
 
-func (s *E2ESuite) AfterTest(_, _ string) {
+func (s *E2ESuite) AfterTest(suiteName, testName string) {
+	if s.Common.t.Failed() && s.rollout != nil {
+		s.PrintRollout(s.rollout)
+	}
+	if os.Getenv(EnvVarE2EDebug) == "true" {
+		return
+	}
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
+	s.CheckError(err)
+	s.deleteResources(req, metav1.DeletePropagationBackground)
 }
 
-func (s *E2ESuite) DeleteResources() {
+func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy metav1.DeletionPropagation) {
 	resources := []schema.GroupVersionResource{
 		rov1.RolloutGVR,
 		rov1.AnalysisRunGVR,
@@ -140,11 +155,7 @@ func (s *E2ESuite) DeleteResources() {
 		ingressGVR,
 		istioutil.GetIstioGVR("v1alpha3"),
 	}
-	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Exists, []string{})
-	s.CheckError(err)
-
-	foregroundDelete := metav1.DeletePropagationForeground
-	deleteOpts := &metav1.DeleteOptions{PropagationPolicy: &foregroundDelete}
+	deleteOpts := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	listOpts := metav1.ListOptions{LabelSelector: req.String()}
 
 	listResources := func(gvr schema.GroupVersionResource) []unstructured.Unstructured {
@@ -165,6 +176,7 @@ func (s *E2ESuite) DeleteResources() {
 	}
 
 	// Delete all resources with test label
+	var err error
 	resourcesRemaining := resources[:0]
 	for _, gvr := range resources {
 		switch gvr {
@@ -229,7 +241,10 @@ func (s *E2ESuite) Run(name string, subtest func()) {
 }
 
 func (s *E2ESuite) Given() *Given {
+	c := s.Common
+	// makes sure every Given object has a T() unique to the test and not testsuite
+	c.t = s.T()
 	return &Given{
-		Common: s.Common,
+		Common: c,
 	}
 }

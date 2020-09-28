@@ -149,23 +149,23 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		}
 	}
 
+	if GetReplicaCountForReplicaSets(oldRSs) > 0 {
+		// If any older ReplicaSets exist, we should scale those down first, before even considering
+		// scaling down the newRS or stableRS
+		return newRSReplicaCount, stableRSReplicaCount
+	}
+
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
+	replicasToScaleDown := GetReplicasForScaleDown(newRS, false) + GetReplicasForScaleDown(stableRS, true)
 
-	totalAvailableOlderReplicaCount := GetAvailableReplicaCountForReplicaSets(oldRSs)
-	scaleDownCount := GetReplicasForScaleDown(newRS) + GetReplicasForScaleDown(stableRS) + totalAvailableOlderReplicaCount - minAvailableReplicaCount
-
-	if scaleDownCount <= 0 {
+	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
 	}
 
-	if scaleDownCount <= totalAvailableOlderReplicaCount {
-		//Need to scale down older replicas before scaling down the newRS or stableRS.
-		return newRSReplicaCount, stableRSReplicaCount
-	}
-	scaleDownCount = scaleDownCount - totalAvailableOlderReplicaCount
+	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
 
-	if newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount && scaleDownCount > 0 {
+	if newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
 		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
@@ -179,7 +179,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		}
 	}
 
-	if scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount && scaleDownCount > 0 {
+	if scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount {
 		// This follows the same logic as scaling down the newRS except with the stableRS and it does not need to
 		// set the scaleDownCount again since it's not used again
 		if *stableRS.Spec.Replicas-scaleDownCount < desiredStableRSReplicaCount {
@@ -219,7 +219,8 @@ func CheckStableRSExists(newRS, stableRS *appsv1.ReplicaSet) bool {
 }
 
 // GetReplicasForScaleDown returns the number of replicas to consider for scaling down.
-func GetReplicasForScaleDown(rs *appsv1.ReplicaSet) int32 {
+// isStableRS indicates if the supplied ReplicaSet is the stableRS
+func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, isStableRS bool) int32 {
 	if rs == nil {
 		return int32(0)
 	}
@@ -229,6 +230,13 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet) int32 {
 		// assuming the extra replicas (availableReplica - .Spec.Replicas) are going to remain available.
 		// Otherwise, the controller use those extra replicas to scale down more replicas and potentially
 		// violate the min available.
+		return *rs.Spec.Replicas
+	}
+	if isStableRS && rs.Status.AvailableReplicas < *rs.Spec.Replicas {
+		// The stable ReplicaSet might be scaled up, but its pods may be unavailable.
+		// In this case we need to return the spec.Replicas so that the controller will still
+		// consider scaling down this ReplicaSet. Without this, a rollout update could become stuck
+		// not scaling down the stable, in order to make room for more canaries.
 		return *rs.Spec.Replicas
 	}
 	return rs.Status.AvailableReplicas
