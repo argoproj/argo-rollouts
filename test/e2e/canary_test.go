@@ -19,6 +19,7 @@ func TestCanarySuite(t *testing.T) {
 }
 
 func (s *CanarySuite) TestCanarySetCanaryScale() {
+	s.T().Parallel()
 	canarySteps := `
 - pause: {}
 - setCanaryScale:

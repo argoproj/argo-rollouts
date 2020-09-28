@@ -39,7 +39,8 @@ func (g *Given) RolloutObjects(text string) *Given {
 		if E2ELabelValueInstanceID != "" {
 			labels[rov1.LabelKeyControllerInstanceID] = E2ELabelValueInstanceID
 		}
-		labels[E2ELabelKeyTestName] = g.t.Name()
+		testNameSplit := strings.SplitN(g.t.Name(), "/", 2)
+		labels[E2ELabelKeyTestName] = testNameSplit[1]
 		obj.SetLabels(labels)
 
 		if obj.GetKind() == "Rollout" {

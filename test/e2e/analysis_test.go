@@ -15,6 +15,7 @@ type AnalysisSuite struct {
 }
 
 func (s *AnalysisSuite) TestRolloutWithBackgroundAnalysis() {
+	s.T().Parallel()
 	s.Given().
 		RolloutObjects("@functional/analysistemplate-web-background.yaml").
 		RolloutObjects("@functional/rollout-background-analysis.yaml").
@@ -36,6 +37,7 @@ func (s *AnalysisSuite) TestRolloutWithBackgroundAnalysis() {
 }
 
 func (s *AnalysisSuite) TestRolloutWithInlineAnalysis() {
+	s.T().Parallel()
 	s.Given().
 		RolloutObjects("@functional/analysistemplate-echo-job.yaml").
 		RolloutObjects("@functional/rollout-inline-analysis.yaml").

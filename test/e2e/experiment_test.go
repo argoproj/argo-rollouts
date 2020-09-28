@@ -15,6 +15,7 @@ type ExperimentSuite struct {
 }
 
 func (s *ExperimentSuite) TestRolloutWithExperiment() {
+	s.T().Parallel()
 	s.Given().
 		RolloutObjects("@functional/rollout-experiment.yaml").
 		When().
