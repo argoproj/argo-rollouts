@@ -15,6 +15,7 @@ type ExperimentSuite struct {
 }
 
 func (s *ExperimentSuite) TestRolloutWithExperiment() {
+	s.T().Parallel()
 	s.Given().
 		RolloutObjects("@functional/rollout-experiment.yaml").
 		When().
@@ -23,7 +24,7 @@ func (s *ExperimentSuite) TestRolloutWithExperiment() {
 		// TODO: verify there are no experiments
 		Then().
 		When().
-		UpdateImage("argoproj/rollouts-demo:yellow").
+		UpdateSpec().
 		// TODO: wait for experiment to start and complete successful
 		// TODO: verify pods
 		WaitForRolloutStatus("Paused").

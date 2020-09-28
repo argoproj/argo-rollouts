@@ -450,6 +450,40 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
 		},
+		{
+			// verify we surge canary up correctly when stable RS is not available
+			name:                "honor maxSurge during scale up when stableRS unavailable",
+			rolloutSpecReplicas: 4,
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 4,
+			expectedCanaryReplicaCount: 1, // should only surge by 1 to honor maxSurge: 1
+		},
+		{
+			// verify we scale down stableRS while honoring maxUnavailable even when stableRS unavailable
+			name:                "honor maxUnavailable during scale down stableRS unavailable",
+			rolloutSpecReplicas: 4,
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      1,
+			canaryAvailableReplica: 1,
+
+			expectedStableReplicaCount: 3, // should only scale down by 1 to honor maxUnavailable: 0
+			expectedCanaryReplicaCount: 1,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -458,8 +492,8 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
-			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount)
-			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount)
+			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount, "check canary replica count")
+			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, "check stable replica count")
 		})
 	}
 }
