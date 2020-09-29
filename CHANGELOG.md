@@ -1,9 +1,23 @@
 # Changelog
 
+# v0.9.1
+
+## Changes since v0.9.0
+### General
+* feat: writeback rollout updates to informer to prevent stale data (#726)
+* fix: unavailable stable RS was not scaled down to make room for canary (#739)
+* fix: make controllers tolerant to spec marshalling errors (#666)
+* perf: Create IstioVirtualServiceLister (#656)
+* fix: add missing log message when a controller's syncHandler returns error (#658)
+* fix: support azure auth (#664)
+
+### Analysis
+* feat: web metrics preserve data types, allow insecure tls, and make jsonPath optional (#731)
+* fix: analysis controller could get into a hotloop with terminated run (#724)
+* fix: do not create analysisruns with initial deploy (#722)
+* fix: add Failed AnalysisRun phase status to analysis_run_metric_phase and analysis_run_phase metrics. (#618)
+
 # v0.9.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.9.0/manifests/install.yaml
 
 ## Changes since v0.8
 ### General
@@ -35,9 +49,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * fix: Fix analysis validation to include Kayenta #545
 
 # v0.8.3
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.3/manifests/install.yaml
 
 ## Changes since v0.8.2
 ### General
@@ -45,9 +56,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * fix: remove hash selector after switching from bg to canary (#515)
 
 # v0.8.2
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.2/manifests/install.yaml
 
 ## Changes since v0.8.1
 ### Rollouts
@@ -55,9 +63,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * fix: Add missing clusterrole for deleting pods (#490)
 
 # v0.8.1
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.1/manifests/install.yaml
 
 ## Changes since v0.8.0
 ### General
@@ -70,9 +75,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * fix: Make kubectl plugin backwards compat with canary.stableRS (#482)
 
 # v0.8.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.8.0/manifests/install.yaml
 
 ## Breaking Changes
 * The metric `rollout_created_time` is being removed.
@@ -144,18 +146,12 @@ Thank you to the following contributors for their work in this release!
 * docs: Plugin command enhancements (#454)
 
 # v0.7.2
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.2/manifests/install.yaml
 
 ## Changes since v0.7.1
 ### Rollouts
 * Update RS if RS's annotations need to be changed #413
 
 # v0.7.1
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.1/manifests/install.yaml
 
 ## Changes since v0.7.0
 
@@ -170,9 +166,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * Refactor Experiment handling of pod hashes (#385)
 
 # v0.7.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.7.0/manifests/install.yaml
 
 ## Important Notices
 - Please upgrade to v0.6.x before upgrading to v0.7. Pre v0.6.0 has a different pausing logic, and v0.7.0 removes the depreciated PauseStartTime field. The v0.6.x versions have a migration script that is removed in v0.7.0. 
@@ -212,9 +205,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * Allow web provider to be parameterized #368
 
 # v0.6.3
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.3/manifests/install.yaml
 
 ## Changes since v0.6.2
 ### Bug Fixes
@@ -225,9 +215,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * Ensure podHash stays on stable-svc selector (#340)
 
 # v0.6.2
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.2/manifests/install.yaml
 
 ## Changes since v0.6.1
 ### Bug Fixes
@@ -237,9 +224,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 * Enable controller to handle panics with crashing (#328)
 
 # v0.6.1
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.1/manifests/install.yaml
 
 ## Changes since v0.6.0
 ### Bug Fixes
@@ -251,11 +235,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 - Bluegreen: allow preview service/replica sets to be replaced and fix sg fault in syncReplicasOnly (#314)
 
 # v0.6.0
-## Quick Start
-```
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.6.0/manifests/install.yaml
-```
 
 ## Important Notices
 - The pause functionality was reworked in the v0.6 release. Previously, the `.spec.paused` field was used by the controller to pause rollouts. However, this was an issue for users who wanted to manually pause the rollout since the controller assumed it was the only entity that set the field. In v0.6, the controller will add a pause condition to the `.status.pauseCondition` to pause a controller instead of setting `spec.paused`. The pause condition has a start time and a reason explaining why it paused. This allows users to set the `spec.paused` field manually and let the controller respect that pause. The v0.6 controller has a migration function to convert pre v0.6 rollouts to the new pause condition. The migration function will be removed in a future release.
@@ -355,9 +334,6 @@ Check out the [kubectl plugin docs](https://github.com/argoproj/argo-rollouts/bl
 - Surface experiment images to CLI (##274)
 
 # v0.5.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.5.0/manifests/install.yaml
 
 ## Changes since v0.4.2
 #### Bug Fixes
@@ -374,9 +350,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 This release of Argo Rollouts introduces the experiment CRD. The experiment CRD allows users to define multiple PodSpec's to run for a specific duration of time. This will help enable the Kayenta use-case where a user will need to start two versions of their application at the same time. Otherwise, the users cannot have an apples-to-apples comparison of these two versions as one will skew as a result of running for a longer period.
 
 # v0.4.2
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.4.2/manifests/install.yaml
 
 ## Changes since v0.4.1
 #### Bug Fixes
@@ -385,18 +358,12 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 - Add .Spec.Replicas if not set in rollouts (##125)
 
 # v0.4.1
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.4.1/manifests/install.yaml
 
 ## Changes since v0.4.0
 #### Bug Fixes
 - Workaround K8s inability to properly validate 'items' subfields ##114
 
 # v0.4.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.4.0/manifests/install.yaml
 
 ## Important Notes Before Upgrading
 - For the BlueGreen strategy, Argo Rollouts will only pause rollouts that have the field `spec.strategy.blueGreen.autoPromotionEnabled` set to false. The default value of `autoPromotionEnabled` is true and causes the rollout to immediately promote the new version once it is available. This change was implemented to make the pausing behavior of rollouts more straight-forward and you can read more about it at ##80. Argo Rollouts v0.3.2 introduces the `autoPromotionEnabled` flag without making any behavior changes, and those behavior changes are enforced starting at v0.4.0. __In order to upgrade without any issues__, the operator should first upgrade to v0.3.2 and add the `autoPromotionEnabled` flag with the appropriate value.  Afterward, they will be safe to upgrade to v0.4.
@@ -421,9 +388,6 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 - Fix logging fields ##97
 
 # v0.3.2
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.3.2/manifests/install.yaml
 
 ## Important BlueGreen Strategy Change
 In v0.4.0, Argo Rollouts will have a breaking change where we will only pause BlueGreen rollouts if they have a new field called `autoPromotionEnabled` under the `spec.strategy.blueGreen` set to false. If the field is not listed, the default value will be true, and the rollout will immediately promote the new Rollout. This change was introduced to address https://github.com/argoproj/argo-rollouts/issues/80. 
@@ -436,9 +400,6 @@ To prepare for v0.4.0, v0.3.2 will introduce the `autoPromotionEnabled` field, b
 - Fix controller crash caused by glog attempting to write to /tmp (##94)
 
 # v0.3.1
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.3.1/manifests/install.yaml
 
 ## Breaking Changes
 Rename autoPromoteActiveServiceDelaySeconds to autoPromotionSeconds ##77
@@ -457,9 +418,6 @@ Rename autoPromoteActiveServiceDelaySeconds to autoPromotionSeconds ##77
 * Don't requeue 404 errors ##72
 
 # v0.3.0
-## Quick Start
-kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/v0.3.0/manifests/install.yaml
 
 ## New Features
 - HPA Support ##37
