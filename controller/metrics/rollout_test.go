@@ -60,7 +60,10 @@ rollout_info{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"
 rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 0`
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 0
+# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
+# TYPE rollout_info_replicas_desired gauge
+rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1`
 
 func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
 	var rollout v1alpha1.Rollout
