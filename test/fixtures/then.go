@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +19,7 @@ type Then struct {
 type RolloutExpectation func(*rov1.Rollout) bool
 
 func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) *Then {
-	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.Name, metav1.GetOptions{})
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	if !expectFunc(ro) {
 		t.log.Errorf("Rollout expectation '%s' failed", expectation)
@@ -31,7 +32,7 @@ func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) 
 type PodExpectation func(*corev1.PodList) bool
 
 func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
-	selector, err := metav1.LabelSelectorAsSelector(t.rollout.Spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
 	pods, err := t.kubeClient.CoreV1().Pods(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
@@ -44,26 +45,31 @@ func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
 }
 
 func (t *Then) ExpectCanaryStablePodCount(canaryCount, stableCount int) *Then {
-	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.Name, metav1.GetOptions{})
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	return t.expectPodCountByHash("canary", ro.Status.CurrentPodHash, canaryCount).
 		expectPodCountByHash("stable", ro.Status.Canary.StableRS, stableCount)
 }
 
 func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then {
-	selector, err := metav1.LabelSelectorAsSelector(t.rollout.Spec.Selector)
+	rs := t.getReplicaSetByRevision(revision)
+	description := fmt.Sprintf("revision:%s", revision)
+	hash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
+	return t.expectPodCountByHash(description, hash, expectedCount)
+}
+
+func (t *Then) getReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
+	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
 	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
 	for _, rs := range replicasets.Items {
 		if rs.Annotations[annotations.RevisionAnnotation] == revision {
-			description := fmt.Sprintf("revision:%s", revision)
-			hash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
-			return t.expectPodCountByHash(description, hash, expectedCount)
+			return &rs
 		}
 	}
 	t.t.Fatalf("Could not find ReplicaSet with revision: %s", revision)
-	return t
+	return nil
 }
 
 func (t *Then) expectPodCountByHash(description, hash string, expectedCount int) *Then {
@@ -91,7 +97,7 @@ func (t *Then) expectPodCountByHash(description, hash string, expectedCount int)
 type ReplicaSetExpectation func(*appsv1.ReplicaSetList) bool
 
 func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpectation) *Then {
-	selector, err := metav1.LabelSelectorAsSelector(t.rollout.Spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
 	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
@@ -138,6 +144,61 @@ func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
 			return string(run.Status.Phase) == phase
 		},
 	)
+}
+
+// ExpectPreviewRevision verifies the preview service selector is pointing to the specified revision
+func (t *Then) ExpectPreviewRevision(revision string) *Then {
+	return t.verifyBlueGreenSelectorRevision("preview", revision)
+}
+
+// ExpectActiveRevision verifies the active service selector is pointing to the specified revision
+func (t *Then) ExpectActiveRevision(revision string) *Then {
+	return t.verifyBlueGreenSelectorRevision("active", revision)
+}
+
+func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *Then {
+	verifyRevision := func() error {
+		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
+		t.CheckError(err)
+		var serviceName, selector string
+		switch which {
+		case "active":
+			serviceName = ro.Spec.Strategy.BlueGreen.ActiveService
+			selector = ro.Status.BlueGreen.ActiveSelector
+		case "preview":
+			serviceName = ro.Spec.Strategy.BlueGreen.PreviewService
+			selector = ro.Status.BlueGreen.PreviewSelector
+		default:
+			panic(fmt.Sprintf("unknown selector: %s", which))
+		}
+		svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(serviceName, metav1.GetOptions{})
+		t.CheckError(err)
+		rs := t.getReplicaSetByRevision(revision)
+		if selector != svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey] {
+			return fmt.Errorf("Expectation failed: blueGreen %s selector/service selector mismatch %s != %s", which, selector, svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey])
+		}
+		if selector != rs.Labels[rov1.DefaultRolloutUniqueLabelKey] {
+			return fmt.Errorf("Expectation failed: blueGreen %s selector/replicaset label mismatch %s != %s", which, selector, rs.Labels[rov1.DefaultRolloutUniqueLabelKey])
+		}
+		return nil
+	}
+	// we perform several checks because switching the active service selector lags behind the Degraded/Promotion event
+	var err error
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		err = verifyRevision()
+		if err == nil {
+			t.log.Infof("Expectation: %s revision == '%s' met", which, revision)
+			return t
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.log.Error(err)
+	t.t.FailNow()
+	return t
 }
 
 func (t *Then) When() *When {
