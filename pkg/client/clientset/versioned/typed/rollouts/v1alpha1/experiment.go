@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -37,15 +38,15 @@ type ExperimentsGetter interface {
 
 // ExperimentInterface has methods to work with Experiment resources.
 type ExperimentInterface interface {
-	Create(*v1alpha1.Experiment) (*v1alpha1.Experiment, error)
-	Update(*v1alpha1.Experiment) (*v1alpha1.Experiment, error)
-	UpdateStatus(*v1alpha1.Experiment) (*v1alpha1.Experiment, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.Experiment, error)
-	List(opts v1.ListOptions) (*v1alpha1.ExperimentList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Experiment, err error)
+	Create(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.CreateOptions) (*v1alpha1.Experiment, error)
+	Update(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.UpdateOptions) (*v1alpha1.Experiment, error)
+	UpdateStatus(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.UpdateOptions) (*v1alpha1.Experiment, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Experiment, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ExperimentList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Experiment, err error)
 	ExperimentExpansion
 }
 
@@ -64,20 +65,20 @@ func newExperiments(c *ArgoprojV1alpha1Client, namespace string) *experiments {
 }
 
 // Get takes name of the experiment, and returns the corresponding experiment object, and an error if there is any.
-func (c *experiments) Get(name string, options v1.GetOptions) (result *v1alpha1.Experiment, err error) {
+func (c *experiments) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Experiment, err error) {
 	result = &v1alpha1.Experiment{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("experiments").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of Experiments that match those selectors.
-func (c *experiments) List(opts v1.ListOptions) (result *v1alpha1.ExperimentList, err error) {
+func (c *experiments) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ExperimentList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,13 +89,13 @@ func (c *experiments) List(opts v1.ListOptions) (result *v1alpha1.ExperimentList
 		Resource("experiments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested experiments.
-func (c *experiments) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *experiments) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -105,87 +106,90 @@ func (c *experiments) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Resource("experiments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a experiment and creates it.  Returns the server's representation of the experiment, and an error, if there is any.
-func (c *experiments) Create(experiment *v1alpha1.Experiment) (result *v1alpha1.Experiment, err error) {
+func (c *experiments) Create(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.CreateOptions) (result *v1alpha1.Experiment, err error) {
 	result = &v1alpha1.Experiment{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("experiments").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(experiment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a experiment and updates it. Returns the server's representation of the experiment, and an error, if there is any.
-func (c *experiments) Update(experiment *v1alpha1.Experiment) (result *v1alpha1.Experiment, err error) {
+func (c *experiments) Update(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.UpdateOptions) (result *v1alpha1.Experiment, err error) {
 	result = &v1alpha1.Experiment{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("experiments").
 		Name(experiment.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(experiment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *experiments) UpdateStatus(experiment *v1alpha1.Experiment) (result *v1alpha1.Experiment, err error) {
+func (c *experiments) UpdateStatus(ctx context.Context, experiment *v1alpha1.Experiment, opts v1.UpdateOptions) (result *v1alpha1.Experiment, err error) {
 	result = &v1alpha1.Experiment{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("experiments").
 		Name(experiment.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(experiment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the experiment and deletes it. Returns an error if one occurs.
-func (c *experiments) Delete(name string, options *v1.DeleteOptions) error {
+func (c *experiments) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("experiments").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *experiments) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *experiments) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("experiments").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched experiment.
-func (c *experiments) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Experiment, err error) {
+func (c *experiments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Experiment, err error) {
 	result = &v1alpha1.Experiment{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("experiments").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

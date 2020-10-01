@@ -1,6 +1,7 @@
 package experiment
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -21,7 +22,8 @@ func HasFinished(experiment *v1alpha1.Experiment) bool {
 }
 
 func Terminate(experimentIf rolloutsclient.ExperimentInterface, name string) error {
-	_, err := experimentIf.Patch(name, patchtypes.MergePatchType, terminateExperimentPatch)
+	ctx := context.TODO()
+	_, err := experimentIf.Patch(ctx, name, patchtypes.MergePatchType, terminateExperimentPatch, metav1.PatchOptions{})
 	return err
 }
 

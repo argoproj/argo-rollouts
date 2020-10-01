@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredAnalysisRunInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AnalysisRuns(namespace).List(options)
+				return client.ArgoprojV1alpha1().AnalysisRuns(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AnalysisRuns(namespace).Watch(options)
+				return client.ArgoprojV1alpha1().AnalysisRuns(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&rolloutsv1alpha1.AnalysisRun{},

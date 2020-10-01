@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -78,7 +79,8 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 }
 
 func (p RolloutPodRestarter) getPodsOwnedByReplicaSet(rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
-	pods, err := p.client.CoreV1().Pods(rs.Namespace).List(metav1.ListOptions{
+	ctx := context.TODO()
+	pods, err := p.client.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(rs.Spec.Selector),
 	})
 	if err != nil {
@@ -101,6 +103,7 @@ func (p RolloutPodRestarter) getPodsOwnedByReplicaSet(rs *appsv1.ReplicaSet) ([]
 // the restarter enqueues itself to check if the pod has been deleted and returns false. If the restarter deletes
 // a pod, it returns false as the restarter needs to make sure the pod is deleted before marking the ReplicaSet done.
 func (p RolloutPodRestarter) restartReplicaSetPod(roCtx *rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
+	ctx := context.TODO()
 	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	restartedAt := roCtx.rollout.Spec.RestartAt
 	pods, err := p.getPodsOwnedByReplicaSet(rs)
@@ -120,7 +123,7 @@ func (p RolloutPodRestarter) restartReplicaSetPod(roCtx *rolloutContext, rs *app
 		if restartedAt.After(pod.CreationTimestamp.Time) && pod.DeletionTimestamp == nil {
 			newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
 			newLogCtx.Info("restarting Pod that's older than restartAt Time")
-			err := p.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+			err := p.client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
 			return false, err
 		}
 	}

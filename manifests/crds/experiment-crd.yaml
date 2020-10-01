@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: v0.4.0
   name: experiments.argoproj.io
 spec:
   additionalPrinterColumns:
@@ -18,7 +18,6 @@ spec:
     shortNames:
     - exp
     singular: experiment
-  preserveUnknownFields: false
   scope: Namespaced
   subresources: {}
   validation:
@@ -2031,6 +2030,8 @@ spec:
                               fsGroup:
                                 format: int64
                                 type: integer
+                              fsGroupChangePolicy:
+                                type: string
                               runAsGroup:
                                 format: int64
                                 type: integer

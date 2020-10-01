@@ -1,9 +1,11 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -43,6 +45,7 @@ func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r
 
 // switchSelector switch the selector on an existing service to a new value
 func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
+	ctx := context.TODO()
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
@@ -52,7 +55,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 		return nil
 	}
 	patch := generatePatch(service, newRolloutUniqueLabelValue, r)
-	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(service.Name, patchtypes.StrategicMergePatchType, []byte(patch))
+	_, err := c.kubeclientset.CoreV1().Services(service.Namespace).Patch(ctx, service.Name, patchtypes.StrategicMergePatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}

@@ -41,6 +41,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Aliases:      []string{"exp", "experiment"},
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
 			var namespace string
 			if listOptions.allNamespaces {
 				namespace = metav1.NamespaceAll
@@ -49,7 +50,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			expIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(namespace)
 			opts := listOptions.ListOptions()
-			expList, err := expIf.List(opts)
+			expList, err := expIf.List(ctx, opts)
 			if err != nil {
 				return err
 			}

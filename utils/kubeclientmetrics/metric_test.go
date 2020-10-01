@@ -1,6 +1,7 @@
 package kubeclientmetrics
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -48,7 +49,7 @@ func TestAddMetricsTransportWrapperWrapTwice(t *testing.T) {
 	})
 
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get("test", metav1.GetOptions{})
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.TODO(), "test", metav1.GetOptions{})
 	// Ensures second wrapper added by AddMetricsTransportWrapper is executed
 	assert.Equal(t, 1, currentCount)
 
@@ -141,7 +142,7 @@ func TestGetRequest(t *testing.T) {
 		executed = true
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get("test", metav1.GetOptions{})
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.TODO(), "test", metav1.GetOptions{})
 	assert.True(t, executed)
 }
 
@@ -164,7 +165,7 @@ func TestListRequest(t *testing.T) {
 		executed = true
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).List(metav1.ListOptions{})
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, executed)
 }
 
@@ -193,7 +194,7 @@ func TestCreateRequest(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 	}
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Create(rs)
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Create(context.TODO(), rs, metav1.CreateOptions{})
 	assert.True(t, executed)
 }
 
@@ -216,7 +217,7 @@ func TestDeleteRequest(t *testing.T) {
 		executed = true
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Delete("test", &metav1.DeleteOptions{})
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Delete(context.TODO(), "test", metav1.DeleteOptions{})
 	assert.True(t, executed)
 }
 
@@ -239,7 +240,7 @@ func TestPatchRequest(t *testing.T) {
 		executed = true
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Patch("test", types.MergePatchType, []byte("{}"))
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Patch(context.TODO(), "test", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
 	assert.True(t, executed)
 }
 
@@ -267,7 +268,7 @@ func TestUpdateRequest(t *testing.T) {
 			Name: "test",
 		},
 	}
-	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Update(rs)
+	client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Update(context.TODO(), rs, metav1.UpdateOptions{})
 	assert.True(t, executed)
 }
 
@@ -287,6 +288,6 @@ func TestUnknownRequest(t *testing.T) {
 		executed = true
 	})
 	client := kubernetes.NewForConfigOrDie(newConfig)
-	client.Discovery().RESTClient().Verb("invalid-verb").Do()
+	client.Discovery().RESTClient().Verb("invalid-verb").Do(context.TODO())
 	assert.True(t, executed)
 }

@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
@@ -54,6 +56,10 @@ func (s *FunctionalSuite) TestRolloutRestart() {
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
 // rejected by validation
 func (s *FunctionalSuite) TestContainerResourceFormats() {
+	millicore, _ := resource.ParseQuantity("1m")
+	podsHaveCorrectCPU := func(pods *corev1.PodList) bool {
+		return pods.Items[0].Spec.Containers[0].Resources.Requests.Cpu().Equal(millicore)
+	}
 	s.Given().
 		HealthyRollout(`
 apiVersion: argoproj.io/v1alpha1
@@ -61,7 +67,7 @@ kind: Rollout
 metadata:
   name: container-resource-formats
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: container-resource-formats
@@ -70,6 +76,7 @@ spec:
       labels:
         app: container-resource-formats
     spec:
+      terminationGracePeriodSeconds: 1
       containers:
       - name: a
         image: nginx:1.19-alpine
@@ -91,7 +98,7 @@ spec:
             cpu: 1m
   strategy:
     canary: {}
-`)
+`).When().Then().ExpectPods("pod cpu preserved", podsHaveCorrectCPU)
 }
 
 // TestRolloutGoodToBadUpdate updates a healthy rollout to a bad image and verifies it honors maxSurge, maxUnavailable

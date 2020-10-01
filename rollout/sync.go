@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -57,6 +58,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	if c.newRS == nil {
 		return nil, nil
 	}
+	ctx := context.TODO()
 
 	// Calculate the max revision number among all old RSes
 	maxOldRevision := replicasetutil.MaxRevision(c.olderRSs)
@@ -77,7 +79,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
-		return c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(rsCopy)
+		return c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
@@ -97,7 +99,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	}
 
 	if revisionNeedsUpdate || cond == nil {
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(c.rollout)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
 			c.log.WithError(err).Error("Error: updating rollout")
 			return nil, err
@@ -107,6 +109,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 }
 
 func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
+	ctx := context.TODO()
 	// Calculate the max revision number among all old RSes
 	maxOldRevision := replicasetutil.MaxRevision(c.olderRSs)
 	// Calculate revision number for this new replica set
@@ -149,7 +152,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Rollout.
 	alreadyExists := false
-	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(&newRS)
+	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(ctx, &newRS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Rollout.
 	case errors.IsAlreadyExists(err):
@@ -181,7 +184,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		*c.rollout.Status.CollisionCount++
 		// Update the collisionCount for the Rollout and let it requeue by returning the original
 		// error.
-		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(c.rollout)
+		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
 		if roErr == nil {
 			c.log.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *c.rollout.Status.CollisionCount)
 		}
@@ -211,7 +214,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	}
 
 	if needsUpdate {
-		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(c.rollout)
+		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
 	}
 	return createdRS, err
 }
@@ -320,7 +323,7 @@ func (c *rolloutContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, ne
 }
 
 func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
-
+	ctx := context.TODO()
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
 	fullScaleDown := newScale == int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
@@ -335,7 +338,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		if fullScaleDown {
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
-		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(rsCopy)
+		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			c.recorder.Eventf(rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)
@@ -380,6 +383,7 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
 func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
+	ctx := context.TODO()
 	revHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(c.rollout)
 
 	// Avoid deleting replica set with deletion timestamp set
@@ -405,7 +409,7 @@ func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
 			continue
 		}
 		c.log.Infof("Trying to cleanup replica set %q", rs.Name)
-		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, nil); err != nil && !errors.IsNotFound(err) {
+		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(ctx, rs.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
 			return err
@@ -465,6 +469,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 }
 
 func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
+	ctx := context.TODO()
 	conditions.SetRolloutCondition(newStatus, *condition)
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
 
@@ -484,7 +489,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		return nil
 	}
 	c.log.Debugf("Rollout Condition Patch: %s", patch)
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(r.Name, patchtypes.MergePatchType, patch)
+	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		c.log.Warnf("Error patching rollout: %v", err)
 		return err
@@ -589,6 +594,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus) error {
+	ctx := context.TODO()
 	c.pauseContext.CalculatePauseStatus(newStatus)
 	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(c.rollout.Spec)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -607,7 +613,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
-	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(c.rollout.Name, patchtypes.MergePatchType, patch)
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		c.log.Warningf("Error updating application: %v", err)
 		return err

@@ -42,6 +42,7 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Example:      o.Example(listRolloutsExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
 			var namespace string
 			if listOptions.allNamespaces {
 				namespace = metav1.NamespaceAll
@@ -50,7 +51,7 @@ func NewCmdListRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(namespace)
 			opts := listOptions.ListOptions()
-			rolloutList, err := rolloutIf.List(opts)
+			rolloutList, err := rolloutIf.List(ctx, opts)
 			if err != nil {
 				return err
 			}
@@ -104,7 +105,7 @@ func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argopro
 
 	opts := o.ListOptions()
 	opts.ResourceVersion = roList.ListMeta.ResourceVersion
-	watchIf, err := rolloutIf.Watch(opts)
+	watchIf, err := rolloutIf.Watch(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ L:
 		if ro == nil {
 			// if we get here, it means an error on the watch. try to re-establish the watch
 			watchIf.Stop()
-			newWatchIf, err := rolloutIf.Watch(opts)
+			newWatchIf, err := rolloutIf.Watch(ctx, opts)
 			if err != nil {
 				if retries > 5 {
 					return err

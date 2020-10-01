@@ -75,7 +75,7 @@ func (w *When) UpdateSpec(texts ...string) *When {
 		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
 		w.CheckError(err)
 	}
-	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.GetName(), types.MergePatchType, patchBytes)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	w.CheckError(err)
 	return w
 }
@@ -125,7 +125,7 @@ func (w *When) ScaleRollout(scale int) *When {
 		w.t.Fatal("Rollout not set")
 	}
 	patchStr := fmt.Sprintf(`{"spec":{"replicas":%d}}`, scale)
-	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.GetName(), types.MergePatchType, []byte(patchStr))
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, []byte(patchStr), metav1.PatchOptions{})
 	w.CheckError(err)
 	w.log.Infof("Scaled rollout to %d", scale)
 	return w
@@ -149,7 +149,7 @@ func (w *When) PatchSpec(patch string) *When {
 	w.CheckError(err)
 
 	// Apply patch
-	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.rollout.GetName(), metav1.GetOptions{})
+	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
 	w.CheckError(err)
 	originalBytes, err := json.Marshal(ro)
 	w.CheckError(err)
@@ -158,7 +158,7 @@ func (w *When) PatchSpec(patch string) *When {
 	var newRollout rov1.Rollout
 	err = json.Unmarshal(newRolloutBytes, &newRollout)
 	w.CheckError(err)
-	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(&newRollout)
+	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(w.Context, &newRollout, metav1.UpdateOptions{})
 	w.CheckError(err)
 	w.log.Infof("Patched rollout: %s", string(jsonPatch))
 	return w
@@ -213,7 +213,7 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(opts)
+	watch, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(w.Context, opts)
 	w.CheckError(err)
 	defer watch.Stop()
 	timeoutCh := make(chan bool, 1)
@@ -242,7 +242,7 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 
 func (w *When) DeleteRollout() *When {
 	w.log.Info("Deleting")
-	err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Delete(w.rollout.GetName(), nil)
+	err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Delete(w.Context, w.rollout.GetName(), metav1.DeleteOptions{})
 	w.CheckError(err)
 	return w
 }
@@ -251,7 +251,7 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.Analy
 	start := time.Now()
 	w.log.Infof("Waiting for AnalysisRun %s condition: %s", name, condition)
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(w.namespace).Watch(opts)
+	watch, err := w.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(w.namespace).Watch(w.Context, opts)
 	w.CheckError(err)
 	defer watch.Stop()
 	timeoutCh := make(chan bool, 1)

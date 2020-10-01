@@ -1,9 +1,11 @@
 package terminate
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
@@ -63,7 +65,7 @@ func NewCmdTerminateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			analysisRunIf := o.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns)
 			for _, name := range args {
-				ro, err := analysisRunIf.Patch(name, types.MergePatchType, []byte(terminatePatch))
+				ro, err := analysisRunIf.Patch(context.TODO(), name, types.MergePatchType, []byte(terminatePatch), metav1.PatchOptions{})
 				if err != nil {
 					return err
 				}
@@ -91,7 +93,7 @@ func NewCmdTerminateExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			experimentIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns)
 			for _, name := range args {
-				ro, err := experimentIf.Patch(name, types.MergePatchType, []byte(terminatePatch))
+				ro, err := experimentIf.Patch(context.TODO(), name, types.MergePatchType, []byte(terminatePatch), metav1.PatchOptions{})
 				if err != nil {
 					return err
 				}

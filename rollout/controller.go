@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -359,6 +360,7 @@ func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
+	ctx := context.TODO()
 	startTime := time.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -396,7 +398,7 @@ func (c *Controller) syncHandler(key string) error {
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Setting .Spec.Replica to 1 from nil")
 		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(r)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		return err
 	}
 	defer func() {
@@ -730,6 +732,7 @@ func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 }
 
 func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstructured, error) {
+	ctx := context.TODO()
 	virtualServices := []unstructured.Unstructured{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 	if c.rollout.Spec.Strategy.Canary != nil {
@@ -741,7 +744,7 @@ func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstruc
 			if c.istioVirtualServiceInformer.HasSynced() {
 				vsvc, err = c.istioVirtualServiceLister.Namespace(c.rollout.Namespace).Get(vsvcName)
 			} else {
-				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(c.rollout.Namespace).Get(vsvcName, metav1.GetOptions{})
+				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(c.rollout.Namespace).Get(ctx, vsvcName, metav1.GetOptions{})
 			}
 
 			if k8serrors.IsNotFound(err) {
@@ -757,6 +760,7 @@ func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstruc
 }
 
 func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
+	ctx := context.TODO()
 	if rollout.Spec.Strategy.Canary == nil {
 		return false
 	}
@@ -772,7 +776,7 @@ func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
 	}
 	rollout.Status.Canary.StableRS = stableRS
 	rollout.Status.StableRS = stableRS
-	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(rollout)
+	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(ctx, rollout, metav1.UpdateOptions{})
 	if err != nil {
 		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS: %s", err.Error())
 	}

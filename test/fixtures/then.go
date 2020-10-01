@@ -19,7 +19,7 @@ type Then struct {
 type RolloutExpectation func(*rov1.Rollout) bool
 
 func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) *Then {
-	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	if !expectFunc(ro) {
 		t.log.Errorf("Rollout expectation '%s' failed", expectation)
@@ -34,7 +34,7 @@ type PodExpectation func(*corev1.PodList) bool
 func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
 	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
-	pods, err := t.kubeClient.CoreV1().Pods(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	pods, err := t.kubeClient.CoreV1().Pods(t.namespace).List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
 	if !expectFunc(pods) {
 		t.log.Errorf("Pod expectation '%s' failed", expectation)
@@ -45,7 +45,7 @@ func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
 }
 
 func (t *Then) ExpectCanaryStablePodCount(canaryCount, stableCount int) *Then {
-	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	return t.expectPodCountByHash("canary", ro.Status.CurrentPodHash, canaryCount).
 		expectPodCountByHash("stable", ro.Status.Canary.StableRS, stableCount)
@@ -61,7 +61,7 @@ func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then 
 func (t *Then) getReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
 	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
-	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
 	for _, rs := range replicasets.Items {
 		if rs.Annotations[annotations.RevisionAnnotation] == revision {
@@ -99,7 +99,7 @@ type ReplicaSetExpectation func(*appsv1.ReplicaSetList) bool
 func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpectation) *Then {
 	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
-	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
 	t.CheckError(err)
 	if !expectFunc(replicasets) {
 		t.log.Errorf("Replicaset expectation '%s' failed", expectation)
@@ -158,7 +158,7 @@ func (t *Then) ExpectActiveRevision(revision string) *Then {
 
 func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *Then {
 	verifyRevision := func() error {
-		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
+		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 		t.CheckError(err)
 		var serviceName, selector string
 		switch which {
@@ -171,7 +171,7 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 		default:
 			panic(fmt.Sprintf("unknown selector: %s", which))
 		}
-		svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(serviceName, metav1.GetOptions{})
+		svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(t.Context, serviceName, metav1.GetOptions{})
 		t.CheckError(err)
 		rs := t.getReplicaSetByRevision(revision)
 		if selector != svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey] {

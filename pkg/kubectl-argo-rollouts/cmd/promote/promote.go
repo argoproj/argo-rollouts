@@ -1,6 +1,7 @@
 package promote
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -83,7 +84,8 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 // PromoteRollout promotes a rollout to the next step, or to end of all steps
 func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurrentStep, skipAllSteps bool) (*v1alpha1.Rollout, error) {
-	ro, err := rolloutIf.Get(name, metav1.GetOptions{})
+	ctx := context.TODO()
+	ro, err := rolloutIf.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +98,7 @@ func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurre
 		}
 	}
 	patch := getPatch(ro, skipCurrentStep, skipAllSteps)
-	ro, err = rolloutIf.Patch(name, types.MergePatchType, patch)
+	ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return nil, err
 	}

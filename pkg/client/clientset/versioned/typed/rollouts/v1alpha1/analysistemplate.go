@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -37,14 +38,14 @@ type AnalysisTemplatesGetter interface {
 
 // AnalysisTemplateInterface has methods to work with AnalysisTemplate resources.
 type AnalysisTemplateInterface interface {
-	Create(*v1alpha1.AnalysisTemplate) (*v1alpha1.AnalysisTemplate, error)
-	Update(*v1alpha1.AnalysisTemplate) (*v1alpha1.AnalysisTemplate, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.AnalysisTemplate, error)
-	List(opts v1.ListOptions) (*v1alpha1.AnalysisTemplateList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error)
+	Create(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.CreateOptions) (*v1alpha1.AnalysisTemplate, error)
+	Update(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.UpdateOptions) (*v1alpha1.AnalysisTemplate, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.AnalysisTemplate, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.AnalysisTemplateList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error)
 	AnalysisTemplateExpansion
 }
 
@@ -63,20 +64,20 @@ func newAnalysisTemplates(c *ArgoprojV1alpha1Client, namespace string) *analysis
 }
 
 // Get takes name of the analysisTemplate, and returns the corresponding analysisTemplate object, and an error if there is any.
-func (c *analysisTemplates) Get(name string, options v1.GetOptions) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *analysisTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	result = &v1alpha1.AnalysisTemplate{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("analysistemplates").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of AnalysisTemplates that match those selectors.
-func (c *analysisTemplates) List(opts v1.ListOptions) (result *v1alpha1.AnalysisTemplateList, err error) {
+func (c *analysisTemplates) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AnalysisTemplateList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *analysisTemplates) List(opts v1.ListOptions) (result *v1alpha1.Analysis
 		Resource("analysistemplates").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested analysisTemplates.
-func (c *analysisTemplates) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *analysisTemplates) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *analysisTemplates) Watch(opts v1.ListOptions) (watch.Interface, error) 
 		Resource("analysistemplates").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a analysisTemplate and creates it.  Returns the server's representation of the analysisTemplate, and an error, if there is any.
-func (c *analysisTemplates) Create(analysisTemplate *v1alpha1.AnalysisTemplate) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *analysisTemplates) Create(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.CreateOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	result = &v1alpha1.AnalysisTemplate{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("analysistemplates").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(analysisTemplate).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a analysisTemplate and updates it. Returns the server's representation of the analysisTemplate, and an error, if there is any.
-func (c *analysisTemplates) Update(analysisTemplate *v1alpha1.AnalysisTemplate) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *analysisTemplates) Update(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.UpdateOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	result = &v1alpha1.AnalysisTemplate{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("analysistemplates").
 		Name(analysisTemplate.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(analysisTemplate).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the analysisTemplate and deletes it. Returns an error if one occurs.
-func (c *analysisTemplates) Delete(name string, options *v1.DeleteOptions) error {
+func (c *analysisTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("analysistemplates").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *analysisTemplates) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *analysisTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("analysistemplates").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched analysisTemplate.
-func (c *analysisTemplates) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *analysisTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error) {
 	result = &v1alpha1.AnalysisTemplate{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("analysistemplates").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

@@ -1,6 +1,7 @@
 package alb
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -57,6 +58,7 @@ func (r *Reconciler) Type() string {
 
 // Reconcile modifies ALB Ingress resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
+	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 	ingress, err := r.cfg.IngressLister.Ingresses(rollout.Namespace).Get(ingressName)
@@ -88,7 +90,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 	r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
 	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingALBIngress", fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight))
-	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Patch(ingress.Name, types.MergePatchType, patch)
+	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Patch(ctx, ingress.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
 		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)

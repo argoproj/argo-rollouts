@@ -1,9 +1,11 @@
 package abort
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -55,5 +57,6 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 // AbortRollout aborts a rollout
 func AbortRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
-	return rolloutIf.Patch(name, types.MergePatchType, []byte(abortPatch))
+	ctx := context.TODO()
+	return rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(abortPatch), metav1.PatchOptions{})
 }

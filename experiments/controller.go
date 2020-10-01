@@ -1,12 +1,14 @@
 package experiments
 
 import (
+	"context"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
@@ -291,6 +293,7 @@ func (ec *Controller) syncHandler(key string) error {
 }
 
 func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
+	ctx := context.TODO()
 	logCtx := logutil.WithExperiment(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Experiment{
@@ -308,7 +311,7 @@ func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStat
 		return nil
 	}
 	logCtx.Debugf("Experiment Patch: %s", patch)
-	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warningf("Error updating experiment: %v", err)
 		return err
