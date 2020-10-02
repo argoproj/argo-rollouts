@@ -135,7 +135,7 @@ func (bgCtx *blueGreenContext) OtherAnalysisRuns() []*v1alpha1.AnalysisRun {
 func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(currAr analysisutil.CurrentAnalysisRuns) {
 	bgCtx.currentArs = currAr
 	currPrePromoAr := currAr.BlueGreenPrePromotion
-	if currPrePromoAr != nil && currPrePromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+	if currPrePromoAr != nil {
 		bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 		bgCtx.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 			Name:    currPrePromoAr.Name,
@@ -144,7 +144,7 @@ func (bgCtx *blueGreenContext) SetCurrentAnalysisRuns(currAr analysisutil.Curren
 		}
 	}
 	currPostPromoAr := currAr.BlueGreenPostPromotion
-	if currPostPromoAr != nil && currPostPromoAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+	if currPostPromoAr != nil {
 		bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
 		bgCtx.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 			Name:    currPostPromoAr.Name,
@@ -230,7 +230,7 @@ func (cCtx *canaryContext) AllRSs() []*appsv1.ReplicaSet {
 func (cCtx *canaryContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnalysisRuns) {
 	cCtx.currentArs = currARs
 	currBackgroundAr := currARs.CanaryBackground
-	if currBackgroundAr != nil && currBackgroundAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+	if currBackgroundAr != nil {
 		cCtx.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 		cCtx.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 			Name:    currBackgroundAr.Name,
@@ -239,7 +239,7 @@ func (cCtx *canaryContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAn
 		}
 	}
 	currStepAr := currARs.CanaryStep
-	if currStepAr != nil && currStepAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+	if currStepAr != nil {
 		cCtx.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
 		cCtx.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 			Name:    currStepAr.Name,

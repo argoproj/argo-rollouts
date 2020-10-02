@@ -347,6 +347,7 @@ func (c *Controller) syncRolloutStatusCanary(roCtx *canaryContext) error {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
 		newStatus.Canary.CurrentStepAnalysisRun = ""
+		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 		if int(*currentStepIndex) == len(r.Spec.Strategy.Canary.Steps) {
 			c.recorder.Event(r, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
 		}

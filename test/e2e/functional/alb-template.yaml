@@ -1,37 +1,3 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: REPLACEME
-spec:
-  replicas: 4
-  selector:
-    matchLabels:
-      app: REPLACEME
-  template:
-    metadata:
-      labels:
-        app: REPLACEME
-    spec:
-      containers:
-      - name: REPLACEME
-        image: nginx:1.19-alpine
-        ports:
-        - name: http
-          containerPort: 80
-          protocol: TCP
-        resources:
-          requests:
-            memory: 16Mi
-            cpu: 5m
-  strategy:
-    canary:
-      canaryService: REPLACEME-canary
-      stableService: REPLACEME-stable
-      trafficRouting:
-        alb:
-          ingress: REPLACEME-ingress
-          servicePort: 80
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -74,3 +40,37 @@ spec:
             backend:
               serviceName: REPLACEME-stable
               servicePort: use-annotation
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: REPLACEME
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: REPLACEME
+  template:
+    metadata:
+      labels:
+        app: REPLACEME
+    spec:
+      containers:
+      - name: REPLACEME
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
+  strategy:
+    canary:
+      canaryService: REPLACEME-canary
+      stableService: REPLACEME-stable
+      trafficRouting:
+        alb:
+          ingress: REPLACEME-ingress
+          servicePort: 80

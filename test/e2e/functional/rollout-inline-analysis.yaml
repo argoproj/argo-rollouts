@@ -9,14 +9,14 @@ spec:
       - setWeight: 10
       - analysis:
           templates:
-          - templateName: echo-job
+          - templateName: sleep-job
       - pause: {}
       - analysis:
           templates:
-          - templateName: echo-job
+          - templateName: sleep-job
       - analysis:
           templates:
-          - templateName: echo-job
+          - templateName: sleep-job
   selector:
     matchLabels:
       app: rollout-inline-analysis

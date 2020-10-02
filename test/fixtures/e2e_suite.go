@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	DefaultTimeout time.Duration = time.Second * 30
+	DefaultTimeout time.Duration = time.Second * 60
 )
 
 var (
@@ -133,8 +133,8 @@ func (s *E2ESuite) BeforeTest(suiteName, testName string) {
 }
 
 func (s *E2ESuite) AfterTest(suiteName, testName string) {
-	if s.Common.t.Failed() && s.rollout != nil {
-		s.PrintRollout(s.rollout)
+	if s.T().Failed() && s.rollout != nil {
+		s.PrintRollout(s.Rollout())
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {
 		return
@@ -145,6 +145,7 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy metav1.DeletionPropagation) {
+	s.log.Infof("Deleting %s", req.String())
 	resources := []schema.GroupVersionResource{
 		rov1.RolloutGVR,
 		rov1.AnalysisRunGVR,
