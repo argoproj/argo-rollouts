@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -88,6 +89,7 @@ type E2ESuite struct {
 func (s *E2ESuite) SetupSuite() {
 	var err error
 	s.Common.t = s.Suite.T()
+	s.Common.Context = context.TODO()
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{})
 	restConfig, err := config.ClientConfig()
@@ -143,6 +145,7 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 
 func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy metav1.DeletionPropagation) {
 	s.log.Infof("Deleting %s", req.String())
+	ctx := context.TODO()
 	resources := []schema.GroupVersionResource{
 		rov1.RolloutGVR,
 		rov1.AnalysisRunGVR,
@@ -153,16 +156,16 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		ingressGVR,
 		istioutil.GetIstioGVR("v1alpha3"),
 	}
-	deleteOpts := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	listOpts := metav1.ListOptions{LabelSelector: req.String()}
 
 	listResources := func(gvr schema.GroupVersionResource) []unstructured.Unstructured {
 		var err error
 		var lst *unstructured.UnstructuredList
 		if gvr == rov1.ClusterAnalysisTemplateGVR {
-			lst, err = s.dynamicClient.Resource(gvr).List(listOpts)
+			lst, err = s.dynamicClient.Resource(gvr).List(ctx, listOpts)
 		} else {
-			lst, err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).List(listOpts)
+			lst, err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).List(ctx, listOpts)
 		}
 		if err != nil && !k8serrors.IsNotFound(err) {
 			s.CheckError(err)
@@ -179,20 +182,20 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 	for _, gvr := range resources {
 		switch gvr {
 		case rov1.ClusterAnalysisTemplateGVR:
-			err = s.dynamicClient.Resource(gvr).DeleteCollection(deleteOpts, listOpts)
+			err = s.dynamicClient.Resource(gvr).DeleteCollection(ctx, deleteOpts, listOpts)
 		case serviceGVR:
 			// Services do not support deletecollection
 			for _, obj := range listResources(gvr) {
 				if obj.GetDeletionTimestamp() != nil {
 					continue
 				}
-				err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).Delete(obj.GetName(), deleteOpts)
+				err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).Delete(ctx, obj.GetName(), deleteOpts)
 				s.CheckError(err)
 			}
 		default:
 			// NOTE: deletecollection does not appear to work without supplying a namespace.
 			// It errors with: the server could not find the requested resource
-			err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).DeleteCollection(deleteOpts, listOpts)
+			err = s.dynamicClient.Resource(gvr).Namespace(s.namespace).DeleteCollection(ctx, deleteOpts, listOpts)
 		}
 		if err != nil && !k8serrors.IsNotFound(err) {
 			s.log.Fatalf("could not delete %v: %v", gvr, err)

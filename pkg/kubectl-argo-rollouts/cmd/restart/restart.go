@@ -1,10 +1,12 @@
 package restart
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -66,10 +68,11 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 // RestartRollout restarts a rollout
 func RestartRollout(rolloutIf clientset.RolloutInterface, name string, restartAt *time.Time) (*v1alpha1.Rollout, error) {
+	ctx := context.TODO()
 	if restartAt == nil {
 		t := time.Now().UTC()
 		restartAt = &t
 	}
 	patch := fmt.Sprintf(restartPatch, restartAt.Format(time.RFC3339))
-	return rolloutIf.Patch(name, types.MergePatchType, []byte(patch))
+	return rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(patch), metav1.PatchOptions{})
 }

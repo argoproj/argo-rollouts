@@ -848,7 +848,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 					},
 					"setCanaryScale": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SetCanaryScale defines how to scale the newRS without chainging traffic weight",
+							Description: "SetCanaryScale defines how to scale the newRS without changing traffic weight",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetCanaryScale"),
 						},
 					},
@@ -3012,7 +3012,7 @@ func schema_pkg_apis_rollouts_v1alpha1_SetCanaryScale(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SetCanaryScale defines how to scale the newRS without chainging traffic weight",
+				Description: "SetCanaryScale defines how to scale the newRS without changing traffic weight",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"weight": {

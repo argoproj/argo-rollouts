@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -67,6 +68,7 @@ func (c *Controller) getReplicaSetsForExperiment(experiment *v1alpha1.Experiment
 
 // createReplicaSet creates a new replicaset based on the template
 func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, collisionCount *int32) (*appsv1.ReplicaSet, error) {
+	ctx := context.TODO()
 	newRS := newReplicaSetFromTemplate(ec.ex, template, collisionCount)
 
 	newReplicasCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
@@ -76,7 +78,7 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Experiment.
 	alreadyExists := false
-	createdRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Create(&newRS)
+	createdRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Create(ctx, &newRS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Experiment.
 	case errors.IsAlreadyExists(err):
@@ -121,7 +123,7 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 		}
 
 		patch := fmt.Sprintf(CollisionCountPatch, string(templateStatusBytes))
-		_, patchErr := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(ec.ex.Namespace).Patch(ec.ex.Name, patchtypes.MergePatchType, []byte(patch))
+		_, patchErr := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(ec.ex.Namespace).Patch(ctx, ec.ex.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
 		ec.log.WithField("patch", patch).Debug("Applied Patch")
 		if patchErr != nil {
 			ec.log.Errorf("Error patching service %s", err.Error())
@@ -220,13 +222,14 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 }
 
 func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
+	ctx := context.TODO()
 	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
 	scaled := false
 	var err error
 	if sizeNeedsUpdate {
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
-		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(rsCopy)
+		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			ec.recorder.Eventf(ec.ex, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)

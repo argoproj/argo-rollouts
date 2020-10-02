@@ -1,12 +1,14 @@
 package ingress
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -16,7 +18,7 @@ import (
 )
 
 func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts []*v1alpha1.Rollout) error {
-
+	ctx := context.TODO()
 	managedActions, err := ingressutil.NewManagedALBActions(ingress.Annotations[ingressutil.ManagedActionsAnnotation])
 	if err != nil {
 		return nil
@@ -52,7 +54,7 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 	if newManagedStr == "" {
 		delete(newIngress.Annotations, ingressutil.ManagedActionsAnnotation)
 	}
-	_, err = c.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(newIngress)
+	_, err = c.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ctx, newIngress, metav1.UpdateOptions{})
 	return err
 }
 

@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -134,7 +135,7 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 
 // TerminateRun terminates an analysis run
 func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string) error {
-	_, err := analysisRunIf.Patch(name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`))
+	_, err := analysisRunIf.Patch(context.TODO(), name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`), metav1.PatchOptions{})
 	return err
 }
 
@@ -185,6 +186,7 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 // CreateWithCollisionCounter attempts to create the given analysisrun and if an AlreadyExists error
 // is encountered, and the existing run is semantically equal and running, returns the exiting run.
 func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
+	ctx := context.TODO()
 	newControllerRef := metav1.GetControllerOf(&run)
 	if newControllerRef == nil {
 		return nil, errors.New("Supplied run does not have an owner reference")
@@ -192,7 +194,7 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	collisionCount := 1
 	baseName := run.Name
 	for {
-		createdRun, err := analysisRunIf.Create(&run)
+		createdRun, err := analysisRunIf.Create(ctx, &run, metav1.CreateOptions{})
 		if err == nil {
 			return createdRun, nil
 		}
@@ -200,7 +202,7 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 			return nil, err
 		}
 		// TODO(jessesuen): switch from Get to List so that there's no guessing about which collision counter to use.
-		existingRun, err := analysisRunIf.Get(run.Name, metav1.GetOptions{})
+		existingRun, err := analysisRunIf.Get(ctx, run.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

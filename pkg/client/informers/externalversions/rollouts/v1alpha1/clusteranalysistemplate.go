@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -60,13 +61,13 @@ func NewFilteredClusterAnalysisTemplateInformer(client versioned.Interface, resy
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().List(options)
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().Watch(options)
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().Watch(context.TODO(), options)
 			},
 		},
 		&rolloutsv1alpha1.ClusterAnalysisTemplate{},

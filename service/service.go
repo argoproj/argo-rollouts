@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -144,6 +145,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) syncService(key string) error {
+	ctx := context.TODO()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -165,7 +167,7 @@ func (c *Controller) syncService(key string) error {
 	// API call to get Rollout and confirm it references the service.
 	rolloutName, hasManagedBy := serviceutil.HasManagedByAnnotation(svc)
 	if hasManagedBy {
-		rollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(svc.Namespace).Get(rolloutName, metav1.GetOptions{})
+		rollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(svc.Namespace).Get(ctx, rolloutName, metav1.GetOptions{})
 		if err == nil {
 			if serviceutil.CheckRolloutForService(rollout, svc) {
 				c.enqueueRollout(rollout)
@@ -189,7 +191,7 @@ func (c *Controller) syncService(key string) error {
 
 	updatedSvc := svc.DeepCopy()
 	patch := generateRemovePatch(updatedSvc)
-	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(updatedSvc.Name, patchtypes.MergePatchType, []byte(patch))
+	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(ctx, updatedSvc.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
 	if errors.IsNotFound(err) {
 		return nil
 	}

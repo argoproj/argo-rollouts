@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -65,8 +66,9 @@ func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 // to still work with a newer version of Rollouts (without dropping newly introduced fields during
 // the marshalling)
 func SetImage(dynamicClient dynamic.Interface, namespace, rollout, container, image string) error {
+	ctx := context.TODO()
 	rolloutIf := dynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(namespace)
-	ro, err := rolloutIf.Get(rollout, metav1.GetOptions{})
+	ro, err := rolloutIf.Get(ctx, rollout, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -74,7 +76,7 @@ func SetImage(dynamicClient dynamic.Interface, namespace, rollout, container, im
 	if err != nil {
 		return err
 	}
-	_, err = rolloutIf.Update(newRo, metav1.UpdateOptions{})
+	_, err = rolloutIf.Update(ctx, newRo, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

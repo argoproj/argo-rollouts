@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ const (
 
 // getAnalysisRunsForRollout get all analysisRuns owned by the Rollout
 func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, error) {
+	ctx := context.TODO()
 	analysisRuns, err := c.analysisRunLister.AnalysisRuns(rollout.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
@@ -56,8 +58,8 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 		}
 		// We recorded a run in the rollout status, but it didn't appear in the lister.
 		// Perform a get to see if it truly exists.
-		ar, _ := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(rollout.Namespace).Get(arStatus.Name, metav1.GetOptions{})
-		if ar != nil {
+		ar, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(rollout.Namespace).Get(ctx, arStatus.Name, metav1.GetOptions{})
+		if err == nil && ar != nil {
 			logutil.WithRollout(rollout).Infof("Found analysis run '%s' missing from informer cache", ar.Name)
 			ownedByRollout = append(ownedByRollout, ar)
 		}
@@ -367,12 +369,13 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 }
 
 func (c *rolloutContext) cancelAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun) error {
+	ctx := context.TODO()
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
 		isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
 		if ar != nil && !ar.Spec.Terminate && isNotCompleted {
 			c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun))
+			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					c.log.Warnf("AnalysisRun '%s' not found", ar.Name)
@@ -452,13 +455,14 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 }
 
 func (c *rolloutContext) deleteAnalysisRuns(ars []*v1alpha1.AnalysisRun) error {
+	ctx := context.TODO()
 	for i := range ars {
 		ar := ars[i]
 		if ar.DeletionTimestamp != nil {
 			continue
 		}
 		c.log.Infof("Trying to cleanup analysis run '%s'", ar.Name)
-		err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ar.Name, nil)
+		err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ctx, ar.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}

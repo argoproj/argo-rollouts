@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -46,13 +47,14 @@ func processNextWatchObj(watchEvent watch.Event, queue workqueue.RateLimitingInt
 // processNextWatchObj function in order to watch changes on a resource kind
 // and enqueue a different resources kind that interact with them
 func WatchResource(client dynamic.Interface, namespace string, gvk schema.GroupVersionResource, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) error {
+	ctx := context.TODO()
 	log.Infof("Starting watch on resource '%s'", gvk.Resource)
 	var watchI watch.Interface
 	var err error
 	if namespace == metav1.NamespaceAll {
-		watchI, err = client.Resource(gvk).Watch(metav1.ListOptions{})
+		watchI, err = client.Resource(gvk).Watch(ctx, metav1.ListOptions{})
 	} else {
-		watchI, err = client.Resource(gvk).Namespace(namespace).Watch(metav1.ListOptions{})
+		watchI, err = client.Resource(gvk).Namespace(namespace).Watch(ctx, metav1.ListOptions{})
 	}
 
 	if err != nil {

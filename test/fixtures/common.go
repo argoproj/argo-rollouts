@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -23,6 +24,7 @@ import (
 
 //nolint:structcheck
 type Common struct {
+	Context        context.Context
 	testInstanceID string
 	t              *testing.T
 	namespace      string
@@ -60,7 +62,7 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
-	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(metav1.ListOptions{})
+	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(c.Context, metav1.ListOptions{})
 	c.CheckError(err)
 	// filter analysis runs by ones owned by rollout to allow test parallelism
 	var newAruns rov1.AnalysisRunList

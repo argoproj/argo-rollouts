@@ -1,6 +1,7 @@
 package istio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -188,6 +189,7 @@ func (r *Reconciler) Type() string {
 
 // Reconcile modifies Istio resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
+	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
@@ -195,7 +197,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if r.istioVirtualServiceLister != nil {
 		vsvc, err = r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
 	} else {
-		vsvc, err = client.Get(vsvcName, metav1.GetOptions{})
+		vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
 	}
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -214,7 +216,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, desiredWeight)
 	r.log.Info(msg)
 	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
-	_, err = client.Update(modifiedVsvc, metav1.UpdateOptions{})
+	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
 	return err
 }
 

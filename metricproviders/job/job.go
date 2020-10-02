@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -91,6 +92,7 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.J
 }
 
 func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
+	ctx := context.TODO()
 	now := metav1.Now()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
@@ -102,13 +104,13 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 	jobIf := p.kubeclientset.BatchV1().Jobs(run.Namespace)
-	createdJob, createErr := jobIf.Create(job)
+	createdJob, createErr := jobIf.Create(ctx, job, metav1.CreateOptions{})
 	if createErr != nil {
 		if !k8serrors.IsAlreadyExists(createErr) {
 			p.logCtx.Errorf("job create %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
 		}
-		existingJob, err := jobIf.Get(job.Name, metav1.GetOptions{})
+		existingJob, err := jobIf.Get(ctx, job.Name, metav1.GetOptions{})
 		if err != nil {
 			p.logCtx.Errorf("job create (verify) %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
@@ -183,7 +185,7 @@ func (p *JobProvider) deleteJob(namespace, jobName string) error {
 	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &foregroundDelete}
 
 	// TODO(jessesuen): retry
-	err := p.kubeclientset.BatchV1().Jobs(namespace).Delete(jobName, &deleteOpts)
+	err := p.kubeclientset.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, deleteOpts)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}

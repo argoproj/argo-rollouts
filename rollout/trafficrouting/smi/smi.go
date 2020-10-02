@@ -1,6 +1,7 @@
 package smi
 
 import (
+	"context"
 	"fmt"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
@@ -57,10 +58,11 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		cfg: cfg,
 		log: logutil.WithRollout(cfg.Rollout),
 	}
+	ctx := context.TODO()
 	switch apiVersion := r.cfg.ApiVersion; apiVersion {
 	case "v1alpha1":
 		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
-			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
+			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
 			ts := VersionedTrafficSplits{}
 			if ts1 != nil {
 				ts.ts1 = ts1
@@ -68,7 +70,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 			return ts, err
 		}
 		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts1)
+			_, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Create(ctx, ts.ts1, metav1.CreateOptions{})
 			return err
 		}
 		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
@@ -88,7 +90,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 				r.log.Infof("Traffic Split `%s` was not modified", existing.ts1.Name)
 				return nil
 			}
-			_, err = r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts1.Name, patchtypes.MergePatchType, patch)
+			_, err = r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Patch(ctx, existing.ts1.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 			return err
 		}
 		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
@@ -96,7 +98,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		}
 	case "v1alpha2":
 		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
-			ts2, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
+			ts2, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
 			ts := VersionedTrafficSplits{}
 			if ts2 != nil {
 				ts.ts2 = ts2
@@ -104,7 +106,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 			return ts, err
 		}
 		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts2)
+			_, err := r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Create(ctx, ts.ts2, metav1.CreateOptions{})
 			return err
 		}
 		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
@@ -124,7 +126,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 				r.log.Infof("Traffic Split `%s` was not modified", existing.ts2.Name)
 				return nil
 			}
-			_, err = r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts2.Name, patchtypes.MergePatchType, patch)
+			_, err = r.cfg.Client.SplitV1alpha2().TrafficSplits(r.cfg.Rollout.Namespace).Patch(ctx, existing.ts2.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 			return err
 		}
 		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
@@ -132,7 +134,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		}
 	case "v1alpha3":
 		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
-			ts3, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Get(trafficSplitName, metav1.GetOptions{})
+			ts3, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
 			ts := VersionedTrafficSplits{}
 			if ts3 != nil {
 				ts.ts3 = ts3
@@ -140,7 +142,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 			return ts, err
 		}
 		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
-			_, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Create(ts.ts3)
+			_, err := r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Create(ctx, ts.ts3, metav1.CreateOptions{})
 			return err
 		}
 		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
@@ -160,7 +162,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 				r.log.Infof("Traffic Split `%s` was not modified", existing.ts3.Name)
 				return nil
 			}
-			_, err = r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Patch(existing.ts3.Name, patchtypes.MergePatchType, patch)
+			_, err = r.cfg.Client.SplitV1alpha3().TrafficSplits(r.cfg.Rollout.Namespace).Patch(ctx, existing.ts3.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 			return err
 		}
 		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {

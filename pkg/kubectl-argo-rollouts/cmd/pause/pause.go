@@ -1,9 +1,11 @@
 package pause
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
@@ -30,7 +32,7 @@ func NewCmdPause(o *options.ArgoRolloutsOptions) *cobra.Command {
 			ns := o.Namespace()
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
 			for _, name := range args {
-				ro, err := rolloutIf.Patch(name, types.MergePatchType, []byte(`{"spec":{"paused":true}}`))
+				ro, err := rolloutIf.Patch(context.TODO(), name, types.MergePatchType, []byte(`{"spec":{"paused":true}}`), metav1.PatchOptions{})
 				if err != nil {
 					return err
 				}

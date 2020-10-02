@@ -1,9 +1,11 @@
 package retry
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -79,7 +81,8 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 // RetryRollout retries a rollout after it's been aborted
 func RetryRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
-	return rolloutIf.Patch(name, types.MergePatchType, []byte(retryRolloutPatch))
+	ctx := context.TODO()
+	return rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{})
 }
 
 // NewCmdRetryExperiment returns a new instance of an `argo rollouts retry experiment` command
@@ -112,5 +115,6 @@ func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 // RetryExperiment retries an experiment after it's been aborted
 func RetryExperiment(experimentIf clientset.ExperimentInterface, name string) (*v1alpha1.Experiment, error) {
-	return experimentIf.Patch(name, types.MergePatchType, []byte(retryExperimentPatch))
+	ctx := context.TODO()
+	return experimentIf.Patch(ctx, name, types.MergePatchType, []byte(retryExperimentPatch), metav1.PatchOptions{})
 }

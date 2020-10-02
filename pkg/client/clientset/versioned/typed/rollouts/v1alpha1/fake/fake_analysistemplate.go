@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var analysistemplatesResource = schema.GroupVersionResource{Group: "argoproj.io"
 var analysistemplatesKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "AnalysisTemplate"}
 
 // Get takes name of the analysisTemplate, and returns the corresponding analysisTemplate object, and an error if there is any.
-func (c *FakeAnalysisTemplates) Get(name string, options v1.GetOptions) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *FakeAnalysisTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(analysistemplatesResource, c.ns, name), &v1alpha1.AnalysisTemplate{})
 
@@ -50,7 +52,7 @@ func (c *FakeAnalysisTemplates) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of AnalysisTemplates that match those selectors.
-func (c *FakeAnalysisTemplates) List(opts v1.ListOptions) (result *v1alpha1.AnalysisTemplateList, err error) {
+func (c *FakeAnalysisTemplates) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AnalysisTemplateList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(analysistemplatesResource, analysistemplatesKind, c.ns, opts), &v1alpha1.AnalysisTemplateList{})
 
@@ -72,14 +74,14 @@ func (c *FakeAnalysisTemplates) List(opts v1.ListOptions) (result *v1alpha1.Anal
 }
 
 // Watch returns a watch.Interface that watches the requested analysisTemplates.
-func (c *FakeAnalysisTemplates) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeAnalysisTemplates) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(analysistemplatesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a analysisTemplate and creates it.  Returns the server's representation of the analysisTemplate, and an error, if there is any.
-func (c *FakeAnalysisTemplates) Create(analysisTemplate *v1alpha1.AnalysisTemplate) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *FakeAnalysisTemplates) Create(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.CreateOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(analysistemplatesResource, c.ns, analysisTemplate), &v1alpha1.AnalysisTemplate{})
 
@@ -90,7 +92,7 @@ func (c *FakeAnalysisTemplates) Create(analysisTemplate *v1alpha1.AnalysisTempla
 }
 
 // Update takes the representation of a analysisTemplate and updates it. Returns the server's representation of the analysisTemplate, and an error, if there is any.
-func (c *FakeAnalysisTemplates) Update(analysisTemplate *v1alpha1.AnalysisTemplate) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *FakeAnalysisTemplates) Update(ctx context.Context, analysisTemplate *v1alpha1.AnalysisTemplate, opts v1.UpdateOptions) (result *v1alpha1.AnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(analysistemplatesResource, c.ns, analysisTemplate), &v1alpha1.AnalysisTemplate{})
 
@@ -101,7 +103,7 @@ func (c *FakeAnalysisTemplates) Update(analysisTemplate *v1alpha1.AnalysisTempla
 }
 
 // Delete takes name of the analysisTemplate and deletes it. Returns an error if one occurs.
-func (c *FakeAnalysisTemplates) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeAnalysisTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(analysistemplatesResource, c.ns, name), &v1alpha1.AnalysisTemplate{})
 
@@ -109,15 +111,15 @@ func (c *FakeAnalysisTemplates) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeAnalysisTemplates) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(analysistemplatesResource, c.ns, listOptions)
+func (c *FakeAnalysisTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(analysistemplatesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.AnalysisTemplateList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched analysisTemplate.
-func (c *FakeAnalysisTemplates) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error) {
+func (c *FakeAnalysisTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(analysistemplatesResource, c.ns, name, pt, data, subresources...), &v1alpha1.AnalysisTemplate{})
 

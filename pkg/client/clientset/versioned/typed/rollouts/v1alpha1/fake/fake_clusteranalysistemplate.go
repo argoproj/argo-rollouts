@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -38,7 +40,7 @@ var clusteranalysistemplatesResource = schema.GroupVersionResource{Group: "argop
 var clusteranalysistemplatesKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "ClusterAnalysisTemplate"}
 
 // Get takes name of the clusterAnalysisTemplate, and returns the corresponding clusterAnalysisTemplate object, and an error if there is any.
-func (c *FakeClusterAnalysisTemplates) Get(name string, options v1.GetOptions) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
+func (c *FakeClusterAnalysisTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootGetAction(clusteranalysistemplatesResource, name), &v1alpha1.ClusterAnalysisTemplate{})
 	if obj == nil {
@@ -48,7 +50,7 @@ func (c *FakeClusterAnalysisTemplates) Get(name string, options v1.GetOptions) (
 }
 
 // List takes label and field selectors, and returns the list of ClusterAnalysisTemplates that match those selectors.
-func (c *FakeClusterAnalysisTemplates) List(opts v1.ListOptions) (result *v1alpha1.ClusterAnalysisTemplateList, err error) {
+func (c *FakeClusterAnalysisTemplates) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ClusterAnalysisTemplateList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootListAction(clusteranalysistemplatesResource, clusteranalysistemplatesKind, opts), &v1alpha1.ClusterAnalysisTemplateList{})
 	if obj == nil {
@@ -69,13 +71,13 @@ func (c *FakeClusterAnalysisTemplates) List(opts v1.ListOptions) (result *v1alph
 }
 
 // Watch returns a watch.Interface that watches the requested clusterAnalysisTemplates.
-func (c *FakeClusterAnalysisTemplates) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeClusterAnalysisTemplates) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(clusteranalysistemplatesResource, opts))
 }
 
 // Create takes the representation of a clusterAnalysisTemplate and creates it.  Returns the server's representation of the clusterAnalysisTemplate, and an error, if there is any.
-func (c *FakeClusterAnalysisTemplates) Create(clusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
+func (c *FakeClusterAnalysisTemplates) Create(ctx context.Context, clusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate, opts v1.CreateOptions) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootCreateAction(clusteranalysistemplatesResource, clusterAnalysisTemplate), &v1alpha1.ClusterAnalysisTemplate{})
 	if obj == nil {
@@ -85,7 +87,7 @@ func (c *FakeClusterAnalysisTemplates) Create(clusterAnalysisTemplate *v1alpha1.
 }
 
 // Update takes the representation of a clusterAnalysisTemplate and updates it. Returns the server's representation of the clusterAnalysisTemplate, and an error, if there is any.
-func (c *FakeClusterAnalysisTemplates) Update(clusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
+func (c *FakeClusterAnalysisTemplates) Update(ctx context.Context, clusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate, opts v1.UpdateOptions) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootUpdateAction(clusteranalysistemplatesResource, clusterAnalysisTemplate), &v1alpha1.ClusterAnalysisTemplate{})
 	if obj == nil {
@@ -95,22 +97,22 @@ func (c *FakeClusterAnalysisTemplates) Update(clusterAnalysisTemplate *v1alpha1.
 }
 
 // Delete takes name of the clusterAnalysisTemplate and deletes it. Returns an error if one occurs.
-func (c *FakeClusterAnalysisTemplates) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeClusterAnalysisTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewRootDeleteAction(clusteranalysistemplatesResource, name), &v1alpha1.ClusterAnalysisTemplate{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeClusterAnalysisTemplates) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(clusteranalysistemplatesResource, listOptions)
+func (c *FakeClusterAnalysisTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewRootDeleteCollectionAction(clusteranalysistemplatesResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterAnalysisTemplateList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched clusterAnalysisTemplate.
-func (c *FakeClusterAnalysisTemplates) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
+func (c *FakeClusterAnalysisTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterAnalysisTemplate, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(clusteranalysistemplatesResource, name, pt, data, subresources...), &v1alpha1.ClusterAnalysisTemplate{})
 	if obj == nil {

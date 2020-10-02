@@ -2,6 +2,7 @@ package create
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -136,6 +137,7 @@ func unmarshal(fileBytes []byte, obj interface{}) error {
 }
 
 func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
+	ctx := context.TODO()
 	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -154,7 +156,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns).Create(&exp)
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns).Create(ctx, &exp, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +168,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns).Create(&ro)
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns).Create(ctx, &ro, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +180,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(ns).Create(&template)
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(ns).Create(ctx, &template, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +192,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Create(&template)
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Create(ctx, &template, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +204,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(&run)
+		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, &run, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -226,6 +228,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Example:      o.Example(createAnalysisRunExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
 			froms := 0
 			if createOptions.From != "" {
 				froms++
@@ -287,7 +290,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
 				}
 			}
-			created, err := createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(run)
+			created, err := createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, run, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
@@ -306,8 +309,9 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 }
 
 func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemplate, error) {
+	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(c.Namespace()).Get(c.From, metav1.GetOptions{})
+		return c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
@@ -323,8 +327,9 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemp
 }
 
 func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*v1alpha1.ClusterAnalysisTemplate, error) {
+	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Get(c.From, metav1.GetOptions{})
+		return c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {

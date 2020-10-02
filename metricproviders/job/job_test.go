@@ -116,6 +116,7 @@ func TestType(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
+	ctx := context.Background()
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 	metric := run.Spec.Metrics[0]
@@ -130,7 +131,7 @@ func TestRun(t *testing.T) {
 
 	// Ensure the job was created with the right name in the right namespace with
 	// right ownership reference and right label
-	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
+	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, expectedName, jobs.Items[0].Name)
 	assert.Equal(t, string(run.UID), jobs.Items[0].ObjectMeta.Labels[AnalysisRunUIDLabelKey])
@@ -267,6 +268,7 @@ func TestTerminateMeasurementNoMetadata(t *testing.T) {
 }
 
 func TestGarbageCollect(t *testing.T) {
+	ctx := context.Background()
 	run := newRunWithJobMetric()
 	run.Status.MetricResults = []v1alpha1.MetricResult{
 		{
@@ -284,13 +286,13 @@ func TestGarbageCollect(t *testing.T) {
 	p := newTestJobProvider(objs...)
 	err := p.GarbageCollect(run, run.Spec.Metrics[0], 10)
 	assert.NoError(t, err)
-	allJobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(metav1.ListOptions{})
+	allJobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, allJobs.Items, 10)
 	basename := newJob(run, "").Name
 
 	for i := 0; i < 12; i++ {
-		_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).Get(fmt.Sprintf("%s-%d", basename, i), metav1.GetOptions{})
+		_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).Get(ctx, fmt.Sprintf("%s-%d", basename, i), metav1.GetOptions{})
 		if i < 2 {
 			// ensure we deleted the oldest
 			assert.True(t, k8serrors.IsNotFound(err))

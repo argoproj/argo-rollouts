@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -212,17 +213,18 @@ func (c *rolloutContext) reconcileExperiments() error {
 // createExperimentWithCollisionHandling creates the given experiment, but with a new name
 // in the event that an experiment with the same name already exists
 func (c *rolloutContext) createExperimentWithCollisionHandling(newEx *v1alpha1.Experiment) (*v1alpha1.Experiment, error) {
+	ctx := context.TODO()
 	collisionCount := 1
 	baseName := newEx.Name
 	for {
-		currentEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(newEx)
+		currentEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Create(ctx, newEx, metav1.CreateOptions{})
 		if err == nil {
 			return currentEx, nil
 		}
 		if !k8serrors.IsAlreadyExists(err) {
 			return nil, err
 		}
-		existingEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Get(newEx.Name, metav1.GetOptions{})
+		existingEx, err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(newEx.Namespace).Get(ctx, newEx.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -258,13 +260,14 @@ func (c *rolloutContext) cancelExperiments(exs []*v1alpha1.Experiment) error {
 }
 
 func (c *rolloutContext) deleteExperiments(exs []*v1alpha1.Experiment) error {
+	ctx := context.TODO()
 	for i := range exs {
 		ex := exs[i]
 		if ex.DeletionTimestamp != nil {
 			continue
 		}
 		c.log.Infof("Trying to cleanup experiment '%s'", ex.Name)
-		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ex.Name, nil)
+		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ctx, ex.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}

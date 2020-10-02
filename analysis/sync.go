@@ -1,6 +1,9 @@
 package analysis
 
 import (
+	"context"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -9,6 +12,7 @@ import (
 )
 
 func (c *Controller) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newStatus v1alpha1.AnalysisRunStatus) error {
+	ctx := context.TODO()
 	logCtx := logutil.WithAnalysisRun(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.AnalysisRun{
@@ -26,7 +30,7 @@ func (c *Controller) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newSta
 		return nil
 	}
 	logCtx.Debugf("AnalysisRun Patch: %s", patch)
-	_, err = c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(orig.Namespace).Patch(orig.Name, patchtypes.MergePatchType, patch)
+	_, err = c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warningf("Error updating analysisRun: %v", err)
 		return err

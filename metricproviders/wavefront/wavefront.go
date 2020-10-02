@@ -1,6 +1,7 @@
 package wavefront
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -196,7 +197,7 @@ func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 // NewWavefrontAPI generates a Wavefront API client from the metric configuration
 func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (WavefrontClientAPI, error) {
 	ns := Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(WavefrontTokensSecretName, metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), WavefrontTokensSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

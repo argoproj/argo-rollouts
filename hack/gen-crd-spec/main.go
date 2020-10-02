@@ -57,7 +57,10 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
-		"crd:preserveUnknownFields=false",
+		// cannot use preserveUnknownFields=false until controller-gen generates proper support for
+		// resource.Quantity, which we remove validation for
+		//"crd:preserveUnknownFields=false",
+		"crd:crdVersions=v1beta1",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {

@@ -2,6 +2,7 @@ package set
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 
@@ -22,7 +23,7 @@ import (
 // getRollout helper to get the rollout using the dynamic interface
 func getRollout(t *testing.T, o *cliopts.ArgoRolloutsOptions, namespace, name string) *v1alpha1.Rollout {
 	t.Helper()
-	un, err := o.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(namespace).Get(name, metav1.GetOptions{})
+	un, err := o.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.FailNow()
 	}
