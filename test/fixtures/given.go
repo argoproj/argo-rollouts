@@ -1,16 +1,13 @@
 package fixtures
 
 import (
-	"io/ioutil"
-	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 type Given struct {
@@ -22,52 +19,16 @@ type Given struct {
 // 2. Raw YAML.
 func (g *Given) RolloutObjects(text string) *Given {
 	g.t.Helper()
-	yamlBytes := g.yamlBytes(text)
-
-	// Some E2E AnalysisTemplates use http://kubernetes.default.svc/version as a fake metric provider.
-	// This doesn't work outside the cluster, so the following replaces it with the host from the
-	// rest config.
-	yamlString := strings.ReplaceAll(string(yamlBytes), "https://kubernetes.default.svc", g.kubernetesHost)
-
-	objs, err := unstructuredutil.SplitYAML(yamlString)
-	g.CheckError(err)
+	objs := g.parseTextToObjects(text)
 	for _, obj := range objs {
-		labels := obj.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		if E2ELabelValueInstanceID != "" {
-			labels[rov1.LabelKeyControllerInstanceID] = E2ELabelValueInstanceID
-		}
-		testNameSplit := strings.SplitN(g.t.Name(), "/", 2)
-		labels[E2ELabelKeyTestName] = testNameSplit[1]
-		obj.SetLabels(labels)
-
 		if obj.GetKind() == "Rollout" {
 			if g.rollout != nil {
 				g.t.Fatal("multiple rollouts specified")
 			}
-			g.rollout = &rov1.Rollout{}
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &g.rollout)
-			g.CheckError(err)
-			g.log = g.log.WithField("rollout", g.rollout.Name)
-
-			if E2EPodDelay > 0 {
-				// Add postStart/preStop handlers to slow down readiness/termination
-				sleepHandler := corev1.Handler{
-					Exec: &corev1.ExecAction{
-						Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
-					},
-				}
-				g.rollout.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-					PostStart: &sleepHandler,
-					PreStop:   &sleepHandler,
-				}
-			}
-		} else {
-			// other non-rollout objects
-			g.objects = append(g.objects, obj)
+			g.log = g.log.WithField("rollout", obj.GetName())
+			g.rollout = obj
 		}
+		g.objects = append(g.objects, obj)
 	}
 	return g
 }
@@ -78,24 +39,18 @@ func (g *Given) RolloutTemplate(text, name string) *Given {
 	return g.RolloutObjects(newText)
 }
 
-func (g *Given) yamlBytes(text string) []byte {
-	var yamlBytes []byte
-	var err error
-	if strings.HasPrefix(text, "@") {
-		file := strings.TrimPrefix(text, "@")
-		yamlBytes, err = ioutil.ReadFile(file)
-		g.CheckError(err)
-	} else {
-		yamlBytes = []byte(text)
-	}
-	return yamlBytes
-}
-
 func (g *Given) SetSteps(text string) *Given {
 	steps := make([]rov1.CanaryStep, 0)
 	err := yaml.Unmarshal([]byte(text), &steps)
 	g.CheckError(err)
-	g.rollout.Spec.Strategy.Canary.Steps = steps
+	var stepsUn []interface{}
+	for _, step := range steps {
+		stepUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&step)
+		g.CheckError(err)
+		stepsUn = append(stepsUn, stepUn)
+	}
+	err = unstructured.SetNestedSlice(g.rollout.Object, stepsUn, "spec", "strategy", "canary", "steps")
+	g.CheckError(err)
 	return g
 }
 

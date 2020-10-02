@@ -5,7 +5,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -94,14 +93,7 @@ func (c *rolloutContext) reconcileActiveService(previewSvc, activeSvc *corev1.Se
 	}
 
 	if c.rollout.Status.Abort {
-		currentRevision := int(0)
-		for _, rs := range controller.FilterActiveReplicaSets(c.otherRSs) {
-			revision := replicasetutil.GetReplicaSetRevision(c.rollout, rs)
-			if revision > currentRevision {
-				newPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-				currentRevision = revision
-			}
-		}
+		newPodHash = c.rollout.Status.StableRS
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, c.rollout)

@@ -87,10 +87,10 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", at.Name)
 	} else if analysisRunType == v1alpha1.RolloutTypePrePromotionLabel {
 		labels = analysisutil.PrePromotionLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+		name = fmt.Sprintf("%s-%s-%s-pre", r.Name, podHash, "2")
 	} else if analysisRunType == v1alpha1.RolloutTypePostPromotionLabel {
 		labels = analysisutil.PostPromotionLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+		name = fmt.Sprintf("%s-%s-%s-post", r.Name, podHash, "2")
 	}
 	return &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1766,8 +1766,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 		"status": {
 			"blueGreen": {
 				"activeSelector": "%s",
-				"prePromotionAnalysisRunStatus": null,
-				"prePromotionAnalysisRun": null
+				"prePromotionAnalysisRunStatus":{"status":"Successful"}
 			},
 			"pauseConditions": null,
 			"controllerPause": null,
@@ -2040,8 +2039,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 		"status": {
 			"stableRS": "%s",
 			"blueGreen": {
-				"postPromotionAnalysisRunStatus": null,
-				"postPromotionAnalysisRun": null
+				"postPromotionAnalysisRunStatus":{"status":"Successful"}
 			}
 		}
 	}`, rs2PodHash)

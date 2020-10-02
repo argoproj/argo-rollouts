@@ -1,14 +1,13 @@
 package fixtures
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/ghodss/yaml"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -32,37 +31,51 @@ func (w *When) ApplyManifests() *When {
 	if w.rollout == nil {
 		w.t.Fatal("No rollout to create")
 	}
-	var objects []runtime.Object
 	for _, obj := range w.objects {
-		objects = append(objects, obj)
-	}
-	objects = append(objects, w.rollout)
-
-	for _, obj := range objects {
-		objBytes, err := json.Marshal(obj)
-		w.CheckError(err)
-		cmd := exec.Command("kubectl", "apply", "-f", "-")
-		cmd.Env = os.Environ()
-		cmd.Stdin = bytes.NewReader(objBytes)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			gvk := obj.GetObjectKind().GroupVersionKind()
-			objMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-			un := unstructured.Unstructured{Object: objMap}
-			w.log.Errorf("kubectl apply of %s %s failed: %s", gvk.Kind, un.GetName(), out)
-			w.t.FailNow()
+		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
+			w.injectDelays(obj)
 		}
-		w.log.Info(string(out))
+		w.applyObject(obj)
 	}
 	return w
 }
 
-func (w *When) UpdateSpec() *When {
+// injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
+// preStart and postStart handlers which sleeps for the specified duration.
+func (w *When) injectDelays(un *unstructured.Unstructured) {
+	sleepHandler := corev1.Handler{
+		Exec: &corev1.ExecAction{
+			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
+		},
+	}
+	lifecycle := corev1.Lifecycle{
+		PostStart: &sleepHandler,
+		PreStop:   &sleepHandler,
+	}
+	lifecycleObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&lifecycle)
+	w.CheckError(err)
+	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+	container := containersIf[0].(map[string]interface{})
+	container["lifecycle"] = lifecycleObj
+	containersIf[0] = container
+	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+}
+
+func (w *When) UpdateSpec(texts ...string) *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	patchStr := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, time.Now())
-	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.Name, types.MergePatchType, []byte(patchStr))
+	var patchBytes []byte
+	if len(texts) == 0 {
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, time.Now()))
+	} else {
+		var err error
+		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
+		w.CheckError(err)
+	}
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.GetName(), types.MergePatchType, patchBytes)
 	w.CheckError(err)
 	return w
 }
@@ -71,7 +84,7 @@ func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.Name, false, false)
+	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false)
 	w.CheckError(err)
 	w.log.Info("Promoted rollout")
 	return w
@@ -81,7 +94,7 @@ func (w *When) AbortRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := abort.AbortRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.Name)
+	_, err := abort.AbortRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName())
 	w.CheckError(err)
 	w.log.Info("Aborted rollout")
 	return w
@@ -91,7 +104,7 @@ func (w *When) RetryRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := retry.RetryRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.Name)
+	_, err := retry.RetryRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName())
 	w.CheckError(err)
 	w.log.Info("Retried rollout")
 	return w
@@ -101,7 +114,7 @@ func (w *When) RestartRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := restart.RestartRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.Name, nil)
+	_, err := restart.RestartRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), nil)
 	w.CheckError(err)
 	w.log.Info("Restarted rollout")
 	return w
@@ -112,9 +125,14 @@ func (w *When) ScaleRollout(scale int) *When {
 		w.t.Fatal("Rollout not set")
 	}
 	patchStr := fmt.Sprintf(`{"spec":{"replicas":%d}}`, scale)
-	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.Name, types.MergePatchType, []byte(patchStr))
+	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.rollout.GetName(), types.MergePatchType, []byte(patchStr))
 	w.CheckError(err)
 	w.log.Infof("Scaled rollout to %d", scale)
+	return w
+}
+
+func (w *When) Sleep(d time.Duration) *When {
+	time.Sleep(d)
 	return w
 }
 
@@ -131,7 +149,7 @@ func (w *When) PatchSpec(patch string) *When {
 	w.CheckError(err)
 
 	// Apply patch
-	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.rollout.Name, metav1.GetOptions{})
+	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.rollout.GetName(), metav1.GetOptions{})
 	w.CheckError(err)
 	originalBytes, err := json.Marshal(ro)
 	w.CheckError(err)
@@ -194,7 +212,7 @@ func (w *When) WaitForRolloutReplicas(count int32) *When {
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
-	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.Name)).String()}
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
 	watch, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(opts)
 	w.CheckError(err)
 	defer watch.Stop()
@@ -224,7 +242,7 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 
 func (w *When) DeleteRollout() *When {
 	w.log.Info("Deleting")
-	err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Delete(w.rollout.Name, nil)
+	err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Delete(w.rollout.GetName(), nil)
 	w.CheckError(err)
 	return w
 }
