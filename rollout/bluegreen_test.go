@@ -147,7 +147,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 2, 4, 2, false, true)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 2, 4, 2, false, true)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
@@ -742,6 +742,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"HPAReplicas":1,
+			"readyReplicas":1,
 			"availableReplicas":1,
 			"updatedReplicas":1,
 			"replicas":2,
@@ -786,6 +787,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	expectedPatchWithoutSub := `{
 		"status":{
 			"HPAReplicas":1,
+			"readyReplicas": 1,
 			"availableReplicas": 1,
 			"updatedReplicas":1,
 			"replicas":1,

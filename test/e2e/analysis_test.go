@@ -332,6 +332,8 @@ spec:
 		ExpectRevisionPodCount("1", 1).
 		ExpectRevisionPodCount("2", 0).
 		ExpectRevisionPodCount("3", 1).
+		ExpectActiveRevision("1").
+		ExpectPreviewRevision("3").
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").

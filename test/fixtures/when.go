@@ -209,6 +209,14 @@ func (w *When) WaitForRolloutReplicas(count int32) *When {
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), E2EWaitTimeout)
 }
 
+func (w *When) WaitForActiveRevision(revision string) *When {
+	rs := w.GetReplicaSetByRevision(revision)
+	checkStatus := func(ro *rov1.Rollout) bool {
+		return ro.Status.BlueGreen.ActiveSelector == rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), E2EWaitTimeout)
+}
+
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
