@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -32,14 +33,19 @@ const (
 // Implements the Provider Interface
 type Provider struct {
 	logCtx log.Entry
-	apiKey string
-	appKey string
+	config datadogConfig
 }
 
 type datadogResponse struct {
 	Series []struct {
 		Pointlist [][]float64 `json:"pointlist"`
 	}
+}
+
+type datadogConfig struct {
+	Address string `yaml:"address,omitempty"`
+	ApiKey  string `yaml:"api-key,omitempty"`
+	AppKey  string `yaml:"app-key,omitempty"`
 }
 
 // Type incidates provider is a Datadog provider
@@ -56,8 +62,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	endpoint := "https://api.datadoghq.com/api/v1/query"
-	if metric.Provider.Datadog.Address != "" {
-		endpoint = metric.Provider.Datadog.Address + "/api/v1/query"
+	if p.config.Address != "" {
+		endpoint = p.config.Address + "/api/v1/query"
 	}
 
 	url, _ := url.Parse(endpoint)
@@ -83,8 +89,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.URL = url
 	request.Header = make(http.Header)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("DD-API-KEY", p.apiKey)
-	request.Header.Set("DD-APPLICATION-KEY", p.appKey)
+	request.Header.Set("DD-API-KEY", p.config.ApiKey)
+	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
 	// Send Request
 	httpClient := &http.Client{
@@ -166,15 +172,16 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	if err != nil {
 		return nil, err
 	}
+	config := datadogConfig{}
 
-	apiKey := string(secret.Data["api-key"])
-	appKey := string(secret.Data["app-key"])
+	if e := yaml.Unmarshal(secret.Data["default"], &config); e != nil {
+		return nil, e
+	}
 
-	if apiKey != "" && appKey != "" {
+	if config.ApiKey != "" && config.AppKey != "" {
 		return &Provider{
 			logCtx: logCtx,
-			apiKey: apiKey,
-			appKey: appKey,
+			config: config,
 		}, nil
 	} else {
 		return nil, errors.New("API or App token not found")

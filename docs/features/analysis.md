@@ -901,7 +901,6 @@ spec:
     failureLimit: 3
     provider:
       datadog:
-        address: https://api.datadoghq.com
         interval: 5m
         query: |
           sum:requests.error.count{service:{{args.service-name}}} /
@@ -917,6 +916,8 @@ metadata:
   name: datadog
 type: Opaque
 data:
-  api-key: <datadog-api-key>
-  app-key: <datadog-app-key>
+  default:
+    address: https://api.datadoghq.com
+    api-key: <datadog-api-key>
+    app-key: <datadog-app-key>
 ```

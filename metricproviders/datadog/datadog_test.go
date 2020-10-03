@@ -1,6 +1,7 @@
 package datadog
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,16 +22,6 @@ func TestRunSuite(t *testing.T) {
 
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
-
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DatadogTokensSecretName,
-		},
-		Data: map[string][]byte{
-			"api-key": []byte(expectedApiKey),
-			"app-key": []byte(expectedAppKey),
-		},
-	}
 
 	unixNow = func() int64 { return 1599076435 }
 
@@ -204,7 +195,14 @@ func TestRunSuite(t *testing.T) {
 		}))
 		defer server.Close()
 
-		test.metric.Provider.Datadog.Address = server.URL
+		tokenSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: DatadogTokensSecretName,
+			},
+			Data: map[string][]byte{
+				"default": []byte(fmt.Sprintf("address: %s\napp-key: %s\napi-key: %s", server.URL, expectedAppKey, expectedApiKey)),
+			},
+		}
 
 		logCtx := log.WithField("test", "test")
 

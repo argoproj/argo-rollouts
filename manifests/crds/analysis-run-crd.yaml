@@ -82,8 +82,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:

@@ -354,7 +354,6 @@ type WebMetricHeader struct {
 }
 
 type DatadogMetric struct {
-	Address  string         `json:"address,omitempty"`
 	Interval DurationString `json:"interval,omitempty"`
 	Query    string         `json:"query"`
 }
