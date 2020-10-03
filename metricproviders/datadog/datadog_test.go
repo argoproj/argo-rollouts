@@ -117,6 +117,43 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 		},
+		// Error if datadog doesn't return any datapoints
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query: "avg:kubernetes.cpu.user.total{*}",
+					},
+				},
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "Datadog returned no value: {\"status\":\"ok\",\"series\":[{\"pointlist\":[]}]}",
+		},
+
+		// Error if datadog doesn't return any datapoints
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":"invalid"}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query: "avg:kubernetes.cpu.user.total{*}",
+					},
+				},
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponse.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
+		},
 	}
 
 	// Run

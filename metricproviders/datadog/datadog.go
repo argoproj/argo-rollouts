@@ -18,7 +18,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/jsonpath"
 )
 
 var unixNow = func() int64 { return time.Now().Unix() }
@@ -35,6 +34,12 @@ type Provider struct {
 	logCtx log.Entry
 	apiKey string
 	appKey string
+}
+
+type datadogResponse struct {
+	Series []struct {
+		Pointlist [][]float64 `json:"pointlist"`
+	}
 }
 
 // Type incidates provider is a Datadog provider
@@ -105,10 +110,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-	var data interface{}
-
-	jsonParser := jsonpath.New("metrics")
-	jsonParser.Parse("{.series[0].pointlist[-1:][1]}")
 
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 
@@ -122,24 +123,24 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
 	}
 
-	err = json.Unmarshal(bodyBytes, &data)
+	var res datadogResponse
+	err = json.Unmarshal(bodyBytes, &res)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
-	results, err := jsonParser.FindResults(data)
-	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not find JSONPath in body: %s", err)
+	if len(res.Series) < 1 || len(res.Series[0].Pointlist) < 1 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
 	}
 
-	if len(results) < 1 && len(results[0]) < 1 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value")
+	series := res.Series[0]
+	datapoint := series.Pointlist[len(series.Pointlist)-1]
+	if len(datapoint) < 1 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
 	}
 
-	var out float64 = results[0][0].Interface().(float64)
-
-	status := evaluate.EvaluateResult(out, metric, p.logCtx)
-	return strconv.FormatFloat(out, 'f', -1, 64), status, nil
+	status := evaluate.EvaluateResult(datapoint[1], metric, p.logCtx)
+	return strconv.FormatFloat(datapoint[1], 'f', -1, 64), status, nil
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
