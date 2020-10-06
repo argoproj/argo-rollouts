@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 type Then struct {
@@ -26,6 +26,27 @@ func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) 
 		t.t.FailNow()
 	}
 	t.log.Infof("Rollout expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available interface{}) *Then {
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.rollout.GetName(), metav1.GetOptions{})
+	t.CheckError(err)
+	if desired != nil && desired.(int) != int(defaults.GetReplicasOrDefault(ro.Spec.Replicas)) {
+		t.t.Fatalf("Expected %d desired replicas. Actual: %d", desired, defaults.GetReplicasOrDefault(ro.Spec.Replicas))
+	}
+	if current != nil && current.(int) != int(ro.Status.Replicas) {
+		t.t.Fatalf("Expected %d current replicas. Actual: %d", current, ro.Status.Replicas)
+	}
+	if ready != nil && ready.(int) != int(ro.Status.ReadyReplicas) {
+		t.t.Fatalf("Expected %d ready replicas. Actual: %d", ready, ro.Status.ReadyReplicas)
+	}
+	if updated != nil && updated.(int) != int(ro.Status.UpdatedReplicas) {
+		t.t.Fatalf("Expected %d updated replicas. Actual: %d", updated, ro.Status.UpdatedReplicas)
+	}
+	if available != nil && available.(int) != int(ro.Status.AvailableReplicas) {
+		t.t.Fatalf("Expected %d available replicas. Actual: %d", available, ro.Status.AvailableReplicas)
+	}
 	return t
 }
 
@@ -52,24 +73,10 @@ func (t *Then) ExpectCanaryStablePodCount(canaryCount, stableCount int) *Then {
 }
 
 func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then {
-	rs := t.getReplicaSetByRevision(revision)
+	rs := t.GetReplicaSetByRevision(revision)
 	description := fmt.Sprintf("revision:%s", revision)
 	hash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
 	return t.expectPodCountByHash(description, hash, expectedCount)
-}
-
-func (t *Then) getReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
-	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
-	t.CheckError(err)
-	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
-	t.CheckError(err)
-	for _, rs := range replicasets.Items {
-		if rs.Annotations[annotations.RevisionAnnotation] == revision {
-			return &rs
-		}
-	}
-	t.t.Fatalf("Could not find ReplicaSet with revision: %s", revision)
-	return nil
 }
 
 func (t *Then) expectPodCountByHash(description, hash string, expectedCount int) *Then {
@@ -173,7 +180,7 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 		}
 		svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(serviceName, metav1.GetOptions{})
 		t.CheckError(err)
-		rs := t.getReplicaSetByRevision(revision)
+		rs := t.GetReplicaSetByRevision(revision)
 		if selector != svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey] {
 			return fmt.Errorf("Expectation failed: blueGreen %s selector/service selector mismatch %s != %s", which, selector, svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey])
 		}

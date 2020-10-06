@@ -300,3 +300,22 @@ spec:
 		Then().
 		ExpectCanaryStablePodCount(2, 2)
 }
+
+// TestBlueGreenUpdate
+func (s *FunctionalSuite) TestBlueGreenUpdate() {
+	s.Given().
+		HealthyRollout("@functional/rollout-bluegreen.yaml").
+		When().
+		Then().
+		ExpectReplicaCounts(3, 3, 3, 3, 3). // desired, current, updated, ready, available
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForActiveRevision("2").
+		Then().
+		ExpectReplicaCounts(3, 6, 3, 3, 3).
+		When().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectReplicaCounts(3, 3, 3, 3, 3) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
+}

@@ -270,7 +270,6 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 		newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
 	}
 
-	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
 	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
 	if !ok {
 		previewSelector = ""
@@ -312,11 +311,17 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)
 	if activeRS != nil {
-		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{activeRS})
+		newStatus.HPAReplicas = activeRS.Status.Replicas
 		newStatus.Selector = metav1.FormatLabelSelector(activeRS.Spec.Selector)
+		newStatus.AvailableReplicas = activeRS.Status.AvailableReplicas
+		newStatus.ReadyReplicas = activeRS.Status.ReadyReplicas
 	} else {
+		// when we do not have an active replicaset, accounting is done on the default rollout selector
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(allRSs)
 		newStatus.Selector = metav1.FormatLabelSelector(r.Spec.Selector)
+		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
+		// NOTE: setting ready replicas is skipped since it's already performed in c.calculateBaseStatus() and is redundant
+		// newStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets(c.allRSs)
 	}
 
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(roCtx, activeRS)

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,6 +19,7 @@ import (
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -57,6 +59,20 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 	bytes, err := json.Marshal(ro)
 	c.CheckError(err)
 	c.log.Info(string(bytes))
+}
+
+func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
+	selector, err := metav1.LabelSelectorAsSelector(c.Rollout().Spec.Selector)
+	c.CheckError(err)
+	replicasets, err := c.kubeClient.AppsV1().ReplicaSets(c.namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	c.CheckError(err)
+	for _, rs := range replicasets.Items {
+		if rs.Annotations[annotations.RevisionAnnotation] == revision {
+			return &rs
+		}
+	}
+	c.t.Fatalf("Could not find ReplicaSet with revision: %s", revision)
+	return nil
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
