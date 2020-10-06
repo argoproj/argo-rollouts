@@ -143,6 +143,7 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplica
 	rs := newReplicaSet(r, replicas)
 	rs.Status.Replicas = int32(replicas)
 	rs.Status.AvailableReplicas = int32(availableReplicas)
+	rs.Status.ReadyReplicas = int32(availableReplicas)
 	return rs
 }
 
@@ -303,6 +304,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 	newRollout := r.DeepCopy()
 	newRollout.Status.Replicas = totalReplicas
 	newRollout.Status.AvailableReplicas = availableReplicas
+	newRollout.Status.ReadyReplicas = availableReplicas
 	newRollout.Status.UpdatedReplicas = updatedReplicas
 	newRollout.Status.HPAReplicas = hpaReplicas
 	return newRollout
