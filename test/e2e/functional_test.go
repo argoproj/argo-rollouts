@@ -377,3 +377,55 @@ spec:
 		Then().
 		ExpectReplicaCounts(2, 2, 2, 2, 2) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
 }
+
+// TestBlueGreenToCanary tests behavior when migrating from bluegreen to canary
+func (s *FunctionalSuite) TestBlueGreenToCanary() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-to-canary")).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-to-canary
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      activeService: bluegreen-to-canary
+      scaleDownDelaySeconds: 5
+  selector:
+    matchLabels:
+      app: bluegreen-to-canary
+  template:
+    metadata:
+      labels:
+        app: bluegreen-to-canary
+    spec:
+      containers:
+      - name: bluegreen-to-canary
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+
+`).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        foo: bar
+  strategy:
+    blueGreen: null
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {}
+`).
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
+		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"})
+}
