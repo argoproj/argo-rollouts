@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -47,6 +48,7 @@ func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available i
 	if available != nil && available.(int) != int(ro.Status.AvailableReplicas) {
 		t.t.Fatalf("Expected %d available replicas. Actual: %d", available, ro.Status.AvailableReplicas)
 	}
+	t.log.Infof("Replica count expectation met (desired:%v, current:%v, updated:%v, ready:%v, available:%v)", desired, current, updated, ready, available)
 	return t
 }
 
@@ -205,6 +207,16 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 	}
 	t.log.Error(err)
 	t.t.FailNow()
+	return t
+}
+
+func (t *Then) ExpectServiceSelector(service string, selector map[string]string) *Then {
+	svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(service, metav1.GetOptions{})
+	t.CheckError(err)
+	if !reflect.DeepEqual(svc.Spec.Selector, selector) {
+		t.t.Fatalf("Expected %s selector: %v. Actual: %v", service, selector, svc.Spec.Selector)
+	}
+	t.log.Infof("Expectation %s selector: %v met", service, selector)
 	return t
 }
 
