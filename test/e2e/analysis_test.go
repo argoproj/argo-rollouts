@@ -104,6 +104,9 @@ spec:
       postPromotionAnalysis:
         templates:
         - templateName: sleep-job
+        args:
+        - name: duration
+          value: "5"
       autoPromotionEnabled: false
   selector:
     matchLabels:
@@ -134,8 +137,14 @@ spec:
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("2").
 		When().
-		Sleep(2 * time.Second). // promoting too fast causes test to flake
+		Sleep(2*time.Second). // promoting too fast causes test to flake
 		PromoteRollout().
+		WaitForActiveRevision("2").
+		Sleep(time.Second). // analysis is created on later reconciliations after service cutover
+		Then().
+		ExpectAnalysisRunCount(2).
+		ExpectReplicaCounts(1, 2, 1, 1, 1).
+		When().
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(2).
@@ -338,7 +347,7 @@ spec:
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectRevisionPodCount("1", 0). // this may change after https://github.com/argoproj/argo-rollouts/issues/756
+		ExpectRevisionPodCount("1", 1).
 		ExpectRevisionPodCount("2", 0).
 		ExpectRevisionPodCount("3", 1).
 		ExpectActiveRevision("3").

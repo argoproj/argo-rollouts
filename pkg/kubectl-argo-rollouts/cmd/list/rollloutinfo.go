@@ -63,7 +63,7 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		ri.strategy = "BlueGreen"
 	}
-	ri.status = info.RolloutStatusString(&ro)
+	ri.status, _ = info.RolloutStatusString(&ro)
 
 	ri.desired = 1
 	if ro.Spec.Replicas != nil {

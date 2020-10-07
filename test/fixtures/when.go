@@ -166,10 +166,8 @@ func (w *When) PatchSpec(patch string) *When {
 
 func (w *When) WaitForRolloutStatus(status string) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
-		if info.RolloutStatusString(ro) == status {
-			return true
-		}
-		return false
+		s, _ := info.RolloutStatusString(ro)
+		return s == status
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), E2EWaitTimeout)
 }
@@ -188,7 +186,8 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 			//      WaitForRolloutCanaryStepIndex(N).
 			//      WaitForRolloutStatus("Paused").
 			// which would be annoying.
-			return info.RolloutStatusString(ro) == "Paused"
+			status, _ := info.RolloutStatusString(ro)
+			return status == "Paused"
 		}
 		return true
 	}
