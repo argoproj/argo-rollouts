@@ -326,3 +326,106 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		Then().
 		ExpectReplicaCounts(3, 3, 3, 3, 3) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
 }
+
+// TestBlueGreenPreviewReplicaCount verifies the previewReplicaCount feature
+func (s *FunctionalSuite) TestBlueGreenPreviewReplicaCount() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-preview-replicas
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      activeService: bluegreen-preview-replicas-active
+      previewService: bluegreen-preview-replicas-preview
+      previewReplicaCount: 1
+      scaleDownDelaySeconds: 5
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-preview-replicas
+  template:
+    metadata:
+      labels:
+        app: bluegreen-preview-replicas
+    spec:
+      containers:
+      - name: bluegreen-preview-replicas
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 2).
+		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectReplicaCounts(2, 2, 2, 2, 2) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
+}
+
+// TestBlueGreenToCanary tests behavior when migrating from bluegreen to canary
+func (s *FunctionalSuite) TestBlueGreenToCanary() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-to-canary")).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-to-canary
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      activeService: bluegreen-to-canary
+      scaleDownDelaySeconds: 5
+  selector:
+    matchLabels:
+      app: bluegreen-to-canary
+  template:
+    metadata:
+      labels:
+        app: bluegreen-to-canary
+    spec:
+      containers:
+      - name: bluegreen-to-canary
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+
+`).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        foo: bar
+  strategy:
+    blueGreen: null
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {}
+`).
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
+		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"})
+}
