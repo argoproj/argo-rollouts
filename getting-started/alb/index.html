@@ -1162,7 +1162,6 @@ mandatory fields:</p>
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
 <span class="nn">...</span>
 </code></pre></div>
-
 <p>The Ingress in <code>trafficRouting.alb.ingress</code> is required
 to have a custom action which splits between the stable and canary Services, referenced in the rollout.
 In this guide, those Services are named: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code> 
@@ -1202,7 +1201,6 @@ and 0% on the canary. During an update, these values will be modified by the con
               <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
               <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
-
 <p>Run the following commands to deploy:</p>
 <ul>
 <li>A Rollout</li>
@@ -1213,7 +1211,6 @@ and 0% on the canary. During an update, these values will be modified by the con
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/alb/services.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/alb/ingress.yaml
 </code></pre></div>
-
 <p>After applying the manifests you should see the following rollout, services, and ingress resources in the cluster:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get ro
 NAME            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE
@@ -1228,17 +1225,14 @@ $ kubectl get ingress
 NAME                    HOSTS   ADDRESS                                                                       PORTS   AGE
 rollouts-demo-ingress   *       b0548428-default-rolloutsd-6951-1972570952.ap-northeast-1.elb.amazonaws.com   <span class="m">80</span>      6m36s
 </code></pre></div>
-
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout ALB" src="rollout-alb.png" /></p>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
 <p>Update the rollout by changing the image, and wait for it to reach the paused state.</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout ALB Paused" src="paused-rollout-alb.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. To understand how this works, inspect the listener rules for 

@@ -1146,7 +1146,6 @@ is not possible, the the new version's pods will not be scheduled.</p>
       <span class="nt">antiAffinity</span><span class="p">:</span>
           <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
 </code></pre></div>
-
 <p>Unlike the Required strategy, <code>PreferredDuringSchedulingIgnoredDuringExecution</code> does not force a new version's pods to be on a separate node than the previous versions.
 The scheduler attempts to place the new version's pods on separate node(s). If that's not possible, the new version's pods will still be scheduled. The <code>Weight</code> is used to create a priority order for preferred anti-affinity rules. </p>
 <div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span>
@@ -1155,7 +1154,6 @@ The scheduler attempts to place the new version's pods on separate node(s). If t
           <span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
             <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span> <span class="c1"># Between 1 - 100</span>
 </code></pre></div>
-
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>The main downside to this approach is that deployments can take longer because new nodes are more likely to be created in order to schedule pods with respect to anti-affinity rules. This delay most frequently occurs when a rollout has its own dedicated instance group,

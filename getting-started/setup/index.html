@@ -1337,14 +1337,12 @@ purposes.</p>
 <div class="highlight"><pre><span></span><code>helm repo add stable https://kubernetes-charts.storage.googleapis.com/
 helm repo update
 </code></pre></div>
-
 <h2 id="minikube">Minikube<a class="headerlink" href="#minikube" title="Permanent link">&para;</a></h2>
 <h3 id="nginx-ingress-controller-setup">NGINX Ingress Controller Setup<a class="headerlink" href="#nginx-ingress-controller-setup" title="Permanent link">&para;</a></h3>
 <p>The following instructions describe how to configure NGINX Ingress Controller on minikube. For
 basic ingress support, only the "ingress" addon needs to be enabled:</p>
 <div class="highlight"><pre><span></span><code>minikube addons <span class="nb">enable</span> ingress
 </code></pre></div>
-
 <p>Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
 <div class="highlight"><pre><span></span><code># Install Prometheus
 kubectl create ns monitoring
@@ -1361,7 +1359,6 @@ helm install grafana stable/grafana -n monitoring -f docs/getting-started/setup/
 # Grafana UI can be accessed by running:
 minikube service grafana -n monitoring
 </code></pre></div>
-
 <h3 id="istio-setup">Istio Setup<a class="headerlink" href="#istio-setup" title="Permanent link">&para;</a></h3>
 <p>The following instructions describe how to configure Istio on minikube.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Istio on Minikube requires additional memory and CPU</span>
@@ -1374,7 +1371,6 @@ minikube addons <span class="nb">enable</span> istio
 <span class="c1"># Label the default namespace to enable istio sidecar injection for the namespace</span>
 kubectl label namespace default istio-injection<span class="o">=</span>enabled
 </code></pre></div>
-
 <p>Istio already comes with a Prometheus database ready to use. To visualize metrics about istio
 services, Grafana and Istio dashboards can be installed via Helm to leverage progressive delivery
 functionality:</p>
@@ -1384,21 +1380,18 @@ helm install grafana stable/grafana -n istio-system -f docs/getting-started/setu
 # Grafana UI can be accessed by running
 minikube service grafana -n istio-system
 </code></pre></div>
-
 <p>In order for traffic to enter the Istio mesh, the request needs to go through an Istio ingress
 gateway, which is simply a normal Kubernetes Deployment and Service. One convenient way to reach
 the gateway using minikube, is using the <code>minikube tunnel</code> command which assigns Services a 
 LoadBalancer. This command should be run in the background, usually in a separate terminal window:</p>
 <div class="highlight"><pre><span></span><code>minikube tunnel
 </code></pre></div>
-
 <p>While running <code>minikube tunnel</code>, the <code>istio-ingressgateway</code> Service will now have an external IP
 which can be retrieved via <code>kubectl</code>:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get svc -n istio-system istio-ingressgateway
 NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT<span class="o">(</span>S<span class="o">)</span>                            AGE
 istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <span class="m">10</span>.100.136.45   <span class="m">15020</span>:31711/TCP,80:31298/TCP....   7d22h
 </code></pre></div>
-
 <p>The LoadBalancer external IP (10.100.136.45 in this example) is now reachable to access services in
 the Istio mesh. Istio routes requests to the correct pod based on the Host HTTP header. Follow the
 guide on <a href="#supplying-host-headers">supplying host headers</a> to learn how to configure your client
@@ -1408,7 +1401,6 @@ environment to supply the proper request to reach the pod.</p>
 <div class="highlight"><pre><span></span><code>brew install linkerd
 linkerd install | kubectl apply -f -
 </code></pre></div>
-
 <p>Linkerd does not provide its own ingress controller, choosing instead to work alongside your
 ingress controller of choice. On minikube, we can use the built-in NGINX ingress addon and
 reconfigure it to be part of the linkerd mesh.</p>
@@ -1420,7 +1412,6 @@ minikube addons enable ingress
 kubectl patch deploy ingress-nginx-controller -n kube-system \
   -p &#39;{&quot;spec&quot;:{&quot;template&quot;:{&quot;metadata&quot;:{&quot;annotations&quot;:{&quot;linkerd.io/inject&quot;:&quot;enabled&quot;}}}}}&#39;
 </code></pre></div>
-
 <h2 id="supplying-host-headers">Supplying Host Headers<a class="headerlink" href="#supplying-host-headers" title="Permanent link">&para;</a></h2>
 <p>Most ingress controllers and service mesh implementations rely on the 
 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host">Host HTTP request header</a> being
@@ -1438,7 +1429,6 @@ Ingress object itself, using <code>kubectl</code>:</p>
 NAME                   CLASS    HOSTS                 ADDRESS        PORTS   AGE
 rollouts-demo-stable   &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      80m
 </code></pre></div>
-
 <p>In the example above, the hostname <code>rollouts-demo.local</code> should be configured to resolve to the
 IP <code>192.168.64.2</code>. The next section describes various ways to configure your local system to
 resolve the hostname to the desired IP.</p>
@@ -1454,7 +1444,6 @@ ingress gateway, which we can obtain from kubectl:</p>
 NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT<span class="o">(</span>S<span class="o">)</span>                            AGE
 istio-ingressgateway   LoadBalancer   <span class="m">10</span>.100.136.45   <span class="m">10</span>.100.136.45   <span class="m">15020</span>:31711/TCP,80:31298/TCP....   7d22h
 </code></pre></div>
-
 <p>In the above example, the hostname <code>rollouts-demo.local</code> should be configured to resolve to the
 IP <code>10.100.136.45</code>. The next section describes various ways to configure your local system to
 resolve the hostname to the desired IP.</p>
@@ -1481,7 +1470,6 @@ of the ingress. For example, the following is an example of an <code>/etc/hosts<
 
 <span class="m">10</span>.100.136.45  rollouts-demo.local
 </code></pre></div>
-
 <p>The advantages of using a host entry, are that it works for all clients (CLIs, browsers). On the
 other hand, it is harder to maintain if the IP address changes frequently.</p>
 <h4 id="supply-header-in-curl">Supply Header in Curl<a class="headerlink" href="#supply-header-in-curl" title="Permanent link">&para;</a></h4>
@@ -1496,7 +1484,6 @@ content-length: <span class="m">6</span>
 x-envoy-upstream-service-time: <span class="m">1</span>
 server: istio-envoy
 </code></pre></div>
-
 <p>Notice that the same request made <em>without</em> the header, fails with a <code>404 Not Found</code> error.</p>
 <div class="highlight"><pre><span></span><code>$ curl -I http://10.100.136.45/color
 HTTP/1.1 <span class="m">404</span> Not Found
@@ -1504,7 +1491,6 @@ date: Wed, <span class="m">24</span> Jun <span class="m">2020</span> <span class
 server: istio-envoy
 transfer-encoding: chunked
 </code></pre></div>
-
 <h4 id="browser-extension">Browser Extension<a class="headerlink" href="#browser-extension" title="Permanent link">&para;</a></h4>
 <p>Similar to curl's ability to explicitly set a header, browsers can also achieve this via browser
 extensions. One example of a browser extension which can do this, is

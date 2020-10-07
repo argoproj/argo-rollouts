@@ -1163,7 +1163,6 @@ mandatory fields:</p>
             <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">primary</span> <span class="c1"># At least one route is required</span>
 <span class="nn">...</span>
 </code></pre></div>
-
 <p>The VirtualService and route referenced in <code>trafficRouting.istio.virtualService</code> is required
 to have a HTTP route which splits between the stable and canary Services, referenced in the rollout.
 In this guide, those Services are named: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code> 
@@ -1188,7 +1187,6 @@ and 0% on the canary. During an update, these values will be modified by the con
         <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>  <span class="c1"># Should match spec.strategy.canary.canaryService</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
 </code></pre></div>
-
 <p>Run the following commands to deploy:</p>
 <ul>
 <li>A Rollout</li>
@@ -1201,7 +1199,6 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/virtualsvc.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/gateway.yaml
 </code></pre></div>
-
 <p>After applying the manifests you should see the following rollout, services, virtualservices, 
 and gateway resources in the cluster:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get ro
@@ -1221,17 +1218,14 @@ $ kubectl get gateway
 NAME                    AGE
 rollouts-demo-gateway   71s
 </code></pre></div>
-
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout Istio" src="rollout-istio.png" /></p>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
 <p>Update the rollout by changing the image, and wait for it to reached the paused state.</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout Istio Paused" src="paused-rollout-istio.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. To understand how this works, inspect the VirtualService which
@@ -1257,7 +1251,6 @@ weights have been modified by the controller to reflect the current weight of th
         <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
 </code></pre></div>
-
 <p>As the Rollout progresses through steps, the HTTP route destination weights will be adjusted to
 match the current setWeight of the steps.</p>
                 

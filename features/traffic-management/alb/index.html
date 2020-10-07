@@ -1186,7 +1186,6 @@ Kubernetes services. ALBs supports the ability to split traffic through the conc
               <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
             <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
 </code></pre></div>
-
 <p>This Ingress uses the <code>alb.ingress.kubernetes.io/actions.stable-service</code> annotation to define how to route traffic to the various services for the rule with the <code>stable-service</code> serviceName instead of sending traffic to the canary-service service. You can read more about these annotations on the official <a href="https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions">documentation</a>.</p>
 <h2 id="integration-with-argo-rollouts">Integration with Argo Rollouts<a class="headerlink" href="#integration-with-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>To configure a Rollout to split traffic between the canary and stable services during update via its ALB integration, the following fields should be specified:</p>
@@ -1204,7 +1203,6 @@ Kubernetes services. ALBs supports the ability to split traffic through the conc
           <span class="nt">rootService</span><span class="p">:</span> <span class="c1"># optional</span>
           <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span> <span class="c1"># optional</span>
 </code></pre></div>
-
 <p>The ingress field is a reference to an Ingress in the same namespace of the Rollout, and the servicePort field refers a port of a service. The Rollout requires the Ingress and servicePort to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService (or the optional rootService if specified) within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.</p>
 <p>Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional <code>annotationPrefix</code> field. The Ingress uses that prefix instead of the default <code>alb.ingress.kubernetes.io</code> if the field set.</p>
 <p>The Rollout adds another annotation called <code>rollouts.argoproj.io/managed-alb-actions</code> to the Ingress to help the controller manage the Ingresses. This annotation indicates which actions are being managed by Rollout objects (since multiple Rollouts can reference one Ingress). If a Rollout is deleted, the Argo Rollouts controller uses this annotation to see that this action is no longer managed, and it is reset to only the stable service with 100 weight.</p>

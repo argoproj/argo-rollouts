@@ -1257,25 +1257,20 @@ brew install golangci-lint
 <span class="c1"># linux</span>
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 </code></pre></div>
-
 <p>Brew users can quickly install the lot:</p>
 <div class="highlight"><pre><span></span><code>brew install go kubectl kustomize
 </code></pre></div>
-
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
 <span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
 </code></pre></div>
-
 <p>Checkout the code:</p>
 <div class="highlight"><pre><span></span><code>go get -u github.com/argoproj/argo-rollouts
 <span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
 </code></pre></div>
-
 <p>Run the following command to download all the dependencies:</p>
 <div class="highlight"><pre><span></span><code>go mod download
 </code></pre></div>
-
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
@@ -1288,17 +1283,14 @@ dependencies of the project. </li>
 <p>To run unit tests:</p>
 <div class="highlight"><pre><span></span><code>make <span class="nb">test</span>
 </code></pre></div>
-
 <h2 id="running-e2e-tests">Running E2E tests<a class="headerlink" href="#running-e2e-tests" title="Permanent link">&para;</a></h2>
 <p>The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
 running. The rollout controller can be started with the command: </p>
 <div class="highlight"><pre><span></span><code>make start-e2e
 </code></pre></div>
-
 <p>Then run the e2e tests:</p>
 <div class="highlight"><pre><span></span><code>make test-e2e
 </code></pre></div>
-
 <h3 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h3>
 <ol>
 <li>You can run the tests using a different kubeconfig by setting the <code>KUBECONFIG</code> environment variable:</li>
@@ -1306,14 +1298,12 @@ running. The rollout controller can be started with the command: </p>
 <div class="highlight"><pre><span></span><code><span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube make start-e2e
 <span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube make test-e2e
 </code></pre></div>
-
 <ol>
 <li>To run a specific e2e test, set the <code>E2E_TEST_OPTIONS</code> environment variable to specify the test
 (or test regex):</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_TEST_OPTIONS</span><span class="o">=</span><span class="s2">&quot;-testify.m ^TestRolloutRestart</span>$<span class="s2">&quot;</span> 
 </code></pre></div>
-
 <ol>
 <li>The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
 delays. However, it is often desired to artificially slow down the tests for debugging purposes,
@@ -1321,7 +1311,6 @@ as well as to understand what the test is doing. To delay startup and terminatio
 </ol>
 <div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_POD_DELAY</span><span class="o">=</span><span class="m">10</span>
 </code></pre></div>
-
 <ol>
 <li>The e2e tests leverage a feature of the controller allowing the controller to be sharded with
 a user-specific "instance id" label. This allows the tests to operate only on rollouts with the
@@ -1332,35 +1321,28 @@ from also operating on the same set of rollouts. This value can be changed (from
 <div class="highlight"><pre><span></span><code>make start-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
 make test-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
 </code></pre></div>
-
 <h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
 <div class="highlight"><pre><span></span><code><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
 go run ./cmd/rollouts-controller/main.go
 </code></pre></div>
-
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
 <p>Create login to Docker Hub, then login.</p>
 <div class="highlight"><pre><span></span><code>docker login
 </code></pre></div>
-
 <p>Add your username as the environment variable, e.g. to your <code>~/.bash_profile</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj
 </code></pre></div>
-
 <p>Build the images:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
 </code></pre></div>
-
 <p>Update the manifests:</p>
 <div class="highlight"><pre><span></span><code>make manifests
 </code></pre></div>
-
 <p>Install the manifests:</p>
 <div class="highlight"><pre><span></span><code>kubectl -n argo-rollouts apply -f manifests/install.yaml
 </code></pre></div>
-
 <h2 id="upgrading-kubernetes-libraries">Upgrading Kubernetes Libraries<a class="headerlink" href="#upgrading-kubernetes-libraries" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been 
 pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the 
@@ -1371,7 +1353,6 @@ associated repos have to pinned to the correct version specified by the kubernet
 <p>Preview changes in your browser by visiting http://localhost:8000 after running:</p>
 <div class="highlight"><pre><span></span><code>make serve-docs
 </code></pre></div>
-
 <p>To publish changes, run:</p>
 <div class="highlight"><pre><span></span><code>make release-docs
 </code></pre></div>

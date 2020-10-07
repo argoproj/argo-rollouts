@@ -1161,7 +1161,6 @@ the following mandatory fields:</p>
           <span class="nt">stableIngress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 <span class="nn">...</span>
 </code></pre></div>
-
 <p>The Ingress referenced in <code>canary.trafficRouting.nginx.stableIngress</code> is required to have a host
 rule which has a backend targeting the Service referenced under <code>canary.stableService</code>.
 In our example, that stable Service is named: <code>rollouts-demo-stable</code>:</p>
@@ -1182,7 +1181,6 @@ In our example, that stable Service is named: <code>rollouts-demo-stable</code>:
           <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
-
 <p>Run the following commands to deploy:</p>
 <ul>
 <li>A Rollout</li>
@@ -1193,7 +1191,6 @@ In our example, that stable Service is named: <code>rollouts-demo-stable</code>:
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/services.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/nginx/ingress.yaml
 </code></pre></div>
-
 <p>After applying the manifests you should see the following rollout, services, and ingress resources
 in the cluster:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get ro
@@ -1210,7 +1207,6 @@ NAME                                        CLASS    HOSTS                 ADDRE
 rollouts-demo-stable                        &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      36s
 rollouts-demo-rollouts-demo-stable-canary   &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      35s
 </code></pre></div>
-
 <p>You should also notice a second ingress created by the rollouts controller,
 <code>rollouts-demo-rollouts-demo-stable-canary</code>. This ingress is the "canary ingress", which is a
 clone of the user-managed Ingress referenced under <code>nginx.stableIngress</code>. It is used by nginx
@@ -1219,14 +1215,12 @@ formulated using <code>&lt;ROLLOUT-NAME&gt;-&lt;INGRESS-NAME&gt;-canary</code>. 
 discussed in the following section.</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout Nginx" src="rollout-nginx.png" /></p>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
 <p>Update the rollout by changing the image, and wait for it to reached the paused state.</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 kubectl argo rollouts get rollout rollouts-demo
 </code></pre></div>
-
 <p><img alt="Rollout Nginx Paused" src="paused-rollout-nginx.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. One thing to note, is that the rollout is able to achieve a
@@ -1258,7 +1252,6 @@ are added to the annotations.</li>
           <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
-
 <p>As the Rollout progresses through steps, the <code>canary-weight</code> annotation will be adjusted to match
 the current setWeight of the steps. The NGINX ingress controller examines the original Ingress,
 the canary Ingress, and the canary-weight annotation to determine what percentage of traffic to

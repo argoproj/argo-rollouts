@@ -1141,7 +1141,6 @@
             <span class="nt">canary-by-header</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Canary</span>
             <span class="nt">canary-by-header-value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">iwantsit</span>
 </code></pre></div>
-
 <p>The stable Ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires the primary Ingress routes traffic to the stable Service. The Rollout checks that condition by confirming the Ingress has a backend that matches the Rollout's stableService.</p>
 <p>The controller routes traffic to the canary Service by creating a second Ingress with the canary annotations. As the Rollout progresses through the Canary steps, the controller updates the canary Ingress's canary annotations to reflect the desired state of the Rollout enabling traffic splitting between two different versions.</p>
 <p>Since the Nginx Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional <code>annotationPrefix</code> field. The canary Ingress uses that prefix instead of the default <code>nginx.ingress.kubernetes.io</code> if the field set.</p>

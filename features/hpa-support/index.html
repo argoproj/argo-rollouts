@@ -1162,7 +1162,6 @@
     <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-rollout</span>
   <span class="nt">targetCPUUtilizationPercentage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
-
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <p>In order for the HPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use HPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following <a href="https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/">link</a> for more information on setting the custom feature flag.</p>
                 

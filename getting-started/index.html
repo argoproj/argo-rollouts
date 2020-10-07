@@ -1196,12 +1196,10 @@ of the upgrade. This behavior is described in the following portion of the Rollo
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10</span><span class="p p-Indicator">}</span>
 </code></pre></div>
-
 <p>Run the following command to deploy the initial Rollout and Service:</p>
 <div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml
 </code></pre></div>
-
 <p>Initial creations of any Rollout will immediately scale up the replicas to 100% (skipping any
 canary upgrade steps, analysis, etc...) since there was no upgrade that occurred.</p>
 <p>The Argo Rollouts kubectl plugin allows you to visualize the Rollout, its related resources
@@ -1221,14 +1219,12 @@ version of the container:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo <span class="se">\</span>
   rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 </code></pre></div>
-
 <p>During a rollout update, the controller will progress through the steps defined in the Rollout's
 update strategy. The example rollout sets a 20% traffic weight to the canary, and pauses the rollout
 indefinitely until user action is taken to unpause/promote the rollout. After updating the image, 
 watch the rollout again until it reaches the paused state:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo --watch
 </code></pre></div>
-
 <p><img alt="Paused Canary" src="basic/paused-rollout.png" /></p>
 <p>When the demo rollout reaches the second step, we can see from the plugin that the Rollout is in
 a paused state, and now has 1 of 5 replicas running the new version of the pod template, and 4 of 5
@@ -1240,13 +1236,11 @@ will remain in a paused state indefinitely until it is resumed/promoted. To manu
 rollout to the next step, run the <code>promote</code> command of the plugin:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts promote rollouts-demo
 </code></pre></div>
-
 <p>After promotion, Rollout will proceed to execute the remaining steps. The remaining rollout steps
 in our example are fully automated, so the Rollout will eventually complete steps until it has has
 fully transitioned to the new version. Watch the rollout again until it has completed all steps:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo --watch
 </code></pre></div>
-
 <p><img alt="Promoted Rollout" src="basic/promoted-rollout.png" /></p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
@@ -1263,14 +1257,12 @@ paused step again:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo <span class="se">\</span>
   rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:red
 </code></pre></div>
-
 <p><img alt="Paused Rollout (Revision 3)" src="basic/paused-rollout-rev3.png" /></p>
 <p>This time, instead of promoting the rollout to the next step, we will abort the update, so that it
 falls back to the "stable" version. The plugin provides an <code>abort</code> command as a way to manually
 abort a rollout at any time during an update:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts abort rollouts-demo
 </code></pre></div>
-
 <p>When a rollout is aborted, it will scale up the "stable" version of the ReplicaSet (in this
 case the yellow image), and scale down any other versions. Although the stable version of the
 ReplicaSet may be running and is healthy, the overall rollout is still considered <code>Degraded</code>, 
@@ -1283,7 +1275,6 @@ the previous, "yellow" image.</p>
 <div class="highlight"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">kubectl argo rollouts set image rollouts-demo \</span>
   <span class="l l-Scalar l-Scalar-Plain">rollouts-demo=argoproj/rollouts-demo:yellow</span>
 </code></pre></div>
-
 <p>After running this command, you should notice that the Rollout immediately becomes Healthy, and
 there is no activity with regards to new ReplicaSets becoming created.</p>
 <p><img alt="Healthy Rollout (Revision 4)" src="basic/healthy-rollout-rev4.png" /></p>

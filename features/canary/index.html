@@ -1309,7 +1309,6 @@
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span> <span class="c1"># pause indefinitely</span>
 </code></pre></div>
-
 <h2 id="pause-duration">Pause Duration<a class="headerlink" href="#pause-duration" title="Permanent link">&para;</a></h2>
 <p>Pause duration can be specified with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. </p>
 <div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
@@ -1323,12 +1322,10 @@
         <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt"> duration</span><span class="p">:</span> <span class="nv">-10</span> <span class="p p-Indicator">}</span> <span class="c1"># invalid spec!</span>
         <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>                <span class="c1"># pause indefinitely</span>
 </code></pre></div>
-
 <p>If no <code>duration</code> specified for a pause step the rollout will be paused indefinitely. To unpause use the <a href="../kubectl-plugin/">argo kubectl plugin</a> <code>promote</code> command. </p>
 <div class="highlight"><pre><span></span><code><span class="c1"># promote to the next step</span>
 kubectl argo rollouts promote &lt;rollout&gt;
 </code></pre></div>
-
 <h2 id="mimicking-rolling-update">Mimicking Rolling Update<a class="headerlink" href="#mimicking-rolling-update" title="Permanent link">&para;</a></h2>
 <p>If the steps field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the <code>maxSurge</code> and <code>maxUnavailable</code> fields to configure how the Rollout should progress to the new version.</p>
 <h2 id="other-configurable-features">Other Configurable Features<a class="headerlink" href="#other-configurable-features" title="Permanent link">&para;</a></h2>

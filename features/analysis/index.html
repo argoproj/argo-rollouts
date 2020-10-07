@@ -1399,7 +1399,6 @@ canary steps, the rollout is considered successful and the analysis run is stopp
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><label for="__tabbed_1_2">AnalysisTemplate</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1427,7 +1426,6 @@ canary steps, the rollout is considered successful and the analysis run is stopp
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 </div>
 </div>
 <h2 id="inline-analysis">Inline Analysis<a class="headerlink" href="#inline-analysis" title="Permanent link">&para;</a></h2>
@@ -1459,7 +1457,6 @@ analysis was successful, continues with rollout, otherwise aborts.</p>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
             <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </code></pre></div>
-
 <p>In this example, the <code>AnalysisTemplate</code> is identical to the background analysis example, but since
 no interval is specified, the analysis will perform a single measurement and complete.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1485,7 +1482,6 @@ no interval is specified, the analysis will perform a single measurement and com
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 <p>Multiple measurements can be performed over a longer duration period, by specifying the <code>count</code> and 
 <code>interval</code> fields:</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
@@ -1498,7 +1494,6 @@ no interval is specified, the analysis will perform a single measurement and com
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
-
 <h2 id="clusteranalysistemplates">ClusterAnalysisTemplates<a class="headerlink" href="#clusteranalysistemplates" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
@@ -1528,7 +1523,6 @@ in different namespaces, and avoid duplicating the same template in every namesp
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
             <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><label for="__tabbed_2_2">ClusterAnalysisTemplate</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1554,7 +1548,6 @@ in different namespaces, and avoid duplicating the same template in every namesp
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 </div>
 </div>
 <div class="admonition note">
@@ -1582,7 +1575,6 @@ templates together. The controller combines the <code>metrics</code> and <code>a
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><label for="__tabbed_3_2">AnalysisTemplate</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1631,7 +1623,6 @@ templates together. The controller combines the <code>metrics</code> and <code>a
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><label for="__tabbed_3_3">AnalysisRun</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="c1"># NOTE: Generated AnalysisRun from the multiple templates</span>
@@ -1673,7 +1664,6 @@ templates together. The controller combines the <code>metrics</code> and <code>a
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 </div>
 </div>
 <div class="admonition note">
@@ -1718,7 +1708,6 @@ templates together. The controller combines the <code>metrics</code> and <code>a
             <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </code></pre></div>
-
 <p>Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
@@ -1747,7 +1736,6 @@ templates together. The controller combines the <code>metrics</code> and <code>a
           <span class="nt">valueFrom</span><span class="p">:</span>
             <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
 </code></pre></div>
-
 <h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
 <p>A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
 AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
@@ -1769,7 +1757,6 @@ failure of the analysis run decides if the Rollout will switch traffic, or abort
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </code></pre></div>
-
 <p>In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
 Rollout will not switch traffic to the new version until the analysis run finishes successfully. </p>
 <p>Note: if the<code>autoPromotionSeconds</code> field is specified and the Rollout has waited auto promotion seconds amount of time,
@@ -1800,7 +1787,6 @@ after the AnalysisRun completes (with a minimum of 30 seconds).</p>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </code></pre></div>
-
 <h2 id="failure-conditions">Failure Conditions<a class="headerlink" href="#failure-conditions" title="Permanent link">&para;</a></h2>
 <p><code>failureCondition</code> can be used to cause an analysis run to fail. The following example continually polls a prometheus 
 server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
@@ -1818,7 +1804,6 @@ encountered.</p>
             <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code~&quot;5.*&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
-
 <h2 id="inconclusive-runs">Inconclusive Runs<a class="headerlink" href="#inconclusive-runs" title="Permanent link">&para;</a></h2>
 <p>Analysis runs can also be considered <code>Inconclusive</code>, which indicates the run was neither successful,
 nor failed. Inconclusive runs causes a rollout to become paused at its current step. Manual
@@ -1831,7 +1816,6 @@ could become <code>Inconclusive</code>, is when a metric defines no success or f
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
-
 <p><code>Inconclusive</code> analysis runs might also happen when both success and failure conditions are
 specified, but the measurement value did not meet either condition.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
@@ -1843,7 +1827,6 @@ specified, but the measurement value did not meet either condition.</p>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
-
 <p>A use case for having <code>Inconclusive</code> analysis runs are to enable Argo Rollouts to automate the execution of analysis runs, and collect the measurement, but still allow human judgement to decide
 whether or not measurement value is acceptable and decide to proceed or abort.</p>
 <h2 id="delay-analysis-runs">Delay Analysis Runs<a class="headerlink" href="#delay-analysis-runs" title="Permanent link">&para;</a></h2>
@@ -1880,7 +1863,6 @@ with background analysis can delay creating an analysis run until a certain step
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10m</span><span class="p p-Indicator">}</span>
 </code></pre></div>
-
 <h2 id="referencing-secrets">Referencing Secrets<a class="headerlink" href="#referencing-secrets" title="Permanent link">&para;</a></h2>
 <p>AnalysisTemplates and AnalysisRuns can reference secret objects in <code>.spec.args</code>. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.</p>
 <p>An AnalysisRun can only reference secrets from the same namespace as it's running in. This is only relevant for AnalysisRuns, since AnalysisTemplates do not resolve the secret.</p>
@@ -1907,7 +1889,6 @@ with background analysis can delay creating an analysis run until a certain step
         <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
           <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span> 
 </code></pre></div>
-
 <h2 id="experimentation-eg-mann-whitney-analysis">Experimentation (e.g. Mann-Whitney Analysis)<a class="headerlink" href="#experimentation-eg-mann-whitney-analysis" title="Permanent link">&para;</a></h2>
 <p>Analysis can also be done as part of an Experiment. </p>
 <p>This example starts both a canary and baseline ReplicaSet. The ReplicaSets run for 1 hour, then
@@ -1947,7 +1928,6 @@ short-lived experiment and an asynchronous analysis.</p>
               <span class="nt">valueFrom</span><span class="p">:</span>
                 <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><label for="__tabbed_4_2">AnalysisTemplate</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1983,7 +1963,6 @@ short-lived experiment and an asynchronous analysis.</p>
             <span class="nt">start</span><span class="p">:</span> <span class="s">&quot;{{args.start-time}}&quot;</span>
             <span class="nt">end</span><span class="p">:</span> <span class="s">&quot;{{args.end-time}}&quot;</span>
 </code></pre></div>
-
 </div>
 <input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><label for="__tabbed_4_3">Experiment</label><div class="tabbed-content">
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -2013,7 +1992,6 @@ short-lived experiment and an asynchronous analysis.</p>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">end-time</span>
       <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{experiment.finishedAt}}&quot;</span>
 </code></pre></div>
-
 </div>
 </div>
 <p>In order to perform multiple kayenta runs over some time duration, the <code>interval</code> and <code>count</code> fields
@@ -2054,7 +2032,6 @@ will be implicitly decided as:</p>
             <span class="nt">scope</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}</span>
             <span class="nt">step</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
 </code></pre></div>
-
 <h2 id="run-experiment-indefinitely">Run Experiment Indefinitely<a class="headerlink" href="#run-experiment-indefinitely" title="Permanent link">&para;</a></h2>
 <p>Experiments can run for an indefinite duration by omitting the duration field. Indefinite
 experiments would be stopped externally, or through the completion of a referenced analysis.</p>
@@ -2075,7 +2052,6 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
                 <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">my-test-script</span><span class="p p-Indicator">,</span> <span class="nv">my-service.default.svc.cluster.local</span><span class="p p-Indicator">]</span>
               <span class="nt">restartPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
 </code></pre></div>
-
 <h2 id="wavefront-metrics">Wavefront Metrics<a class="headerlink" href="#wavefront-metrics" title="Permanent link">&para;</a></h2>
 <p>A <a href="https://www.wavefront.com/">Wavefront</a> query can be used to obtain measurements for analysis.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -2101,7 +2077,6 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
             <span class="no">5m, ts(&quot;istio.requestcount.count&quot;, reporter=client and destination_service=&quot;{{args.service-name}}&quot;</span>
           <span class="no">)))</span>
 </code></pre></div>
-
 <p>Wavefront api tokens can be configured in a kubernetes secret in argo-rollouts namespace.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
@@ -2112,7 +2087,6 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
   <span class="nt">example1.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token1&gt;</span>
   <span class="nt">example2.wavefront.com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token2&gt;</span>
 </code></pre></div>
-
 <h2 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h2>
 <p>A webhook can be used to call out to some external service to obtain the measurement. This example makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of the optional <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced in the <code>successCondition</code> and <code>failureCondition</code> expressions. If omitted, will use the entire body of the as the result variable.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
@@ -2127,7 +2101,6 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
             <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </code></pre></div>
-
 <p>In the following example, given the payload, the measurement will be Successful if the <code>data.ok</code> field was <code>true</code>, and the <code>data.successPercent</code>
 was greater than <code>0.90</code></p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
@@ -2137,7 +2110,6 @@ was greater than <code>0.90</code></p>
   <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
     <span class="nt">successCondition</span><span class="p">:</span> <span class="s">&quot;result.ok</span><span class="nv"> </span><span class="s">&amp;&amp;</span><span class="nv"> </span><span class="s">result.successPercent</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">0.90&quot;</span>
@@ -2149,7 +2121,6 @@ was greater than <code>0.90</code></p>
             <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.data}&quot;</span> 
 </code></pre></div>
-
 <p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
