@@ -43,6 +43,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Spotify](https://www.spotify.com/)
+1. [New Relic](https://newrelic.com/)
 
 ## Community Blogs and Presentations
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
