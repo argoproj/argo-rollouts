@@ -17,7 +17,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -173,16 +172,22 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	if err != nil {
 		return nil, err
 	}
-	config := datadogConfig{}
 
-	if e := yaml.Unmarshal(secret.Data["default"], &config); e != nil {
-		return nil, e
+	apiKey := string(secret.Data["api-key"])
+	appKey := string(secret.Data["app-key"])
+	address := ""
+	if _, hasAddress := secret.Data["address"]; hasAddress {
+		address = string(secret.Data["address"])
 	}
 
-	if config.ApiKey != "" && config.AppKey != "" {
+	if apiKey != "" && appKey != "" {
 		return &Provider{
 			logCtx: logCtx,
-			config: config,
+			config: datadogConfig{
+				Address: address,
+				ApiKey:  apiKey,
+				AppKey:  appKey,
+			},
 		}, nil
 	} else {
 		return nil, errors.New("API or App token not found")

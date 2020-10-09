@@ -916,8 +916,7 @@ metadata:
   name: datadog
 type: Opaque
 data:
-  default:
-    address: https://api.datadoghq.com
-    api-key: <datadog-api-key>
-    app-key: <datadog-app-key>
+  address: https://api.datadoghq.com
+  api-key: <datadog-api-key>
+  app-key: <datadog-app-key>
 ```

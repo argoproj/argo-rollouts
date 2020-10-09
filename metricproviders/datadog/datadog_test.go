@@ -1,7 +1,6 @@
 package datadog
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -200,7 +199,9 @@ func TestRunSuite(t *testing.T) {
 				Name: DatadogTokensSecretName,
 			},
 			Data: map[string][]byte{
-				"default": []byte(fmt.Sprintf("address: %s\napp-key: %s\napi-key: %s", server.URL, expectedAppKey, expectedApiKey)),
+				"address": []byte(server.URL),
+				"api-key": []byte(expectedApiKey),
+				"app-key": []byte(expectedAppKey),
 			},
 		}
 
