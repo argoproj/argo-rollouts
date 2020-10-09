@@ -81,6 +81,17 @@ spec:
                     type: string
                   provider:
                     properties:
+                      datadog:
+                        properties:
+                          address:
+                            type: string
+                          interval:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
+                        type: object
                       job:
                         properties:
                           metadata:
@@ -2888,6 +2899,17 @@ spec:
                     type: string
                   provider:
                     properties:
+                      datadog:
+                        properties:
+                          address:
+                            type: string
+                          interval:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
+                        type: object
                       job:
                         properties:
                           metadata:
@@ -5623,6 +5645,17 @@ spec:
                     type: string
                   provider:
                     properties:
+                      datadog:
+                        properties:
+                          address:
+                            type: string
+                          interval:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
+                        type: object
                       job:
                         properties:
                           metadata:

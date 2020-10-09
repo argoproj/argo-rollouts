@@ -80,6 +80,15 @@ spec:
                     type: string
                   provider:
                     properties:
+                      datadog:
+                        properties:
+                          interval:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
+                        type: object
                       job:
                         properties:
                           metadata:

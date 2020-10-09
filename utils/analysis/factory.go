@@ -153,6 +153,9 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.Kayenta != nil {
 		numProviders++
 	}
+	if metric.Provider.Datadog != nil {
+		numProviders++
+	}
 	if numProviders == 0 {
 		return fmt.Errorf("no provider specified")
 	}
