@@ -693,6 +693,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#datadog-metrics" class="md-nav__link">
+    Datadog Metrics
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1300,6 +1307,13 @@
         <li class="md-nav__item">
   <a href="#web-metrics" class="md-nav__link">
     Web Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datadog-metrics" class="md-nav__link">
+    Datadog Metrics
   </a>
   
 </li>
@@ -2124,6 +2138,38 @@ was greater than <code>0.90</code></p>
 <p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
+<h2 id="datadog-metrics">Datadog Metrics<a class="headerlink" href="#datadog-metrics" title="Permanent link">&para;</a></h2>
+<p>A <a href="https://www.datadoghq.com/">Datadog</a> query can be used to obtain measurements for analysis.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">loq-error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+    <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result &lt;= 0.01</span>
+    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">datadog</span><span class="p">:</span>
+        <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">sum:requests.error.count{service:{{args.service-name}}} /</span>
+          <span class="no">sum:requests.request.count{service:{{args.service-name}}}</span>
+</code></pre></div>
+<p>Datadog api and app tokens can be configured in a kubernetes secret in argo-rollouts namespace.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">datadog</span>
+<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://api.datadoghq.com</span>
+  <span class="nt">api-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;datadog-api-key&gt;</span>
+  <span class="nt">app-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;datadog-app-key&gt;</span>
+</code></pre></div>
                 
               
               
