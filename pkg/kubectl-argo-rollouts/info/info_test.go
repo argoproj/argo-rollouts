@@ -61,7 +61,6 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -174,91 +173,93 @@ func TestExperimentInfo(t *testing.T) {
 func TestRolloutStatusDegraded(t *testing.T) {
 	ro := newCanaryRollout()
 	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
-		Type:   v1alpha1.RolloutProgressing,
-		Reason: "ProgressDeadlineExceeded",
+		Type:    v1alpha1.RolloutProgressing,
+		Reason:  "ProgressDeadlineExceeded",
+		Message: "timed out",
 	})
-	assert.Equal(t, "Degraded", RolloutStatusString(ro))
+	status, message := RolloutStatusString(ro)
+	assert.Equal(t, "Degraded", status)
+	assert.Equal(t, "ProgressDeadlineExceeded: timed out", message)
 }
 
 func TestRolloutStatusInvalidSpec(t *testing.T) {
 	rolloutObjs := testdata.NewInvalidRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, []string{"The Rollout \"rollout-invalid\" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{\"app\":\"doesnt-match\"}: `selector` does not match template `labels`"}, roInfo.ErrorConditions)
-	assert.Equal(t, string(v1alpha1.InvalidSpec), RolloutStatusString(rolloutObjs.Rollouts[0]))
+	assert.Equal(t, "Degraded", roInfo.Status)
+	assert.Equal(t, "InvalidSpec: The Rollout \"rollout-invalid\" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{\"app\":\"doesnt-match\"}: `selector` does not match template `labels`", roInfo.Message)
 }
 
 func TestRolloutAborted(t *testing.T) {
 	rolloutObjs := testdata.NewAbortedRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, []string{`metric "web" assessed Failed due to failed (1) > failureLimit (0)`}, roInfo.ErrorConditions)
+	assert.Equal(t, "Degraded", roInfo.Status)
+	assert.Equal(t, `RolloutAborted: metric "web" assessed Failed due to failed (1) > failureLimit (0)`, roInfo.Message)
 }
 
 func TestRolloutStatusPaused(t *testing.T) {
 	ro := newCanaryRollout()
 	ro.Spec.Paused = true
-	assert.Equal(t, "Paused", RolloutStatusString(ro))
+	status, message := RolloutStatusString(ro)
+	assert.Equal(t, "Paused", status)
+	assert.Equal(t, "", message)
 }
 
 func TestRolloutStatusProgressing(t *testing.T) {
 	{
 		ro := newCanaryRollout()
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.UpdatedReplicas = 4
+		ro.Status.AvailableReplicas = 4
+		ro.Status.Replicas = 5
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "more replicas need to be updated", message)
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Status.UpdatedReplicas = 1
-		ro.Status.Replicas = 2
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 4
+		ro.Status.Replicas = 5
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "updated replicas are still becoming available", message)
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Status.UpdatedReplicas = 2
-		ro.Status.Replicas = 1
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.Replicas = 7
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "old replicas are pending termination", message)
 	}
 	{
-		ro := newCanaryRollout()
-		ro.Status.AvailableReplicas = 1
-		ro.Status.UpdatedReplicas = 2
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
-	}
-	{
-		ro := newCanaryRollout()
-		ro.Status.AvailableReplicas = 1
-		ro.Status.UpdatedReplicas = 2
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
-	}
-	{
-		ro := newCanaryRollout()
-		ro.Status.StableRS = ""
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
-	}
-	{
-		ro := newCanaryRollout()
+		ro := newBlueGreenRollout()
+		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Status.UpdatedReplicas = 4
-		ro.Status.AvailableReplicas = 4
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "active service cutover pending", message)
 	}
 	{
-		ro := newCanaryRollout()
-		ro.Status.Canary.StableRS = "abc1234"
+		ro := newBlueGreenRollout()
+		ro.Status.BlueGreen.ActiveSelector = "def5678"
+		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Status.UpdatedReplicas = 4
-		ro.Status.AvailableReplicas = 4
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
-	}
-	{
-		ro := newCanaryRollout()
-		ro.Status.BlueGreen.ActiveSelector = ""
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
-	}
-	{
-		ro := newCanaryRollout()
-		ro.Status.BlueGreen.ActiveSelector = "abc1234"
-		ro.Status.CurrentPodHash = "def5678"
-		assert.Equal(t, "Progressing", RolloutStatusString(ro))
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "waiting for analysis to complete", message)
 	}
 	{
 		// Scenario when a newly created rollout has partially filled in status (with hashes)
@@ -269,7 +270,9 @@ func TestRolloutStatusProgressing(t *testing.T) {
 			StableRS:       "abc1234",
 			CurrentPodHash: "abc1234",
 		}
-		assert.Equal(t, string(v1alpha1.RolloutProgressing), RolloutStatusString(ro))
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "more replicas need to be updated", message)
 	}
 }
 
@@ -282,7 +285,9 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.ReadyReplicas = 5
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
-		assert.Equal(t, "Healthy", RolloutStatusString(ro))
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Healthy", status)
+		assert.Equal(t, "", message)
 	}
 	{
 		ro := newBlueGreenRollout()
@@ -292,6 +297,9 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.ReadyReplicas = 5
 		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
-		assert.Equal(t, "Healthy", RolloutStatusString(ro))
+		ro.Status.StableRS = "abc1234"
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Healthy", status)
+		assert.Equal(t, "", message)
 	}
 }

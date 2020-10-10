@@ -256,6 +256,7 @@ func TestGetCanaryRollout(t *testing.T) {
 Name:            canary-demo
 Namespace:       jesse-test
 Status:          ✖ Degraded
+Message:         ProgressDeadlineExceeded: ReplicaSet "canary-demo-65fb5ffc84" has timed out progressing.
 Strategy:        Canary
   Step:          0/8
   SetWeight:     20
@@ -303,6 +304,7 @@ func TestExperimentRollout(t *testing.T) {
 Name:            rollout-experiment-analysis
 Namespace:       jesse-test
 Status:          ✖ Degraded
+Message:         ProgressDeadlineExceeded: ReplicaSet "rollout-experiment-analysis-6f646bf7b7" has timed out progressing.
 Strategy:        Canary
   Step:          1/2
   SetWeight:     25
@@ -382,6 +384,7 @@ func TestGetRolloutWithExperimentJob(t *testing.T) {
 Name:            canary-demo
 Namespace:       jesse-test
 Status:          ◌ Progressing
+Message:         more replicas need to be updated
 Strategy:        Canary
   Step:          0/1
   SetWeight:     0
@@ -429,7 +432,8 @@ func TestGetInvalidRollout(t *testing.T) {
 	expectedOut := strings.TrimPrefix(`
 Name:            rollout-invalid
 Namespace:       default
-Status:          ⚠ InvalidSpec
+Status:          ✖ Degraded
+Message:         InvalidSpec: The Rollout "rollout-invalid" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{"app":"doesnt-match"}: `+"`selector`"+` does not match template `+"`labels`"+`
 Strategy:        Canary
   Step:
   SetWeight:     100
@@ -440,11 +444,9 @@ Replicas:
   Updated:       0
   Ready:         0
   Available:     0
-Errors:
-* The Rollout "rollout-invalid" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{"app":"doesnt-match"}: `+"`selector`"+` does not match template `+"`labels`"+`
 
-NAME               KIND     STATUS         AGE  INFO
-⟳ rollout-invalid  Rollout  ⚠ InvalidSpec  7d
+NAME               KIND     STATUS      AGE  INFO
+⟳ rollout-invalid  Rollout  ✖ Degraded  7d
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
 }
@@ -464,6 +466,7 @@ func TestGetAbortedRollout(t *testing.T) {
 Name:            rollout-background-analysis
 Namespace:       default
 Status:          ✖ Degraded
+Message:         RolloutAborted: metric "web" assessed Failed due to failed (1) > failureLimit (0)
 Strategy:        Canary
   Step:          0/2
   SetWeight:     0
@@ -475,8 +478,6 @@ Replicas:
   Updated:       0
   Ready:         1
   Available:     1
-Errors:
-* metric "web" assessed Failed due to failed (1) > failureLimit (0)
 
 NAME                                                     KIND         STATUS        AGE  INFO
 ⟳ rollout-background-analysis                            Rollout      ✖ Degraded    7d

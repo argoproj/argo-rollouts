@@ -109,6 +109,9 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "Name:", roInfo.Name)
 	fmt.Fprintf(o.Out, tableFormat, "Namespace:", roInfo.Namespace)
 	fmt.Fprintf(o.Out, tableFormat, "Status:", o.colorize(roInfo.Icon)+" "+roInfo.Status)
+	if roInfo.Message != "" {
+		fmt.Fprintf(o.Out, tableFormat, "Message:", roInfo.Message)
+	}
 	fmt.Fprintf(o.Out, tableFormat, "Strategy:", roInfo.Strategy)
 	if roInfo.Strategy == "Canary" {
 		fmt.Fprintf(o.Out, tableFormat, "  Step:", roInfo.Step)
@@ -129,12 +132,6 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "  Ready:", roInfo.Ready)
 	fmt.Fprintf(o.Out, tableFormat, "  Available:", roInfo.Available)
 
-	if len(roInfo.ErrorConditions) > 0 {
-		fmt.Fprintf(o.Out, "Errors:\n")
-		for _, msg := range roInfo.ErrorConditions {
-			fmt.Fprintf(o.Out, "* %s\n", msg)
-		}
-	}
 	fmt.Fprintf(o.Out, "\n")
 	o.PrintRolloutTree(roInfo)
 }

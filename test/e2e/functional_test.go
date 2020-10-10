@@ -317,7 +317,7 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		When().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectReplicaCounts(3, 3, 3, 3, 3) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
+		ExpectReplicaCounts(3, 6, 3, 3, 3)
 }
 
 // TestBlueGreenPreviewReplicaCount verifies the previewReplicaCount feature
@@ -368,7 +368,7 @@ spec:
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectReplicaCounts(2, 2, 2, 2, 2) // current may change after fixing https://github.com/argoproj/argo-rollouts/issues/756
+		ExpectReplicaCounts(2, 4, 2, 2, 2)
 }
 
 // TestBlueGreenToCanary tests behavior when migrating from bluegreen to canary
