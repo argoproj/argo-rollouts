@@ -18,6 +18,7 @@ type RolloutInfo struct {
 	Metadata
 
 	Status       string
+	Message      string
 	Icon         string
 	Strategy     string
 	Step         string
@@ -30,10 +31,9 @@ type RolloutInfo struct {
 	Updated   int32
 	Available int32
 
-	ReplicaSets     []ReplicaSetInfo
-	Experiments     []ExperimentInfo
-	AnalysisRuns    []AnalysisRunInfo
-	ErrorConditions []string
+	ReplicaSets  []ReplicaSetInfo
+	Experiments  []ExperimentInfo
+	AnalysisRuns []AnalysisRunInfo
 }
 
 func NewRolloutInfo(
@@ -83,7 +83,7 @@ func NewRolloutInfo(
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		roInfo.Strategy = "BlueGreen"
 	}
-	roInfo.Status = RolloutStatusString(ro)
+	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 
 	roInfo.Desired = defaults.GetReplicasOrDefault(ro.Spec.Replicas)
@@ -91,7 +91,6 @@ func NewRolloutInfo(
 	roInfo.Current = ro.Status.Replicas
 	roInfo.Updated = ro.Status.UpdatedReplicas
 	roInfo.Available = ro.Status.AvailableReplicas
-	roInfo.ErrorConditions = RolloutErrorConditions(ro)
 	return &roInfo
 }
 
@@ -123,55 +122,51 @@ func RolloutErrorConditions(ro *v1alpha1.Rollout) []string {
 	return errorConditions
 }
 
-// RolloutStatusString returns a status string to print in the STATUS column
-func RolloutStatusString(ro *v1alpha1.Rollout) string {
+// RolloutStatusString returns a status and message for a rollout
+// This logic is more or less the same as the Argo CD rollouts health.lua check
+// Any changes to this function should also be changed there
+func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 	for _, cond := range ro.Status.Conditions {
 		if cond.Type == v1alpha1.InvalidSpec {
-			return string(cond.Type)
+			return "Degraded", fmt.Sprintf("%s: %s", v1alpha1.InvalidSpec, cond.Message)
 		}
 		switch cond.Reason {
 		case conditions.RolloutAbortedReason, conditions.TimedOutReason:
-			return "Degraded"
+			return "Degraded", fmt.Sprintf("%s: %s", cond.Reason, cond.Message)
 		}
 	}
 	if ro.Spec.Paused || len(ro.Status.PauseConditions) > 0 {
-		return "Paused"
+		return "Paused", ""
 	}
 	if ro.Status.UpdatedReplicas < defaults.GetReplicasOrDefault(ro.Spec.Replicas) {
-		// not enough updated replicas
-		return "Progressing"
-	}
-	if ro.Status.UpdatedReplicas < ro.Status.Replicas {
-		// more replicas need to be updated
-		return "Progressing"
+		return "Progressing", "more replicas need to be updated"
 	}
 	if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
-		// updated replicas are still becoming available
-		return "Progressing"
+		return "Progressing", "updated replicas are still becoming available"
+	}
+	stableRS := ro.Status.StableRS
+	//TODO(dthomson) Remove canary.stableRS for v0.9
+	if ro.Status.Canary.StableRS != "" {
+		stableRS = ro.Status.Canary.StableRS
 	}
 	if ro.Spec.Strategy.BlueGreen != nil {
-		if ro.Status.BlueGreen.ActiveSelector != "" && ro.Status.BlueGreen.ActiveSelector == ro.Status.CurrentPodHash {
-			return "Healthy"
+		if ro.Status.BlueGreen.ActiveSelector == "" || ro.Status.BlueGreen.ActiveSelector != ro.Status.CurrentPodHash {
+			return "Progressing", "active service cutover pending"
 		}
-		// service cutover pending
-		return "Progressing"
+		if stableRS == "" || stableRS != ro.Status.CurrentPodHash {
+			return "Progressing", "waiting for analysis to complete"
+		}
 	} else if ro.Spec.Strategy.Canary != nil {
 		if ro.Status.Replicas > ro.Status.UpdatedReplicas {
-			// old replicas are pending termination
-			return "Progressing"
+			// This check should only be done for canary and not blue-green since blue-green has the
+			// scaleDownDelay feature which leaves the old stack of replicas running for a long time
+			return "Progressing", "old replicas are pending termination"
 		}
-		stableRS := ro.Status.StableRS
-		//TODO(dthomson) Remove canary.stableRS for v0.9
-		if ro.Status.Canary.StableRS != "" {
-			stableRS = ro.Status.Canary.StableRS
+		if stableRS == "" || stableRS != ro.Status.CurrentPodHash {
+			return "Progressing", "waiting for all steps to complete"
 		}
-		if stableRS != "" && stableRS == ro.Status.CurrentPodHash {
-			return "Healthy"
-		}
-		// Waiting for rollout to finish steps
-		return "Progressing"
 	}
-	return "Unknown"
+	return "Healthy", ""
 }
 
 func rolloutIcon(status string) string {
