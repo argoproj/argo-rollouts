@@ -111,7 +111,7 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		assert.Equal(t, roInfo.Images(), []ImageInfo{
 			{
 				Image: "argoproj/rollouts-demo:blue",
-				Tags:  []string{InfoTagActive},
+				Tags:  []string{InfoTagStable, InfoTagActive},
 			},
 			{
 				Image: "argoproj/rollouts-demo:green",

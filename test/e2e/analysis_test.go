@@ -84,11 +84,9 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysis() {
 		ExpectAnalysisRunCount(3)
 }
 
+// TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
 func (s *AnalysisSuite) TestBlueGreenAnalysis() {
-	s.Given().
-		RolloutObjects(newService("bluegreen-analysis-active")).
-		RolloutObjects(newService("bluegreen-analysis-preview")).
-		RolloutObjects(`
+	original := `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -123,14 +121,31 @@ spec:
           requests:
             memory: 16Mi
             cpu: 5m
-`).
+`
+	s.Given().
+		RolloutObjects(newService("bluegreen-analysis-active")).
+		RolloutObjects(newService("bluegreen-analysis-preview")).
+		RolloutObjects(original).
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(0).
 		When().
-		UpdateSpec().
+		// make sure we're changing a field in a manner that the kubectl apply of the original
+		// manifests will be detected in the 3-way merge patch, so that we can re-apply the original
+		// yaml and the rollout controller will detect a fast-tracked rollback.
+		UpdateSpec(`
+spec:
+  template:
+    spec:
+      containers:
+      - name: bluegreen-analysis
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 4m`).
 		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Paused").
 		Then().
@@ -149,7 +164,16 @@ spec:
 		Then().
 		ExpectAnalysisRunCount(2).
 		ExpectActiveRevision("2").
-		ExpectPreviewRevision("2")
+		ExpectPreviewRevision("2").
+		When().
+		ApplyManifests(original). // perform a rollback and make sure we skip pause/analysis
+		Sleep(2 * time.Second).   // checking too early may not catch the bug
+		Then().
+		ExpectRolloutStatus("Healthy"). // rollout is healthy immediately
+		ExpectAnalysisRunCount(2).      // no new analysis runs created
+		ExpectStableRevision("3").
+		ExpectActiveRevision("3").
+		ExpectPreviewRevision("3")
 }
 
 func (s *AnalysisSuite) TestBlueGreenPrePromotionFail() {
@@ -198,6 +222,7 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectAnalysisRunCount(1).
+		ExpectStableRevision("1").
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("2")
 }
@@ -251,18 +276,21 @@ spec:
 		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Paused").
 		Then().
+		ExpectStableRevision("1").
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("2").
 		When().
 		PromoteRollout().
 		Sleep(2 * time.Second). // checking service selectors too fast causes test to flake
 		Then().
+		ExpectStableRevision("1").
 		ExpectActiveRevision("2").
 		ExpectPreviewRevision("2").
 		When().
 		WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectAnalysisRunCount(1).
+		ExpectStableRevision("1").
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("2")
 }
@@ -353,4 +381,68 @@ spec:
 		ExpectActiveRevision("3").
 		ExpectPreviewRevision("3").
 		ExpectAnalysisRunCount(2)
+}
+
+// TestBlueGreenKitchenSink various features of blue-green strategy
+func (s *AnalysisSuite) TestBlueGreenKitchenSink() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-kitchensink-active")).
+		RolloutObjects(newService("bluegreen-kitchensink-preview")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-kitchensink
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      activeService: bluegreen-kitchensink-active
+      previewService: bluegreen-kitchensink-preview
+      previewReplicaCount: 1
+      autoPromotionSeconds: 5
+      scaleDownDelaySeconds: 5
+      postPromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: exit-code
+          value: "1"
+        - name: duration
+          value: "10"
+  selector:
+    matchLabels:
+      app: bluegreen-kitchensink
+  template:
+    metadata:
+      labels:
+        app: bluegreen-kitchensink
+    spec:
+      containers:
+      - name: bluegreen-kitchensink
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		Sleep(time.Second). // needed since replicaset 2 will not yet be created immediately
+		WaitForActiveRevision("2").
+		Then().
+		ExpectRevisionPodCount("2", 2).
+		ExpectRevisionPodCount("1", 2).
+		ExpectReplicaCounts(2, 4, 2, 2, 2). // desired, current, updated, ready, available
+		When().
+		Sleep(time.Second).
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectActiveRevision("1").
+		ExpectReplicaCounts(2, 4, 2, 2, 2)
 }

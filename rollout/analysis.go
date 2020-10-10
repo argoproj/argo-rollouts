@@ -74,6 +74,13 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		return c.cancelAnalysisRuns(allArs)
 	}
 
+	if _, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+		c.log.Infof("Skipping analysis: detected rollback to ReplicaSet '%s' within scaleDownDelay", c.newRS.Name)
+		allArs := append(c.currentArs.ToArray(), c.otherArs...)
+		c.SetCurrentAnalysisRuns(c.currentArs)
+		return c.cancelAnalysisRuns(allArs)
+	}
+
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
 	if c.rollout.Spec.Strategy.Canary != nil {
 		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun()
@@ -221,10 +228,7 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 	}
 	c.log.Info("Reconciling Pre Promotion Analysis")
 
-	activeSelector := c.rollout.Status.BlueGreen.ActiveSelector
-	currentPodHash := c.rollout.Status.CurrentPodHash
-	// Do not create an analysis run if the rollout is active promotion happened, the rollout was just created, the newRS is not saturated
-	if activeSelector == "" || activeSelector == c.rollout.Status.CurrentPodHash || currentPodHash == "" || !annotations.IsSaturated(c.rollout, c.newRS) {
+	if skipPrePromotionAnalysisRun(c.rollout, c.newRS) {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -246,11 +250,20 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 	return currentAr, nil
 }
 
-// needPostPromotionAnalysisRun indicates if the controller needs to create an analysis run by checking that the desired
-// ReplicaSet is the stable ReplicaSet, the active service promotion has not happened, the rollout was just created, or
+// skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
+// analysis run by checking if the rollout active promotion happened, the rollout was just created,
 // the newRS is not saturated
-func needPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
-	currentPodHash := rollout.Status.CurrentPodHash
+func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
+	activeSelector := rollout.Status.BlueGreen.ActiveSelector
+	return rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
+}
+
+// skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
+// analysis run by checking that the desired ReplicaSet is the stable ReplicaSet, the active
+// service promotion has not happened, the rollout was just created, or the newRS is not saturated
+func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
 	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
 }
@@ -261,13 +274,13 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
-	c.log.Info("Reconciling Post Promotion Analysis")
 
-	if needPostPromotionAnalysisRun(c.rollout, c.newRS) {
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 
+	c.log.Info("Reconciling Post Promotion Analysis")
 	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}

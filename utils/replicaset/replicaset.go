@@ -531,3 +531,14 @@ func (o ReplicaSetsByRevisionNumber) Less(i, j int) bool {
 	}
 	return iRevision < jRevision
 }
+
+// IsStillReferenced returns if the given ReplicaSet is still being referenced by any of
+// the current, stable, blue-green active references. Used to determine if the ReplicaSet can
+// safely be scaled to zero, or deleted.
+func IsStillReferenced(status v1alpha1.RolloutStatus, rs *appsv1.ReplicaSet) bool {
+	hash := GetPodTemplateHash(rs)
+	if hash != "" && (hash == status.StableRS || hash == status.CurrentPodHash || hash == status.BlueGreen.ActiveSelector) {
+		return true
+	}
+	return false
+}

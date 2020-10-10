@@ -10,7 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 type Then struct {
@@ -27,6 +29,18 @@ func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) 
 		t.t.FailNow()
 	}
 	t.log.Infof("Rollout expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
+	t.CheckError(err)
+	status, _ := info.RolloutStatusString(ro)
+	if status != expectedStatus {
+		t.log.Errorf("Rollout status expected to be '%s'. actual: %s", expectedStatus, status)
+		t.t.FailNow()
+	}
+	t.log.Infof("Rollout expectation status=%s met", expectedStatus)
 	return t
 }
 
@@ -153,6 +167,22 @@ func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
 			return string(run.Status.Phase) == phase
 		},
 	)
+}
+
+// ExpectStableRevision verifies the ReplicaSet with the specified revision is marked stable
+func (t *Then) ExpectStableRevision(revision string) *Then {
+	verifyRevision := func() error {
+		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
+		t.CheckError(err)
+		rs := t.GetReplicaSetByRevision(revision)
+		if replicasetutil.GetPodTemplateHash(rs) != ro.Status.StableRS {
+			return fmt.Errorf("Expectation failed: stable %s != ReplicaSet revision %s (hash: %s)", ro.Status.StableRS, revision, replicasetutil.GetPodTemplateHash(rs))
+		}
+		return nil
+	}
+	err := verifyRevision()
+	t.CheckError(err)
+	return t
 }
 
 // ExpectPreviewRevision verifies the preview service selector is pointing to the specified revision
