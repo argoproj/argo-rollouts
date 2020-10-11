@@ -937,24 +937,24 @@ spec:
   - name: success-rate
     successCondition: result.successRate >= 0.95
     provider:
-      newrelic:
-        region: "us"
-        accountID: 1234
+      newRelic:
+        profileSecretName: my-newrelic-secret  # optional, defaults to 'newrelic'
         query: |
           FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
 ```
 
-The `result` evaluated for the condition will always be map or list of maps. The name will follow the pattern of either `function` or `function.field`, e.g. `SELECT average(duration) from Transation` will yield `average.duration`. In this case the field result cannot be accessed with dot notation and instead should be accessed like `result['average.duration']`. Query results can be renamed using the [NRQL clause `AS`](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as) as seen above.
+The `result` evaluated for the condition will always be map or list of maps. The name will follow the pattern of either `function` or `function.field`, e.g. `SELECT average(duration) from Transaction` will yield `average.duration`. In this case the field result cannot be accessed with dot notation and instead should be accessed like `result['average.duration']`. Query results can be renamed using the [NRQL clause `AS`](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as) as seen above.
 
-New Relic personal API keys can be configured using a Kubernetes secret in the `argo-rollouts` namespace. Each token is specific to a New Relic account ID.  
+A New Relic access profile can be configured using a Kubernetes secret in the `argo-rollouts` namespace. Alternate accounts can be used by creating more secrets of the same format and specifying which secret to use in the metric provider configuration using the `profileSecretName` field. 
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: newrelic-api-tokens
+  name: newrelic
 type: Opaque
 data:
-  1234: <newrelic-api-key>
-  5678: <newrelic-app-key>
+  personal-api-key: <newrelic-personal-api-key>
+  account-id: <newrelic-account-id>
+  region: "us" # optional, defaults to "us" if not set
 ```

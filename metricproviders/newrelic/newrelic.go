@@ -3,6 +3,7 @@ package newrelic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,26 +24,25 @@ import (
 
 const (
 	//ProviderType indicates the provider is wavefront
-	ProviderType = "NewRelic"
-	//k8s secret that has newrelic personal api tokens keyed by account ID.
-	// See docs on how to generate a token https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys#personal-api-key
-	NewRelicTokensSecretName = "newrelic-api-tokens"
-	repoURL                  = "https://github.com/argoproj/argo-rollouts"
+	ProviderType                     = "NewRelic"
+	DefaultNewRelicProfileSecretName = "newrelic"
+	repoURL                          = "https://github.com/argoproj/argo-rollouts"
 )
 
 var userAgent = fmt.Sprintf("argo-rollouts/%s (%s)", version.GetVersion(), repoURL)
 
 type NewRelicClientAPI interface {
-	Query(accountID int, query string) ([]nrdb.NrdbResult, error)
+	Query(query string) ([]nrdb.NrdbResult, error)
 }
 
 type NewRelicClient struct {
 	*newrelic.NewRelic
+	AccountID int
 }
 
 //Query executes a NRQL query against the given New Relic account
-func (n *NewRelicClient) Query(accountID int, query string) ([]nrdb.NrdbResult, error) {
-	results, err := n.Nrdb.Query(accountID, nrdb.Nrql(query))
+func (n *NewRelicClient) Query(query string) ([]nrdb.NrdbResult, error) {
+	results, err := n.Nrdb.Query(n.AccountID, nrdb.Nrql(query))
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	results, err := p.api.Query(metric.Provider.NewRelic.AccountID, metric.Provider.NewRelic.Query)
+	results, err := p.api.Query(metric.Provider.NewRelic.Query)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -143,29 +143,34 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 //NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
 func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
 	ns := Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), NewRelicTokensSecretName, metav1.GetOptions{})
+	secretName := DefaultNewRelicProfileSecretName
+	if metric.Provider.NewRelic.ProfileSecretName != "" {
+		secretName = metric.Provider.NewRelic.ProfileSecretName
+	}
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var nrClient *newrelic.NewRelic
-	for source, token := range secret.Data {
-		if source == strconv.Itoa(metric.Provider.NewRelic.AccountID) {
-			region := string(metric.Provider.NewRelic.Region)
-			if region == "" {
-				region = string(v1alpha1.NewRelicRegionUS)
-			}
-			nrClient, err = newrelic.New(newrelic.ConfigPersonalAPIKey(string(token)), newrelic.ConfigRegion(region), newrelic.ConfigUserAgent(userAgent))
-			if err != nil {
-				return nil, err
-			}
-		}
+	apiKey := string(secret.Data["personal-api-key"])
+	accountID := string(secret.Data["account-id"])
+	region := "us"
+	if _, ok := secret.Data["region"]; ok {
+		region = string(secret.Data["region"])
 	}
 
-	if nrClient != nil {
-		return &NewRelicClient{NewRelic: nrClient}, nil
+	if apiKey != "" && accountID != "" {
+		nrClient, err := newrelic.New(newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigRegion(region), newrelic.ConfigUserAgent(userAgent))
+		if err != nil {
+			return nil, err
+		}
+		accID, err := strconv.Atoi(accountID)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse account ID: %w", err)
+		}
+		return &NewRelicClient{NewRelic: nrClient, AccountID: accID}, nil
 	} else {
-		return nil, fmt.Errorf("matching API token for account %d not found", metric.Provider.NewRelic.AccountID)
+		return nil, errors.New("account ID or personal API key not found")
 	}
 }
 

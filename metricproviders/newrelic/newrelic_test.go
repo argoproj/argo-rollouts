@@ -1,6 +1,7 @@
 package newrelic
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -39,8 +40,7 @@ func TestRunSuccessfully(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -66,8 +66,7 @@ func TestRunWithTimeseries(t *testing.T) {
 		FailureCondition: "result[2].count < 20",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -90,8 +89,7 @@ func TestRunWithFacet(t *testing.T) {
 		FailureCondition: "result.count != 10 or result['average.duration'] >= 15.0",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -114,8 +112,7 @@ func TestRunWithMultipleSelectTerms(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -139,8 +136,7 @@ func TestRunWithEmptyResult(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -165,8 +161,7 @@ func TestRunWithQueryError(t *testing.T) {
 		FailureCondition: "result != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -189,8 +184,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -212,8 +206,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 		FailureCondition: "result != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -234,8 +227,7 @@ func TestRunWithInvalidJSON(t *testing.T) {
 		FailureCondition: "result != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -274,8 +266,7 @@ func TestResume(t *testing.T) {
 		FailureCondition: "result != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query:  "test",
-				Region: "us",
+				Query: "test",
 			},
 		},
 	}
@@ -313,17 +304,12 @@ func TestGarbageCollect(t *testing.T) {
 func TestNewNewRelicAPIClient(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
-			NewRelic: &v1alpha1.NewRelicMetric{
-				AccountID: 456,
-			},
+			NewRelic: &v1alpha1.NewRelicMetric{},
 		},
 	}
 	tokenSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: NewRelicTokensSecretName,
-		},
-		Data: map[string][]byte{
-			"123": []byte("abcdef"),
+			Name: DefaultNewRelicProfileSecretName,
 		},
 	}
 	fakeClient := k8sfake.NewSimpleClientset()
@@ -331,15 +317,64 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		return true, tokenSecret, nil
 	})
 
-	_, err := NewNewRelicAPIClient(metric, fakeClient)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "matching API token for account 456 not found")
+	t.Run("with default settings", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.Nil(t, err)
+	})
 
-	metric.Provider.NewRelic.AccountID = 123
-	_, err = NewNewRelicAPIClient(metric, fakeClient)
-	assert.Nil(t, err)
-}
-
-func TestNewRelicClient_Query(t *testing.T) {
-
+	t.Run("with region specified", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+			"region":           []byte("eu"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.Nil(t, err)
+	})
+	t.Run("when the region is invalid", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+			"region":           []byte("prod"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		// client defaults to US when not set or set to something incorrect, does not error
+		assert.Nil(t, err)
+	})
+	t.Run("with api token or account id missing missing", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.EqualError(t, err, "account ID or personal API key not found")
+	})
+	t.Run("with a non-integer account ID", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("abcdef"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.NotNil(t, err)
+	})
+	t.Run("when secretName is specified by the metric", func(t *testing.T) {
+		metric.Provider.NewRelic.ProfileSecretName = "my-newrelic-token-secret"
+		tokenSecret.Name = "my-newrelic-token-secret"
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.Nil(t, err)
+	})
+	t.Run("when the secret is not found", func(t *testing.T) {
+		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, nil, errors.New("secret not found")
+		})
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.NotNil(t, err)
+	})
 }

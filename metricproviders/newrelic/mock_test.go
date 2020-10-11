@@ -7,7 +7,7 @@ type mockAPI struct {
 	err      error
 }
 
-func (m *mockAPI) Query(accountID int, query string) ([]nrdb.NrdbResult, error) {
+func (m *mockAPI) Query(query string) ([]nrdb.NrdbResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
