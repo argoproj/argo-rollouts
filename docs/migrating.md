@@ -39,6 +39,5 @@ spec:
 ## Other Considerations
 
 When migrating a Deployment which is already serving live production traffic, a Rollout should
-run next to the Deployment before deleting the Deployment. Using this approach, there should be no
-downtime needed during the migration, and it allows for the Rollout to be tested before deleting
-the original Deployment.
+run next to the Deployment before deleting the Deployment. **Not following this approach might result in 
+downtime**. It also allows for the Rollout to be tested before deleting the original Deployment.
