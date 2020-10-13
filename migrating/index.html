@@ -1132,9 +1132,8 @@
 </code></pre></div>
 <h2 id="other-considerations">Other Considerations<a class="headerlink" href="#other-considerations" title="Permanent link">&para;</a></h2>
 <p>When migrating a Deployment which is already serving live production traffic, a Rollout should
-run next to the Deployment before deleting the Deployment. Using this approach, there should be no
-downtime needed during the migration, and it allows for the Rollout to be tested before deleting
-the original Deployment.</p>
+run next to the Deployment before deleting the Deployment. <strong>Not following this approach might result in 
+downtime</strong>. It also allows for the Rollout to be tested before deleting the original Deployment.</p>
                 
               
               
