@@ -11,14 +11,12 @@ import (
 )
 
 func TestGetRolloutSelectorLabel(t *testing.T) {
-	selector, ok := GetRolloutSelectorLabel(nil)
+	selector := GetRolloutSelectorLabel(nil)
 	assert.Empty(t, selector)
-	assert.False(t, ok)
 
 	svc := &corev1.Service{}
-	selector, ok = GetRolloutSelectorLabel(svc)
+	selector = GetRolloutSelectorLabel(svc)
 	assert.Empty(t, selector)
-	assert.False(t, ok)
 
 	testSelectorValue := "abcdef"
 	svc = &corev1.Service{
@@ -28,10 +26,8 @@ func TestGetRolloutSelectorLabel(t *testing.T) {
 			},
 		},
 	}
-	selector, ok = GetRolloutSelectorLabel(svc)
+	selector = GetRolloutSelectorLabel(svc)
 	assert.Equal(t, selector, testSelectorValue)
-	assert.True(t, ok)
-
 }
 
 func TestGetRolloutServiceKeysForCanary(t *testing.T) {

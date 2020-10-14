@@ -1031,3 +1031,85 @@ func TestNeedsRestart(t *testing.T) {
 		assert.True(t, NeedsRestart(ro))
 	})
 }
+
+func TestIsStillReferenced(t *testing.T) {
+	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+		}
+	}
+	{
+		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+		rs := &appsv1.ReplicaSet{}
+		assert.False(t, IsStillReferenced(status, rs))
+	}
+	{
+		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+		rs := newRSWithPodTemplateHash("")
+		assert.False(t, IsStillReferenced(status, rs))
+	}
+	{
+		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+		rs := newRSWithPodTemplateHash("abc123")
+		assert.True(t, IsStillReferenced(status, rs))
+	}
+	{
+		status := v1alpha1.RolloutStatus{CurrentPodHash: "abc123"}
+		rs := newRSWithPodTemplateHash("abc123")
+		assert.True(t, IsStillReferenced(status, rs))
+	}
+	{
+		status := v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}}
+		rs := newRSWithPodTemplateHash("abc123")
+		assert.True(t, IsStillReferenced(status, rs))
+	}
+	{
+		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+		rs := newRSWithPodTemplateHash("def456")
+		assert.False(t, IsStillReferenced(status, rs))
+	}
+}
+
+func TestHasScaleDownDeadline(t *testing.T) {
+	{
+		assert.False(t, HasScaleDownDeadline(nil))
+	}
+	{
+		rs := &appsv1.ReplicaSet{}
+		assert.False(t, HasScaleDownDeadline(rs))
+	}
+	{
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: "",
+				},
+			},
+		}
+		assert.False(t, HasScaleDownDeadline(rs))
+	}
+	{
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: "asdf",
+				},
+			},
+		}
+		assert.True(t, HasScaleDownDeadline(rs))
+	}
+	{
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: "2020-10-13T23:04:51Z",
+				},
+			},
+		}
+		assert.True(t, HasScaleDownDeadline(rs))
+	}
+}

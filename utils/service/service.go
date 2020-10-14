@@ -8,15 +8,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func GetRolloutSelectorLabel(svc *corev1.Service) (string, bool) {
-	if svc == nil {
-		return "", false
+func GetRolloutSelectorLabel(svc *corev1.Service) string {
+	if svc == nil || svc.Spec.Selector == nil {
+		return ""
 	}
-	if svc.Spec.Selector == nil {
-		return "", false
-	}
-	currentSelectorValue, ok := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	return currentSelectorValue, ok
+	return svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
 // GetRolloutServiceKeys returns services keys (namespace/serviceName) which are referenced by specified rollout

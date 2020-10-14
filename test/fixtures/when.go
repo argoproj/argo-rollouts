@@ -27,11 +27,17 @@ type When struct {
 	Common
 }
 
-func (w *When) ApplyManifests() *When {
-	if w.rollout == nil {
-		w.t.Fatal("No rollout to create")
+func (w *When) ApplyManifests(yaml ...string) *When {
+	var objects []*unstructured.Unstructured
+	if len(yaml) == 0 {
+		if w.rollout == nil {
+			w.t.Fatal("No rollout to create")
+		}
+		objects = w.objects
+	} else {
+		objects = w.parseTextToObjects(yaml[0])
 	}
-	for _, obj := range w.objects {
+	for _, obj := range objects {
 		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
 			w.injectDelays(obj)
 		}
