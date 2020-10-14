@@ -181,7 +181,8 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 	if rsInfo.Stable {
 		infoCols = append(infoCols, o.colorize(info.InfoTagStable))
 		name = o.colorizeStatus(name, info.InfoTagStable)
-	} else if rsInfo.Canary {
+	}
+	if rsInfo.Canary {
 		infoCols = append(infoCols, o.colorize(info.InfoTagCanary))
 		name = o.colorizeStatus(name, info.InfoTagCanary)
 	} else if rsInfo.Active {

@@ -98,26 +98,43 @@ KUBECONFIG=~/.kube/minikube make test-e2e
 (or test regex):
 
 ```shell
-make test-e2e E2E_TEST_OPTIONS="-testify.m ^TestRolloutRestart$" 
+make test-e2e E2E_TEST_OPTIONS="-testify.m ^TestRolloutRestart$"
 ```
 
 3. The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
 delays. However, it is often desired to artificially slow down the tests for debugging purposes,
-as well as to understand what the test is doing. To delay startup and termination of pods, set the `E2E_POD_DELAY` to a integer value in seconds. This environment variable is often coupled with `E2E_TEST_OPTIONS` to debug and slow down a specific test.
+as well as to understand what the test is doing. To delay startup and termination of pods, set the 
+`E2E_POD_DELAY` to a integer value in seconds. This environment variable is often coupled with 
+`E2E_TEST_OPTIONS` to debug and slow down a specific test.
 
 ```shell
 make test-e2e E2E_POD_DELAY=10
 ```
 
-4. The e2e tests leverage a feature of the controller allowing the controller to be sharded with
+4. Increasing the timeout. The E2E tests time out waiting on conditions to be met within 60 seconds.
+If debugging the rollout controller, it may be useful to increase this timeout while say sitting
+at a debugger breakpoint:
+
+```shell
+make test-e2e E2E_WAIT_TIMEOUT=999999
+```
+
+
+5. The e2e tests leverage a feature of the controller allowing the controller to be sharded with
 a user-specific "instance id" label. This allows the tests to operate only on rollouts with the
-specified label, and prevents any other controllers (including the system rollouts controller),
+specified label, and prevents any other controllers (including the system rollout controller),
 from also operating on the same set of rollouts. This value can be changed (from the default of
 `argo-rollouts-e2e`), using the `E2E_INSTANCE_ID` environment variable:
 
 ```shell
 make start-e2e E2E_INSTANCE_ID=foo
 make test-e2e E2E_INSTANCE_ID=foo
+```
+
+Alternatively, the e2e tests can be run against the system controller (i.e. without an instance id):
+
+```shell
+make start-e2e E2E_INSTANCE_ID=''
 ```
 
 ## Running Locally

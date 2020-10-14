@@ -119,7 +119,7 @@ Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
 Strategy:        BlueGreen
-Images:          argoproj/rollouts-demo:blue (active)
+Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green (preview)
 Replicas:
   Desired:       3
@@ -136,7 +136,7 @@ NAME                                        KIND        STATUS        AGE  INFO
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
 ├──# revision:10
-│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   active
+│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   stable,active
 │     ├──□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     7d   ready:1/1
@@ -166,7 +166,7 @@ Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
 Strategy:        BlueGreen
-Images:          argoproj/rollouts-demo:blue (active)
+Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green
 Replicas:
   Desired:       3
@@ -183,7 +183,7 @@ NAME                                        KIND        STATUS        AGE  INFO
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
 ├──# revision:10
-│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   active
+│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   stable,active
 │     ├──□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     7d   ready:1/1
@@ -213,7 +213,7 @@ Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
 Strategy:        BlueGreen
-Images:          argoproj/rollouts-demo:blue (active)
+Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green
 Replicas:
   Desired:       3
@@ -230,7 +230,7 @@ NAME                                        KIND        STATUS        AGE  INFO
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
 ├──# revision:10
-│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   active
+│  └──⧉ bluegreen-demo-6cbccd9f99           ReplicaSet  ✔ Healthy     7d   stable,active
 │     ├──□ bluegreen-demo-6cbccd9f99-gk78v  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-6cbccd9f99-kxj8g  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-6cbccd9f99-t2d4f  Pod         ✔ Running     7d   ready:1/1

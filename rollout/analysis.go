@@ -66,15 +66,24 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 }
 
 func (c *Controller) reconcileAnalysisRuns(roCtx rolloutContext) error {
+	rollout := roCtx.Rollout()
+	newRS := roCtx.NewRS()
+	currentArs := roCtx.CurrentAnalysisRuns()
 	otherArs := roCtx.OtherAnalysisRuns()
 	if roCtx.PauseContext().IsAborted() {
-		allArs := append(roCtx.CurrentAnalysisRuns().ToArray(), otherArs...)
-		roCtx.SetCurrentAnalysisRuns(roCtx.CurrentAnalysisRuns())
+		allArs := append(currentArs.ToArray(), otherArs...)
+		roCtx.SetCurrentAnalysisRuns(currentArs)
+		return c.cancelAnalysisRuns(roCtx, allArs)
+	}
+
+	if replicasetutil.HasScaleDownDeadline(newRS) {
+		logutil.WithRollout(rollout).Infof("Skipping analysis: detected rollback to ReplicaSet '%s' within scaleDownDelay", newRS.Name)
+		allArs := append(currentArs.ToArray(), otherArs...)
+		roCtx.SetCurrentAnalysisRuns(currentArs)
 		return c.cancelAnalysisRuns(roCtx, allArs)
 	}
 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
-	rollout := roCtx.Rollout()
 	if rollout.Spec.Strategy.Canary != nil {
 		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun(roCtx)
 		if err != nil {
@@ -230,10 +239,7 @@ func (c *Controller) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1
 	}
 	roCtx.Log().Info("Reconciling Pre Promotion Analysis")
 
-	activeSelector := rollout.Status.BlueGreen.ActiveSelector
-	currentPodHash := rollout.Status.CurrentPodHash
-	// Do not create an analysis run if the rollout is active promotion happened, the rollout was just created, the newRS is not saturated
-	if activeSelector == "" || activeSelector == rollout.Status.CurrentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS) {
+	if skipPrePromotionAnalysisRun(rollout, newRS) {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -255,11 +261,30 @@ func (c *Controller) reconcilePrePromotionAnalysisRun(roCtx rolloutContext) (*v1
 	return currentAr, nil
 }
 
-// needPostPromotionAnalysisRun indicates if the controller needs to create an analysis run by checking that the desired
-// ReplicaSet is the stable ReplicaSet, the active service promotion has not happened, the rollout was just created, or
+// skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
+// analysis run by checking if the rollout active promotion happened, the rollout was just created,
 // the newRS is not saturated
-func needPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
-	currentPodHash := rollout.Status.CurrentPodHash
+func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
+	activeSelector := rollout.Status.BlueGreen.ActiveSelector
+	if rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" {
+		return true
+	}
+	// Checking saturation is different if the previewReplicaCount feature is being used because
+	// annotations.IsSaturated() also looks at the desired annotation on the ReplicaSet, and the
+	// check using previewReplicaCount does not.
+	if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
+		desiredPreviewCount := *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount
+		return *(newRS.Spec.Replicas) != desiredPreviewCount || newRS.Status.AvailableReplicas != desiredPreviewCount
+	}
+	return !annotations.IsSaturated(rollout, newRS)
+}
+
+// skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
+// analysis run by checking that the desired ReplicaSet is the stable ReplicaSet, the active
+// service promotion has not happened, the rollout was just created, or the newRS is not saturated
+func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
 	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
 }
@@ -274,10 +299,9 @@ func (c *Controller) reconcilePostPromotionAnalysisRun(roCtx rolloutContext) (*v
 		return nil, err
 	}
 	roCtx.Log().Info("Reconciling Post Promotion Analysis")
-
-	if needPostPromotionAnalysisRun(rollout, newRS) {
+	if skipPostPromotionAnalysisRun(rollout, newRS) {
 		err := c.cancelAnalysisRuns(roCtx, []*v1alpha1.AnalysisRun{currentAr})
-		return nil, err
+		return currentAr, err
 	}
 
 	if getPauseCondition(rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {

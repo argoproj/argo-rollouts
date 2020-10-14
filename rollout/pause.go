@@ -57,16 +57,21 @@ func (pCtx *pauseContext) ClearPauseConditions() {
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
+	now := metav1.Now()
+	// if we are already aborted, preserve the original timestamp, otherwise we'll cause a
+	// reconciliation hot-loop.
+	newAbortedAt := pCtx.rollout.Status.AbortedAt
+	if newAbortedAt == nil {
+		newAbortedAt = &now
+	}
 	if pCtx.addAbort {
 		newStatus.Abort = true
-		now := metav1.Now()
-		newStatus.AbortedAt = &now
+		newStatus.AbortedAt = newAbortedAt
 		return
 	}
 	if !pCtx.removeAbort && pCtx.rollout.Status.Abort {
 		newStatus.Abort = true
-		now := metav1.Now()
-		newStatus.AbortedAt = &now
+		newStatus.AbortedAt = newAbortedAt
 		return
 	}
 	newStatus.Abort = false
@@ -91,7 +96,6 @@ func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus
 		pauseAlreadyExists[cond.Reason] = true
 	}
 
-	now := metav1.Now()
 	for i := range pCtx.addPauseReasons {
 		reason := pCtx.addPauseReasons[i]
 		if exists := pauseAlreadyExists[reason]; !exists {

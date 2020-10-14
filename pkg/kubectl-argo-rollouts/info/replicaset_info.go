@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 type ReplicaSetInfo struct {
@@ -55,17 +56,21 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
 		if ro != nil {
-			if ro.Spec.Strategy.Canary != nil && rs.Labels != nil {
-				if ro.Status.StableRS == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
+			if ro.Spec.Strategy.Canary != nil {
+				if ro.Status.StableRS == podTemplateHash {
 					rsInfo.Stable = true
-				} else if ro.Status.CurrentPodHash == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+				} else if ro.Status.CurrentPodHash == podTemplateHash {
 					rsInfo.Canary = true
 				}
 			}
 			if ro.Spec.Strategy.BlueGreen != nil {
-				if ro.Status.BlueGreen.ActiveSelector == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+				if ro.Status.StableRS == podTemplateHash {
+					rsInfo.Stable = true
+				}
+				if ro.Status.BlueGreen.ActiveSelector == podTemplateHash {
 					rsInfo.Active = true
-				} else if ro.Status.BlueGreen.PreviewSelector == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+				} else if ro.Status.BlueGreen.PreviewSelector == podTemplateHash {
 					rsInfo.Preview = true
 				}
 			}

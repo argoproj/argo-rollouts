@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
@@ -86,7 +85,7 @@ func (c *Controller) reconcileStableReplicaSet(roCtx *blueGreenContext, activeSv
 	}
 
 	roCtx.Log().Infof("Reconciling stable ReplicaSet '%s'", activeRS.Name)
-	if _, ok := activeRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+	if replicasetutil.HasScaleDownDeadline(activeRS) {
 		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
 		// when the active service changes to a different RS
 		err := c.removeScaleDownDelay(roCtx, activeRS)
@@ -99,8 +98,7 @@ func (c *Controller) reconcileStableReplicaSet(roCtx *blueGreenContext, activeSv
 }
 
 func (c *Controller) reconcileBlueGreenReplicaSets(roCtx *blueGreenContext, activeSvc *corev1.Service) error {
-	logCtx := roCtx.Log()
-	oldRSs := roCtx.OlderRSs()
+	otherRSs := replicasetutil.GetOlderRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, roCtx.allRSs)
 	err := c.reconcileStableReplicaSet(roCtx, activeSvc)
 	if err != nil {
 		return err
@@ -109,15 +107,13 @@ func (c *Controller) reconcileBlueGreenReplicaSets(roCtx *blueGreenContext, acti
 	if err != nil {
 		return err
 	}
-	// Scale down old non-active replicasets, if we can.
-	_, filteredOldRS := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-	logCtx.Info("Reconciling old replica sets")
-	_, err = c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(filteredOldRS), roCtx)
+
+	// Scale down old non-active, non-stable replicasets, if we can.
+	_, err = c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(otherRSs), roCtx)
 	if err != nil {
 		return err
 	}
-	logCtx.Info("Cleaning up old replicasets")
-	if err := c.cleanupRollouts(filteredOldRS, roCtx); err != nil {
+	if err := c.cleanupRollouts(otherRSs, roCtx); err != nil {
 		return err
 	}
 	return nil
@@ -137,7 +133,7 @@ func reconcileBlueGreenTemplateChange(roCtx *blueGreenContext) bool {
 func skipPause(roCtx *blueGreenContext, activeSvc *corev1.Service) bool {
 	rollout := roCtx.Rollout()
 	newRS := roCtx.NewRS()
-	if _, ok := newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+	if replicasetutil.HasScaleDownDeadline(newRS) {
 		roCtx.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", newRS.Name)
 		return true
 	}
@@ -206,7 +202,7 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Replic
 		logCtx.Infof("Cannot scale down old ReplicaSets while paused with inconclusive Analysis ")
 		return false, nil
 	}
-	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !needPostPromotionAnalysisRun(rollout, newRS) {
+	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !skipPostPromotionAnalysisRun(rollout, newRS) {
 		currentPostAr := roCtx.CurrentAnalysisRuns().BlueGreenPostPromotion
 		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 			logCtx.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
@@ -219,6 +215,13 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Replic
 	annotationedRSs := int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
+		if replicasetutil.IsStillReferenced(rollout.Status, targetRS) {
+			// We should technically never get here because we shouldn't be passing a replicaset list
+			// which includes referenced ReplicaSets. But we check just in case
+			logCtx.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
+			continue
+		}
+
 		desiredReplicaCount := int32(0)
 		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 			annotationedRSs++
@@ -261,6 +264,7 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 	oldRSs := roCtx.OlderRSs()
 	allRSs := roCtx.AllRSs()
 	newStatus := c.calculateBaseStatus(roCtx)
+	logCtx := roCtx.Log()
 
 	if replicasetutil.CheckPodSpecChange(r, newRS) {
 		roCtx.PauseContext().ClearPauseConditions()
@@ -270,43 +274,31 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 		newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
 	}
 
-	previewSelector, ok := serviceutil.GetRolloutSelectorLabel(previewSvc)
-	if !ok {
-		previewSelector = ""
+	previewSelector := serviceutil.GetRolloutSelectorLabel(previewSvc)
+	if previewSelector != r.Status.BlueGreen.PreviewSelector {
+		logCtx.Infof("Updating preview selector (%s -> %s)", r.Status.BlueGreen.PreviewSelector, previewSelector)
 	}
 	newStatus.BlueGreen.PreviewSelector = previewSelector
-	activeSelector, ok := serviceutil.GetRolloutSelectorLabel(activeSvc)
-	if !ok {
-		activeSelector = ""
-	}
 
+	activeSelector := serviceutil.GetRolloutSelectorLabel(activeSvc)
+	if activeSelector != r.Status.BlueGreen.ActiveSelector {
+		logCtx.Infof("Updating active selector (%s -> %s)", r.Status.BlueGreen.ActiveSelector, activeSelector)
+	}
 	newStatus.BlueGreen.ActiveSelector = activeSelector
-	if newStatus.BlueGreen.ActiveSelector != r.Status.BlueGreen.ActiveSelector {
-		previousActiveRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.BlueGreen.ActiveSelector)
-		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousActiveRS}) > 0 {
-			err := c.addScaleDownDelay(roCtx, previousActiveRS)
+
+	newStatus.StableRS = r.Status.StableRS
+	if c.shouldUpdateBlueGreenStable(roCtx, newStatus) {
+		logCtx.Infof("Updating stable RS (%s -> %s)", newStatus.StableRS, newStatus.CurrentPodHash)
+		newStatus.StableRS = newStatus.CurrentPodHash
+
+		// Now that we've marked the current RS as stable, start the scale-down countdown on the previous stable RS
+		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(oldRSs, r.Status.StableRS)
+		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousStableRS}) > 0 {
+			err := c.addScaleDownDelay(roCtx, previousStableRS)
 			if err != nil {
 				return err
 			}
 		}
-	}
-	newStatus.StableRS = r.Status.StableRS
-	scaledDownPreviousStableRS := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
-	stableRSName := fmt.Sprintf("%s-%s", r.Name, newStatus.StableRS)
-	for _, rs := range oldRSs {
-		if *rs.Spec.Replicas != int32(0) && rs.Name == stableRSName {
-			scaledDownPreviousStableRS = false
-		}
-	}
-	postAnalysisRunFinished := false
-	if r.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
-		currentPostPromotionAnalysisRun := roCtx.CurrentAnalysisRuns().BlueGreenPostPromotion
-		if currentPostPromotionAnalysisRun != nil {
-			postAnalysisRunFinished = currentPostPromotionAnalysisRun.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
-		}
-	}
-	if scaledDownPreviousStableRS || newStatus.StableRS == "" || postAnalysisRunFinished {
-		newStatus.StableRS = newStatus.CurrentPodHash
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(allRSs, newStatus.BlueGreen.ActiveSelector)
@@ -324,30 +316,86 @@ func (c *Controller) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, acti
 		// newStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets(c.allRSs)
 	}
 
-	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(roCtx, activeRS)
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = calculateScaleUpPreviewCheckPoint(roCtx, newStatus.StableRS)
 
 	newStatus = c.calculateRolloutConditions(roCtx, newStatus)
 	return c.persistRolloutStatus(roCtx, &newStatus)
 }
 
-func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, activeRS *appsv1.ReplicaSet) bool {
-	r := roCtx.Rollout()
+// shouldUpdateBlueGreenStable makes a determination if the current ReplicaSet should be marked as
+// the stable ReplicaSet (for a blue-green rollout). This is true if the active selector is
+// pointing at the the current RS, and there are no outstanding post-promotion analysis.
+func (c *Controller) shouldUpdateBlueGreenStable(roCtx *blueGreenContext, newStatus v1alpha1.RolloutStatus) bool {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
 	newRS := roCtx.NewRS()
-
-	if r.Status.Abort && reconcileBlueGreenTemplateChange(roCtx) || r.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
+	if rollout.Status.StableRS == newStatus.CurrentPodHash {
 		return false
 	}
-
-	if newRS == nil || activeRS == nil || activeRS.Name == newRS.Name {
+	if newStatus.BlueGreen.ActiveSelector == "" {
+		// corner case - initial deployments won't update the active selector until stable is set.
+		// We must allow current to be marked stable, so that active can be marked to current, and
+		// subsequently stable marked to current too. (chicken and egg problem)
+		return true
+	}
+	if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
+		// haven't service performed cutover yet
 		return false
 	}
+	if rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+		// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
+		// moving to a ReplicaSet within scaleDownDelay and wish to skip analysis.
+		if replicasetutil.HasScaleDownDeadline(newRS) {
+			logCtx.Infof("detected rollback to RS '%s' within scaleDownDelay. fast-tracking stable RS to %s", newRS.Name, newStatus.CurrentPodHash)
+			return true
+		}
+		currentPostPromotionAnalysisRun := roCtx.currentArs.BlueGreenPostPromotion
+		if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+			// we have yet to start post-promotion analysis or post-promotion was not successful
+			return false
+		}
+	}
+	return true
+}
 
+// calculateScaleUpPreviewCheckPoint calculates the correct value of status.blueGreen.scaleUpPreviewCheckPoint
+// which is used by the blueGreen.previewReplicaCount feature. scaleUpPreviewCheckPoint is a single
+// direction trip-wire, initialized to false, and gets flipped true as soon as the preview replicas
+// matches scaleUpPreviewCheckPoint and prePromotionAnalysis (if used) completes. It get reset to
+// false when the pod template changes, or the rollout fully promotes (stableRS == newRS)
+func calculateScaleUpPreviewCheckPoint(roCtx *blueGreenContext, stableRSHash string) bool {
+	rollout := roCtx.Rollout()
+	logCtx := roCtx.Log()
+	newRS := roCtx.NewRS()
+	prevValue := rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount == nil {
+		// previewReplicaCount feature is not being used
+		return false
+	}
+	if rollout.Status.Abort && reconcileBlueGreenTemplateChange(roCtx) {
+		if prevValue {
+			logCtx.Infof("resetting scaleUpPreviewCheckPoint: post-abort template change detected")
+		}
+		return false
+	}
+	if newRS == nil || stableRSHash == "" || stableRSHash == replicasetutil.GetPodTemplateHash(newRS) {
+		if prevValue {
+			logCtx.Infof("resetting scaleUpPreviewCheckPoint: rollout fully promoted")
+		}
+		return false
+	}
 	// Once the ScaleUpPreviewCheckPoint is set to true, the rollout should keep that value until
 	// the newRS becomes the new activeRS or there is a template change.
-	if r.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-		return r.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	if rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+		return rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint
 	}
-
-	newRSAvailableCount := replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
-	return newRSAvailableCount == *r.Spec.Strategy.BlueGreen.PreviewReplicaCount
+	if !completedPrePromotionAnalysis(roCtx) {
+		// do not set the checkpoint unless prePromotion was successful
+		return false
+	}
+	previewCountAvailable := *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount == replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{newRS})
+	if prevValue != previewCountAvailable {
+		logCtx.Infof("setting scaleUpPreviewCheckPoint to %v: preview replica count availability is %v", previewCountAvailable, previewCountAvailable)
+	}
+	return previewCountAvailable
 }

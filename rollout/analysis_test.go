@@ -1768,11 +1768,12 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 				"activeSelector": "%s",
 				"prePromotionAnalysisRunStatus":{"status":"Successful"}
 			},
+			"stableRS": "%s",
 			"pauseConditions": null,
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
-	}`, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1830,11 +1831,12 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"blueGreen": {
 				"activeSelector": "%s"
 			},
+			"stableRS": "%s",
 			"pauseConditions": null,
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
-	}`, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 

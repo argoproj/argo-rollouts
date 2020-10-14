@@ -71,4 +71,5 @@ status:
   readyReplicas: 6
   replicas: 6
   selector: app=bluegreen-demo,rollouts-pod-template-hash=6cbccd9f99
+  stableRS: 6cbccd9f99
   updatedReplicas: 3
