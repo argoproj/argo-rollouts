@@ -542,3 +542,11 @@ func IsStillReferenced(status v1alpha1.RolloutStatus, rs *appsv1.ReplicaSet) boo
 	}
 	return false
 }
+
+// HasScaleDownDeadline returns whether or not the given ReplicaSet is annotated with a scale-down delay
+func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
+	if rs == nil || rs.Annotations == nil {
+		return false
+	}
+	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
+}

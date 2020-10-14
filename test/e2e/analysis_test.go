@@ -176,6 +176,7 @@ spec:
 		ExpectPreviewRevision("3")
 }
 
+// TestBlueGreenPrePromotionFail test rollout behavior when pre promotion analysis fails
 func (s *AnalysisSuite) TestBlueGreenPrePromotionFail() {
 	s.Given().
 		RolloutObjects(newService("pre-promotion-fail-active")).
@@ -186,16 +187,20 @@ kind: Rollout
 metadata:
   name: pre-promotion-fail
 spec:
+  replicas: 2
   strategy:
     blueGreen:
       activeService: pre-promotion-fail-active
       previewService: pre-promotion-fail-preview
+      previewReplicaCount: 1
       prePromotionAnalysis:
         templates:
         - templateName: sleep-job
         args:
         - name: exit-code
           value: "1"
+        - name: duration
+          value: "5"
   selector:
     matchLabels:
       app: pre-promotion-fail
@@ -402,6 +407,12 @@ spec:
       previewReplicaCount: 1
       autoPromotionSeconds: 5
       scaleDownDelaySeconds: 5
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: duration
+          value: "10"
       postPromotionAnalysis:
         templates:
         - templateName: sleep-job
@@ -430,8 +441,17 @@ spec:
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
-		Sleep(time.Second). // needed since replicaset 2 will not yet be created immediately
-		WaitForActiveRevision("2").
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectActiveRevision("1").
+		ExpectPreviewRevision("2").
+		ExpectStableRevision("1").
+		ExpectRevisionPodCount("1", 2).
+		ExpectRevisionPodCount("2", 1).
+		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForActiveRevision("2"). // no need to manually promote since autoPromotionSeconds will do it
 		Then().
 		ExpectRevisionPodCount("2", 2).
 		ExpectRevisionPodCount("1", 2).
@@ -439,10 +459,14 @@ spec:
 		When().
 		Sleep(time.Second).
 		Then().
-		ExpectAnalysisRunCount(1).
+		ExpectAnalysisRunCount(2).
 		When().
 		WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectActiveRevision("1").
+		ExpectPreviewRevision("2").
+		ExpectStableRevision("1").
+		ExpectRevisionPodCount("2", 2).
+		ExpectRevisionPodCount("1", 2).
 		ExpectReplicaCounts(2, 4, 2, 2, 2)
 }

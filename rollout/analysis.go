@@ -74,7 +74,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		return c.cancelAnalysisRuns(allArs)
 	}
 
-	if _, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+	if replicasetutil.HasScaleDownDeadline(c.newRS) {
 		c.log.Infof("Skipping analysis: detected rollback to ReplicaSet '%s' within scaleDownDelay", c.newRS.Name)
 		allArs := append(c.currentArs.ToArray(), c.otherArs...)
 		c.SetCurrentAnalysisRuns(c.currentArs)
@@ -256,7 +256,17 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
-	return rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
+	if rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" {
+		return true
+	}
+	// Checking saturation is different if the previewReplicaCount feature is being used because
+	// annotations.IsSaturated() also looks at the desired annotation on the ReplicaSet, and the
+	// check using previewReplicaCount does not.
+	if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
+		desiredPreviewCount := *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount
+		return *(newRS.Spec.Replicas) != desiredPreviewCount || newRS.Status.AvailableReplicas != desiredPreviewCount
+	}
+	return !annotations.IsSaturated(rollout, newRS)
 }
 
 // skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
@@ -275,12 +285,12 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 		return nil, err
 	}
 
+	c.log.Info("Reconciling Post Promotion Analysis")
 	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
-		return nil, err
+		return currentAr, err
 	}
 
-	c.log.Info("Reconciling Post Promotion Analysis")
 	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
 		return currentAr, nil
 	}
