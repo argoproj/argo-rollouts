@@ -16,7 +16,6 @@ import (
 )
 
 type LintOptions struct {
-	NoColor bool
 	options.ArgoRolloutsOptions
 	File string
 }
@@ -52,7 +51,6 @@ func NewCmdLint(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&lintOptions.File, "filename", "f", "", "File to lint")
-	cmd.Flags().BoolVar(&lintOptions.NoColor, "no-color", false, "Do not colorize output")
 	return cmd
 }
 
