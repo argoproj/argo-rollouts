@@ -25,7 +25,7 @@ require (
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spaceapegames/go-wavefront v1.8.1
-	github.com/spf13/cobra v1.0.0
+	github.com/spf13/cobra v1.1.0
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
