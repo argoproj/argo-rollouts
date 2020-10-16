@@ -155,10 +155,11 @@ spec:
 		Sleep(2*time.Second). // promoting too fast causes test to flake
 		PromoteRollout().
 		WaitForActiveRevision("2").
-		Sleep(time.Second). // analysis is created on later reconciliations after service cutover
+		Sleep(2*time.Second). // analysis is created on later reconciliations after service cutover
 		Then().
 		ExpectAnalysisRunCount(2).
 		ExpectReplicaCounts(1, 2, 1, 1, 1).
+		ExpectRolloutStatus("Progressing").
 		When().
 		WaitForRolloutStatus("Healthy").
 		Then().
