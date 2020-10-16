@@ -396,6 +396,57 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 3, // should only scale down by 1 to honor maxUnavailable: 0
 			expectedCanaryReplicaCount: 1,
 		},
+		{
+			// verify we honor maxUnavailable when aborting or reducing weight
+			name:                "honor maxUnavailable when aborting or reducing weight part 1",
+			rolloutSpecReplicas: 4,
+			setWeight:           0,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      0,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      4,
+			canaryAvailableReplica: 4,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 4, // should not bring down canary until we surge stable
+		},
+		{
+			// verify we honor maxUnavailable when aborting or reducing weight (after surging stable)
+			name:                "honor maxUnavailable when aborting or reducing weight part 2",
+			rolloutSpecReplicas: 4,
+			setWeight:           0,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      4,
+			canaryAvailableReplica: 4,
+
+			expectedStableReplicaCount: 1, // should not adjust counts at all since stable not available
+			expectedCanaryReplicaCount: 4,
+		},
+		{
+			// verify we honor maxUnavailable when aborting or reducing weight (after stable surge availability)
+			name:                "honor maxUnavailable when aborting or reducing weight part 3",
+			rolloutSpecReplicas: 4,
+			setWeight:           0,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      4,
+			canaryAvailableReplica: 4,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 3, // should only reduce by 1 to honor maxUnavailable
+		},
 	}
 	for i := range tests {
 		test := tests[i]

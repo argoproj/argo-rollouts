@@ -156,7 +156,11 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
-	replicasToScaleDown := GetReplicasForScaleDown(newRS, false) + GetReplicasForScaleDown(stableRS, true)
+	// isIncreasing indicates if we are supposed to be increasing our canary replica count.
+	// If so, we can ignore pod availability of the stableRS. Otherwise, if we are reducing our
+	// weight (e.g. we are aborting), then we can ignore pod availability of the canaryRS.
+	isIncreasing := newRS == nil || desiredNewRSReplicaCount >= *newRS.Spec.Replicas
+	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
 
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
@@ -218,9 +222,15 @@ func CheckStableRSExists(newRS, stableRS *appsv1.ReplicaSet) bool {
 	return true
 }
 
-// GetReplicasForScaleDown returns the number of replicas to consider for scaling down.
-// isStableRS indicates if the supplied ReplicaSet is the stableRS
-func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, isStableRS bool) int32 {
+// GetReplicasForScaleDown returns the total number of replicas to consider for scaling down the
+// given ReplicaSet. ignoreAvailability indicates if we are allowed to ignore availability
+// of pods during the calculation, in which case we return just the desired replicas.
+// The purpose of ignoring availability is to handle the case when the ReplicaSet which we are
+// considering for scaledown might be scaled up, but its pods may be unavailable (e.g. because of
+// a CrashloopBackoff). In this case we need to return the spec.Replicas so that the controller will
+// still consider scaling down this ReplicaSet. Without this, a rollout could become stuck not
+// scaling down the stable, in order to make room for more canaries.
+func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int32 {
 	if rs == nil {
 		return int32(0)
 	}
@@ -232,11 +242,7 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, isStableRS bool) int32 {
 		// violate the min available.
 		return *rs.Spec.Replicas
 	}
-	if isStableRS && rs.Status.AvailableReplicas < *rs.Spec.Replicas {
-		// The stable ReplicaSet might be scaled up, but its pods may be unavailable.
-		// In this case we need to return the spec.Replicas so that the controller will still
-		// consider scaling down this ReplicaSet. Without this, a rollout update could become stuck
-		// not scaling down the stable, in order to make room for more canaries.
+	if ignoreAvailability {
 		return *rs.Spec.Replicas
 	}
 	return rs.Status.AvailableReplicas
