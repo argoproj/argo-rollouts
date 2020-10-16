@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -48,6 +49,7 @@ func (s *FunctionalSuite) TestRolloutRestart() {
 	s.Given().
 		HealthyRollout(`@functional/rollout-basic.yaml`).
 		When().
+		Sleep(time.Second). // need to sleep so that clock will advanced past pod creationTimestamp
 		RestartRollout().
 		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Healthy")
@@ -408,7 +410,6 @@ spec:
           requests:
             memory: 16Mi
             cpu: 1m
-
 `).
 		When().
 		UpdateSpec(`
