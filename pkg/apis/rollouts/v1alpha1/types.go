@@ -397,7 +397,15 @@ type AnalysisRunArgument struct {
 type ArgumentValueFrom struct {
 	// PodTemplateHashValue gets the value from one of the children ReplicaSet's Pod Template Hash
 	PodTemplateHashValue *ValueFromPodTemplateHash `json:"podTemplateHashValue,omitempty"`
+	//FieldRef
+	FieldRef             *FieldRef                 `json:"fieldRef,omitempty"`
 }
+
+type FieldRef struct {
+	// Required: Path of the field to select in the specified API version
+	FieldPath string `json:"fieldPath"`
+}
+
 
 // ValueFromPodTemplateHash indicates which ReplicaSet pod template pod hash to use
 type ValueFromPodTemplateHash string

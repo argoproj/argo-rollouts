@@ -4,24 +4,31 @@ import (
 	"fmt"
 	"strconv"
 
-	appsv1 "k8s.io/api/apps/v1"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
-func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet) []v1alpha1.Argument {
+func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) []v1alpha1.Argument {
 	arguments := []v1alpha1.Argument{}
 	for i := range args {
 		arg := args[i]
 		value := arg.Value
 		if arg.ValueFrom != nil {
-			switch *arg.ValueFrom.PodTemplateHashValue {
-			case v1alpha1.Latest:
-				value = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-			case v1alpha1.Stable:
-				value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			if arg.ValueFrom.PodTemplateHashValue != nil {
+				switch *arg.ValueFrom.PodTemplateHashValue {
+				case v1alpha1.Latest:
+					value = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				case v1alpha1.Stable:
+					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				}
+			}else {
+				if arg.ValueFrom.FieldRef != nil {
+					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+				}
 			}
+
 		}
 		analysisArg := v1alpha1.Argument{
 			Name:  arg.Name,

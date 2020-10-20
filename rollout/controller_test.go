@@ -113,6 +113,10 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: "1",
 			},
+			Labels: map[string]string{
+				"app": "test",
+				"env": "test",
+			},
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Template: corev1.PodTemplateSpec{
