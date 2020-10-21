@@ -125,6 +125,10 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 					FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.label['app']"},
 				},
 			},
+			{
+				Name: "value-key",
+				Value: "hardcoded-value",
+			},
 	}
 	rolloutAnalysisStep := &v1alpha1.RolloutAnalysis{
 		Args : invalidArgs,
