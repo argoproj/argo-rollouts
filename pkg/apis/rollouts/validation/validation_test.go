@@ -183,13 +183,13 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidDurationMessage, allErrs[0].Detail)
 	})
-	t.Run("invalid metadata references in analysis args", func(t *testing.T) {
+	t.Run("invalid metadata references in analysis step", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.Steps[0].Analysis = rolloutAnalysisStep
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidAnalysisArgsMessage, allErrs[0].Detail)
 	})
-	t.Run("invalid metadata references in analysis args", func(t *testing.T) {
+	t.Run("invalid metadata references in experiment step", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.Steps[0].Experiment = rolloutExperimentStep
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
