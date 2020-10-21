@@ -23,7 +23,7 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 				case v1alpha1.Stable:
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
-			}else {
+			} else {
 				if arg.ValueFrom.FieldRef != nil {
 					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
 				}

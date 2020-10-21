@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"testing"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
@@ -9,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
-	"testing"
 )
 
 func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
@@ -93,7 +94,7 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 			},
 			RevisionHistoryLimit: nil,
 			Replicas:             func() *int32 { i := int32(1); return &i }(),
-			Selector:             &metav1.LabelSelector{MatchLabels: map[string]string{
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
 				"app": "app",
 				"env": "test",
 			}},

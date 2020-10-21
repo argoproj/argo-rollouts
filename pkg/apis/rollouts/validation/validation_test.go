@@ -119,19 +119,19 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 	ro.Spec.Strategy.Canary = canaryStrategy
 
 	invalidArgs := []v1alpha1.AnalysisRunArgument{
-			{
-				Name: "metadata.labels['app']",
-				ValueFrom: &v1alpha1.ArgumentValueFrom{
-					FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.label['app']"},
-				},
+		{
+			Name: "metadata.labels['app']",
+			ValueFrom: &v1alpha1.ArgumentValueFrom{
+				FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.label['app']"},
 			},
-			{
-				Name: "value-key",
-				Value: "hardcoded-value",
-			},
+		},
+		{
+			Name:  "value-key",
+			Value: "hardcoded-value",
+		},
 	}
 	rolloutAnalysisStep := &v1alpha1.RolloutAnalysis{
-		Args : invalidArgs,
+		Args: invalidArgs,
 	}
 
 	rolloutExperimentStep := &v1alpha1.RolloutExperimentStep{

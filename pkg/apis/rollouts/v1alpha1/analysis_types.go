@@ -234,7 +234,7 @@ type ValueFrom struct {
 	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
 	//valueFrom
 	// +optional
-	FieldRef *FieldRef  `json:"fieldRef,omitempty"`
+	FieldRef *FieldRef `json:"fieldRef,omitempty"`
 }
 
 type SecretKeyRef struct {

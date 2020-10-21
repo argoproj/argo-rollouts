@@ -3,10 +3,11 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/fieldpath"
-	"strconv"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"k8s.io/apimachinery/pkg/util/intstr"
