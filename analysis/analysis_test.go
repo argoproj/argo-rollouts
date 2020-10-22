@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -1150,8 +1151,8 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	argName := "apikey"
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1202,8 +1203,8 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -1268,8 +1269,8 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -1332,7 +1333,7 @@ func TestSecretNotFound(t *testing.T) {
 		incompleteMeasurement: nil,
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "secret \"secret-does-not-exist\" not found", err.Error())
+	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
 }
 
 func TestArgDoesNotContainSecretRefError(t *testing.T) {
@@ -1366,8 +1367,8 @@ func TestKeyNotInSecret(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	args := []v1alpha1.Argument{{
 		Name: "secret-wrong-key",
