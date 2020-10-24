@@ -17,6 +17,9 @@ func GetRolloutSelectorLabel(svc *corev1.Service) string {
 
 // GetRolloutServiceKeys returns services keys (namespace/serviceName) which are referenced by specified rollout
 func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
+	if rollout == nil {
+		return nil
+	}
 	servicesSet := make(map[string]bool)
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
