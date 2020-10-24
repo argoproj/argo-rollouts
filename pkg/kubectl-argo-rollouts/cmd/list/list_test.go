@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-mpatch"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubetesting "k8s.io/client-go/testing"
@@ -176,8 +176,11 @@ func TestListNamespaceAndTimestamp(t *testing.T) {
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"--all-namespaces", "--timestamps"})
 
-	patch := monkey.Patch(time.Now, func() time.Time { return time.Time{} })
-	err := cmd.Execute()
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+		return time.Time{}
+	})
+	assert.NoError(t, err)
+	err = cmd.Execute()
 	patch.Unpatch()
 
 	assert.NoError(t, err)
