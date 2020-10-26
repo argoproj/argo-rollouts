@@ -14,6 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+	watchutil "k8s.io/client-go/tools/watch"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
@@ -225,10 +228,17 @@ func (w *When) WaitForActiveRevision(revision string) *When {
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
-	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(opts)
+	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
+	ro, err := rolloutIf.Get(w.rollout.GetName(), metav1.GetOptions{})
 	w.CheckError(err)
-	defer watch.Stop()
+	retryWatcher, err := watchutil.NewRetryWatcher(ro.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
 	timeoutCh := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
@@ -236,7 +246,7 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 	}()
 	for {
 		select {
-		case event := <-watch.ResultChan():
+		case event := <-retryWatcher.ResultChan():
 			ro, ok := event.Object.(*rov1.Rollout)
 			if ok {
 				if test(ro) {

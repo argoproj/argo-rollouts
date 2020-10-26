@@ -53,6 +53,11 @@ func (s *FunctionalSuite) TestRolloutRestart() {
 		WaitForRolloutStatus("Healthy")
 }
 
+func (s *FunctionalSuite) TestMalformedRollout() {
+	s.Given().
+		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
+}
+
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
 // rejected by validation
 func (s *FunctionalSuite) TestContainerResourceFormats() {
