@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -82,7 +82,7 @@ type fixture struct {
 	kubeobjects     []runtime.Object
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
-	unfreezeTime    func()
+	unfreezeTime    func() error
 
 	fakeTrafficRouting *FakeTrafficRoutingReconciler
 }
@@ -94,7 +94,8 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch := monkey.Patch(time.Now, func() time.Time { return now })
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
+	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
 	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
 	return f
@@ -1033,6 +1034,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 
 func TestSetReplicaToDefault(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Replicas = nil
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -1108,7 +1110,6 @@ requests:
 
 	for _, r := range []*v1alpha1.Rollout{r1, r2} {
 		f := newFixture(t)
-		defer f.Close()
 		activeSvc := newService("active", 80, nil, r)
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.rolloutLister = append(f.rolloutLister, r)
@@ -1122,6 +1123,7 @@ requests:
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
+		f.Close()
 	}
 }
 
@@ -1143,7 +1145,7 @@ func TestNoReconcileForDeletedRollout(t *testing.T) {
 // controller.ComputeHash() for the blue-green strategy and do not redeploy any replicasets
 func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f := newFixture(t)
-
+	defer f.Close()
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Status.CurrentPodHash = "fakepodhash"
 	r.Status.StableRS = "fakepodhash"
@@ -1198,7 +1200,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 // controller.ComputeHash() for the canary strategy and do not redeploy any replicasets
 func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	f := newFixture(t)
-
+	defer f.Close()
 	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 
 	r.Status.CurrentPodHash = "fakepodhash"
@@ -1242,7 +1244,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 func TestMigrateCanaryStableRS(t *testing.T) {
 	t.Run("Copy canary.stableRS to stableRS", func(t *testing.T) {
 		f := newFixture(t)
-
+		defer f.Close()
 		r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 		r.Status.Canary.StableRS = "fakepodhash"
 		index := f.expectUpdateRolloutAction(r)
@@ -1255,7 +1257,7 @@ func TestMigrateCanaryStableRS(t *testing.T) {
 	})
 	t.Run("Copy StableRS to canary.stableRS", func(t *testing.T) {
 		f := newFixture(t)
-
+		defer f.Close()
 		r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 		r.Status.StableRS = "fakepodhash"
 		index := f.expectUpdateRolloutAction(r)
@@ -1270,7 +1272,7 @@ func TestMigrateCanaryStableRS(t *testing.T) {
 
 func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f := newFixture(t)
-
+	defer f.Close()
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
@@ -1332,6 +1334,7 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 
 func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
 	roAnalysisTemplate := v1alpha1.RolloutAnalysisTemplate{
 		TemplateName: "cluster-analysis-template-name",
@@ -1360,6 +1363,7 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 
 func TestGetReferencedIngressesALB(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
@@ -1367,7 +1371,6 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
-	defer f.Close()
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1396,6 +1399,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 
 func TestGetReferencedIngressesNginx(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Nginx: &v1alpha1.NginxTrafficRouting{
@@ -1432,6 +1436,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 
 func TestGetReferencedVirtualServices(t *testing.T) {
 	f := newFixture(t)
+	defer f.Close()
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
@@ -1441,7 +1446,6 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
-	defer f.Close()
 
 	t.Run("get referenced virtualService - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)

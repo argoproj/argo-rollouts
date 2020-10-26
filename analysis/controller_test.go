@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-mpatch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +49,7 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
-	unfreezeTime    func()
+	unfreezeTime    func() error
 	// fake provider
 	provider *mocks.Provider
 }
@@ -60,9 +60,10 @@ func newFixture(t *testing.T) *fixture {
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch := monkey.Patch(time.Now, func() time.Time {
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
 		return now
 	})
+	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
 	return f
 }
