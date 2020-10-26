@@ -30,6 +30,11 @@ func TestGetRolloutSelectorLabel(t *testing.T) {
 	assert.Equal(t, selector, testSelectorValue)
 }
 
+func TestGetRolloutServiceKeysForNilRollout(t *testing.T) {
+	keys := GetRolloutServiceKeys(nil)
+	assert.Nil(t, keys)
+}
+
 func TestGetRolloutServiceKeysForCanary(t *testing.T) {
 	keys := GetRolloutServiceKeys(&v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
