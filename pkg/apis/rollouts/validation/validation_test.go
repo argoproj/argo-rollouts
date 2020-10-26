@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func TestValidateRollout(t *testing.T) {
@@ -63,6 +65,15 @@ func TestValidateRollout(t *testing.T) {
 			PreviewService: "preview",
 		}
 		allErrs := ValidateRollout(invalidRo)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("privileged container", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Privileged: pointer.BoolPtr(true),
+		}
+		allErrs := ValidateRollout(ro)
 		assert.Empty(t, allErrs)
 	})
 
