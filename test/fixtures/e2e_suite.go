@@ -83,6 +83,9 @@ func init() {
 		}
 		E2EPodDelay = delay
 	}
+	if e2eImage, ok := os.LookupEnv(EnvVarE2EImage); ok {
+		E2EImage = e2eImage
+	}
 }
 
 type E2ESuite struct {
