@@ -51,7 +51,7 @@ var (
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
 	// All e2e tests will be labeled with their test name
 	E2ELabelKeyTestName = "e2e-test-name"
-	// All images used in e2e tests will be appended with this image (unless E2E_IMAGE_PREFIX="")
+	// All images used in e2e tests will be prepended with this image (unless E2E_IMAGE_PREFIX="")
 	E2EImagePrefix = ""
 
 	serviceGVR = schema.GroupVersionResource{
