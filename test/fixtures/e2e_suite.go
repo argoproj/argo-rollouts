@@ -39,7 +39,7 @@ const (
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
-	//
+	// E2E_IMAGE_PREFIX is an image prefix that is prepended to Rollouts created by the e2e tests
 	EnvVarE2EImagePrefix = "E2E_IMAGE_PREFIX"
 )
 
