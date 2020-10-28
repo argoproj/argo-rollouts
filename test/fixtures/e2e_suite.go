@@ -39,6 +39,8 @@ const (
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
+	//
+	EnvVarE2EImage = "E2E_IMAGE"
 )
 
 var (
@@ -49,6 +51,8 @@ var (
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
 	// All e2e tests will be labeled with their test name
 	E2ELabelKeyTestName = "e2e-test-name"
+	// All images used in e2e tests will be appended with this image (unless E2E_IMAGE="")
+	E2EImage = ""
 
 	serviceGVR = schema.GroupVersionResource{
 		Version:  "v1",

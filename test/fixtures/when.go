@@ -44,9 +44,22 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
 			w.injectDelays(obj)
 		}
+		if obj.GetKind() == "Rollout" && E2EImage != "" {
+			w.modifyImage(obj)
+		}
 		w.applyObject(obj)
 	}
 	return w
+}
+
+func (w *When) modifyImage(un *unstructured.Unstructured) {
+	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+	container := containersIf[0].(map[string]interface{})
+	container["image"] = E2EImage + "/" + container["image"].(string)
+	containersIf[0] = container
+	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
+	w.CheckError(err)
 }
 
 // injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
