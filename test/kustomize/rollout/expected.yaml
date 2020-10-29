@@ -149,7 +149,7 @@ spec:
     canary:
       analysis:
         templates:
-        - name: my-random-fail
+        - templateName: my-random-fail
       canaryService: my-guestbook-canary-svc
       stableService: my-guestbook-stable-svc
       steps:
@@ -162,7 +162,7 @@ spec:
             specRef: canary
       - analysis:
           templates:
-          - name: my-random-fail
+          - templateName: my-random-fail
       trafficRouting:
         alb:
           ingress: my-networking-ingress

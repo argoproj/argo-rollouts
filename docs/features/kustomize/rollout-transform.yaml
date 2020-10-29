@@ -149,19 +149,19 @@ nameReference:
 - kind: AnalysisTemplate
   group: argoproj.io
   fieldSpecs:
-  - path: spec/strategy/blueGreen/prePromotionAnalysis/templates/name
+  - path: spec/strategy/blueGreen/prePromotionAnalysis/templates/templateName
     kind: Rollout
-  - path: spec/strategy/blueGreen/postPromotionAnalysis/templates/name
+  - path: spec/strategy/blueGreen/postPromotionAnalysis/templates/templateName
     kind: Rollout
-  - path: spec/strategy/canary/analysis/templates/name
+  - path: spec/strategy/canary/analysis/templates/templateName
     kind: Rollout
-  - path: spec/strategy/canary/steps/analysis/templates/name
+  - path: spec/strategy/canary/steps/analysis/templates/templateName
     kind: Rollout
   - path: spec/strategy/canary/steps/experiment/analyses/templateName
     kind: Rollout
   - path: spec/analyses/templateName
     kind: Experiment
-    # NOTE: templateName is deprecated in the below fields, in favor of templates[].name
+    # NOTE: templateName is deprecated in the below fields, in favor of templates[].templateName
   - path: spec/strategy/blueGreen/prePromotionAnalysis/templateName   
     kind: Rollout
   - path: spec/strategy/blueGreen/postPromotionAnalysis/templateName
