@@ -83,8 +83,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -2694,7 +2692,7 @@ spec:
                         type: object
                       newRelic:
                         properties:
-                          profileSecretName:
+                          profile:
                             type: string
                           query:
                             type: string
@@ -2910,8 +2908,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -5521,7 +5517,7 @@ spec:
                         type: object
                       newRelic:
                         properties:
-                          profileSecretName:
+                          profile:
                             type: string
                           query:
                             type: string
@@ -5665,8 +5661,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -8276,7 +8270,7 @@ spec:
                         type: object
                       newRelic:
                         properties:
-                          profileSecretName:
+                          profile:
                             type: string
                           query:
                             type: string

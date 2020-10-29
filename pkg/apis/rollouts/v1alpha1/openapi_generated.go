@@ -1835,7 +1835,8 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 					},
 					"datadog": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric"),
+							Description: "Datadog specifies a datadog metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric"),
 						},
 					},
 					"wavefront": {
@@ -1963,9 +1964,9 @@ func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallba
 				Description: "NewRelicMetric defines the newrelic query to perform canary analysis",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"profileSecretName": {
+					"profile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProfileSecretName is the name of the secret holding NR account configuration",
+							Description: "Profile is the name of the secret holding NR account configuration",
 							Type:        []string{"string"},
 							Format:      "",
 						},

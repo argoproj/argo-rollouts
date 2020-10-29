@@ -923,7 +923,7 @@ data:
 
 ## NewRelic Metrics
 
-A [New Relic](https://newrelic.com/) NRQL query can be used to obtain measurements for analysis.  
+A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.  
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -938,7 +938,7 @@ spec:
     successCondition: result.successRate >= 0.95
     provider:
       newRelic:
-        profileSecretName: my-newrelic-secret  # optional, defaults to 'newrelic'
+        profile: my-newrelic-secret  # optional, defaults to 'newrelic'
         query: |
           FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
 ```
@@ -956,5 +956,5 @@ type: Opaque
 data:
   personal-api-key: <newrelic-personal-api-key>
   account-id: <newrelic-account-id>
-  region: "us" # optional, defaults to "us" if not set
+  region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
 ```

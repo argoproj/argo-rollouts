@@ -143,11 +143,11 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 //NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
 func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
 	ns := Namespace()
-	secretName := DefaultNewRelicProfileSecretName
-	if metric.Provider.NewRelic.ProfileSecretName != "" {
-		secretName = metric.Provider.NewRelic.ProfileSecretName
+	profileSecret := DefaultNewRelicProfileSecretName
+	if metric.Provider.NewRelic.Profile != "" {
+		profileSecret = metric.Provider.NewRelic.Profile
 	}
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), profileSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

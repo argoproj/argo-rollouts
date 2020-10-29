@@ -361,7 +361,7 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 	t.Run("when secretName is specified by the metric", func(t *testing.T) {
-		metric.Provider.NewRelic.ProfileSecretName = "my-newrelic-token-secret"
+		metric.Provider.NewRelic.Profile = "my-newrelic-token-secret"
 		tokenSecret.Name = "my-newrelic-token-secret"
 		tokenSecret.Data = map[string][]byte{
 			"personal-api-key": []byte("ABCDEFG01234"),

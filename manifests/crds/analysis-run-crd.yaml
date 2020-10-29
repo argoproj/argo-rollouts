@@ -2691,7 +2691,7 @@ spec:
                         type: object
                       newRelic:
                         properties:
-                          profileSecretName:
+                          profile:
                             type: string
                           query:
                             type: string

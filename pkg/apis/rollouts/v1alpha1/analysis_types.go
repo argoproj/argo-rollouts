@@ -178,8 +178,8 @@ type WavefrontMetric struct {
 
 // NewRelicMetric defines the newrelic query to perform canary analysis
 type NewRelicMetric struct {
-	// ProfileSecretName is the name of the secret holding NR account configuration
-	ProfileSecretName string `json:"profileSecretName,omitempty"`
+	// Profile is the name of the secret holding NR account configuration
+	Profile string `json:"profile,omitempty"`
 	// Query is a raw newrelic NRQL query to perform
 	Query string `json:"query"`
 }
