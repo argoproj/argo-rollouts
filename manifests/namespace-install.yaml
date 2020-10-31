@@ -83,8 +83,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -2691,6 +2689,15 @@ spec:
                         - scopes
                         - storageAccountName
                         - threshold
+                        type: object
+                      newRelic:
+                        properties:
+                          profile:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
                         type: object
                       prometheus:
                         properties:
@@ -2901,8 +2908,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -5509,6 +5514,15 @@ spec:
                         - scopes
                         - storageAccountName
                         - threshold
+                        type: object
+                      newRelic:
+                        properties:
+                          profile:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
                         type: object
                       prometheus:
                         properties:
@@ -5647,8 +5661,6 @@ spec:
                     properties:
                       datadog:
                         properties:
-                          address:
-                            type: string
                           interval:
                             type: string
                           query:
@@ -8255,6 +8267,15 @@ spec:
                         - scopes
                         - storageAccountName
                         - threshold
+                        type: object
+                      newRelic:
+                        properties:
+                          profile:
+                            type: string
+                          query:
+                            type: string
+                        required:
+                        - query
                         type: object
                       prometheus:
                         properties:

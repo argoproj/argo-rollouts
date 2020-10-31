@@ -12,12 +12,10 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/mattn/go-isatty v0.0.10 // indirect
+	github.com/newrelic/newrelic-client-go v0.41.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/common v0.9.1
