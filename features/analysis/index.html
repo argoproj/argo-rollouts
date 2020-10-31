@@ -704,6 +704,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#newrelic-metrics" class="md-nav__link">
+    NewRelic Metrics
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1318,6 +1325,13 @@
         <li class="md-nav__item">
   <a href="#datadog-metrics" class="md-nav__link">
     Datadog Metrics
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#newrelic-metrics" class="md-nav__link">
+    NewRelic Metrics
   </a>
   
 </li>
@@ -2173,6 +2187,36 @@ to convert a result value to a numeric type so that mathematical comparison oper
   <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://api.datadoghq.com</span>
   <span class="nt">api-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;datadog-api-key&gt;</span>
   <span class="nt">app-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;datadog-app-key&gt;</span>
+</code></pre></div>
+<h2 id="newrelic-metrics">NewRelic Metrics<a class="headerlink" href="#newrelic-metrics" title="Permanent link">&para;</a></h2>
+<p>A <a href="https://newrelic.com/">New Relic</a> query using <a href="https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language">NRQL</a> can be used to obtain measurements for analysis.  </p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">args</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">application-name</span>
+  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result.successRate &gt;= 0.95</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">newRelic</span><span class="p">:</span>
+        <span class="nt">profile</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-newrelic-secret</span>  <span class="c1"># optional, defaults to &#39;newrelic&#39;</span>
+        <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+          <span class="no">FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = &#39;{{ args.application-name }}&#39;</span>
+</code></pre></div>
+<p>The <code>result</code> evaluated for the condition will always be map or list of maps. The name will follow the pattern of either <code>function</code> or <code>function.field</code>, e.g. <code>SELECT average(duration) from Transaction</code> will yield <code>average.duration</code>. In this case the field result cannot be accessed with dot notation and instead should be accessed like <code>result['average.duration']</code>. Query results can be renamed using the <a href="https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as">NRQL clause <code>AS</code></a> as seen above.</p>
+<p>A New Relic access profile can be configured using a Kubernetes secret in the <code>argo-rollouts</code> namespace. Alternate accounts can be used by creating more secrets of the same format and specifying which secret to use in the metric provider configuration using the <code>profileSecretName</code> field. </p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">newrelic</span>
+<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">personal-api-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;newrelic-personal-api-key&gt;</span>
+  <span class="nt">account-id</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;newrelic-account-id&gt;</span>
+  <span class="nt">region</span><span class="p">:</span> <span class="s">&quot;us&quot;</span> <span class="c1"># optional, defaults to &quot;us&quot; if not set. Only set to &quot;eu&quot; if you use EU New Relic</span>
 </code></pre></div>
                 
               
