@@ -76,7 +76,7 @@ func RunUndoRollout(rolloutIf clientset.RolloutInterface, c kubernetes.Interface
 	}
 
 	// Skip if the revision already matches current rollout
-	if equalIgnoreHash(&rsForRevision.Spec.Template, &ro.Spec.Template) {
+	if equalIgnoreHash(&ro.Spec.Template, &rsForRevision.Spec.Template) {
 		return fmt.Sprintf("skipped rollback (current template already matches revision %d)", toRevision), nil
 	}
 
@@ -126,14 +126,25 @@ func rolloutRevision(ro *v1alpha1.Rollout, c kubernetes.Interface, toRevision in
 			}
 		}
 	}
+
+	if toRevision > 0 {
+		return nil, fmt.Errorf("unable to find specified revision %v in history", toRevision)
+	}
+
+	if previousReplicaSet == nil {
+		return nil, fmt.Errorf("no revision found for rollout %q", ro.Name)
+	}
+
 	return previousReplicaSet, nil
 }
 
 func getRolloutPatch(podTemplate *corev1.PodTemplateSpec, annotations map[string]string) (types.PatchType, []byte, error) {
-	patch, err := json.Marshal(map[string]interface{}{
-		"op":    "replace",
-		"path":  "/spec/template",
-		"value": podTemplate,
+	patch, err := json.Marshal([]interface{}{
+		map[string]interface{}{
+			"op":    "replace",
+			"path":  "/spec/template",
+			"value": podTemplate,
+		},
 	})
 	return types.JSONPatchType, patch, err
 }
@@ -201,5 +212,5 @@ func equalIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
 	// Remove hash labels from template.Labels before comparing
 	delete(t1Copy.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 	delete(t2Copy.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
-	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
+	return apiequality.Semantic.DeepDerivative(t1Copy, t2Copy)
 }
