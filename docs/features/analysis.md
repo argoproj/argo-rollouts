@@ -425,6 +425,48 @@ spec:
           valueFrom:
             podTemplateHashValue: Latest
 ```
+Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  env: test
+  region: us-west-2
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: args-example
+        args:
+        # required value 
+        - name: service-name
+          value: guestbook-svc.default.svc.cluster.local
+        # override default value
+        - name: api-url
+          value: http://other-api
+        # pod template hash from the stable ReplicaSet
+        - name: stable-hash
+          valueFrom:
+            podTemplateHashValue: Stable
+        # pod template hash from the latest ReplicaSet
+        - name: latest-hash
+          valueFrom:
+            podTemplateHashValue: Latest
+        # environment to which this app belongs
+        - name: env
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['env']
+        # region where this app is deployed
+        - name: region
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['region']
+```
 
 ## BlueGreen Pre Promotion Analysis
 A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
