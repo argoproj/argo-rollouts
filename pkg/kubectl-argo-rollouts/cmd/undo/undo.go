@@ -96,7 +96,7 @@ func RunUndoRollout(rolloutIf clientset.RolloutInterface, c kubernetes.Interface
 	return fmt.Sprintf("rollout '%s' undo\n", ro.Name), nil
 }
 
-func rolloutRevision(ro *v1alpha1.Rollout, c kubernetes.Interface, toRevision int64) (*appsv1.ReplicaSet, error){
+func rolloutRevision(ro *v1alpha1.Rollout, c kubernetes.Interface, toRevision int64) (*appsv1.ReplicaSet, error) {
 	allRSs, err := getAllReplicaSets(ro, c.AppsV1())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve replica sets from rollout %s: %v", ro.Name, err)
