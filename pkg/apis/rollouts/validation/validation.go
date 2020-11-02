@@ -5,21 +5,19 @@ import (
 	"fmt"
 	"strconv"
 
-	corev1 "k8s.io/api/core/v1"
-	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/fieldpath"
-
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unversionedvalidation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	validationutil "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/apis/apps/validation"
 	"k8s.io/kubernetes/pkg/apis/core"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
+	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 const (
@@ -108,6 +106,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			return allErrs
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
+		removeSecurityContextPrivileged(&template)
 		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"))...)
 	}
 
@@ -125,6 +124,23 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	allErrs = append(allErrs, ValidateRolloutStrategy(rollout, fldPath.Child("strategy"))...)
 
 	return allErrs
+}
+
+// removeSecurityContextPrivileged removes the privileged value on containers for the purposes of
+// validation. This is necessary because the k8s ValidateSecurityContext library which we reuse,
+// calls k8s.io/kubernetes/pkg/capabilities.Get(), which determines the security capabilities at a
+// global level. We don't want to call capabilities.Setup(), because it affects it as a global
+// level, so instead we remove the privileged setting on any containers so validation ignores it.
+// See https://github.com/argoproj/argo-rollouts/issues/796
+func removeSecurityContextPrivileged(template *core.PodTemplateSpec) {
+	for _, ctrList := range [][]core.Container{template.Spec.Containers, template.Spec.InitContainers} {
+		for i, ctr := range ctrList {
+			if ctr.SecurityContext != nil && ctr.SecurityContext.Privileged != nil && *ctr.SecurityContext.Privileged {
+				ctr.SecurityContext.Privileged = nil
+				ctrList[i] = ctr
+			}
+		}
+	}
 }
 
 func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {

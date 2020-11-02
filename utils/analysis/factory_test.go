@@ -358,6 +358,7 @@ func TestValidateMetrics(t *testing.T) {
 						Kayenta:    &v1alpha1.KayentaMetric{},
 						Web:        &v1alpha1.WebMetric{},
 						Datadog:    &v1alpha1.DatadogMetric{},
+						NewRelic:   &v1alpha1.NewRelicMetric{},
 					},
 				},
 			},

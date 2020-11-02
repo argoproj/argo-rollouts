@@ -5,7 +5,6 @@ go 1.13
 require (
 	github.com/antonmedv/expr v1.4.2
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
-	github.com/bouk/monkey v1.0.0
 	github.com/cucumber/godog v0.10.0
 	github.com/docker/docker v1.4.2-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
@@ -13,12 +12,10 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
-	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/mattn/go-isatty v0.0.10 // indirect
+	github.com/newrelic/newrelic-client-go v0.41.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/common v0.9.1
@@ -27,6 +24,7 @@ require (
 	github.com/spaceapegames/go-wavefront v1.8.1
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
+	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.3.0
