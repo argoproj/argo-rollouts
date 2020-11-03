@@ -46,5 +46,6 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [New Relic](https://newrelic.com/)
 
 ## Community Blogs and Presentations
+* [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY) @ [The DevOps Toolkit Series](https://www.youtube.com/c/TheDevOpsToolkitSeries)
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
 * [Leveling Up Your CD: Unlocking Progressive Delivery on Kubernetes](https://www.youtube.com/watch?v=Nv0PPwbIEkY)
