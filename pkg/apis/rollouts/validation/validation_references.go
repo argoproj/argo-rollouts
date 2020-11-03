@@ -24,7 +24,8 @@ type AnalysisTemplateType string
 const (
 	PrePromotionAnalysis  AnalysisTemplateType = "PrePromotionAnalysis"
 	PostPromotionAnalysis AnalysisTemplateType = "PostPromotionAnalysis"
-	CanaryStep            AnalysisTemplateType = "CanaryStep"
+	InlineAnalysis        AnalysisTemplateType = "InlineAnalysis"
+	BackgroundAnalysis    AnalysisTemplateType = "BackgroundAnalysis"
 )
 
 type AnalysisTemplateWithType struct {
@@ -32,7 +33,7 @@ type AnalysisTemplateWithType struct {
 	ClusterAnalysisTemplate *v1alpha1.ClusterAnalysisTemplate
 	TemplateType            AnalysisTemplateType
 	AnalysisIndex           int
-	// Used only for CanaryStep
+	// Used only for InlineAnalysis
 	CanaryStepIndex int
 }
 
@@ -57,7 +58,7 @@ type ReferencedResources struct {
 	VirtualServices          []unstructured.Unstructured
 }
 
-func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList { //field.ErrorList {
+func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
 	allErrs := field.ErrorList{}
 	for _, service := range referencedResources.ServiceWithType {
 		allErrs = append(allErrs, ValidateService(service, rollout)...)
@@ -104,11 +105,13 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 	} else if template.AnalysisTemplate != nil {
 		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
 	}
-	for _, metric := range templateSpec.Metrics {
-		effectiveCount := metric.EffectiveCount()
-		if effectiveCount == nil {
-			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
-			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+	if template.TemplateType != BackgroundAnalysis {
+		for _, metric := range templateSpec.Metrics {
+			effectiveCount := metric.EffectiveCount()
+			if effectiveCount == nil {
+				msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
+				allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+			}
 		}
 	}
 	return allErrs
@@ -188,8 +191,10 @@ func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, ana
 		fldPath = fldPath.Child("blueGreen", "prePromotionAnalysis", "templates")
 	case PostPromotionAnalysis:
 		fldPath = fldPath.Child("blueGreen", "postPromotionAnalysis", "templates")
-	case CanaryStep:
+	case InlineAnalysis:
 		fldPath = fldPath.Child("canary", "steps").Index(canaryStepIndex).Child("analysis", "templates")
+	case BackgroundAnalysis:
+		fldPath = fldPath.Child("canary", "analysis", "templates")
 	default:
 		// No path specified
 		return nil

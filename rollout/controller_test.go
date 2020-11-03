@@ -355,7 +355,10 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	newObservedGen := conditions.ComputeGenerationHash(newRO.Spec)
 
 	newPatch := make(map[string]interface{})
-	json.Unmarshal([]byte(patch), &newPatch)
+	err = json.Unmarshal([]byte(patch), &newPatch)
+	if err != nil {
+		panic(err)
+	}
 	newStatus := newPatch["status"].(map[string]interface{})
 	newStatus["observedGeneration"] = newObservedGen
 	newPatch["status"] = newStatus

@@ -1,12 +1,14 @@
 package rollout
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
@@ -285,17 +287,12 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
 }
 
-func TestCreateBackgroundAnalysisRunErrorWithMissingClusterTemplates(t *testing.T) {
+func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	steps := []v1alpha1.CanaryStep{{
-		SetWeight: int32Ptr(10),
-	}}
-	cat := clusterAnalysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+	r := newCanaryRollout("foo", 10, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplate{{
 				TemplateName: "missing",
@@ -303,25 +300,24 @@ func TestCreateBackgroundAnalysisRunErrorWithMissingClusterTemplates(t *testing.
 			}},
 		},
 	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
-	rs2 := newReplicaSetWithStatus(r2, 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
-	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	availableCondition, _ := newAvailableCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates[0].templateName: Invalid value: \"missing\": clusteranalysistemplate.argoproj.io \"missing\" not found")
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
 
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
-	f.objects = append(f.objects, r2, cat)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T) {
@@ -624,43 +620,6 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			TemplateName: "invalid-template-ref",
-		},
-	}
-
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
-	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	availableCondition, _ := newAvailableCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
-
-	f.runExpectError(getKey(r2, t), true)
-}
-
-func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRefWithTemplates(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	steps := []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}
-
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
-		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
-				TemplateName: "invalid-template-ref",
-			}},
 		},
 	}
 

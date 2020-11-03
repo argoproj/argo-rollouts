@@ -396,6 +396,9 @@ func (c *Controller) syncHandler(key string) error {
 	err = c.getRolloutValidationErrors(rollout)
 	if err != nil {
 		if vErr, ok := err.(*field.Error); ok {
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(rollout, 20*time.Second)
 			return c.createInvalidRolloutCondition(vErr, r)
 		}
 		return err
@@ -604,19 +607,23 @@ func (c *Controller) getReferencedRolloutAnalyses(rollout *v1alpha1.Rollout) (*[
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
-		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
 	} else if rollout.Spec.Strategy.Canary != nil {
 		canary := rollout.Spec.Strategy.Canary
-		if canary.Steps != nil {
-			for i, step := range canary.Steps {
-				if step.Analysis != nil {
-					templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.CanaryStep, i)
-					if err != nil {
-						return nil, err
-					}
-					analysisTemplates = append(analysisTemplates, templates...)
+		for i, step := range canary.Steps {
+			if step.Analysis != nil {
+				templates, err := c.getReferencedAnalysisTemplates(rollout, step.Analysis, validation.InlineAnalysis, i)
+				if err != nil {
+					return nil, err
 				}
+				analysisTemplates = append(analysisTemplates, templates...)
 			}
+		}
+		if canary.Analysis != nil {
+			templates, err := c.getReferencedAnalysisTemplates(rollout, &canary.Analysis.RolloutAnalysis, validation.BackgroundAnalysis, 0)
+			if err != nil {
+				return nil, err
+			}
+			analysisTemplates = append(analysisTemplates, templates...)
 		}
 	}
 	return &analysisTemplates, nil
