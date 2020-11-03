@@ -432,8 +432,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: guestbook
-  env: test
-  region: us-west-2
+  labels:
+    appType: demo-app
+    buildType: nginx-app
+    ...
+    env: dev
+    region: us-west-2
 spec:
 ...
   strategy:
@@ -442,21 +446,7 @@ spec:
         templates:
         - templateName: args-example
         args:
-        # required value 
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
-        # override default value
-        - name: api-url
-          value: http://other-api
-        # pod template hash from the stable ReplicaSet
-        - name: stable-hash
-          valueFrom:
-            podTemplateHashValue: Stable
-        # pod template hash from the latest ReplicaSet
-        - name: latest-hash
-          valueFrom:
-            podTemplateHashValue: Latest
-        # environment to which this app belongs
+        ...
         - name: env
           valueFrom:
             fieldRef:
