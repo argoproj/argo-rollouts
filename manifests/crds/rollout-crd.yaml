@@ -122,6 +122,13 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
                                 type: object
@@ -154,6 +161,13 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
                                 type: object
@@ -202,6 +216,13 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
                                 type: object
@@ -267,6 +288,13 @@ spec:
                                       type: string
                                     valueFrom:
                                       properties:
+                                        fieldRef:
+                                          properties:
+                                            fieldPath:
+                                              type: string
+                                          required:
+                                          - fieldPath
+                                          type: object
                                         podTemplateHashValue:
                                           type: string
                                       type: object
@@ -302,6 +330,13 @@ spec:
                                             type: string
                                           valueFrom:
                                             properties:
+                                              fieldRef:
+                                                properties:
+                                                  fieldPath:
+                                                    type: string
+                                                required:
+                                                - fieldPath
+                                                type: object
                                               podTemplateHashValue:
                                                 type: string
                                             type: object

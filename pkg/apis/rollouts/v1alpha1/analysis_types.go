@@ -241,6 +241,10 @@ type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
 	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty"`
+	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
+	//valueFrom
+	// +optional
+	FieldRef *FieldRef `json:"fieldRef,omitempty"`
 }
 
 type SecretKeyRef struct {

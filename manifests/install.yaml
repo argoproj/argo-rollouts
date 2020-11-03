@@ -41,6 +41,15 @@ spec:
                     type: string
                   valueFrom:
                     properties:
+                      fieldRef:
+                        properties:
+                          fieldPath:
+                            type: string
+                        required:
+                        - fieldPath
+                        type: object
+                      podTemplateHashValue:
+                        type: string
                       secretKeyRef:
                         properties:
                           key:
@@ -2866,6 +2875,15 @@ spec:
                     type: string
                   valueFrom:
                     properties:
+                      fieldRef:
+                        properties:
+                          fieldPath:
+                            type: string
+                        required:
+                        - fieldPath
+                        type: object
+                      podTemplateHashValue:
+                        type: string
                       secretKeyRef:
                         properties:
                           key:
@@ -5619,6 +5637,15 @@ spec:
                     type: string
                   valueFrom:
                     properties:
+                      fieldRef:
+                        properties:
+                          fieldPath:
+                            type: string
+                        required:
+                        - fieldPath
+                        type: object
+                      podTemplateHashValue:
+                        type: string
                       secretKeyRef:
                         properties:
                           key:
@@ -8381,6 +8408,15 @@ spec:
                           type: string
                         valueFrom:
                           properties:
+                            fieldRef:
+                              properties:
+                                fieldPath:
+                                  type: string
+                              required:
+                              - fieldPath
+                              type: object
+                            podTemplateHashValue:
+                              type: string
                             secretKeyRef:
                               properties:
                                 key:
@@ -11138,8 +11174,25 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
+                                  secretKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    type: object
                                 type: object
                             required:
                             - name
@@ -11170,8 +11223,25 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
+                                  secretKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    type: object
                                 type: object
                             required:
                             - name
@@ -11218,8 +11288,25 @@ spec:
                                 type: string
                               valueFrom:
                                 properties:
+                                  fieldRef:
+                                    properties:
+                                      fieldPath:
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
                                   podTemplateHashValue:
                                     type: string
+                                  secretKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    type: object
                                 type: object
                             required:
                             - name
@@ -11283,8 +11370,25 @@ spec:
                                       type: string
                                     valueFrom:
                                       properties:
+                                        fieldRef:
+                                          properties:
+                                            fieldPath:
+                                              type: string
+                                          required:
+                                          - fieldPath
+                                          type: object
                                         podTemplateHashValue:
                                           type: string
+                                        secretKeyRef:
+                                          properties:
+                                            key:
+                                              type: string
+                                            name:
+                                              type: string
+                                          required:
+                                          - key
+                                          - name
+                                          type: object
                                       type: object
                                   required:
                                   - name
@@ -11318,8 +11422,25 @@ spec:
                                             type: string
                                           valueFrom:
                                             properties:
+                                              fieldRef:
+                                                properties:
+                                                  fieldPath:
+                                                    type: string
+                                                required:
+                                                - fieldPath
+                                                type: object
                                               podTemplateHashValue:
                                                 type: string
+                                              secretKeyRef:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                required:
+                                                - key
+                                                - name
+                                                type: object
                                             type: object
                                         required:
                                         - name

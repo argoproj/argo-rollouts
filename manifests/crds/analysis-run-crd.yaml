@@ -40,6 +40,13 @@ spec:
                     type: string
                   valueFrom:
                     properties:
+                      fieldRef:
+                        properties:
+                          fieldPath:
+                            type: string
+                        required:
+                        - fieldPath
+                        type: object
                       secretKeyRef:
                         properties:
                           key:
