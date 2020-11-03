@@ -435,3 +435,59 @@ spec:
 		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
 		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"})
 }
+
+// TestFixInvalidSpec verifies we recover from an InvalidSpec after applying
+func (s *FunctionalSuite) TestFixInvalidSpec() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: fix-invalid-spec
+spec:
+  replicas: 0
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: doesnt-exist-yet
+  selector:
+    matchLabels:
+      app: fix-invalid-spec
+  template:
+    metadata:
+      labels:
+        app: fix-invalid-spec
+    spec:
+      containers:
+      - name: fix-invalid-spec
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: doesnt-exist-yet
+spec:
+  metrics:
+  - name: web
+    interval: 5s
+    successCondition: result.major == '1'
+    provider:
+      web:
+        url: https://kubernetes.default.svc/version
+        insecure: true
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy")
+}
