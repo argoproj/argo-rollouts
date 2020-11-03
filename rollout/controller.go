@@ -640,19 +640,23 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
-		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		canary := c.rollout.Spec.Strategy.Canary
-		if canary.Steps != nil {
-			for i, step := range canary.Steps {
-				if step.Analysis != nil {
-					templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.CanaryStep, i)
-					if err != nil {
-						return nil, err
-					}
-					analysisTemplates = append(analysisTemplates, templates...)
+		for i, step := range canary.Steps {
+			if step.Analysis != nil {
+				templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.InlineAnalysis, i)
+				if err != nil {
+					return nil, err
 				}
+				analysisTemplates = append(analysisTemplates, templates...)
 			}
+		}
+		if canary.Analysis != nil {
+			templates, err := c.getReferencedAnalysisTemplates(c.rollout, &canary.Analysis.RolloutAnalysis, validation.BackgroundAnalysis, 0)
+			if err != nil {
+				return nil, err
+			}
+			analysisTemplates = append(analysisTemplates, templates...)
 		}
 	}
 	return &analysisTemplates, nil

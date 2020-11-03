@@ -255,3 +255,9 @@ func (t *Then) When() *When {
 		Common: t.Common,
 	}
 }
+
+func (t *Then) Given() *Given {
+	return &Given{
+		Common: t.Common,
+	}
+}

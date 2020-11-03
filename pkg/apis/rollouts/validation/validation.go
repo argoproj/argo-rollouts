@@ -224,14 +224,12 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			}
 		}
 
-		if analysisRunArgs != nil {
-			for _, arg := range analysisRunArgs {
-				if arg.ValueFrom != nil {
-					if arg.ValueFrom.FieldRef != nil {
-						_, err := fieldpath.ExtractFieldPathAsString(rollout, arg.ValueFrom.FieldRef.FieldPath)
-						if err != nil {
-							allErrs = append(allErrs, field.Invalid(stepFldPath.Child("analyses"), analysisRunArgs, InvalidAnalysisArgsMessage))
-						}
+		for _, arg := range analysisRunArgs {
+			if arg.ValueFrom != nil {
+				if arg.ValueFrom.FieldRef != nil {
+					_, err := fieldpath.ExtractFieldPathAsString(rollout, arg.ValueFrom.FieldRef.FieldPath)
+					if err != nil {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("analyses"), analysisRunArgs, InvalidAnalysisArgsMessage))
 					}
 				}
 			}
