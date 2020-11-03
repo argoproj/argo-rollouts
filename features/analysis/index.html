@@ -9,7 +9,7 @@
       
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-6.1.0">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-6.1.2">
     
     
       
@@ -17,10 +17,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.bc7e593a.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.19190aaf.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab28b872.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.24b84193.min.css">
         
           
           
@@ -1741,7 +1741,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
         <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
 </code></pre></div>
 <p>Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1768,6 +1768,37 @@ templates together. The controller combines the <code>metrics</code> and <code>a
           <span class="nt">valueFrom</span><span class="p">:</span>
             <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
 </code></pre></div>
+Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">appType</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">demo-app</span>
+    <span class="nt">buildType</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx-app</span>
+    <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="nt">env</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">dev</span>
+    <span class="nt">region</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">analysis</span><span class="p">:</span>
+        <span class="nt">templates</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">args-example</span>
+        <span class="nt">args</span><span class="p">:</span>
+        <span class="l l-Scalar l-Scalar-Plain">...</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">env</span>
+          <span class="nt">valueFrom</span><span class="p">:</span>
+            <span class="nt">fieldRef</span><span class="p">:</span>
+              <span class="nt">fieldPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;env&#39;]</span>
+        <span class="c1"># region where this app is deployed</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">region</span>
+          <span class="nt">valueFrom</span><span class="p">:</span>
+            <span class="nt">fieldRef</span><span class="p">:</span>
+              <span class="nt">fieldPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;region&#39;]</span>
+</code></pre></div></p>
 <h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
 <p>A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
 AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
@@ -2284,8 +2315,8 @@ to convert a result value to a numeric type so that mathematical comparison oper
       
     </div>
     
-      <script src="../../assets/javascripts/vendor.6a3d08fc.min.js"></script>
-      <script src="../../assets/javascripts/bundle.71201edf.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
+      <script src="../../assets/javascripts/vendor.7e0ee788.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c1ccee15.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
       
       <script>
         app = initialize({
