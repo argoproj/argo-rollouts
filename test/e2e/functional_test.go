@@ -484,3 +484,75 @@ spec:
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy")
 }
+
+// TestBlueGreenScaleDownDelay verifies the scaleDownDelay feature
+func (s *FunctionalSuite) TestBlueGreenScaleDownDelay() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-scaledowndelay
+spec:
+  replicas: 1
+  strategy:
+    blueGreen:
+      activeService: bluegreen-scaledowndelay-active
+      scaleDownDelaySeconds: 86400 # one day
+      scaleDownDelayRevisionLimit: 2
+  selector:
+    matchLabels:
+      app: bluegreen-scaledowndelay
+  template:
+    metadata:
+      labels:
+        app: bluegreen-scaledowndelay
+    spec:
+      containers:
+      - name: bluegreen-scaledowndelay
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 1).
+		ExpectReplicaCounts(1, 2, 1, 1, 1). // desired, current, updated, ready, available
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPodCount("4", 1).
+		ExpectRevisionPodCount("3", 1).
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 0).
+		ExpectReplicaCounts(1, 3, 1, 1, 1).
+		When().
+		// lower scaleDownDelayRevisionLimit to 1 old RS. it should cause revision 2 to ScaleDown
+		PatchSpec(`
+spec:
+  strategy:
+    blueGreen:
+      scaleDownDelayRevisionLimit: 1`).
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPodCount("4", 1).
+		ExpectRevisionPodCount("3", 1).
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("1", 0).
+		ExpectReplicaCounts(1, 2, 1, 1, 1)
+}

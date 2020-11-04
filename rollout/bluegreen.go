@@ -228,8 +228,8 @@ func (c *Controller) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Replic
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 			if err != nil {
 				logCtx.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-			} else if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs == *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
-				logCtx.Info("At ScaleDownDelayRevisionLimit and scaling down the rest")
+			} else if rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs > *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
+				logCtx.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", *rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit)
 			} else {
 				now := metav1.Now()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
