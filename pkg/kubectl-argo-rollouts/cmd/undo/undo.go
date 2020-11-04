@@ -9,12 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +50,7 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 			name := args[0]
-			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
+			rolloutIf := o.DynamicClientset().Resource(v1alpha1.RolloutGVR).Namespace(o.Namespace())
 			clientset := o.KubeClientset()
 			result, err := RunUndoRollout(rolloutIf, clientset, name, toRevision)
 			if err != nil {
@@ -64,7 +65,7 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 }
 
 // RunUndoRollout performs the execution of 'rollouts undo' sub command
-func RunUndoRollout(rolloutIf clientset.RolloutInterface, c kubernetes.Interface, name string, toRevision int64) (string, error) {
+func RunUndoRollout(rolloutIf dynamic.ResourceInterface, c kubernetes.Interface, name string, toRevision int64) (string, error) {
 	ctx := context.TODO()
 	ro, err := rolloutIf.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -75,8 +76,11 @@ func RunUndoRollout(rolloutIf clientset.RolloutInterface, c kubernetes.Interface
 		return "", err
 	}
 
-	// Skip if the revision already matches current rollout
-	if equalIgnoreHash(&ro.Spec.Template, &rsForRevision.Spec.Template) {
+	equal, err := equalIgnoreHash(ro, rsForRevision)
+	if err != nil {
+		return "", err
+	}
+	if equal {
 		return fmt.Sprintf("skipped rollback (current template already matches revision %d)", toRevision), nil
 	}
 
@@ -93,13 +97,13 @@ func RunUndoRollout(rolloutIf clientset.RolloutInterface, c kubernetes.Interface
 	if _, err = rolloutIf.Patch(ctx, name, patchType, patch, metav1.PatchOptions{}); err != nil {
 		return "", fmt.Errorf("failed restoring revision %d: %v", toRevision, err)
 	}
-	return fmt.Sprintf("rollout '%s' undo\n", ro.Name), nil
+	return fmt.Sprintf("rollout '%s' undo\n", ro.GetName()), nil
 }
 
-func rolloutRevision(ro *v1alpha1.Rollout, c kubernetes.Interface, toRevision int64) (*appsv1.ReplicaSet, error) {
+func rolloutRevision(ro *unstructured.Unstructured, c kubernetes.Interface, toRevision int64) (*appsv1.ReplicaSet, error) {
 	allRSs, err := getAllReplicaSets(ro, c.AppsV1())
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve replica sets from rollout %s: %v", ro.Name, err)
+		return nil, fmt.Errorf("failed to retrieve replica sets from rollout %s: %v", ro.GetName(), err)
 	}
 	var (
 		latestReplicaSet   *appsv1.ReplicaSet
@@ -132,7 +136,7 @@ func rolloutRevision(ro *v1alpha1.Rollout, c kubernetes.Interface, toRevision in
 	}
 
 	if previousReplicaSet == nil {
-		return nil, fmt.Errorf("no revision found for rollout %q", ro.Name)
+		return nil, fmt.Errorf("no revision found for rollout %q", ro.GetName())
 	}
 
 	return previousReplicaSet, nil
@@ -149,7 +153,7 @@ func getRolloutPatch(podTemplate *corev1.PodTemplateSpec, annotations map[string
 	return types.JSONPatchType, patch, err
 }
 
-func getAllReplicaSets(ro *v1alpha1.Rollout, c appsclient.AppsV1Interface) ([]*appsv1.ReplicaSet, error) {
+func getAllReplicaSets(ro *unstructured.Unstructured, c appsclient.AppsV1Interface) ([]*appsv1.ReplicaSet, error) {
 	rsList, err := listReplicaSets(ro, rsListFromClient(c))
 	if err != nil {
 		return nil, err
@@ -173,9 +177,13 @@ func rsListFromClient(c appsclient.AppsV1Interface) rsListFunc {
 
 type rsListFunc func(string, metav1.ListOptions) ([]*appsv1.ReplicaSet, error)
 
-func listReplicaSets(ro *v1alpha1.Rollout, getRSList rsListFunc) ([]*appsv1.ReplicaSet, error) {
-	namespace := ro.Namespace
-	selector, err := metav1.LabelSelectorAsSelector(ro.Spec.Selector)
+func listReplicaSets(ro *unstructured.Unstructured, getRSList rsListFunc) ([]*appsv1.ReplicaSet, error) {
+	namespace := ro.GetNamespace()
+	labelSelector, err := extractLabelSelector(ro.Object)
+	if err != nil {
+		return nil, err
+	}
+	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +202,27 @@ func listReplicaSets(ro *v1alpha1.Rollout, getRSList rsListFunc) ([]*appsv1.Repl
 	return owned, nil
 }
 
+func extractLabelSelector(v map[string]interface{}) (*metav1.LabelSelector, error) {
+	labels, _, _ := unstructured.NestedStringMap(v, "spec", "selector", "matchLabels")
+	items, _, _ := unstructured.NestedSlice(v, "spec", "selector", "matchExpressions")
+	matchExpressions := []metav1.LabelSelectorRequirement{}
+	for _, item := range items {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("unable to retrieve matchExpressions for object, item %v is not a map", item)
+		}
+		out := metav1.LabelSelectorRequirement{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(m, &out); err != nil {
+			return nil, fmt.Errorf("unable to retrieve matchExpressions for object: %v", err)
+		}
+		matchExpressions = append(matchExpressions, out)
+	}
+	return &metav1.LabelSelector{
+		MatchLabels:      labels,
+		MatchExpressions: matchExpressions,
+	}, nil
+}
+
 func revision(obj runtime.Object) (int64, error) {
 	acc, err := meta.Accessor(obj)
 	if err != nil {
@@ -206,11 +235,18 @@ func revision(obj runtime.Object) (int64, error) {
 	return strconv.ParseInt(v, 10, 64)
 }
 
-func equalIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
-	t1Copy := template1.DeepCopy()
-	t2Copy := template2.DeepCopy()
-	// Remove hash labels from template.Labels before comparing
-	delete(t1Copy.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
-	delete(t2Copy.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
-	return apiequality.Semantic.DeepDerivative(t1Copy, t2Copy)
+func equalIgnoreHash(ro *unstructured.Unstructured, rs *appsv1.ReplicaSet) (bool, error) {
+	roTemplate, found, err := unstructured.NestedMap(ro.Object, "spec", "template")
+	if !found || err != nil {
+		return false, err
+	}
+
+	rsTemplate, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&rs.Spec.Template)
+	if err != nil {
+		return false, err
+	}
+
+	unstructured.RemoveNestedField(roTemplate, "metadata", "labels", v1alpha1.DefaultRolloutUniqueLabelKey)
+	unstructured.RemoveNestedField(rsTemplate, "metadata", "labels", v1alpha1.DefaultRolloutUniqueLabelKey)
+	return apiequality.Semantic.DeepDerivative(roTemplate, rsTemplate), nil
 }

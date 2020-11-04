@@ -12,14 +12,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
-func TestPromoteCmdUsage(t *testing.T) {
+func TestUndoCmdUsage(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	cmd := NewCmdUndo(o)
@@ -40,7 +40,7 @@ func TestUndoCmd(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(ro.Namespace)
 	defer tf.Cleanup()
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient := o.DynamicClient.(*dynamicfake.FakeDynamicClient)
 	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			type patch struct {
@@ -82,7 +82,7 @@ func TestUndoCmdToRevision(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(ro.Namespace)
 	defer tf.Cleanup()
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient := o.DynamicClient.(*dynamicfake.FakeDynamicClient)
 	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			type patch struct {
