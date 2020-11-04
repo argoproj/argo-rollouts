@@ -1360,13 +1360,13 @@ after the AnalysisRun completes (with a minimum of 30 seconds).</p>
 <h3 id="previewreplicacount">previewReplicaCount<a class="headerlink" href="#previewreplicacount" title="Permanent link">&para;</a></h3>
 <p>The PreviewReplicaCount will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the <code>spec.replicas</code>. The rollout will not switch over the active service to the new ReplicaSet until it matches the <code>spec.replicas</code> count.</p>
 <p>This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.</p>
-<p>Defaults to nil</p>
+<p>If omitted, preview ReplicaSet stack will be scaled to 100% of the replicas.</p>
 <h3 id="scaledowndelayseconds">scaleDownDelaySeconds<a class="headerlink" href="#scaledowndelayseconds" title="Permanent link">&para;</a></h3>
 <p>The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.</p>
 <p>Defaults to 30</p>
 <h3 id="scaledowndelayrevisionlimit">scaleDownDelayRevisionLimit<a class="headerlink" href="#scaledowndelayrevisionlimit" title="Permanent link">&para;</a></h3>
 <p>The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. </p>
-<p>Defaults to nil</p>
+<p>If omitted, all ReplicaSets will be retained for the specified scaleDownDelay</p>
                 
               
               
