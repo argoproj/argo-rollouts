@@ -8,19 +8,19 @@
       
       
       
-      <link rel="shortcut icon" href="../assets/images/favicon.png">
+      <link rel="shortcut icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-6.1.2">
     
     
       
-        <title>Basic Usage - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>Rollouts Undo - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.19190aaf.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.19190aaf.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.24b84193.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.24b84193.min.css">
         
           
           
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#rollouts-undo" class="md-skip">
           Skip to content
         </a>
       
@@ -77,9 +77,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header-nav md-grid" aria-label="Header">
-    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller">
+    <a href="../../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller">
       
-  <img src="../assets/logo.png" alt="logo">
+  <img src="../../../assets/logo.png" alt="logo">
 
     </a>
     <label class="md-header-nav__button md-icon" for="__drawer">
@@ -93,7 +93,7 @@
           </span>
           <span class="md-header-nav__topic md-ellipsis">
             
-              Basic Usage
+              Rollouts Undo
             
           </span>
         </div>
@@ -163,9 +163,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller">
+    <a href="../../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller">
       
-  <img src="../assets/logo.png" alt="logo">
+  <img src="../../../assets/logo.png" alt="logo">
 
     </a>
     Argo Rollouts - Kubernetes Progressive Delivery Controller
@@ -192,7 +192,7 @@
 
 
   <li class="md-nav__item">
-    <a href=".." class="md-nav__link">
+    <a href="../../.." class="md-nav__link">
       Overview
     </a>
   </li>
@@ -204,7 +204,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../installation/" class="md-nav__link">
+    <a href="../../../installation/" class="md-nav__link">
       Installation
     </a>
   </li>
@@ -216,7 +216,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../concepts/" class="md-nav__link">
+    <a href="../../../concepts/" class="md-nav__link">
       Concepts
     </a>
   </li>
@@ -226,12 +226,10 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
+      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
     
     <label class="md-nav__link" for="nav-4">
       Getting Started
@@ -249,84 +247,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Basic Usage
-        <span class="md-nav__icon md-icon"></span>
-      </label>
-    
-    <a href="./" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../../../getting-started/" class="md-nav__link">
       Basic Usage
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    Requirements
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#1-deploying-a-rollout" class="md-nav__link">
-    1. Deploying a Rollout
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-updating-a-rollout" class="md-nav__link">
-    2. Updating a Rollout
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-promoting-a-rollout" class="md-nav__link">
-    3. Promoting a Rollout
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-aborting-a-rollout" class="md-nav__link">
-    4. Aborting a Rollout
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    Summary
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -336,7 +261,7 @@
 
 
   <li class="md-nav__item">
-    <a href="alb/" class="md-nav__link">
+    <a href="../../../getting-started/alb/" class="md-nav__link">
       ALB
     </a>
   </li>
@@ -348,7 +273,7 @@
 
 
   <li class="md-nav__item">
-    <a href="nginx/" class="md-nav__link">
+    <a href="../../../getting-started/nginx/" class="md-nav__link">
       NGINX
     </a>
   </li>
@@ -360,7 +285,7 @@
 
 
   <li class="md-nav__item">
-    <a href="istio/" class="md-nav__link">
+    <a href="../../../getting-started/istio/" class="md-nav__link">
       Istio
     </a>
   </li>
@@ -372,7 +297,7 @@
 
 
   <li class="md-nav__item">
-    <a href="smi/" class="md-nav__link">
+    <a href="../../../getting-started/smi/" class="md-nav__link">
       SMI
     </a>
   </li>
@@ -431,7 +356,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/bluegreen/" class="md-nav__link">
+    <a href="../../../features/bluegreen/" class="md-nav__link">
       BlueGreen
     </a>
   </li>
@@ -443,7 +368,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/canary/" class="md-nav__link">
+    <a href="../../../features/canary/" class="md-nav__link">
       Canary
     </a>
   </li>
@@ -460,7 +385,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/specification/" class="md-nav__link">
+    <a href="../../../features/specification/" class="md-nav__link">
       Rollout Spec
     </a>
   </li>
@@ -493,7 +418,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/traffic-management/" class="md-nav__link">
+    <a href="../../../features/traffic-management/" class="md-nav__link">
       Overview
     </a>
   </li>
@@ -505,7 +430,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/traffic-management/istio/" class="md-nav__link">
+    <a href="../../../features/traffic-management/istio/" class="md-nav__link">
       Istio
     </a>
   </li>
@@ -517,7 +442,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/traffic-management/nginx/" class="md-nav__link">
+    <a href="../../../features/traffic-management/nginx/" class="md-nav__link">
       NGINX
     </a>
   </li>
@@ -529,7 +454,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/traffic-management/alb/" class="md-nav__link">
+    <a href="../../../features/traffic-management/alb/" class="md-nav__link">
       AWS ALB
     </a>
   </li>
@@ -541,7 +466,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/traffic-management/smi/" class="md-nav__link">
+    <a href="../../../features/traffic-management/smi/" class="md-nav__link">
       SMI
     </a>
   </li>
@@ -558,7 +483,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/anti-affinity/anti-affinity/" class="md-nav__link">
+    <a href="../../../features/anti-affinity/anti-affinity/" class="md-nav__link">
       Anti Affinity
     </a>
   </li>
@@ -570,7 +495,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/hpa-support/" class="md-nav__link">
+    <a href="../../../features/hpa-support/" class="md-nav__link">
       HPA Support
     </a>
   </li>
@@ -582,7 +507,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/kustomize/" class="md-nav__link">
+    <a href="../../../features/kustomize/" class="md-nav__link">
       Kustomize Support
     </a>
   </li>
@@ -594,7 +519,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/restart/" class="md-nav__link">
+    <a href="../../../features/restart/" class="md-nav__link">
       Restarting Rollouts
     </a>
   </li>
@@ -606,7 +531,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/controller-metrics/" class="md-nav__link">
+    <a href="../../../features/controller-metrics/" class="md-nav__link">
       Controller Metrics
     </a>
   </li>
@@ -623,7 +548,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/analysis/" class="md-nav__link">
+    <a href="../../../features/analysis/" class="md-nav__link">
       Analysis
     </a>
   </li>
@@ -635,7 +560,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/experiment/" class="md-nav__link">
+    <a href="../../../features/experiment/" class="md-nav__link">
       Experiments
     </a>
   </li>
@@ -645,10 +570,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-8" type="checkbox" id="nav-8">
+      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-8" type="checkbox" id="nav-8" checked>
     
     <label class="md-nav__link" for="nav-8">
       Kubectl Plugin
@@ -668,7 +595,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../features/kubectl-plugin/" class="md-nav__link">
+    <a href="../../../features/kubectl-plugin/" class="md-nav__link">
       Overview
     </a>
   </li>
@@ -678,10 +605,12 @@
           
           
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-8-2" type="checkbox" id="nav-8-2">
+      <input class="md-nav__toggle md-toggle" data-md-toggle="nav-8-2" type="checkbox" id="nav-8-2" checked>
     
     <label class="md-nav__link" for="nav-8-2">
       Commands
@@ -701,7 +630,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts/" class="md-nav__link">
       Rollouts
     </a>
   </li>
@@ -713,7 +642,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_abort/" class="md-nav__link">
       Rollouts Abort
     </a>
   </li>
@@ -725,7 +654,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_create/" class="md-nav__link">
       Rollouts Create
     </a>
   </li>
@@ -737,7 +666,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
       Rollouts Create Analysisrun
     </a>
   </li>
@@ -749,7 +678,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_get/" class="md-nav__link">
       Rollouts Get
     </a>
   </li>
@@ -761,7 +690,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
       Rollouts Get Experiment
     </a>
   </li>
@@ -773,7 +702,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
       Rollouts Get Rollout
     </a>
   </li>
@@ -785,7 +714,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_list/" class="md-nav__link">
       Rollouts List
     </a>
   </li>
@@ -797,7 +726,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
       Rollouts List Experiments
     </a>
   </li>
@@ -809,7 +738,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
       Rollouts List Rollouts
     </a>
   </li>
@@ -821,7 +750,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_pause/" class="md-nav__link">
       Rollouts Pause
     </a>
   </li>
@@ -833,7 +762,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_promote/" class="md-nav__link">
       Rollouts Promote
     </a>
   </li>
@@ -845,7 +774,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_restart/" class="md-nav__link">
       Rollouts Restart
     </a>
   </li>
@@ -857,7 +786,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_retry/" class="md-nav__link">
       Rollouts Retry
     </a>
   </li>
@@ -869,7 +798,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
       Rollouts Retry Experiment
     </a>
   </li>
@@ -881,7 +810,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
       Rollouts Retry Rollout
     </a>
   </li>
@@ -893,7 +822,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_set/" class="md-nav__link">
       Rollouts Set
     </a>
   </li>
@@ -905,7 +834,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_set_image/" class="md-nav__link">
       Rollouts Set Image
     </a>
   </li>
@@ -917,7 +846,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_terminate/" class="md-nav__link">
       Rollouts Terminate
     </a>
   </li>
@@ -929,7 +858,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
       Rollouts Terminate Analysisrun
     </a>
   </li>
@@ -941,7 +870,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
       Rollouts Terminate Experiment
     </a>
   </li>
@@ -951,11 +880,77 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Rollouts Undo
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+    
+    <a href="./" class="md-nav__link md-nav__link--active">
       Rollouts Undo
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#synopsis" class="md-nav__link">
+    Synopsis
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    Options
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-inherited-from-parent-commands" class="md-nav__link">
+    Options inherited from parent commands
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    See Also
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -965,7 +960,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+    <a href="../kubectl-argo-rollouts_version/" class="md-nav__link">
       Rollouts Version
     </a>
   </li>
@@ -987,7 +982,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../migrating/" class="md-nav__link">
+    <a href="../../../migrating/" class="md-nav__link">
       Migrating
     </a>
   </li>
@@ -999,7 +994,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../FAQ/" class="md-nav__link">
+    <a href="../../../FAQ/" class="md-nav__link">
       FAQ
     </a>
   </li>
@@ -1011,7 +1006,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../roadmap/" class="md-nav__link">
+    <a href="../../../roadmap/" class="md-nav__link">
       Roadmap
     </a>
   </li>
@@ -1044,7 +1039,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../CONTRIBUTING/" class="md-nav__link">
+    <a href="../../../CONTRIBUTING/" class="md-nav__link">
       Contribution Guide
     </a>
   </li>
@@ -1056,7 +1051,7 @@
 
 
   <li class="md-nav__item">
-    <a href="setup/" class="md-nav__link">
+    <a href="../../../getting-started/setup/" class="md-nav__link">
       Environment Setup
     </a>
   </li>
@@ -1127,43 +1122,36 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    Requirements
+  <a href="#synopsis" class="md-nav__link">
+    Synopsis
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-deploying-a-rollout" class="md-nav__link">
-    1. Deploying a Rollout
+  <a href="#examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-updating-a-rollout" class="md-nav__link">
-    2. Updating a Rollout
+  <a href="#options" class="md-nav__link">
+    Options
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-promoting-a-rollout" class="md-nav__link">
-    3. Promoting a Rollout
+  <a href="#options-inherited-from-parent-commands" class="md-nav__link">
+    Options inherited from parent commands
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-aborting-a-rollout" class="md-nav__link">
-    4. Aborting a Rollout
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    Summary
+  <a href="#see-also" class="md-nav__link">
+    See Also
   </a>
   
 </li>
@@ -1180,140 +1168,52 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>This guide will demonstrate various concepts and features of Argo Rollouts by going through
-deployment, upgrade, promotion, and abortion of a Rollout.</p>
-<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+                <h1 id="rollouts-undo">Rollouts Undo<a class="headerlink" href="#rollouts-undo" title="Permanent link">&para;</a></h1>
+<p>Undo a rollout</p>
+<h2 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h2>
+<p>Rollback to the previous rollout.</p>
+<div class="highlight"><pre><span></span><code>kubectl argo rollouts undo ROLLOUT_NAME <span class="o">[</span>flags<span class="o">]</span>
+</code></pre></div>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Undo a rollout</span>
+kubectl argo rollouts undo guestbook
+
+<span class="c1"># Undo a rollout revision 3</span>
+kubectl argo rollouts undo guestbook --to-revision<span class="o">=</span><span class="m">3</span>
+</code></pre></div>
+<h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>  -h, --help              help for undo
+      --to-revision int   The revision to rollback to. Default to 0 (last revision).
+</code></pre></div>
+<h2 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>      --as string                      Username to impersonate for the operation
+      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --cache-dir string               Default HTTP cache directory (default &quot;/home/runner/.kube/http-cache&quot;)
+      --certificate-authority string   Path to a cert file for the certificate authority
+      --client-certificate string      Path to a client certificate file for TLS
+      --client-key string              Path to a client key file for TLS
+      --cluster string                 The name of the kubeconfig cluster to use
+      --context string                 The name of the kubeconfig context to use
+      --insecure-skip-tls-verify       If true, the server&#39;s certificate will not be checked for validity. This will make your HTTPS connections insecure
+  -v, --kloglevel int                  Log level for kubernetes client library
+      --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
+      --loglevel string                Log level for kubectl argo rollouts (default &quot;info&quot;)
+  -n, --namespace string               If present, the namespace scope for this CLI request
+      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don&#39;t timeout requests. (default &quot;0&quot;)
+  -s, --server string                  The address and port of the Kubernetes API server
+      --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
+      --token string                   Bearer token for authentication to the API server
+      --user string                    The name of the kubeconfig user to use
+</code></pre></div>
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Kubernetes cluster with argo-rollouts controller installed (see <a href="../installation/#controller-installation">install guide</a>)</li>
-<li>kubectl with argo-rollouts plugin installed (see <a href="../installation/#kubectl-plugin-installation">install guide</a>)</li>
+<li><a href="../kubectl-argo-rollouts/">rollouts</a>   - Manage argo rollouts</li>
 </ul>
-<h2 id="1-deploying-a-rollout">1. Deploying a Rollout<a class="headerlink" href="#1-deploying-a-rollout" title="Permanent link">&para;</a></h2>
-<p>First we deploy a Rollout resource and a Kubernetes Service targeting that Rollout. The example
-Rollout in this guide utilizes a canary update strategy which sends 20% of traffic to the canary,
-followed by a manual promotion, and finally gradual automated traffic increases for the remainder
-of the upgrade. This behavior is described in the following portion of the Rollout spec:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-  <span class="nt">strategy</span><span class="p">:</span>
-    <span class="nt">canary</span><span class="p">:</span>
-      <span class="nt">steps</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10</span><span class="p p-Indicator">}</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10</span><span class="p p-Indicator">}</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">10</span><span class="p p-Indicator">}</span>
-</code></pre></div>
-<p>Run the following command to deploy the initial Rollout and Service:</p>
-<div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml
-</code></pre></div>
-<p>Initial creations of any Rollout will immediately scale up the replicas to 100% (skipping any
-canary upgrade steps, analysis, etc...) since there was no upgrade that occurred.</p>
-<p>The Argo Rollouts kubectl plugin allows you to visualize the Rollout, its related resources
-(ReplicaSets, Pods, AnalysisRuns), and presents live state changes as they occur.
-To watch the rollout as it deploys, run the <code>get rollout --watch</code> command from plugin:</p>
-<p><div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo --watch
-</code></pre></div>
-<img alt="Initial Rollout" src="basic/initial-rollout.png" /></p>
-<h2 id="2-updating-a-rollout">2. Updating a Rollout<a class="headerlink" href="#2-updating-a-rollout" title="Permanent link">&para;</a></h2>
-<p>Next it is time to perform an update. Just as with Deployments, any change to the Pod template
-field (<code>spec.template</code>) results in a new version (i.e. ReplicaSet) to be deployed. Updating a
-Rollout involves modifying the rollout spec, typically changing the container image field with
-a new version, and then running  <code>kubectl apply</code> against the new manifest. As a convenience, the
-rollouts plugin provides a <code>set image</code> command, which performs these steps against the live rollout
-object in-place. Run the following command to update the <code>rollouts-demo</code> Rollout with the "yellow"
-version of the container:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo <span class="se">\</span>
-  rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
-</code></pre></div>
-<p>During a rollout update, the controller will progress through the steps defined in the Rollout's
-update strategy. The example rollout sets a 20% traffic weight to the canary, and pauses the rollout
-indefinitely until user action is taken to unpause/promote the rollout. After updating the image, 
-watch the rollout again until it reaches the paused state:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo --watch
-</code></pre></div>
-<p><img alt="Paused Canary" src="basic/paused-rollout.png" /></p>
-<p>When the demo rollout reaches the second step, we can see from the plugin that the Rollout is in
-a paused state, and now has 1 of 5 replicas running the new version of the pod template, and 4 of 5
-replicas running the old version. This equates to the 20% canary weight as defined by the
-<code>setWeight: 20</code> step.</p>
-<h2 id="3-promoting-a-rollout">3. Promoting a Rollout<a class="headerlink" href="#3-promoting-a-rollout" title="Permanent link">&para;</a></h2>
-<p>The rollout is now in an paused state. When a Rollout reaches a <code>pause</code> step with no duration, it 
-will remain in a paused state indefinitely until it is resumed/promoted. To manually promote a
-rollout to the next step, run the <code>promote</code> command of the plugin:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts promote rollouts-demo
-</code></pre></div>
-<p>After promotion, Rollout will proceed to execute the remaining steps. The remaining rollout steps
-in our example are fully automated, so the Rollout will eventually complete steps until it has has
-fully transitioned to the new version. Watch the rollout again until it has completed all steps:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout rollouts-demo --watch
-</code></pre></div>
-<p><img alt="Promoted Rollout" src="basic/promoted-rollout.png" /></p>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>The <code>promote</code> command also supports the ability to skip all remaining steps with the
-<code>--skip-all-steps</code> flag.</p>
-</div>
-<p>Once all steps complete successfully, the new ReplicaSet is marked as the "stable" ReplicaSet.
-Whenever a rollout is aborted during an update, either automatically via a failed canary analysis,
-or manually by a user, the Rollout will fall back to the "stable" version.</p>
-<h2 id="4-aborting-a-rollout">4. Aborting a Rollout<a class="headerlink" href="#4-aborting-a-rollout" title="Permanent link">&para;</a></h2>
-<p>Next we will learn how to manually abort a rollout during an update. First, deploy a new "red"
-version of the container using the <code>set image</code> command, and wait for the rollout to reach the
-paused step again:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo <span class="se">\</span>
-  rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:red
-</code></pre></div>
-<p><img alt="Paused Rollout (Revision 3)" src="basic/paused-rollout-rev3.png" /></p>
-<p>This time, instead of promoting the rollout to the next step, we will abort the update, so that it
-falls back to the "stable" version. The plugin provides an <code>abort</code> command as a way to manually
-abort a rollout at any time during an update:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts abort rollouts-demo
-</code></pre></div>
-<p>When a rollout is aborted, it will scale up the "stable" version of the ReplicaSet (in this
-case the yellow image), and scale down any other versions. Although the stable version of the
-ReplicaSet may be running and is healthy, the overall rollout is still considered <code>Degraded</code>, 
-since the desired version (the red image) is not the version which is actually running.</p>
-<p><img alt="Aborted Rollout" src="basic/aborted-rollout.png" /></p>
-<p>In order to make Rollout considered Healthy again and not Degraded, it is necessary to change the
-desired state back to the previous, stable version. This typically involves running <code>kubectl apply</code>
-against the previous Rollout spec. In our case, we can simply re-run the <code>set image</code> command using
-the previous, "yellow" image.</p>
-<div class="highlight"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">kubectl argo rollouts set image rollouts-demo \</span>
-  <span class="l l-Scalar l-Scalar-Plain">rollouts-demo=argoproj/rollouts-demo:yellow</span>
-</code></pre></div>
-<p>After running this command, you should notice that the Rollout immediately becomes Healthy, and
-there is no activity with regards to new ReplicaSets becoming created.</p>
-<p><img alt="Healthy Rollout (Revision 4)" src="basic/healthy-rollout-rev4.png" /></p>
-<p>When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of
-an update), and the stable manifest were re-applied, the Rollout detects this as a rollback 
-and <em>not</em> a update, and will fast-track the deployment of the stable ReplicaSet by skipping
-analysis, and the steps.</p>
-<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
-<p>In this guide, we have learned basic capabilities of Argo Rollouts, including:</p>
-<ul>
-<li>Deploying a rollout</li>
-<li>Performing a canary update</li>
-<li>Manual promotion</li>
-<li>Manual abortion </li>
-</ul>
-<p>The Rollout in this basic example did not utilize a ingress controller or service mesh provider
-to route traffic. Instead, it used normal Kubernetes Service networking (i.e. kube-proxy) to achieve
-an <em>approximate</em> canary weight, based on the closest ratio of new to old replica counts.
-As a result, this Rollout had a limitation in that it could only achieve a minimum canary
-weight of 20%, by scaling 1 of 5 pods to run the new version. In order to achieve much
-finer grained canarys, a ingress controller or service mesh is necessary.</p>
-<p>Follow the <a href="nginx/">NGINX Guide</a> to see how Argo Rollouts can leverage a networking provider
-to gain more advanced traffic shaping.</p>
                 
               
               
@@ -1332,7 +1232,7 @@ to gain more advanced traffic shaping.</p>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid" aria-label="Footer">
         
-          <a href="../concepts/" class="md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../kubectl-argo-rollouts_terminate_experiment/" class="md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-footer-nav__button md-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
             </div>
@@ -1341,19 +1241,19 @@ to gain more advanced traffic shaping.</p>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Concepts
+                Rollouts Terminate Experiment
               </div>
             </div>
           </a>
         
         
-          <a href="alb/" class="md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../kubectl-argo-rollouts_version/" class="md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-footer-nav__title">
               <div class="md-ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                ALB
+                Rollouts Version
               </div>
             </div>
             <div class="md-footer-nav__button md-icon">
@@ -1380,15 +1280,15 @@ to gain more advanced traffic shaping.</p>
       
     </div>
     
-      <script src="../assets/javascripts/vendor.7e0ee788.min.js"></script>
-      <script src="../assets/javascripts/bundle.c1ccee15.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
+      <script src="../../../assets/javascripts/vendor.7e0ee788.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c1ccee15.min.js"></script><script id="__lang" type="application/json">{"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}</script>
       
       <script>
         app = initialize({
-          base: "..",
+          base: "../../..",
           features: [],
           search: Object.assign({
-            worker: "../assets/javascripts/worker/search.4ac00218.min.js"
+            worker: "../../../assets/javascripts/worker/search.4ac00218.min.js"
           }, typeof search !== "undefined" && search)
         })
       </script>
