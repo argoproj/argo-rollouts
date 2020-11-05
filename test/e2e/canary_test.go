@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
@@ -229,4 +230,126 @@ spec:
 		ExpectAnalysisRunCount(1).
 		// verify we don't scale down immediately after and honor maxSurge/maxUnavailable
 		ExpectCanaryStablePodCount(3, 2)
+}
+
+// TestEphemeralMetadata tests the ephemeral metadata feature
+func (s *CanarySuite) TestEphemeralMetadata() {
+	podsHaveStableMetadata := func(pods *corev1.PodList) bool {
+		for _, pod := range pods.Items {
+			if pod.Labels["role"] != "stable" {
+				return false
+			}
+		}
+		return true
+	}
+	podsHaveCanaryMetadata := func(pods *corev1.PodList) bool {
+		for _, pod := range pods.Items {
+			if pod.Labels["role"] != "canary" {
+				return false
+			}
+		}
+		return true
+	}
+	podsHaveCanaryMetadata2 := func(pods *corev1.PodList) bool {
+		for _, pod := range pods.Items {
+			if _, ok := pod.Labels["role"]; ok {
+				return false
+			}
+			if pod.Labels["role2"] != "canary2" {
+				return false
+			}
+		}
+		return true
+	}
+	podsHaveStableMetadata2 := func(pods *corev1.PodList) bool {
+		for _, pod := range pods.Items {
+			if _, ok := pod.Labels["role"]; ok {
+				return false
+			}
+			if pod.Labels["role2"] != "stable2" {
+				return false
+			}
+		}
+		return true
+	}
+
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ephemeral-metadata
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      canaryMetadata:
+        labels:
+          role: canary
+      stableMetadata:
+        labels:
+          role: stable
+      steps:
+      - setWeight: 50
+      - pause: {}
+  selector:
+    matchLabels:
+      app: ephemeral-metadata
+  template:
+    metadata:
+      labels:
+        app: ephemeral-metadata
+    spec:
+      containers:
+      - name: ephemeral-metadata
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(2).
+		Then().
+		ExpectPods("all pods have stable metadata", podsHaveStableMetadata).
+		When().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPods("revision 2 has canary metadata", "2", podsHaveCanaryMetadata).
+		ExpectRevisionPods("revision 1 has stable metadata", "1", podsHaveStableMetadata).
+		When().
+		// update canary metadata to different value, verify old data is gone, and replaced with new
+		PatchSpec(`
+spec:
+  strategy:
+    canary:
+      canaryMetadata:
+        labels:
+          role: null
+          role2: canary2`).
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPods("revision 2 has canary metadata2", "2", podsHaveCanaryMetadata2).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		// after fully promoted, revision 2 should switch to stable metadata
+		ExpectRevisionPods("revision 2 has stable metadata", "2", podsHaveStableMetadata).
+		When().
+		// if we change stable metadata, pods and replicasets should see the change
+		PatchSpec(`
+spec:
+  strategy:
+    canary:
+      stableMetadata:
+        labels:
+          role: null
+          role2: stable2`).
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPods("revision 2 has stable metadata2", "2", podsHaveStableMetadata2)
 }

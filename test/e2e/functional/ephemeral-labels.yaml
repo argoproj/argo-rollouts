@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ephemeral-label
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      stableMetadata:
+        labels:
+          role: stable
+      canaryMetadata:
+        labels:
+          role: canary
+      steps:
+      - setWeight: 50
+      - pause: {}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: ephemeral-label
+  template:
+    metadata:
+      labels:
+        app: ephemeral-label
+    spec:
+      containers:
+      - name: ephemeral-label
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 5m

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -730,4 +731,72 @@ func TestGetCurrentExperiment(t *testing.T) {
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
+}
+
+func TestUpdateEphemeralPodMetadata(t *testing.T) {
+	rs := appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: corev1.NamespaceDefault,
+			Annotations: map[string]string{
+				EphemeralMetadataAnnotation: `{"labels":{"aaa":"111","bbb":"222"},"annotations":{"ccc":"333","ddd":"444"}}`,
+			},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"aaa": "111",
+						"bbb": "222",
+					},
+					Annotations: map[string]string{
+						"ccc": "333",
+						"ddd": "444",
+					},
+				},
+			},
+		},
+	}
+	{
+		// verify applying the same pod-metadata is a noop
+		oldPodMetadata := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "111",
+				"bbb": "222",
+			},
+			Annotations: map[string]string{
+				"ccc": "333",
+				"ddd": "444",
+			},
+		}
+		newRS, modified := UpdateEphemeralPodMetadata(&rs, &oldPodMetadata)
+		assert.False(t, modified)
+		assert.Equal(t, rs.Annotations, newRS.Annotations)
+		assert.Equal(t, rs.Spec.Template.Labels, newRS.Spec.Template.Labels)
+		assert.Equal(t, rs.Spec.Template.Annotations, newRS.Spec.Template.Annotations)
+	}
+	{
+		// verify applying new new update works
+		newPodMetadata := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "111",
+			},
+			Annotations: map[string]string{
+				"ccc": "333",
+			},
+		}
+		newRS, modified := UpdateEphemeralPodMetadata(&rs, &newPodMetadata)
+		assert.True(t, modified)
+		assert.Equal(t, newPodMetadata.Labels, newRS.Spec.Template.Labels)
+		assert.Equal(t, newPodMetadata.Annotations, newRS.Spec.Template.Annotations)
+		assert.Equal(t, newRS.Annotations[EphemeralMetadataAnnotation], `{"labels":{"aaa":"111"},"annotations":{"ccc":"333"}}`)
+	}
+	{
+		// verify we can remove metadata
+		newRS, modified := UpdateEphemeralPodMetadata(&rs, nil)
+		assert.True(t, modified)
+		assert.Empty(t, newRS.Spec.Template.Labels)
+		assert.Empty(t, newRS.Spec.Template.Annotations)
+		assert.Empty(t, newRS.Annotations[EphemeralMetadataAnnotation])
+	}
 }

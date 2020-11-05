@@ -537,6 +537,16 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(AntiAffinity)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.CanaryMetadata != nil {
+		in, out := &in.CanaryMetadata, &out.CanaryMetadata
+		*out = new(PodTemplateMetadata)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.StableMetadata != nil {
+		in, out := &in.StableMetadata, &out.StableMetadata
+		*out = new(PodTemplateMetadata)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

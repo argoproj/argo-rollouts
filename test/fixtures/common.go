@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,6 +22,7 @@ import (
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -75,6 +77,17 @@ func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
 	}
 	c.t.Fatalf("Could not find ReplicaSet with revision: %s", revision)
 	return nil
+}
+
+func (c *Common) GetPodsByRevision(revision string) *corev1.PodList {
+	rs := c.GetReplicaSetByRevision(revision)
+	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(c.Context, c.kubeClient, rs)
+	c.CheckError(err)
+	podList := corev1.PodList{}
+	for _, pod := range pods {
+		podList.Items = append(podList.Items, *pod)
+	}
+	return &podList
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {

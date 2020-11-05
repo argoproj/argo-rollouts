@@ -11342,6 +11342,17 @@ spec:
                         requiredDuringSchedulingIgnoredDuringExecution:
                           type: object
                       type: object
+                    canaryMetadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                     canaryService:
                       type: string
                     maxSurge:
@@ -11354,6 +11365,17 @@ spec:
                       - type: integer
                       - type: string
                       x-kubernetes-int-or-string: true
+                    stableMetadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                     stableService:
                       type: string
                     steps:

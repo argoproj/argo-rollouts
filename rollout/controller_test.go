@@ -631,6 +631,18 @@ func (f *fixture) expectPatchReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	return len
 }
 
+func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "pods"}, p.Namespace, p))
+	return len
+}
+
+func (f *fixture) expectListPodAction(namespace string) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewListAction(schema.GroupVersionResource{Resource: "pods"}, schema.GroupVersionKind{Kind: "Pod", Version: "v1"}, namespace, metav1.ListOptions{}))
+	return len
+}
+
 func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
 	len := len(f.actions)
 	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
@@ -905,6 +917,20 @@ func (f *fixture) getDeletedExperiment(index int) string {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
 	}
 	return deleteAction.GetName()
+}
+
+func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	updateAction, ok := action.(core.UpdateAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
+	}
+	obj := updateAction.GetObject()
+	pod := &corev1.Pod{}
+	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+	objMap, _ := converter.ToUnstructured(obj)
+	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, pod)
+	return pod
 }
 
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
@@ -1239,7 +1265,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	// this should only update observedGeneration and nothing else
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedPatch to match the new hash.
-	expectedPatch := `{"status":{"observedGeneration":"7c59bcf464"}}`
+	expectedPatch := `{"status":{"observedGeneration":"6f94ff96c9"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
