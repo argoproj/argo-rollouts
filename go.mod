@@ -17,8 +17,8 @@ require (
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/newrelic/newrelic-client-go v0.41.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.5.0
-	github.com/prometheus/common v0.9.1
+	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/common v0.14.0
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spaceapegames/go-wavefront v1.8.1
