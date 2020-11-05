@@ -2200,6 +2200,10 @@ was greater than <code>0.90</code></p>
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
 <h2 id="datadog-metrics">Datadog Metrics<a class="headerlink" href="#datadog-metrics" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v0.10.0</p>
+</div>
 <p>A <a href="https://www.datadoghq.com/">Datadog</a> query can be used to obtain measurements for analysis.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
@@ -2232,6 +2236,10 @@ to convert a result value to a numeric type so that mathematical comparison oper
   <span class="nt">app-key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;datadog-app-key&gt;</span>
 </code></pre></div>
 <h2 id="newrelic-metrics">NewRelic Metrics<a class="headerlink" href="#newrelic-metrics" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v0.10.0</p>
+</div>
 <p>A <a href="https://newrelic.com/">New Relic</a> query using <a href="https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language">NRQL</a> can be used to obtain measurements for analysis.  </p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
