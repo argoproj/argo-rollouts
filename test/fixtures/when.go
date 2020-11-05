@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	watchutil "k8s.io/client-go/tools/watch"
+	retryutil "k8s.io/client-go/util/retry"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
@@ -158,16 +159,19 @@ func (w *When) PatchSpec(patch string) *When {
 	w.CheckError(err)
 
 	// Apply patch
-	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
-	w.CheckError(err)
-	originalBytes, err := json.Marshal(ro)
-	w.CheckError(err)
-	newRolloutBytes, err := strategicpatch.StrategicMergePatch(originalBytes, jsonPatch, rov1.Rollout{})
-	w.CheckError(err)
-	var newRollout rov1.Rollout
-	err = json.Unmarshal(newRolloutBytes, &newRollout)
-	w.CheckError(err)
-	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(w.Context, &newRollout, metav1.UpdateOptions{})
+	err = retryutil.RetryOnConflict(retryutil.DefaultRetry, func() error {
+		ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+		w.CheckError(err)
+		originalBytes, err := json.Marshal(ro)
+		w.CheckError(err)
+		newRolloutBytes, err := strategicpatch.StrategicMergePatch(originalBytes, jsonPatch, rov1.Rollout{})
+		w.CheckError(err)
+		var newRollout rov1.Rollout
+		err = json.Unmarshal(newRolloutBytes, &newRollout)
+		w.CheckError(err)
+		_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(w.Context, &newRollout, metav1.UpdateOptions{})
+		return err
+	})
 	w.CheckError(err)
 	w.log.Infof("Patched rollout: %s", string(jsonPatch))
 	return w
