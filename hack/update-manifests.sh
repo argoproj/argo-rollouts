@@ -17,9 +17,9 @@ if [ ! -z "${IMAGE_TAG}" ]; then
 fi
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-kustomize build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+kustomize build --load_restrictor none "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 update_image "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-kustomize build "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+kustomize build --load_restrictor none "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
 update_image "${SRCROOT}/manifests/namespace-install.yaml"

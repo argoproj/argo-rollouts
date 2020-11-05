@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -34,6 +33,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 const controllerAgentName = "rollouts-controller"
@@ -263,7 +263,6 @@ func NewManager(
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
 func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
-
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
 	defer c.ingressWorkqueue.ShutDown()
@@ -272,8 +271,14 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
+	}
+	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+	if c.namespace == metav1.NamespaceAll {
+		if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
+			return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+		}
 	}
 	// Check if Istio exists
 	if istioutil.DoesIstioExist(c.dynamicClientSet, c.namespace, c.defaultIstioVersion) {
