@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,7 +38,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	c.log.Info("Cleaning up old replicasets, experiments, and analysis runs")
+	err = c.reconcileEphemeralMetadata()
+	if err != nil {
+		return err
+	}
+
 	if err := c.cleanupRollouts(c.otherRSs); err != nil {
 		return err
 	}
@@ -360,4 +366,78 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
+func (c *rolloutContext) reconcileEphemeralMetadata() error {
+	ctx := context.TODO()
+	if c.rollout.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
+
+	if fullyRolledOut {
+		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
+		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		if err != nil {
+			return err
+		}
+	} else {
+		// we are in a upgrading state. newRS is a canary
+		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+		if err != nil {
+			return err
+		}
+		// sync stable metadata to the stable rs
+		err = c.syncEphemeralMetadata(ctx, c.stableRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
+	for _, rs := range c.otherRSs {
+		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
+	if rs == nil {
+		return nil
+	}
+	modifiedRS, modified := replicasetutil.UpdateEphemeralPodMetadata(rs, podMetadata)
+	if !modified {
+		return nil
+	}
+	// 1. Sync ephemeral metadata to pods
+	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods {
+		if reflect.DeepEqual(pod.Annotations, modifiedRS.Spec.Template.Annotations) &&
+			reflect.DeepEqual(pod.Labels, modifiedRS.Spec.Template.Labels) {
+			continue
+		}
+		// if we get here, the pod metadata needs correction
+		pod.Annotations = modifiedRS.Spec.Template.Annotations
+		pod.Labels = modifiedRS.Spec.Template.Labels
+		_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
+	}
+
+	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
+	_, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+	return nil
 }

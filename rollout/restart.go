@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -78,24 +77,6 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 	return nil
 }
 
-func (p RolloutPodRestarter) getPodsOwnedByReplicaSet(rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
-	ctx := context.TODO()
-	pods, err := p.client.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(rs.Spec.Selector),
-	})
-	if err != nil {
-		return nil, err
-	}
-	var podOwnedByRS []*corev1.Pod
-	for i := range pods.Items {
-		pod := pods.Items[i]
-		if metav1.IsControlledBy(&pod, rs) {
-			podOwnedByRS = append(podOwnedByRS, &pod)
-		}
-	}
-	return podOwnedByRS, nil
-}
-
 // restartReplicaSetPod gets all the pods for a ReplicaSet and confirms that they are all newer than the restartAt time.
 // If all the pods do not have a deletion timestamp and are newer than the restartAt time, the method returns true
 // indicating that the ReplicaSet's pods needs no more restarts. If any of the pods have a deletion timestamp, the
@@ -106,7 +87,7 @@ func (p RolloutPodRestarter) restartReplicaSetPod(roCtx *rolloutContext, rs *app
 	ctx := context.TODO()
 	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	restartedAt := roCtx.rollout.Spec.RestartAt
-	pods, err := p.getPodsOwnedByReplicaSet(rs)
+	pods, err := replicaset.GetPodsOwnedByReplicaSet(ctx, p.client, rs)
 	if err != nil {
 		return false, err
 	}

@@ -23,11 +23,12 @@ type rolloutContext struct {
 	// newRS will be nil when the pod template spec changes.
 	newRS *appsv1.ReplicaSet
 	// stableRS is the "stable" ReplicaSet which will be scaled up upon an abort.
-	// stableRS will be nil when a Rollout is first deployed.
+	// stableRS will be nil when a Rollout is first deployed, and will be equal to newRS when fully promoted
 	stableRS *appsv1.ReplicaSet
 	// allRSs are all the ReplicaSets associated with the Rollout
 	allRSs []*appsv1.ReplicaSet
-	// olderRSs are "older" ReplicaSets -- anything which is not the new. includes stableRS
+	// olderRSs are "older" ReplicaSets -- anything which is not the new
+	// this includes the stableRS (when in the middle of an update)
 	olderRSs []*appsv1.ReplicaSet
 	// otherRSs are ReplicaSets which are neither new or stable (allRSs - newRS - stableRS)
 	otherRSs []*appsv1.ReplicaSet

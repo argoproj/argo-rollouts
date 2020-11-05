@@ -1,6 +1,7 @@
 package replicaset
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -11,8 +12,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -1112,4 +1115,55 @@ func TestHasScaleDownDeadline(t *testing.T) {
 		}
 		assert.True(t, HasScaleDownDeadline(rs))
 	}
+}
+
+func TestGetPodsOwnedByReplicaSet(t *testing.T) {
+	rs := appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: corev1.NamespaceDefault,
+			UID:       "11-22-33-44",
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": "abc123",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"rollouts-pod-template-hash": "abc123",
+					},
+				},
+			},
+		},
+	}
+	rsGVK := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}
+	pod := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook-abc123",
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"rollouts-pod-template-hash": "abc123",
+			},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&rs, rsGVK)},
+		},
+	}
+
+	pod2 := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook-xyz789",
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"rollouts-pod-template-hash": "abc123",
+			},
+		},
+	}
+
+	client := k8sfake.NewSimpleClientset(&pod, &pod2)
+	pods, err := GetPodsOwnedByReplicaSet(context.TODO(), client, &rs)
+	assert.NoError(t, err)
+	assert.Len(t, pods, 1)
+	assert.Equal(t, "guestbook-abc123", pods[0].Name)
 }

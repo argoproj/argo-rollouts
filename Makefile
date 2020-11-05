@@ -98,7 +98,7 @@ lint:
 
 .PHONY: test
 test: test-kustomize
-	go test -failfast -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
 
 .PHONY: test-kustomize
 test-kustomize:

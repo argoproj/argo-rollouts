@@ -916,6 +916,9 @@ to convert a result value to a numeric type so that mathematical comparison oper
 
 ## Datadog Metrics
 
+!!! important
+    Available since v0.10.0
+
 A [Datadog](https://www.datadoghq.com/) query can be used to obtain measurements for analysis.
 
 ```yaml
@@ -954,6 +957,9 @@ data:
 ```
 
 ## NewRelic Metrics
+
+!!! important
+    Available since v0.10.0
 
 A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.  
 

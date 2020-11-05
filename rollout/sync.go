@@ -14,6 +14,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -125,7 +126,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(c.rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 
 	// Create new ReplicaSet
-	newRS := appsv1.ReplicaSet{
+	newRS := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            c.rollout.Name + "-" + podTemplateSpecHash,
 			Namespace:       c.rollout.Namespace,
@@ -139,20 +140,33 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	allRSs := append(c.allRSs, &newRS)
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, allRSs, &newRS)
+	allRSs := append(c.allRSs, newRS)
+	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, allRSs, newRS)
 	if err != nil {
 		return nil, err
 	}
 
-	*(newRS.Spec.Replicas) = newReplicasCount
+	newRS.Spec.Replicas = pointer.Int32Ptr(newReplicasCount)
 	// Set new replica set's annotation
-	annotations.SetNewReplicaSetAnnotations(c.rollout, &newRS, newRevision, false)
+	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
+
+	if c.rollout.Spec.Strategy.Canary != nil {
+		if c.stableRS != nil && c.stableRS != c.newRS {
+			// If this is a canary rollout, with ephemeral *canary* metadata, and there is a stable RS,
+			// then inject the canary metadata so that all the RS's new pods get the canary labels/annotation
+			newRS, _ = replicasetutil.UpdateEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+		} else {
+			// Otherwise, if stableRS is nil, we are in a brand-new rollout and then this replicaset
+			// will eventually become the stableRS, so we should inject the stable labels/annotation
+			newRS, _ = replicasetutil.UpdateEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		}
+	}
+
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Rollout.
 	alreadyExists := false
-	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(ctx, &newRS, metav1.CreateOptions{})
+	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(ctx, newRS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Rollout.
 	case errors.IsAlreadyExists(err):

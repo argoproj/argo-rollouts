@@ -190,6 +190,12 @@ type CanaryStrategy struct {
 	// AntiAffinity enables anti-affinity rules for Canary deployment
 	// +optional
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
+	// CanaryMetadata specify labels and annotations which will be attached to the canary pods for
+	// the duration which they act as a canary, and will be removed after
+	CanaryMetadata *PodTemplateMetadata `json:"canaryMetadata,omitempty"`
+	// StableMetadata specify labels and annotations which will be attached to the stable pods for
+	// the duration which they act as a canary, and will be removed after
+	StableMetadata *PodTemplateMetadata `json:"stableMetadata,omitempty"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
