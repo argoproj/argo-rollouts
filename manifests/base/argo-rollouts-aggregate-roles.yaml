@@ -38,6 +38,7 @@ rules:
   resources:
   - rollouts
   - rollouts/scale
+  - rollouts/status
   - experiments
   - analysistemplates
   - clusteranalysistemplates
@@ -68,6 +69,7 @@ rules:
   resources:
   - rollouts
   - rollouts/scale
+  - rollouts/status
   - experiments
   - analysistemplates
   - clusteranalysistemplates

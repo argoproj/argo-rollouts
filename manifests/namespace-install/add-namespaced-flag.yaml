@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts
+spec:
+  template:
+    spec:
+      containers:
+      - name: argo-rollouts
+        args:
+        - --namespaced
