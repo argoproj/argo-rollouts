@@ -1,5 +1,31 @@
 # Changelog
 
+# v0.9.3
+
+## Changes since v0.9.2
+
+### Controller
+* fix: scaleDownDelayRevisionLimit was off by one (#816)
+* fix: background analysis refs were not verified. requeue InvalidSpec rollouts (#814)
+* fix(controller): fix unhandled panic from malformed rollout (#801)
+* fix(controller): validation should not consider privileged security context (#802)
+
+# v0.9.2
+
+## Changes since v0.9.1
+
+### Controller
+* fix(controller): controller did not honor maxUnavailable during rollback (#786)
+* fix(controller): blue-green with analysis was broken (#780)
+* fix(controller): blue-green fast-tracked rollbacks would still start analysis templates
+* fix(controller): prePromotionAnalysis with previewReplicaCount would pause indefinitely w/o running analysis
+* fix(controller): calculate available replicas from active ReplicaSet (#757)
+
+### Plugin
+* feat(plugin): indicate the stable ReplicaSet for blue-green rollouts in plugin
+* feat(plugin): plugin now surfaces InvalidSpec errors and failed analysisrun messages (#729)
+* fix(plugin): bluegreen scaleDownDelay was delaying Healthy status. Present errors in message field (#768)
+
 # v0.9.1
 
 ## Changes since v0.9.0
