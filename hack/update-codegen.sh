@@ -34,3 +34,4 @@ cp -r "${TEMP_DIR}/github.com/argoproj/argo-rollouts/." "${SCRIPT_ROOT}/"
 CONTROLLERGEN_VERSION=$(go list -m sigs.k8s.io/controller-tools | awk '{print $2}' | head -1)
 CONTROLLERGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/sigs.k8s.io/controller-tools@${CONTROLLERGEN_VERSION}")
 go build -o dist/controller-gen $CONTROLLERGEN_PKG/cmd/controller-gen/
+./dist/controller-gen --version
