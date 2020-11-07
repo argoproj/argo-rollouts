@@ -44,6 +44,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [VISITS Technologies](https://visits.world/en)
 1. [Spotify](https://www.spotify.com/)
 1. [New Relic](https://newrelic.com/)
+1. [Quipper](https://www.quipper.com/)
 
 ## Community Blogs and Presentations
 * [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY) @ [The DevOps Toolkit Series](https://www.youtube.com/c/TheDevOpsToolkitSeries)
