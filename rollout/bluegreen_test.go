@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
-	updatedRolloutIndex := f.expectUpdateRolloutAction(r)
+	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -989,7 +990,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)

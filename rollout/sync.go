@@ -84,10 +84,17 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
-	revisionNeedsUpdate := annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
-	if revisionNeedsUpdate {
-		c.log.Infof("Updating rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
+	if annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation]) {
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			c.log.WithError(err).Error("Error: updating rollout revision")
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Updated rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
 	}
+
 	// If no other Progressing condition has been recorded and we need to estimate the progress
 	// of this rollout then it is likely that old users started caring about progress. In that
 	// case we need to take into account the first time we noticed their new replica set.
@@ -96,15 +103,14 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		msg := fmt.Sprintf(conditions.FoundNewRSMessage, rsCopy.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FoundNewRSReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
-		c.log.Infof("Initializing Progressing condition: %v", condition)
-	}
-
-	if revisionNeedsUpdate || cond == nil {
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout")
+			c.log.WithError(err).Error("Error: updating rollout revision")
 			return nil, err
 		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Initialized Progressing condition: %v", condition)
 	}
 	return rsCopy, nil
 }
@@ -198,7 +204,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		*c.rollout.Status.CollisionCount++
 		// Update the collisionCount for the Rollout and let it requeue by returning the original
 		// error.
-		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if roErr == nil {
 			c.log.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *c.rollout.Status.CollisionCount)
 		}
@@ -219,16 +225,25 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		c.recorder.Eventf(c.rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
-	needsUpdate := annotations.SetRolloutRevision(c.rollout, newRevision)
+	if annotations.SetRolloutRevision(c.rollout, newRevision) {
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.log.Infof("Updated rollout revision to %s", c.rollout.Annotations[annotations.RevisionAnnotation])
+	}
 	if !alreadyExists {
 		msg := fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewReplicaSetReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
-		needsUpdate = true
-	}
-
-	if needsUpdate {
-		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Set rollout condition: %v", condition)
 	}
 	return createdRS, err
 }
@@ -485,7 +500,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
 	ctx := context.TODO()
 	conditions.SetRolloutCondition(newStatus, *condition)
-	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
+	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
@@ -503,7 +518,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		return nil
 	}
 	c.log.Debugf("Rollout Condition Patch: %s", patch)
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		c.log.Warnf("Error patching rollout: %v", err)
 		return err
@@ -610,7 +625,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus) error {
 	ctx := context.TODO()
 	c.pauseContext.CalculatePauseStatus(newStatus)
-	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(c.rollout.Spec)
+	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: c.rollout.Status,
@@ -627,7 +642,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
-	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		c.log.Warningf("Error updating application: %v", err)
 		return err

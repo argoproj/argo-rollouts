@@ -1,6 +1,7 @@
 package info
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,8 +16,9 @@ import (
 func newCanaryRollout() *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "can-guestbook",
-			Namespace: "test",
+			Name:       "can-guestbook",
+			Namespace:  "test",
+			Generation: 1,
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(5),
@@ -39,11 +41,12 @@ func newCanaryRollout() *v1alpha1.Rollout {
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
-			Replicas:          4,
-			ReadyReplicas:     1,
-			UpdatedReplicas:   3,
-			AvailableReplicas: 2,
+			ObservedGeneration: "1",
+			CurrentStepIndex:   pointer.Int32Ptr(1),
+			Replicas:           4,
+			ReadyReplicas:      1,
+			UpdatedReplicas:    3,
+			AvailableReplicas:  2,
 		},
 	}
 }
@@ -51,8 +54,9 @@ func newCanaryRollout() *v1alpha1.Rollout {
 func newBlueGreenRollout() *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bg-guestbook",
-			Namespace: "test",
+			Name:       "bg-guestbook",
+			Namespace:  "test",
+			Generation: 1,
 		},
 		Spec: v1alpha1.RolloutSpec{
 			Replicas: pointer.Int32Ptr(5),
@@ -61,10 +65,11 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			Replicas:          4,
-			ReadyReplicas:     1,
-			UpdatedReplicas:   3,
-			AvailableReplicas: 2,
+			ObservedGeneration: "1",
+			Replicas:           4,
+			ReadyReplicas:      1,
+			UpdatedReplicas:    3,
+			AvailableReplicas:  2,
 		},
 	}
 }
@@ -201,7 +206,7 @@ func TestRolloutStatusPaused(t *testing.T) {
 	ro.Spec.Paused = true
 	status, message := RolloutStatusString(ro)
 	assert.Equal(t, "Paused", status)
-	assert.Equal(t, "", message)
+	assert.Equal(t, "manually paused", message)
 }
 
 func TestRolloutStatusProgressing(t *testing.T) {
@@ -267,8 +272,38 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro := newCanaryRollout()
 		ro.Spec.Replicas = nil
 		ro.Status = v1alpha1.RolloutStatus{
-			StableRS:       "abc1234",
-			CurrentPodHash: "abc1234",
+			ObservedGeneration: strconv.Itoa(int(ro.Generation)),
+			StableRS:           "abc1234",
+			CurrentPodHash:     "abc1234",
+		}
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "more replicas need to be updated", message)
+	}
+	{
+		// Rollout observed generation is not updated
+		ro := newCanaryRollout()
+		ro.Generation = 2
+		ro.Spec.Replicas = nil
+		ro.Status = v1alpha1.RolloutStatus{
+			StableRS:           "abc1234",
+			CurrentPodHash:     "abc1234",
+			ObservedGeneration: "1",
+		}
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "waiting for rollout spec update to be observed", message)
+	}
+	{
+		// Make sure we skip isGenerationObserved check when rollout is a v0.9 legacy rollout using
+		// a hash and not a numeric observed generation
+		ro := newCanaryRollout()
+		ro.Generation = 2
+		ro.Spec.Replicas = nil
+		ro.Status = v1alpha1.RolloutStatus{
+			StableRS:           "abc1234",
+			CurrentPodHash:     "abc1234",
+			ObservedGeneration: "7d66d4485f",
 		}
 		status, message := RolloutStatusString(ro)
 		assert.Equal(t, "Progressing", status)

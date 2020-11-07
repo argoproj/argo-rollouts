@@ -177,15 +177,15 @@ func (w *When) PatchSpec(patch string) *When {
 	return w
 }
 
-func (w *When) WaitForRolloutStatus(status string) *When {
+func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		s, _ := info.RolloutStatusString(ro)
 		return s == status
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
 
-func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
+func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		if ro.Status.CurrentStepIndex == nil || *ro.Status.CurrentStepIndex != index {
 			return false
@@ -204,32 +204,32 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 		}
 		return true
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), timeout...)
 }
 
-func (w *When) WaitForRolloutAvailableReplicas(count int32) *When {
+func (w *When) WaitForRolloutAvailableReplicas(count int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.AvailableReplicas == count
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.availableReplicas=%d", count), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.availableReplicas=%d", count), timeout...)
 }
 
-func (w *When) WaitForRolloutReplicas(count int32) *When {
+func (w *When) WaitForRolloutReplicas(count int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.Replicas == count
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), timeout...)
 }
 
-func (w *When) WaitForActiveRevision(revision string) *When {
+func (w *When) WaitForActiveRevision(revision string, timeout ...time.Duration) *When {
 	rs := w.GetReplicaSetByRevision(revision)
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.BlueGreen.ActiveSelector == rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), timeout...)
 }
 
-func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
+func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
 	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
@@ -243,6 +243,10 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 	})
 	w.CheckError(err)
 	defer retryWatcher.Stop()
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
 	timeoutCh := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
