@@ -129,7 +129,6 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
-				kubeInformerFactory.Core().V1().Secrets(),
 				jobInformerFactory.Batch().V1().Jobs(),
 				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
