@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
@@ -29,20 +30,11 @@ If not on a pause step use '--skip-current-step' to progress to the next step in
 )
 
 const (
-	setCurrentStepIndex = `{
-	"status": {
-		"currentStepIndex": %d
-	}
-}`
+	setCurrentStepIndex                 = `{"status":{"currentStepIndex":%d}}`
+	unpausePatch                        = `{"spec":{"paused":false}}`
+	clearPauseConditionsPatch           = `{"status":{"pauseConditions":null}}`
+	unpauseAndClearPauseConditionsPatch = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
 
-	unpausePatch = `{
-	"spec": {
-		"paused": false
-	},
-	"status": {
-		"pauseConditions": null
-	}
-}`
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
 	skipFlagWithNoStepCanaryError = "Cannot skip steps of a rollout without steps"
@@ -97,15 +89,36 @@ func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurre
 			return nil, fmt.Errorf(skipFlagWithNoStepCanaryError)
 		}
 	}
-	patch := getPatch(ro, skipCurrentStep, skipAllSteps)
-	ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		return nil, err
+
+	// This function is intended to be compatible with Rollouts v0.9 and Rollouts v0.10+, the latter
+	// of which uses CRD status subresources. When using status subresource, status must be updated
+	// separately from spec. Since we don't know which version is installed in the cluster, we
+	// attempt status patching first. If it errors with NotFound, it indicates that status
+	// subresource is not used (v0.9), at which point we need to use the unified patch that updates
+	// both spec and status. Otherwise, we proceed with a spec only patch.
+	specPatch, statusPatch, unifiedPatch := getPatches(ro, skipCurrentStep, skipAllSteps)
+	if statusPatch != nil {
+		ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, statusPatch, metav1.PatchOptions{}, "status")
+		if err != nil {
+			// NOTE: in the future, we can simply return error here, if we wish to drop support for v0.9
+			if !k8serrors.IsNotFound(err) {
+				return nil, err
+			}
+			// we got a NotFound error. status subresource is not being used, so perform unifiedPatch
+			specPatch = unifiedPatch
+		}
+	}
+	if specPatch != nil {
+		ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, specPatch, metav1.PatchOptions{})
+		if err != nil {
+			return nil, err
+		}
 	}
 	return ro, nil
 }
 
-func getPatch(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep bool) []byte {
+func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep bool) ([]byte, []byte, []byte) {
+	var specPatch, statusPatch, unifiedPatch []byte
 	switch {
 	case skipCurrentStep:
 		_, index := replicasetutil.GetCurrentCanaryStep(rollout)
@@ -114,10 +127,19 @@ func getPatch(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep bool) []by
 		if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
 			*index++
 		}
-		return []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+		unifiedPatch = statusPatch
 	case skipAllStep:
-		return []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
+		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
+		unifiedPatch = statusPatch
 	default:
-		return []byte(unpausePatch)
+		if rollout.Spec.Paused {
+			specPatch = []byte(unpausePatch)
+		}
+		if len(rollout.Status.PauseConditions) > 0 {
+			statusPatch = []byte(clearPauseConditionsPatch)
+		}
+		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 	}
+	return specPatch, statusPatch, unifiedPatch
 }

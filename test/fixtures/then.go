@@ -98,7 +98,7 @@ func (t *Then) ExpectCanaryStablePodCount(canaryCount, stableCount int) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	return t.expectPodCountByHash("canary", ro.Status.CurrentPodHash, canaryCount).
-		expectPodCountByHash("stable", ro.Status.Canary.StableRS, stableCount)
+		expectPodCountByHash("stable", ro.Status.StableRS, stableCount)
 }
 
 func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then {

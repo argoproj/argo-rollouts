@@ -168,7 +168,8 @@ spec:
 		ExpectPreviewRevision("2").
 		When().
 		ApplyManifests(original). // perform a rollback and make sure we skip pause/analysis
-		Sleep(2 * time.Second).   // checking too early may not catch the bug
+		Sleep(2 * time.Second).   // checking too early may not catch the bug where we create analysis unnecessarily
+		//WaitForRolloutStatus("Healthy", 2*time.Second). // rollout is Progressing->Healthy immediately
 		Then().
 		ExpectRolloutStatus("Healthy"). // rollout is healthy immediately
 		ExpectAnalysisRunCount(2).      // no new analysis runs created

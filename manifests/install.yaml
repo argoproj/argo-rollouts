@@ -11057,11 +11057,13 @@ spec:
     name: Current
     type: integer
   - JSONPath: .status.updatedReplicas
-    description: Total number of non-terminated pods targeted by this rollout that have the desired template spec
+    description: Total number of non-terminated pods targeted by this rollout that
+      have the desired template spec
     name: Up-to-date
     type: integer
   - JSONPath: .status.availableReplicas
-    description: Total number of available pods (ready for at least minReadySeconds) targeted by this rollout
+    description: Total number of available pods (ready for at least minReadySeconds)
+      targeted by this rollout
     name: Available
     type: integer
   group: argoproj.io
@@ -11078,6 +11080,7 @@ spec:
       labelSelectorPath: .status.selector
       specReplicasPath: .spec.replicas
       statusReplicasPath: .status.HPAReplicas
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -14101,8 +14104,6 @@ spec:
                   - name
                   - status
                   type: object
-                stableRS:
-                  type: string
               type: object
             collisionCount:
               format: int32
@@ -14191,137 +14192,6 @@ metadata:
     app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
-    app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-clusterrole
-    app.kubernetes.io/part-of: argo-rollouts
-  name: argo-rollouts-role
-rules:
-- apiGroups:
-  - argoproj.io
-  resources:
-  - rollouts
-  - rollouts/finalizers
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - analysisruns
-  - analysisruns/finalizers
-  - experiments
-  - experiments/finalizers
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - argoproj.io
-  resources:
-  - analysistemplates
-  - clusteranalysistemplates
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list
-  - delete
-  - update
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - update
-  - patch
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - patch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - networking.istio.io
-  resources:
-  - virtualservices
-  verbs:
-  - watch
-  - get
-  - update
-  - list
-- apiGroups:
-  - split.smi-spec.io
-  resources:
-  - trafficsplits
-  verbs:
-  - create
-  - watch
-  - get
-  - update
-  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -14592,9 +14462,7 @@ spec:
         app.kubernetes.io/name: argo-rollouts
     spec:
       containers:
-      - args:
-        - --namespaced
-        image: argoproj/argo-rollouts:latest
+      - image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
         name: argo-rollouts
       securityContext:

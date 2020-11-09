@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1317,7 +1318,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 1, 1, 1, false)
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1397,8 +1398,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.objects = append(f.objects, r1, at)
 
 	f.expectCreateReplicaSetAction(rs1)
-	// Update the revision
-	f.expectUpdateRolloutAction(r1)
+	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1428,8 +1428,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.objects = append(f.objects, r1, at)
 
 	f.expectCreateReplicaSetAction(rs1)
-	// Update the revision
-	f.expectUpdateRolloutAction(r1)
+	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1516,7 +1515,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.objects = append(f.objects, at)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -1562,7 +1561,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	rs := newReplicaSet(r, 1)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
@@ -1826,7 +1825,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 		StartTime: metav1.Now(),
 	}
 	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
-	r2.Status.ObservedGeneration = conditions.ComputeGenerationHash(r2.Spec)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 

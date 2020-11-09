@@ -36,6 +36,7 @@ spec:
       labelSelectorPath: .status.selector
       specReplicasPath: .spec.replicas
       statusReplicasPath: .status.HPAReplicas
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -3059,8 +3060,6 @@ spec:
                   - name
                   - status
                   type: object
-                stableRS:
-                  type: string
               type: object
             collisionCount:
               format: int32

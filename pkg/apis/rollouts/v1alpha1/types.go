@@ -10,7 +10,6 @@ import (
 )
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=rollouts,shortName=ro
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.HPAReplicas,selectorpath=.status.selector
@@ -18,6 +17,7 @@ import (
 // +kubebuilder:printcolumn:name="Current",type="integer",JSONPath=".status.replicas",description="Total number of non-terminated pods targeted by this rollout"
 // +kubebuilder:printcolumn:name="Up-to-date",type="integer",JSONPath=".status.updatedReplicas",description="Total number of non-terminated pods targeted by this rollout that have the desired template spec"
 // +kubebuilder:printcolumn:name="Available",type="integer",JSONPath=".status.availableReplicas",description="Total number of available pods (ready for at least minReadySeconds) targeted by this rollout"
+// +kubebuilder:subresource:status
 
 // Rollout is a specification for a Rollout resource
 type Rollout struct {
@@ -599,9 +599,6 @@ type BlueGreenStatus struct {
 
 // CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
-	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
-	// +optional
-	StableRS string `json:"stableRS,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	// TODO(Deprecated): Remove in v0.10
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`

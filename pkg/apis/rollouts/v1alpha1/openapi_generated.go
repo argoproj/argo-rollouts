@@ -777,13 +777,6 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 				Description: "CanaryStatus status fields that only pertain to the canary rollout",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"stableRS": {
-						SchemaProps: spec.SchemaProps{
-							Description: "StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"currentStepAnalysisRun": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentStepAnalysisRun indicates the analysisRun for the current step index",

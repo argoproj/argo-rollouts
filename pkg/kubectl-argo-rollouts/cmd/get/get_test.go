@@ -118,6 +118,7 @@ func TestGetBlueGreenRollout(t *testing.T) {
 Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
+Message:         BlueGreenPause
 Strategy:        BlueGreen
 Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green (preview)
@@ -165,6 +166,7 @@ func TestGetBlueGreenRolloutScaleDownDelay(t *testing.T) {
 Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
+Message:         BlueGreenPause
 Strategy:        BlueGreen
 Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green
@@ -212,6 +214,7 @@ func TestGetBlueGreenRolloutScaleDownDelayPassed(t *testing.T) {
 Name:            bluegreen-demo
 Namespace:       jesse-test
 Status:          ॥ Paused
+Message:         BlueGreenPause
 Strategy:        BlueGreen
 Images:          argoproj/rollouts-demo:blue (stable, active)
                  argoproj/rollouts-demo:green

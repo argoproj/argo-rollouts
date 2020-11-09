@@ -236,8 +236,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
-	//TODO(dthomson) Remove in v0.9.0
-	newStatus.Canary.StableRS = c.rollout.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
@@ -264,8 +262,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s", newStatus.CurrentPodHash)
 		c.log.Info(msg)
 		newStatus.StableRS = newStatus.CurrentPodHash
-		//TODO(dthomson) Remove in v0.9.0
-		newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		if stepCount > 0 {
 			if stepCount != *currentStepIndex {
 				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", msg)
@@ -296,8 +292,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
 		c.pauseContext.ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(newStatus)
@@ -309,8 +303,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)

@@ -39,9 +39,7 @@ func newRollout(
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			Canary: v1alpha1.CanaryStatus{
-				StableRS: stablePodHash,
-			},
+			StableRS:       stablePodHash,
 			CurrentPodHash: currentPodHash,
 		},
 	}

@@ -102,6 +102,18 @@ func (c *FakeRollouts) Update(ctx context.Context, rollout *v1alpha1.Rollout, op
 	return obj.(*v1alpha1.Rollout), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeRollouts) UpdateStatus(ctx context.Context, rollout *v1alpha1.Rollout, opts v1.UpdateOptions) (*v1alpha1.Rollout, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceAction(rolloutsResource, "status", c.ns, rollout), &v1alpha1.Rollout{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1alpha1.Rollout), err
+}
+
 // Delete takes name of the rollout and deletes it. Returns an error if one occurs.
 func (c *FakeRollouts) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
