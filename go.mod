@@ -29,7 +29,7 @@ require (
 	github.com/vektra/mockery v1.1.2
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/api v0.18.2
+	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.18.2
 	k8s.io/apimachinery v0.18.2
 	k8s.io/apiserver v0.18.2
