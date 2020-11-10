@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -105,7 +104,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 		reconcilerBase: reconcilerBase{
 			argoprojclientset: &fake,
 			kubeclientset:     &k8sfake,
-			recorder:          &record.FakeRecorder{},
+			recorder:          &FakeEventRecorder{},
 		},
 	}
 	stepResult := roCtx.reconcileCanaryPause()
@@ -120,7 +119,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 		reconcilerBase: reconcilerBase{
 			argoprojclientset: &fake,
 			kubeclientset:     &k8sfake,
-			recorder:          &record.FakeRecorder{},
+			recorder:          &FakeEventRecorder{},
 		},
 	}
 	stepResult = roCtx2.reconcileCanaryPause()
@@ -1167,23 +1166,25 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, true)
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
-	r1.Status.ObservedGeneration = strconv.Itoa(int(r1.Generation))
-	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 		StartTime: overAMinuteAgo,
 	}}
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
-	_ = f.expectPatchRolloutAction(r1)           // this just sets a conditions. ignore for now
-	patchIndex := f.expectPatchRolloutAction(r1) // this patch should resume the rollout
-	f.run(getKey(r1, t))
+	_ = f.expectPatchRolloutAction(r2)           // this just sets a conditions. ignore for now
+	patchIndex := f.expectPatchRolloutAction(r2) // this patch should resume the rollout
+	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	var patchObj map[string]interface{}

@@ -219,6 +219,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			c.log.Warnf("Error Patching Rollout: %s", patchErr.Error())
 		}
 		return nil, err
+	default:
+		c.log.Infof("Created ReplicaSet %s", createdRS.Name)
 	}
 
 	if !alreadyExists && newReplicasCount > 0 {
@@ -405,6 +407,7 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	newStatus.CollisionCount = c.rollout.Status.CollisionCount
 	newStatus.Conditions = prevStatus.Conditions
 	newStatus.RestartedAt = c.newStatus.RestartedAt
+	newStatus.PromoteFull = (newStatus.CurrentPodHash != newStatus.StableRS) && prevStatus.PromoteFull
 	return newStatus
 }
 
@@ -517,13 +520,12 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		c.log.Info("No status changes. Skipping patch")
 		return nil
 	}
-	c.log.Debugf("Rollout Condition Patch: %s", patch)
 	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		c.log.Warnf("Error patching rollout: %v", err)
 		return err
 	}
-	c.log.Info("Condition Patch status successfully")
+	c.log.Infof("Patched conditions: %s", string(patch))
 	return nil
 }
 
@@ -644,7 +646,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	}
 	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
-		c.log.Warningf("Error updating application: %v", err)
+		c.log.Warningf("Error updating rollout: %v", err)
 		return err
 	}
 	c.log.Infof("Patched: %s", patch)

@@ -22,6 +22,12 @@ func TestFunctionalSuite(t *testing.T) {
 	suite.Run(t, new(FunctionalSuite))
 }
 
+func (s *FunctionalSuite) SetupSuite() {
+	s.E2ESuite.SetupSuite()
+	// shared analysis templates for suite
+	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
+}
+
 func countReplicaSets(count int) fixtures.ReplicaSetExpectation {
 	return func(rsets *appsv1.ReplicaSetList) bool {
 		return len(rsets.Items) == count
@@ -43,6 +49,100 @@ func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy")
+}
+
+// TestCanaryPromoteFull verifies behavior when performing full promotion with a canary strategy
+func (s *FunctionalSuite) TestCanaryPromoteFull() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-promote-full
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      maxUnavailable: 0
+      analysis:
+        templates:
+        - templateName: sleep-job
+        startingStep: 2
+      steps:
+      - pause: {}
+      - pause: {}
+  selector:
+    matchLabels:
+      app: canary-promote-full
+  template:
+    metadata:
+      labels:
+        app: canary-promote-full
+    spec:
+      containers:
+      - name: canary-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		UpdateSpec().
+		AbortRollout().
+		Sleep(time.Second).
+		PromoteRolloutFull().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0)
+}
+
+// TestBlueGreenPromoteFull verifies behavior when performing full promotion with a blue-green strategy
+func (s *FunctionalSuite) TestBlueGreenPromoteFull() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-promote-full-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-promote-full
+spec:
+  replicas: 3
+  strategy:
+    blueGreen:
+      activeService: bluegreen-promote-full-active
+      autoPromotionEnabled: false
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+      postPromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+  selector:
+    matchLabels:
+      app: bluegreen-promote-full
+  template:
+    metadata:
+      labels:
+        app: bluegreen-promote-full
+    spec:
+      containers:
+      - name: bluegreen-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		Sleep(time.Second).
+		PromoteRolloutFull().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0)
 }
 
 func (s *FunctionalSuite) TestRolloutRestart() {

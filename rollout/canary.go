@@ -101,6 +101,9 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
+	if c.rollout.Status.PromoteFull {
+		return false
+	}
 
 	if len(c.rollout.Spec.Strategy.Canary.Steps) == 0 {
 		c.log.Info("Rollout does not have any steps")
@@ -120,7 +123,7 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
-		// As a result,, the controller needs to detect whether a rollout was unpaused or the
+		// As a result, the controller needs to detect whether a rollout was unpaused or the
 		// rollout needs to be paused for the first time. If the ControllerPause is false,
 		// the controller has not paused the rollout yet and needs to do so before it
 		// can proceed.
@@ -182,17 +185,17 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 			// cannot scale down this ReplicaSet.
 			continue
 		}
-		scaleDownCount := *(targetRS.Spec.Replicas)
 		// Scale down.
 		newReplicasCount := int32(0)
-		if scaleDownCount > maxScaleDown {
-			newReplicasCount = maxScaleDown
+		if *(targetRS.Spec.Replicas) > maxScaleDown {
+			newReplicasCount = *(targetRS.Spec.Replicas) - maxScaleDown
 		}
 		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
 		if err != nil {
 			return totalScaledDown, err
 		}
-		maxScaleDown -= newReplicasCount
+		scaleDownCount := *targetRS.Spec.Replicas - newReplicasCount
+		maxScaleDown -= scaleDownCount
 		totalScaledDown += scaleDownCount
 	}
 
@@ -255,6 +258,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		newStatus = c.calculateRolloutConditions(newStatus)
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+		newStatus.PromoteFull = false
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -272,6 +276,14 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		c.pauseContext.RemoveAbort()
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
+		if stepCount > 0 {
+			currentStepIndex = pointer.Int32Ptr(stepCount)
+		}
 	}
 
 	if c.pauseContext.IsAborted() {
@@ -292,6 +304,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
+			newStatus.PromoteFull = false
 		}
 		c.pauseContext.ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(newStatus)
