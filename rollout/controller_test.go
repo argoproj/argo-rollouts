@@ -544,7 +544,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	}
 
 	if len(f.actions) > len(actions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
+		f.t.Errorf("%d expected actions did not happen:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
 	}
 
 	k8sActions := filterInformerActions(f.kubeclient.Actions())
@@ -560,7 +560,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	}
 
 	if len(f.kubeactions) > len(k8sActions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
+		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	return c
 }

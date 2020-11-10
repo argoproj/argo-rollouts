@@ -172,7 +172,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 		// Cannot scale down.
 		return 0, nil
 	}
-	c.log.Infof("Found %d available pods, scaling down old RSes", availablePodCount)
+	c.log.Infof("Found %d available pods, scaling down old RSes (minAvailable: %d, maxScaleDown: %d)", availablePodCount, minAvailable, maxScaleDown)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 

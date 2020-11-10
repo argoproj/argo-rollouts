@@ -630,24 +630,16 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	}}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Status.StableRS = r1.Status.CurrentPodHash
-
 	r2 := bumpVersion(r1)
-
 	r3 := bumpVersion(r2)
-	f.rolloutLister = append(f.rolloutLister, r3)
-	f.objects = append(f.objects, r3)
 
 	rs1 := newReplicaSetWithStatus(r1, 9, 9)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs2)
-
 	rs3 := newReplicaSetWithStatus(r3, 1, 1)
-	f.kubeobjects = append(f.kubeobjects, rs3)
-	f.replicaSetLister = append(f.replicaSetLister, rs3)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 
 	updateRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
@@ -659,6 +651,37 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	updatedRS := f.getUpdatedReplicaSet(updateRSIndex)
 
 	assert.Equal(t, expectedRS2, updatedRS)
+}
+
+// TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch catches a bug where we scaled down too many old replicasets
+// due to miscalculating scaleDownCount
+func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 4, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+	r3.Status.StableRS = r3.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+
+	updatedRS1Index := f.expectUpdateReplicaSetAction(rs1)
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	updatedRS1 := f.getUpdatedReplicaSet(updatedRS1Index)
+	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
+	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	assert.Equal(t, int32(4), *updatedRS2.Spec.Replicas)
+
 }
 
 func TestRollBackToStable(t *testing.T) {
