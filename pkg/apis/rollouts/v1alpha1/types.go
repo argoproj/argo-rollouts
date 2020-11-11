@@ -563,6 +563,8 @@ type RolloutStatus struct {
 	StableRS string `json:"stableRS,omitempty"`
 	// RestartedAt indicates last time a Rollout was restarted
 	RestartedAt *metav1.Time `json:"restartedAt,omitempty"`
+	// PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
+	PromoteFull bool `json:"promoteFull,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

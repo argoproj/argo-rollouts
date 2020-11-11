@@ -94,9 +94,19 @@ func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false)
+	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, false)
 	w.CheckError(err)
 	w.log.Info("Promoted rollout")
+	return w
+}
+
+func (w *When) PromoteRolloutFull() *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, true)
+	w.CheckError(err)
+	w.log.Info("Promoted rollout fully")
 	return w
 }
 
@@ -308,20 +318,30 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.Analy
 	}
 }
 
-func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
-	checkPhase := func(ar *rov1.AnalysisRun) bool {
+func checkAnalysisRunPhase(phase string) func(ar *rov1.AnalysisRun) bool {
+	return func(ar *rov1.AnalysisRun) bool {
 		return string(ar.Status.Phase) == phase
 	}
+}
+
+func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
 	arun := w.GetBackgroundAnalysisRun()
-	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) WaitForInlineAnalysisRunPhase(phase string) *When {
-	checkPhase := func(ar *rov1.AnalysisRun) bool {
-		return string(ar.Status.Phase) == phase
-	}
 	arun := w.GetInlineAnalysisRun()
-	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) WaitForPrePromotionAnalysisRunPhase(phase string) *When {
+	arun := w.GetPrePromotionAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) WaitForPostPromotionAnalysisRunPhase(phase string) *When {
+	arun := w.GetPostPromotionAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) Then() *Then {

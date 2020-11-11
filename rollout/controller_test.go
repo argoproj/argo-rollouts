@@ -32,7 +32,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
@@ -60,6 +59,22 @@ const (
 			}
 	}`
 )
+
+type FakeEventRecorder struct {
+	Events chan string
+}
+
+func (f *FakeEventRecorder) Event(object runtime.Object, eventtype, reason, message string) {
+	log.Infof("%s %s %s", eventtype, reason, message)
+}
+
+func (f *FakeEventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+	log.Infof(eventtype+" "+reason+" "+messageFmt, args...)
+}
+
+func (f *FakeEventRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+	f.Eventf(object, eventtype, reason, messageFmt, args...)
+}
 
 type fixture struct {
 	t *testing.T
@@ -430,7 +445,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
-		Recorder:                        &record.FakeRecorder{},
+		Recorder:                        &FakeEventRecorder{},
 		DefaultIstioVersion:             "v1alpha3",
 	})
 
@@ -529,7 +544,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	}
 
 	if len(f.actions) > len(actions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
+		f.t.Errorf("%d expected actions did not happen:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
 	}
 
 	k8sActions := filterInformerActions(f.kubeclient.Actions())
@@ -545,7 +560,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	}
 
 	if len(f.kubeactions) > len(k8sActions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
+		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	return c
 }
@@ -875,6 +890,20 @@ func (f *fixture) getPatchedRollout(index int) string {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 	return string(patchAction.GetPatch())
+}
+
+func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	ro := v1alpha1.Rollout{}
+	err := json.Unmarshal(patchAction.GetPatch(), &ro)
+	if err != nil {
+		panic(err)
+	}
+	return &ro
 }
 
 func (f *fixture) expectDeleteAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {

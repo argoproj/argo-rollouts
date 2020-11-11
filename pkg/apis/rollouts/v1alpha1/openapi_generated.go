@@ -2940,6 +2940,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"promoteFull": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

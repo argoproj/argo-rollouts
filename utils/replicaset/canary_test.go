@@ -79,6 +79,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 		setWeight           int32
 		maxSurge            intstr.IntOrString
 		maxUnavailable      intstr.IntOrString
+		promoteFull         bool
 
 		stableSpecReplica      int32
 		stableAvailableReplica int32
@@ -534,11 +535,48 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 1,
 			expectedCanaryReplicaCount: 3, // should only reduce by 1 to honor maxUnavailable
 		},
+		{
+			// verify when promoting a rollout fully, we don't consider canary weight
+			name:                "promote full does not consider weight",
+			promoteFull:         true,
+			rolloutSpecReplicas: 4,
+			setWeight:           1,
+			maxSurge:            intstr.FromInt(4),
+			maxUnavailable:      intstr.FromInt(4),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 4,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 4,
+		},
+		{
+			// verify when promoting a rollout fully, we still honor maxSurge and maxUnavailable
+			name:                "promote full still honors maxSurge/maxUnavailable",
+			promoteFull:         true,
+			rolloutSpecReplicas: 4,
+			setWeight:           1,
+			maxSurge:            intstr.FromInt(3),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 4,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 4,
+			expectedCanaryReplicaCount: 3,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable", test.setCanaryScale, test.trafficRouting)
+			rollout.Status.PromoteFull = test.promoteFull
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})

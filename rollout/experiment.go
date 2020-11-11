@@ -143,7 +143,7 @@ func (c *Controller) getExperimentsForRollout(rollout *v1alpha1.Rollout) ([]*v1a
 }
 
 func (c *rolloutContext) reconcileExperiments() error {
-	if c.pauseContext.IsAborted() {
+	if c.pauseContext.IsAborted() || c.rollout.Status.PromoteFull {
 		allExs := append(c.otherExs, c.currentEx)
 		return c.cancelExperiments(allExs)
 	}

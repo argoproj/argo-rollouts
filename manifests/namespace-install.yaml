@@ -14158,6 +14158,8 @@ spec:
                 - startTime
                 type: object
               type: array
+            promoteFull:
+              type: boolean
             readyReplicas:
               format: int32
               type: integer

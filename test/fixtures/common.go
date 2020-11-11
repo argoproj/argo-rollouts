@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -68,12 +69,16 @@ func (c *Common) PrintRollout(ro *rov1.Rollout) {
 func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
 	selector, err := metav1.LabelSelectorAsSelector(c.Rollout().Spec.Selector)
 	c.CheckError(err)
-	replicasets, err := c.kubeClient.AppsV1().ReplicaSets(c.namespace).List(c.Context, metav1.ListOptions{LabelSelector: selector.String()})
-	c.CheckError(err)
-	for _, rs := range replicasets.Items {
-		if rs.Annotations[annotations.RevisionAnnotation] == revision {
-			return &rs
+	// make several attempts since sometimes we can check too early
+	for i := 0; i < 4; i++ {
+		replicasets, err := c.kubeClient.AppsV1().ReplicaSets(c.namespace).List(c.Context, metav1.ListOptions{LabelSelector: selector.String()})
+		c.CheckError(err)
+		for _, rs := range replicasets.Items {
+			if rs.Annotations[annotations.RevisionAnnotation] == revision {
+				return &rs
+			}
 		}
+		time.Sleep(250 * time.Millisecond)
 	}
 	c.t.Fatalf("Could not find ReplicaSet with revision: %s", revision)
 	return nil
@@ -150,6 +155,46 @@ func (c *Common) GetInlineAnalysisRun() *rov1.AnalysisRun {
 		c.t.FailNow()
 	}
 	return latest
+}
+
+func (c *Common) GetPrePromotionAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutAnalysisRuns()
+	var found *rov1.AnalysisRun
+	for _, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypePrePromotionLabel {
+			continue
+		}
+		if found != nil {
+			c.log.Error("Found multiple pre-promotion analysis runs")
+			c.t.FailNow()
+		}
+		found = &arun
+	}
+	if found == nil {
+		c.log.Error("Pre-promotion AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return found
+}
+
+func (c *Common) GetPostPromotionAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutAnalysisRuns()
+	var found *rov1.AnalysisRun
+	for _, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypePostPromotionLabel {
+			continue
+		}
+		if found != nil {
+			c.log.Error("Found multiple post-promotion analysis runs")
+			c.t.FailNow()
+		}
+		found = &arun
+	}
+	if found == nil {
+		c.log.Error("Post-promotion AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return found
 }
 
 // ApplyManifests kubectl applys the given YAML string or file path:

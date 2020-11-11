@@ -120,6 +120,9 @@ func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
 		c.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", c.newRS.Name)
 		return true
 	}
+	if c.rollout.Status.PromoteFull {
+		return true
+	}
 
 	// If a rollout has a PrePromotionAnalysis, the controller only skips the pause after the analysis passes
 	if defaults.GetAutoPromotionEnabledOrDefault(c.rollout) && c.completedPrePromotionAnalysis() {
@@ -244,6 +247,12 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 		c.SetRestartedAt()
 		newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
 		newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
+		newStatus.PromoteFull = false
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
 	}
 
 	previewSelector := serviceutil.GetRolloutSelectorLabel(previewSvc)
@@ -262,6 +271,7 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 	if c.shouldUpdateBlueGreenStable(newStatus) {
 		c.log.Infof("Updating stable RS (%s -> %s)", newStatus.StableRS, newStatus.CurrentPodHash)
 		newStatus.StableRS = newStatus.CurrentPodHash
+		newStatus.PromoteFull = false
 
 		// Now that we've marked the current RS as stable, start the scale-down countdown on the previous stable RS
 		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, c.rollout.Status.StableRS)
@@ -310,6 +320,9 @@ func (c *rolloutContext) shouldUpdateBlueGreenStable(newStatus v1alpha1.RolloutS
 	if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
 		// haven't service performed cutover yet
 		return false
+	}
+	if newStatus.PromoteFull {
+		return true
 	}
 	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
 		// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
