@@ -20,9 +20,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 )
 
@@ -37,9 +34,9 @@ type viewController struct {
 
 	replicaSetLister  appslisters.ReplicaSetNamespaceLister
 	podLister         corelisters.PodNamespaceLister
-	rolloutLister     cache.GenericNamespaceLister
-	experimentLister  cache.GenericNamespaceLister
-	analysisRunLister cache.GenericNamespaceLister
+	rolloutLister     dynamiclister.NamespaceLister
+	experimentLister  dynamiclister.NamespaceLister
+	analysisRunLister dynamiclister.NamespaceLister
 
 	cacheSyncs []cache.InformerSynced
 
@@ -90,7 +87,6 @@ func NewExperimentViewController(namespace string, name string, kubeClient kuber
 func newViewController(namespace string, name string, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *viewController {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, 0, kubeinformers.WithNamespace(namespace))
 	dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
-	///rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(rolloutClient, 0, rolloutinformers.WithNamespace(namespace))
 
 	controller := viewController{
 		name:                    name,
@@ -99,9 +95,9 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		dynamicInformerFactory: dynamicInformerFactory,
 		replicaSetLister:        kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(namespace),
 		podLister:               kubeInformerFactory.Core().V1().Pods().Lister().Pods(namespace),
-		rolloutLister:           dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Lister().ByNamespace(namespace),
-		experimentLister:        dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Lister().ByNamespace(namespace),
-		analysisRunLister:       dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Lister().ByNamespace(namespace),
+		rolloutLister:           dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Informer().GetIndexer(), v1alpha1.RolloutGVR),
+		experimentLister:        dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Informer().GetIndexer(), v1alpha1.ExperimentGVR),
+		analysisRunLister:       dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Informer().GetIndexer(), v1alpha1.AnalysisRunGVR),
 		workqueue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 	}
 

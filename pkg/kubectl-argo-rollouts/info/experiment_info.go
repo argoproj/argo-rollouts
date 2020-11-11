@@ -2,6 +2,7 @@ package info
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sort"
 
@@ -19,13 +20,13 @@ type ExperimentInfo struct {
 	Status       string
 	Message      string
 	ReplicaSets  []ReplicaSetInfo
-	AnalysisRuns []runtime.Object
+	AnalysisRuns []unstructured.Unstructured
 }
 
 func NewExperimentInfo(
-	exp *v1alpha1.Experiment,
+	exp *unstructured.Unstructured,
 	allReplicaSets []*appsv1.ReplicaSet,
-	allAnalysisRuns []*runtime.Object,
+	allAnalysisRuns []*unstructured.Unstructured,
 	allPods []*corev1.Pod,
 ) *ExperimentInfo {
 
@@ -47,10 +48,10 @@ func NewExperimentInfo(
 }
 
 func getExperimentInfo(
-	ro *v1alpha1.Rollout,
-	allExperiments []*v1alpha1.Experiment,
+	ro *unstructured.Unstructured,
+	allExperiments []*unstructured.Unstructured,
 	allReplicaSets []*appsv1.ReplicaSet,
-	allAnalysisRuns []*v1alpha1.AnalysisRun,
+	allAnalysisRuns []*unstructured.Unstructured,
 	allPods []*corev1.Pod,
 ) []ExperimentInfo {
 

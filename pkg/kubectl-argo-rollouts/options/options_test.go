@@ -11,7 +11,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	fakeoptions "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestExample(t *testing.T) {

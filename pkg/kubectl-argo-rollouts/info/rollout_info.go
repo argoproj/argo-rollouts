@@ -2,6 +2,7 @@ package info
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sort"
 	"strconv"
 
@@ -37,13 +38,13 @@ type RolloutInfo struct {
 }
 
 func NewRolloutInfo(
-	ro *v1alpha1.Rollout,
+	ro *unstructured.Unstructured,
 	allReplicaSets []*appsv1.ReplicaSet,
 	allPods []*corev1.Pod,
-	allExperiments []*v1alpha1.Experiment,
-	allARs []*v1alpha1.AnalysisRun,
+	allExperiments []*unstructured.Unstructured,
+	allARs []*unstructured.Unstructured,
 ) *RolloutInfo {
-
+	roName, notFound, err := unstructured.NestedSlice(ro.Object, "spec", "http")
 	roInfo := RolloutInfo{
 		Metadata: Metadata{
 			Name:              ro.Name,
