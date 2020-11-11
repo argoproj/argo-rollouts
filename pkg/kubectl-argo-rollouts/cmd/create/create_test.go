@@ -12,9 +12,8 @@ import (
 	core "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
 func TestCreateRollout(t *testing.T) {
@@ -159,7 +158,7 @@ func TestCreateAnalysisRunName(t *testing.T) {
 func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient := o.DynamicClientset().(*dynamicfake.FakeDynamicClient)
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template.yaml", "-a", "foo=bar", "--name", "my-run", "--instance-id", "test"})
@@ -201,8 +200,8 @@ func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
 	template.Namespace = o.Namespace()
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.Tracker().Add(&template)
+	//fakeClient := o.DynamicClientset().(*dynamicfake.FakeDynamicClient)
+	//fakeClient.Tracker().Add(&template)
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
@@ -239,8 +238,8 @@ func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.Tracker().Add(&template)
+	//fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	//fakeClient.Tracker().Add(&template)
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE

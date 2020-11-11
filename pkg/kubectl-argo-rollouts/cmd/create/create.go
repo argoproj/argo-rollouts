@@ -290,14 +290,17 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
 				}
 			}
-			//var un *unstructured.Unstructured
-			//run.Unmarshal()
-			//err = yaml.Unmarshal([]byte(run), &un)
-			created, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, run, metav1.CreateOptions{})
+			runBytes, err := json.Marshal(run)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", created.GetName())
+			var un unstructured.Unstructured
+			unmarshal(runBytes, un)
+			_, err = createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", run.Name)
 			return nil
 		},
 	}
