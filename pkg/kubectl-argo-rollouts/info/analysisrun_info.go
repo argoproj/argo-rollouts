@@ -1,8 +1,6 @@
 package info
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sort"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -30,7 +28,7 @@ type JobInfo struct {
 	Icon   string
 }
 
-func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*unstructured.Unstructured) []AnalysisRunInfo {
+func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []AnalysisRunInfo {
 	var arInfos []AnalysisRunInfo
 	for _, run := range allAnalysisRuns {
 		if ownerRef(run.OwnerReferences, []types.UID{ownerUID}) == nil {

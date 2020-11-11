@@ -2,10 +2,6 @@ package viewcontroller
 
 import (
 	"context"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/dynamic/dynamiclister"
 	"reflect"
 	"time"
 
@@ -20,6 +16,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 )
 
@@ -30,13 +29,13 @@ type viewController struct {
 	namespace string
 
 	kubeInformerFactory     informers.SharedInformerFactory
-	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	rolloutsInformerFactory rolloutinformers.SharedInformerFactory
 
 	replicaSetLister  appslisters.ReplicaSetNamespaceLister
 	podLister         corelisters.PodNamespaceLister
-	rolloutLister     dynamiclister.NamespaceLister
-	experimentLister  dynamiclister.NamespaceLister
-	analysisRunLister dynamiclister.NamespaceLister
+	rolloutLister     rolloutlisters.RolloutNamespaceLister
+	experimentLister  rolloutlisters.ExperimentNamespaceLister
+	analysisRunLister rolloutlisters.AnalysisRunNamespaceLister
 
 	cacheSyncs []cache.InformerSynced
 
@@ -58,11 +57,11 @@ type RolloutInfoCallback func(*info.RolloutInfo)
 
 type ExperimentInfoCallback func(*info.ExperimentInfo)
 
-func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *RolloutViewController {
-	vc := newViewController(namespace, name, kubeClient, dynamicClient)
+func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
+	vc := newViewController(namespace, name, kubeClient, rolloutClient)
 	vc.cacheSyncs = append(
 		vc.cacheSyncs,
-		vc.dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Informer().HasSynced,
+		vc.rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced,
 	)
 	rvc := RolloutViewController{
 		viewController: vc,
@@ -73,8 +72,8 @@ func NewRolloutViewController(namespace string, name string, kubeClient kubernet
 	return &rvc
 }
 
-func NewExperimentViewController(namespace string, name string, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *ExperimentViewController {
-	vc := newViewController(namespace, name, kubeClient, dynamicClient)
+func NewExperimentViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *ExperimentViewController {
+	vc := newViewController(namespace, name, kubeClient, rolloutClient)
 	evc := ExperimentViewController{
 		viewController: vc,
 	}
@@ -84,28 +83,28 @@ func NewExperimentViewController(namespace string, name string, kubeClient kuber
 	return &evc
 }
 
-func newViewController(namespace string, name string, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *viewController {
+func newViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *viewController {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, 0, kubeinformers.WithNamespace(namespace))
-	dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(rolloutClient, 0, rolloutinformers.WithNamespace(namespace))
 
 	controller := viewController{
 		name:                    name,
 		namespace:               namespace,
 		kubeInformerFactory:     kubeInformerFactory,
-		dynamicInformerFactory: dynamicInformerFactory,
+		rolloutsInformerFactory: rolloutsInformerFactory,
 		replicaSetLister:        kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(namespace),
 		podLister:               kubeInformerFactory.Core().V1().Pods().Lister().Pods(namespace),
-		rolloutLister:           dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Informer().GetIndexer(), v1alpha1.RolloutGVR),
-		experimentLister:        dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Informer().GetIndexer(), v1alpha1.ExperimentGVR),
-		analysisRunLister:       dynamiclister.New(dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Informer().GetIndexer(), v1alpha1.AnalysisRunGVR),
+		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
+		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
+		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
 		workqueue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 	}
 
 	controller.cacheSyncs = append(controller.cacheSyncs,
 		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
 		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
-		dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Informer().HasSynced,
-		dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Informer().HasSynced,
+		rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Informer().HasSynced,
+		rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Informer().HasSynced,
 	)
 
 	enqueueRolloutHandlerFuncs := cache.ResourceEventHandlerFuncs{
@@ -123,15 +122,16 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 	// changes to any of these resources will enqueue the rollout for refreshing
 	kubeInformerFactory.Apps().V1().ReplicaSets().Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
 	kubeInformerFactory.Core().V1().Pods().Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
-	dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
-	dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
-	dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
+	rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
+	rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
+	rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Informer().AddEventHandler(enqueueRolloutHandlerFuncs)
+
 	return &controller
 }
 
 func (c *viewController) Start(ctx context.Context) {
 	c.kubeInformerFactory.Start(ctx.Done())
-	c.dynamicInformerFactory.Start(ctx.Done())
+	c.rolloutsInformerFactory.Start(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), c.cacheSyncs...)
 }
 

@@ -2,10 +2,10 @@ package viewcontroller
 
 import (
 	"context"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"testing"
 	"time"
 
+	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,15 +16,15 @@ import (
 )
 
 func newFakeRolloutController(namespace string, name string, objects ...runtime.Object) *RolloutViewController {
-	dynamicClientset := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objects...)
+	rolloutsClientset := rolloutsfake.NewSimpleClientset(objects...)
 	kubeClientset := k8sfake.NewSimpleClientset()
-	return NewRolloutViewController(namespace, name, kubeClientset, dynamicClientset)
+	return NewRolloutViewController(namespace, name, kubeClientset, rolloutsClientset)
 }
 
 func newFakeExperimentController(namespace string, name string, objects ...runtime.Object) *ExperimentViewController {
-	dynamicClientset := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objects...)
+	rolloutsClientset := rolloutsfake.NewSimpleClientset(objects...)
 	kubeClientset := k8sfake.NewSimpleClientset()
-	return NewExperimentViewController(namespace, name, kubeClientset, dynamicClientset)
+	return NewExperimentViewController(namespace, name, kubeClientset, rolloutsClientset)
 }
 
 func TestRolloutController(t *testing.T) {
