@@ -3,8 +3,6 @@ package abort
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/spf13/cobra"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,6 +10,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
@@ -43,13 +42,13 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 			ns := o.Namespace()
-			rolloutIf := o.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(ns)  //o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
+			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
 			for _, name := range args {
 				ro, err := AbortRollout(rolloutIf, name)
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(o.Out, "rollout '%s' aborted\n", ro.GetName())
+				fmt.Fprintf(o.Out, "rollout '%s' aborted\n", ro.Name)
 			}
 			return nil
 		},
@@ -58,7 +57,7 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 }
 
 // AbortRollout aborts a rollout
-func AbortRollout(rolloutIf dynamic.ResourceInterface, name string) (*unstructured.Unstructured, error) {
+func AbortRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
 	ctx := context.TODO()
 	// attempt using status subresource, first
 	ro, err := rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(abortPatch), metav1.PatchOptions{}, "status")
