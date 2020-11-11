@@ -156,11 +156,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns).Create(ctx, &exp, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.ExperimentGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.ExperimentSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.ExperimentSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.RolloutKind:
 		var ro v1alpha1.Rollout
@@ -168,11 +168,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns).Create(ctx, &ro, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.RolloutSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.RolloutSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.AnalysisTemplateKind:
 		var template v1alpha1.AnalysisTemplate
@@ -180,11 +180,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(ns).Create(ctx, &template, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.ClusterAnalysisTemplateKind:
 		var template v1alpha1.ClusterAnalysisTemplate
@@ -192,11 +192,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Create(ctx, &template, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.AnalysisRunKind:
 		var run v1alpha1.AnalysisRun
@@ -204,11 +204,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, &run, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisRunSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisRunSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	default:
 		return nil, fmt.Errorf("creates of %s/%s unsupported", gvk.Group, gvk.Kind)
@@ -290,11 +290,14 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
 				}
 			}
-			created, err := createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, run, metav1.CreateOptions{})
+			//var un *unstructured.Unstructured
+			//run.Unmarshal()
+			//err = yaml.Unmarshal([]byte(run), &un)
+			created, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, run, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", created.Name)
+			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", created.GetName())
 			return nil
 		},
 	}

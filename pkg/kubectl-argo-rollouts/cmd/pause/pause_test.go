@@ -12,7 +12,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestPauseCmdUsage(t *testing.T) {

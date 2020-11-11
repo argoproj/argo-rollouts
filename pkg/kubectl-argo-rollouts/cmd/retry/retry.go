@@ -66,7 +66,7 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 			ns := o.Namespace()
-			rolloutIf := o.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(ns) //o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
+			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns)
 			for _, name := range args {
 				ro, err := RetryRollout(rolloutIf, name)
 				if err != nil {
@@ -105,7 +105,7 @@ func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 			ns := o.Namespace()
-			experimentIf := o.DynamicClient.Resource(v1alpha1.ExperimentGVR).Namespace(ns) //o.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns)
+			experimentIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns)
 			for _, name := range args {
 				ex, err := RetryExperiment(experimentIf, name)
 				if err != nil {
