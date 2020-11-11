@@ -12,8 +12,8 @@ import (
 	core "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestCreateRollout(t *testing.T) {
@@ -200,6 +200,7 @@ func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
 	template.Namespace = o.Namespace()
+	//fakeClient := o.DynamicClient.(*dynamicfake.FakeDynamicClient)
 	//fakeClient := o.DynamicClientset().(*dynamicfake.FakeDynamicClient)
 	//fakeClient.Tracker().Add(&template)
 
