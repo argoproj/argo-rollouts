@@ -1177,22 +1177,25 @@
                 <h1 id="rollouts-promote">Rollouts Promote<a class="headerlink" href="#rollouts-promote" title="Permanent link">&para;</a></h1>
 <p>Promote a rollout</p>
 <h2 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h2>
-<p>Unpause a Canary or BlueGreen rollout or skip Canary rollout steps.</p>
-<p>If a Canary rollout has more steps the rollout will proceed to the next step in the rollout. Use '--skip-all-steps' to skip and remaining steps. 
-If not on a pause step use '--skip-current-step' to progress to the next step in the rollout.</p>
+<p>Promote a rollout</p>
+<p>Promotes a rollout paused at a canary step, or a paused blue-green pre-promotion.
+To skip analysis, pauses and steps entirely, use '--full' to fully promote the rollout</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts promote ROLLOUT_NAME <span class="o">[</span>flags<span class="o">]</span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># Promote a paused rollout</span>
 kubectl argo rollouts promote guestbook
 
-<span class="c1"># Promote a canary rollout and skip all remaining steps</span>
-kubectl argo rollouts promote guestbook --skip-all-steps
+<span class="c1"># Fully promote a rollout to desired version, skipping analysis, pauses, and steps</span>
+kubectl argo rollouts promote guestbook --full
+
+<span class="c1"># Skip currently running canary step of a rollout</span>
+kubectl argo rollouts promote guestbook --skip-current-step
 </code></pre></div>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>  -h, --help                help for promote
-  -a, --skip-all-steps      Skip remaining steps
-  -c, --skip-current-step   Skip current step
+<div class="highlight"><pre><span></span><code>      --full                Perform a full promotion, skipping analysis, pauses, and steps
+  -h, --help                help for promote
+  -c, --skip-current-step   Skip currently running canary step
 </code></pre></div>
 <h2 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>      --as string                      Username to impersonate for the operation
