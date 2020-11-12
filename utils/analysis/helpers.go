@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
@@ -326,6 +327,41 @@ func flattenMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*
 		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+}
+
+func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs []v1alpha1.Argument, name, generateName, namespace string) (*unstructured.Unstructured, error) {
+	var newArgs []v1alpha1.Argument
+	var un unstructured.Unstructured
+
+	objArgs, notFound, err := unstructured.NestedSlice(un.Object, "metadata", "args")
+	if err != nil {
+		return nil, err
+	}
+	if notFound {
+		newArgs = templateArgs
+	} else {
+		// AnalysisTemplate has arguments set
+		var args []v1alpha1.Argument
+		argBytes, err := json.Marshal(objArgs)
+		yaml.Unmarshal(argBytes, &args)
+		newArgs, err = MergeArgs(templateArgs, args)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+
+	// Change kind to AnalysisRun
+	unstructured.SetNestedField(obj.Object, "AnalysisRun", "kind")
+
+	unstructured.SetNestedField(obj.Object, name, "metadata", "name")
+	unstructured.SetNestedField(obj.Object, generateName, "metadata", "generateName")
+	unstructured.SetNestedField(obj.Object, namespace, "metadata", "namespace")
+
+	// Set args
+	unstructured.SetNestedField(obj.Object, newArgs, "spec", "args")
+
+	return obj, nil
 }
 
 //TODO(dthomson) remove v0.9.0

@@ -244,21 +244,26 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return err
 			}
 			var templateName string
-			var template *v1alpha1.AnalysisTemplate
-			var clusterTemplate *v1alpha1.ClusterAnalysisTemplate
+			var template *unstructured.Unstructured
 
 			if createOptions.Global {
-				clusterTemplate, err = createOptions.getClusterAnalysisTemplate()
+				template, err = createOptions.getClusterAnalysisTemplate()
 				if err != nil {
 					return err
 				}
-				templateName = clusterTemplate.Name
 			} else {
 				template, err = createOptions.getAnalysisTemplate()
 				if err != nil {
 					return err
 				}
-				templateName = template.Name
+			}
+
+			templateName, ok, err := unstructured.NestedString(template.Object, "metadata", "name")
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("Cannot access field .metadata.name from unstructured AnalysisTemplate object")
 			}
 
 			var name, generateName string
@@ -271,32 +276,16 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			ns := o.Namespace()
 
-			var run *v1alpha1.AnalysisRun
+			run, err := analysisutil.NewAnalysisRunFromUnstructured(template, templateArgs, name, generateName, ns)
 
-			if clusterTemplate != nil {
-				run, err = analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, templateArgs, name, generateName, ns)
-				if err != nil {
-					return err
-				}
-			} else {
-				run, err = analysisutil.NewAnalysisRunFromTemplate(template, templateArgs, name, generateName, ns)
-				if err != nil {
-					return err
-				}
-			}
 
 			if createOptions.InstanceID != "" {
-				run.Labels = map[string]string{
+				labels := map[string]string{
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
 				}
+				unstructured.SetNestedField(run.Object, labels, "metadata", "labels")
 			}
-			runBytes, err := json.Marshal(run)
-			if err != nil {
-				return err
-			}
-			var un unstructured.Unstructured
-			unmarshal(runBytes, &un)
-			obj, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
+			obj, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, run, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
@@ -314,39 +303,39 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemplate, error) {
+func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
-		var tmpl v1alpha1.AnalysisTemplate
-		err = unmarshal(fileBytes, &tmpl)
+		var un unstructured.Unstructured
+		err = unmarshal(fileBytes, &un)
 		if err != nil {
 			return nil, err
 		}
-		return &tmpl, nil
+		return &un, nil
 	}
 }
 
-func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*v1alpha1.ClusterAnalysisTemplate, error) {
+func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
-		var tmpl v1alpha1.ClusterAnalysisTemplate
-		err = unmarshal(fileBytes, &tmpl)
+		var un unstructured.Unstructured
+		err = unmarshal(fileBytes, &un)
 		if err != nil {
 			return nil, err
 		}
-		return &tmpl, nil
+		return &un, nil
 	}
 }
 
