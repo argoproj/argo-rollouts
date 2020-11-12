@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -200,9 +202,8 @@ func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
 	template.Namespace = o.Namespace()
-	//fakeClient := o.DynamicClient.(*dynamicfake.FakeDynamicClient)
-	//fakeClient := o.DynamicClientset().(*dynamicfake.FakeDynamicClient)
-	//fakeClient.Tracker().Add(&template)
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.Tracker().Add(&template)
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
@@ -239,8 +240,8 @@ func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
-	//fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	//fakeClient.Tracker().Add(&template)
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.Tracker().Add(&template)
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
