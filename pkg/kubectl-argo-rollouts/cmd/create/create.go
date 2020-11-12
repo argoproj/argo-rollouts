@@ -295,7 +295,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return err
 			}
 			var un unstructured.Unstructured
-			unmarshal(runBytes, un)
+			unmarshal(runBytes, &un)
 			_, err = createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 			if err != nil {
 				return err
