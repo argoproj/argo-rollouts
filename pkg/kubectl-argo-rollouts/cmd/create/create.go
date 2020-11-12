@@ -296,11 +296,11 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			var un unstructured.Unstructured
 			unmarshal(runBytes, &un)
-			_, err = createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
+			obj, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", run.Name)
+			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", obj.GetName())
 			return nil
 		},
 	}
