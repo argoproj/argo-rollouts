@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -373,7 +374,7 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 	}
 
 	// Set args
-	for i := 0; i < len(newArgs); i ++ {
+	for i := 0; i < len(newArgs); i++ {
 		var newArgInterface map[string]interface{}
 		newArgBytes, err := json.Marshal(newArgs[i])
 		if err != nil {
