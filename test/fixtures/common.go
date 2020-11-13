@@ -17,11 +17,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -57,13 +61,18 @@ func (c *Common) Rollout() *rov1.Rollout {
 	return &ro
 }
 
-func (c *Common) PrintRollout(ro *rov1.Rollout) {
-	// clean up output
-	ro.ManagedFields = nil
-	delete(ro.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-	bytes, err := json.Marshal(ro)
+func (c *Common) PrintRollout(name string) {
+	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	o := options.NewArgoRolloutsOptions(streams)
+	getOptions := get.GetOptions{
+		ArgoRolloutsOptions: *o,
+	}
+	controller := viewcontroller.NewRolloutViewController(c.namespace, name, c.kubeClient, c.rolloutClient)
+	ctx := context.Background()
+	controller.Start(ctx)
+	ri, err := controller.GetRolloutInfo()
 	c.CheckError(err)
-	c.log.Info(string(bytes))
+	getOptions.PrintRollout(ri)
 }
 
 func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
