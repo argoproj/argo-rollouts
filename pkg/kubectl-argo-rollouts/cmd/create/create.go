@@ -244,26 +244,26 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return err
 			}
 			var templateName string
-			var template *unstructured.Unstructured
+			var obj *unstructured.Unstructured
 
 			if createOptions.Global {
-				template, err = createOptions.getClusterAnalysisTemplate()
+				obj, err = createOptions.getClusterAnalysisTemplate()
 				if err != nil {
 					return err
 				}
 			} else {
-				template, err = createOptions.getAnalysisTemplate()
+				obj, err = createOptions.getAnalysisTemplate()
 				if err != nil {
 					return err
 				}
 			}
 
-			templateName, ok, err := unstructured.NestedString(template.Object, "metadata", "name")
+			objName, notFound, err := unstructured.NestedString(obj.Object, "metadata", "name")
 			if err != nil {
 				return err
 			}
-			if !ok {
-				return fmt.Errorf("Cannot access field .metadata.name from unstructured AnalysisTemplate object")
+			if !notFound {
+				templateName = objName
 			}
 
 			var name, generateName string
@@ -276,16 +276,20 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			ns := o.Namespace()
 
-			run, err := analysisutil.NewAnalysisRunFromUnstructured(template, templateArgs, name, generateName, ns)
-
-
+			obj, err = analysisutil.NewAnalysisRunFromUnstructured(obj, templateArgs, name, generateName, ns)
+			if err != nil {
+				return err
+			}
 			if createOptions.InstanceID != "" {
 				labels := map[string]string{
 					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
 				}
-				unstructured.SetNestedField(run.Object, labels, "metadata", "labels")
+				err = unstructured.SetNestedStringMap(obj.Object, labels, "metadata", "labels")
+				if err != nil {
+					return err
+				}
 			}
-			obj, err := createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, run, metav1.CreateOptions{})
+			obj, err = createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
@@ -306,7 +310,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
@@ -324,7 +328,7 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstruct
 func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
