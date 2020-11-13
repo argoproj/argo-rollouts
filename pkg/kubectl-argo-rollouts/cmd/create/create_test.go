@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -193,17 +191,16 @@ func TestCreateJSON(t *testing.T) {
 }
 
 func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
-	tf, o := options.NewFakeArgoRolloutsOptions()
-	defer tf.Cleanup()
-
-	var template v1alpha1.AnalysisTemplate
+	var template unstructured.Unstructured
 	fileBytes, err := ioutil.ReadFile("testdata/analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
-	template.Namespace = o.Namespace()
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.Tracker().Add(&template)
+	err = unstructured.SetNestedField(template.Object, "default", "metadata", "namespace")
+	assert.NoError(t, err)
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&template)
+	defer tf.Cleanup()
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
@@ -232,16 +229,14 @@ func TestCreateAnalysisRunFromTemplateNotFoundInCluster(t *testing.T) {
 }
 
 func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
-	tf, o := options.NewFakeArgoRolloutsOptions()
-	defer tf.Cleanup()
-
-	var template v1alpha1.ClusterAnalysisTemplate
+	var template unstructured.Unstructured
 	fileBytes, err := ioutil.ReadFile("testdata/cluster-analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
-	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
-	fakeClient.Tracker().Add(&template)
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&template)
+	defer tf.Cleanup()
 
 	cmd := NewCmdCreateAnalysisRun(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
