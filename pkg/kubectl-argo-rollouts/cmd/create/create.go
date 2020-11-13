@@ -328,7 +328,7 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstruct
 func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
