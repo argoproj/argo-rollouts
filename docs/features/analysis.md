@@ -677,8 +677,8 @@ This example demonstrates:
                 specRef: stable
               - name: canary
                 specRef: canary
-              analysis:
-                templateName: mann-whitney
+              analyses:
+              - templateName: mann-whitney
                 args:
                 - name: stable-hash
                   valueFrom:
