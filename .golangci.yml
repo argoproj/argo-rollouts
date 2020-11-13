@@ -2,7 +2,6 @@ run:
   deadline: 1m
   skip-dirs:
     - pkg/client
-    - test/bdd
   modules-download-mode: readonly
 linter-settings:
   goimports:

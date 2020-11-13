@@ -112,11 +112,6 @@ start-e2e:
 test-e2e:
 	go test -timeout 15m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
 
-.PHONY: test-bdd
-test-bdd:
-	go get -u github.com/cucumber/godog/cmd/godog@v0.10.0
-	./hack/run-bdd.sh
-
 .PHONY: coverage
 coverage: test
 	go tool cover -html=coverage.out -o coverage.html

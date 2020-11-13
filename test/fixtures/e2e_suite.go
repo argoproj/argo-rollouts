@@ -132,14 +132,18 @@ func (s *E2ESuite) BeforeTest(suiteName, testName string) {
 }
 
 func (s *E2ESuite) AfterTest(suiteName, testName string) {
-	if s.T().Failed() && s.rollout != nil {
-		s.PrintRollout(s.Rollout())
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
+	s.CheckError(err)
+	if s.T().Failed() {
+		roList, err := s.rolloutClient.ArgoprojV1alpha1().Rollouts(s.namespace).List(s.Context, metav1.ListOptions{LabelSelector: req.String()})
+		s.CheckError(err)
+		for _, ro := range roList.Items {
+			s.PrintRollout(ro.Name)
+		}
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {
 		return
 	}
-	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
-	s.CheckError(err)
 	s.deleteResources(req, metav1.DeletePropagationBackground)
 }
 
