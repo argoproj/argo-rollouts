@@ -1,5 +1,34 @@
 # Changelog
 
+# v0.10.0
+
+## Changes since v0.9
+
+### Controller
+
+* feat: set canary/stable ephemeral metadata to pods during updates (#770)
+* feat: add support for valueFrom in analysis arguments. (#797)
+* feat: Adding rollout_info_replicas_desired metric. Fixes #748 (#749)
+* feat: restart pods up to maxUnavailable at a time
+* feat: use CRD status subresource (#789)
+* feat: Allow setting canary weight without side-effects. Fixes #556 (#677)
+* fix: namespaced scoped controller support (#818)
+* fix: fetch secrets on-demand to fix controller boot for large clusters (#829)
+
+### Analysis
+* feat: Add New Relic metricprovider (#772)
+* feat: Add Datadog metric provider. Fixes #702 (#705)
+
+### Plugin
+* feat: Implement kubectl argo rollouts lint
+* feat: Add undo command in kubectl plugin. Fixes #575 (#812)
+* fix: kubectl plugin should use dynamic client
+
+### Misc
+* fix: rollout kustomize transform analysis ref should use templateName instead of name (#809)
+* fix: add missing Service kustomize name reference in trafficRouting/alb/rootService (#699)
+
+
 # v0.9.3
 
 ## Changes since v0.9.2

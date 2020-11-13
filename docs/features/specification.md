@@ -106,7 +106,7 @@ spec:
       - pause:
           duration: 1h # One hour
       - setWeight: 40
-        # Sets .spec.paused to true and waits until the field is changed back
+        # Pauses indefinitely until manually resumed
       - pause: {}
       # Anti Affinity configuration between desired and previous replicaset. Only one must be specified
       antiAffinity:
