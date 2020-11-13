@@ -11,6 +11,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - rollouts/status
   - rollouts/finalizers
   verbs:
   - get

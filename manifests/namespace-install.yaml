@@ -14292,6 +14292,7 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  - rollouts/status
   - rollouts/finalizers
   verbs:
   - get
@@ -14449,7 +14450,7 @@ spec:
       containers:
       - args:
         - --namespaced
-        image: argoproj/argo-rollouts:latest
+        image: argoproj/argo-rollouts:v0.10.0
         imagePullPolicy: Always
         name: argo-rollouts
       securityContext:
