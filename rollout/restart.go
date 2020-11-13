@@ -5,12 +5,17 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/replicaset"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 const (
@@ -47,68 +52,107 @@ func (p RolloutPodRestarter) checkEnqueueRollout(roCtx *rolloutContext) {
 	}
 }
 
+// Reconcile gets all pods of a Rollout and confirms that have creationTimestamps newer than
+// spec.restartAt. If not, iterates pods and deletes pods which do not have a deletion timestamp,
+// and were created before spec.restartedAt. If the rollout is a canary rollout, it can restart
+// multiple pods, up to maxUnavailable or 1, whichever is greater.
 func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
+	ctx := context.TODO()
 	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	p.checkEnqueueRollout(roCtx)
 	if !replicaset.NeedsRestart(roCtx.rollout) {
 		return nil
 	}
-	logCtx.Info("Reconcile pod restarts")
 	s := NewSortReplicaSetsByPriority(roCtx)
-	for _, rs := range s.allRSs {
-		rsReplicas := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
-		if rs.Status.AvailableReplicas != rsReplicas {
-			logCtx.WithField("ReplicaSet", rs.Name).Info("cannot restart pods as not all ReplicasSets are fully available")
-			return nil
-		}
-	}
 	sort.Sort(s)
-	for _, rs := range s.allRSs {
-		finishedRestartingPods, err := p.restartReplicaSetPod(roCtx, rs)
+	rolloutPods, err := p.getRolloutPods(ctx, roCtx.rollout, s.allRSs)
+	if err != nil {
+		return err
+	}
+	replicas := defaults.GetReplicasOrDefault(roCtx.rollout.Spec.Replicas)
+	available := getAvailablePodCount(rolloutPods, roCtx.rollout.Spec.MinReadySeconds)
+	maxUnavailable := replicasetutil.MaxUnavailable(roCtx.rollout)
+	// maxUnavailable might be 0. we need to be able to restart at least 1
+	concurrentRestart := maxInt(maxUnavailable, int32(1))
+	effMinAvailable := replicas - concurrentRestart
+	canRestart := int(available - effMinAvailable)
+	logCtx.Infof("Reconcile pod restart (replicas:%d, available:%d, maxUnavailable:%d, effectiveMinAvailable:%d, concurrentRestart:%d, canRestart:%d)",
+		replicas, available, maxUnavailable, effMinAvailable, concurrentRestart, canRestart)
+
+	restartedAt := roCtx.rollout.Spec.RestartAt
+	needsRestart := 0
+	restarted := 0
+	for _, pod := range rolloutPods {
+		if pod.CreationTimestamp.After(restartedAt.Time) || pod.CreationTimestamp.Equal(restartedAt) {
+			continue
+		}
+		needsRestart += 1
+		if canRestart <= 0 {
+			continue
+		}
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
+		newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
+		newLogCtx.Info("restarting Pod that's older than restartAt Time")
+		err := p.client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
-		if !finishedRestartingPods {
-			return nil
-		}
+		canRestart -= 1
+		restarted += 1
 	}
-	logCtx.Info("all pods have been restarted and setting restartedAt status")
-	roCtx.SetRestartedAt()
+	remaining := needsRestart - restarted
+
+	if remaining != 0 {
+		logCtx.Infof("%d/%d pods require restart. restarted %d", needsRestart, len(rolloutPods), restarted)
+		p.enqueueAfter(roCtx.rollout, restartPodCheckTime)
+	} else {
+		logCtx.Infof("all %d pods are current. setting restartedAt", len(rolloutPods))
+		roCtx.SetRestartedAt()
+	}
 	return nil
 }
 
-// restartReplicaSetPod gets all the pods for a ReplicaSet and confirms that they are all newer than the restartAt time.
-// If all the pods do not have a deletion timestamp and are newer than the restartAt time, the method returns true
-// indicating that the ReplicaSet's pods needs no more restarts. If any of the pods have a deletion timestamp, the
-// restarter cannot restart any more pods since it needs to wait for the current pod finish its deletion. In this case,
-// the restarter enqueues itself to check if the pod has been deleted and returns false. If the restarter deletes
-// a pod, it returns false as the restarter needs to make sure the pod is deleted before marking the ReplicaSet done.
-func (p RolloutPodRestarter) restartReplicaSetPod(roCtx *rolloutContext, rs *appsv1.ReplicaSet) (bool, error) {
-	ctx := context.TODO()
-	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
-	restartedAt := roCtx.rollout.Spec.RestartAt
-	pods, err := replicaset.GetPodsOwnedByReplicaSet(ctx, p.client, rs)
+func maxInt(left, right int32) int32 {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+// getRolloutPods returns all pods associated with a rollout
+func (p *RolloutPodRestarter) getRolloutPods(ctx context.Context, ro *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet) ([]*corev1.Pod, error) {
+	pods, err := p.client.CoreV1().Pods(ro.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(ro.Spec.Selector),
+	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	for _, pod := range pods {
-		if pod.DeletionTimestamp != nil {
-			logCtx.Info("cannot reconcile any more pods as pod with deletionTimestamp exists")
-			p.enqueueAfter(roCtx.rollout, restartPodCheckTime)
-			return false, nil
+	rolloutReplicaSetUIDS := make(map[types.UID]bool)
+	for _, rs := range allRSs {
+		rolloutReplicaSetUIDS[rs.UID] = true
+	}
+	var rolloutPods []*corev1.Pod
+	for i, pod := range pods.Items {
+		for _, ownerRef := range pod.OwnerReferences {
+			if _, ok := rolloutReplicaSetUIDS[ownerRef.UID]; ok {
+				rolloutPods = append(rolloutPods, &pods.Items[i])
+			}
 		}
 	}
+	return rolloutPods, nil
+}
 
+func getAvailablePodCount(pods []*corev1.Pod, minReadySeconds int32) int32 {
+	var available int32
+	now := metav1.Now()
 	for _, pod := range pods {
-		if restartedAt.After(pod.CreationTimestamp.Time) && pod.DeletionTimestamp == nil {
-			newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
-			newLogCtx.Info("restarting Pod that's older than restartAt Time")
-			err := p.client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-			return false, err
+		if podutil.IsPodAvailable(pod, minReadySeconds, now) && pod.DeletionTimestamp == nil {
+			available += 1
 		}
 	}
-	return true, nil
+	return available
 }
 
 func NewSortReplicaSetsByPriority(roCtx *rolloutContext) SortReplicaSetsByPriority {

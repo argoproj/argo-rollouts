@@ -12,17 +12,27 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func rollout(restartAt metav1.Time, restartedAt *metav1.Time) *v1alpha1.Rollout {
+func rollout(selector string, restartAt metav1.Time, restartedAt *metav1.Time) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "restart-rollout",
+		},
 		Spec: v1alpha1.RolloutSpec{
 			RestartAt: restartAt.DeepCopy(),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"test": selector,
+				},
+			},
 		},
 		Status: v1alpha1.RolloutStatus{
 			RestartedAt: restartedAt.DeepCopy(),
@@ -30,23 +40,37 @@ func rollout(restartAt metav1.Time, restartedAt *metav1.Time) *v1alpha1.Rollout 
 	}
 }
 
-func pod(selector string, time metav1.Time, rs *appsv1.ReplicaSet) *corev1.Pod {
+func pod(name, selector string, time metav1.Time, rs *appsv1.ReplicaSet) *corev1.Pod {
 	rsKind := appsv1.SchemeGroupVersion.WithKind("ReplicaSets")
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
 			CreationTimestamp: time,
 			Labels: map[string]string{
+
 				"test": selector,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(rs, rsKind),
 			},
 		},
+		Status: corev1.PodStatus{
+			Conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
+		},
 	}
 }
 
-func replicaSet(selector string, replicas, available int32) *appsv1.ReplicaSet {
+func replicaSet(name, selector string, replicas, available int32) *appsv1.ReplicaSet {
 	return &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			UID:  "11111111-2222-3333-4444-555555555555",
+		},
 		Spec: appsv1.ReplicaSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -61,7 +85,7 @@ func replicaSet(selector string, replicas, available int32) *appsv1.ReplicaSet {
 	}
 }
 
-func TestCheckEnqueueRollout(t *testing.T) {
+func TestRestartCheckEnqueueRollout(t *testing.T) {
 	now := metav1.Now()
 	t.Run(".Spec.Restart not set", func(t *testing.T) {
 		roCtx := &rolloutContext{
@@ -76,7 +100,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 		p.checkEnqueueRollout(roCtx)
 	})
 	t.Run(".Spec.Restart has already past", func(t *testing.T) {
-		ro := rollout(metav1.NewTime(now.Add(-10*time.Minute)), nil)
+		ro := rollout("test", metav1.NewTime(now.Add(-10*time.Minute)), nil)
 		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     logrus.WithField("", ""),
@@ -90,7 +114,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 		p.checkEnqueueRollout(roCtx)
 	})
 	t.Run("Enqueue Rollout since before next resync", func(t *testing.T) {
-		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
+		ro := rollout("test", metav1.NewTime(now.Add(5*time.Minute)), nil)
 		enqueued := false
 		roCtx := &rolloutContext{
 			rollout: ro,
@@ -107,7 +131,7 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	})
 	t.Run("Do not enqueue Rollout since after next resync", func(t *testing.T) {
 		enqueued := false
-		ro := rollout(metav1.NewTime(now.Add(5*time.Minute)), nil)
+		ro := rollout("test", metav1.NewTime(now.Add(5*time.Minute)), nil)
 		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     logrus.WithField("", ""),
@@ -123,16 +147,16 @@ func TestCheckEnqueueRollout(t *testing.T) {
 	})
 }
 
-func TestReconcile(t *testing.T) {
+func TestRestartReconcile(t *testing.T) {
 	now := metav1.Now()
-	rs := replicaSet("test", 1, 1)
-	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)), rs)
-	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)), rs)
+	rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
+	olderPod := pod("older", "test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	newerPod := pod("newer", "test", metav1.NewTime(now.Add(10*time.Second)), rs)
 
 	t.Run("No Restart Needed", func(t *testing.T) {
 		client := fake.NewSimpleClientset()
 		r := RolloutPodRestarter{client: client}
-		noRestartRo := rollout(now, &now)
+		noRestartRo := rollout("test", now, &now)
 		roCtx := &rolloutContext{
 			rollout: noRestartRo,
 			log:     log.WithRollout(noRestartRo),
@@ -144,46 +168,55 @@ func TestReconcile(t *testing.T) {
 
 	t.Run("Not all ReplicaSets are fully available", func(t *testing.T) {
 		client := fake.NewSimpleClientset()
-		notFullyAvailable := replicaSet("test", 1, 0)
+		notFullyAvailable := replicaSet("rollout-restart-abc123", "test", 1, 0)
 		logrus.New()
 		buf := bytes.NewBufferString("")
 		logger := logrus.New()
 		logger.SetOutput(buf)
 		roCtx := &rolloutContext{
-			rollout: rollout(now, nil),
+			rollout: rollout("test", now, nil),
 			log:     logrus.NewEntry(logger),
 			allRSs:  []*appsv1.ReplicaSet{notFullyAvailable},
 		}
-		r := RolloutPodRestarter{client: client}
+		r := RolloutPodRestarter{
+			client:       client,
+			resyncPeriod: 2 * time.Minute,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
-		assert.Len(t, client.Actions(), 0)
-		assert.Contains(t, buf.String(), "cannot restart pods as not all ReplicasSets are fully available")
-
+		assert.Len(t, client.Actions(), 1) // list pods
+		assert.Contains(t, buf.String(), "all 0 pods are current. setting restartedAt")
 	})
 	t.Run("Fails to delete Pod", func(t *testing.T) {
 		expectedErrMsg := "big bad error"
 		client := fake.NewSimpleClientset(rs, olderPod)
 		roCtx := &rolloutContext{
-			rollout: rollout(now, nil),
+			rollout: rollout("test", now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
 		}
 		client.PrependReactor("delete", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, fmt.Errorf(expectedErrMsg)
 		})
-		r := RolloutPodRestarter{client: client}
+		r := RolloutPodRestarter{
+			client:       client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+		}
 		err := r.Reconcile(roCtx)
 		assert.Errorf(t, err, expectedErrMsg)
 	})
 	t.Run("Deletes Pod", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
 		roCtx := &rolloutContext{
-			rollout: rollout(now, nil),
+			rollout: rollout("test", now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
 		}
-		r := RolloutPodRestarter{client: client}
+		r := RolloutPodRestarter{
+			client:       client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		actions := client.Actions()
@@ -194,11 +227,31 @@ func TestReconcile(t *testing.T) {
 	t.Run("No more pods to delete", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, newerPod)
 		roCtx := &rolloutContext{
-			rollout: rollout(now, nil),
+			rollout: rollout("test", now, nil),
 			log:     logrus.WithField("", ""),
 			allRSs:  []*appsv1.ReplicaSet{rs},
 		}
-		r := RolloutPodRestarter{client: client}
+		r := RolloutPodRestarter{
+			client:       client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+		}
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, err)
+		assert.Len(t, client.Actions(), 1)
+		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
+	})
+	t.Run("restartedAt equals creationTimestamp", func(t *testing.T) {
+		equalPod := pod("equal", "test", now, rs)
+		client := fake.NewSimpleClientset(rs, equalPod)
+		roCtx := &rolloutContext{
+			rollout: rollout("test", now, nil),
+			log:     logrus.WithField("", ""),
+			allRSs:  []*appsv1.ReplicaSet{rs},
+		}
+		r := RolloutPodRestarter{
+			client:       client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		assert.Len(t, client.Actions(), 1)
@@ -208,30 +261,32 @@ func TestReconcile(t *testing.T) {
 
 func TestRestartReplicaSetPod(t *testing.T) {
 	now := metav1.Now()
-	ro := rollout(now, nil)
+	ro := rollout("test", now, nil)
+	rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
 	roCtx := &rolloutContext{
-		rollout: ro,
-		log:     log.WithRollout(ro),
+		rollout:  ro,
+		log:      log.WithRollout(ro),
+		stableRS: rs,
+		allRSs:   []*appsv1.ReplicaSet{rs},
 	}
-	rs := replicaSet("test", 1, 1)
-	olderPod := pod("test", metav1.NewTime(now.Add(-10*time.Second)), rs)
-	newerPod := pod("test", metav1.NewTime(now.Add(10*time.Second)), rs)
-	differentSelector := pod("test2", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	olderPod := pod("older", "test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	newerPod := pod("newer", "test", metav1.NewTime(now.Add(10*time.Second)), rs)
+	differentSelector := pod("older", "test2", metav1.NewTime(now.Add(-10*time.Second)), rs)
 	t.Run("Finds no pods to delete to due to different label selector", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, differentSelector)
 		r := RolloutPodRestarter{client: client}
-		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
-		assert.True(t, finishReplicaSet)
+		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
+		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
+
 		// Client uses list API but not the delete API
 		assert.Len(t, client.Actions(), 1)
-
 	})
 	t.Run("Delete Pod successfully", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
 		r := RolloutPodRestarter{client: client}
-		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
-		assert.False(t, finishReplicaSet)
+		err := r.Reconcile(roCtx)
+		assert.NotNil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		// Client uses list and delete API
@@ -242,12 +297,11 @@ func TestRestartReplicaSetPod(t *testing.T) {
 	t.Run("No Pod Deletion required", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, newerPod)
 		r := RolloutPodRestarter{client: client}
-		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
-		assert.True(t, finishReplicaSet)
+		err := r.Reconcile(roCtx)
+		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
 		// Client uses list API but not the delete API
 		assert.Len(t, client.Actions(), 1)
-
 	})
 	t.Run("Pod List error", func(t *testing.T) {
 		client := fake.NewSimpleClientset()
@@ -260,25 +314,41 @@ func TestRestartReplicaSetPod(t *testing.T) {
 			rollout: ro,
 			log:     log.WithRollout(ro),
 		}
-		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
-		assert.False(t, finishReplicaSet)
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Error(t, err, expectedErrMsg)
 	})
-	t.Run("Do not delete pod owned by other RS", func(t *testing.T) {
-		otherRS := replicaSet("other-rs", 1, 1)
-		podOwnedByOtherRS := pod("test2", metav1.NewTime(now.Add(-10*time.Second)), otherRS)
-		client := fake.NewSimpleClientset(otherRS, podOwnedByOtherRS)
-		r := RolloutPodRestarter{client: client}
-		finishReplicaSet, err := r.restartReplicaSetPod(roCtx, rs)
-		assert.True(t, finishReplicaSet)
-		assert.Nil(t, err)
-		// Client uses list API but not the delete API
-		assert.Len(t, client.Actions(), 1)
-	})
-
 }
 
-func TestSortReplicaSetsByPriority(t *testing.T) {
+// Verifies we don't delete pods which are not related to rollout (but have same selector)
+func TestRestartDoNotDeleteOtherPods(t *testing.T) {
+	now := metav1.Now()
+	ro := rollout("test", now, nil)
+	twoUnavailable := intstr.FromInt(2)
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		MaxUnavailable: &twoUnavailable,
+	}
+	rolloutRS := replicaSet("rollout-restart-abc123", "test", 1, 1)
+	newerPod := pod("newer", "test", metav1.NewTime(now.Add(10*time.Second)), rolloutRS)
+	otherRS := replicaSet("other-rs", "test", 1, 1)
+	otherRS.UID = "4444-5555-6666-7777-8888"
+	otherPod := pod("other-pod", "test", metav1.NewTime(now.Add(-10*time.Second)), otherRS)
+	roCtx := &rolloutContext{
+		rollout:  ro,
+		log:      log.WithRollout(ro),
+		stableRS: rolloutRS,
+		allRSs:   []*appsv1.ReplicaSet{rolloutRS},
+	}
+	client := fake.NewSimpleClientset(rolloutRS, otherRS, newerPod, otherPod)
+	r := RolloutPodRestarter{client: client}
+	err := r.Reconcile(roCtx)
+	assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
+	assert.Nil(t, err)
+	// Client uses list API but not the delete API
+	assert.Len(t, client.Actions(), 1)
+}
+
+func TestRestartSortReplicaSetsByPriority(t *testing.T) {
 	rs := func(name string, creationTimestamp metav1.Time) *appsv1.ReplicaSet {
 		return &appsv1.ReplicaSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -348,5 +418,125 @@ func TestSortReplicaSetsByPriority(t *testing.T) {
 		s.Swap(0, 1)
 		assert.Equal(t, s.allRSs[1].Name, rs1.Name)
 		assert.Equal(t, s.allRSs[0].Name, rs2.Name)
+	})
+}
+
+func TestRestartMaxUnavailable(t *testing.T) {
+	now := metav1.Now()
+	ro := rollout("test", now, nil)
+	ro.Spec.Replicas = pointer.Int32Ptr(3)
+	twoUnavailable := intstr.FromInt(2)
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		MaxUnavailable: &twoUnavailable,
+	}
+	rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
+	olderPod1 := pod("older1", "test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	olderPod2 := pod("older2", "test", metav1.NewTime(now.Add(-10*time.Second)), rs)
+	newerPod := pod("newer", "test", metav1.NewTime(now.Add(10*time.Second)), rs)
+
+	t.Run("Restart multiple", func(t *testing.T) {
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs},
+		}
+		client := fake.NewSimpleClientset(rs, olderPod1, olderPod2, newerPod)
+		r := RolloutPodRestarter{client: client}
+		err := r.Reconcile(roCtx)
+		assert.NotNil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list and two delete API
+		assert.Len(t, actions, 3)
+		_, ok := actions[1].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		_, ok = actions[2].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+	})
+	t.Run("Restart multiple honor availability", func(t *testing.T) {
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs},
+		}
+		newerPod := pod("newer", "test", metav1.NewTime(now.Add(10*time.Second)), rs)
+		newerPod.Status.Conditions = nil // make newer pod unavailable
+		client := fake.NewSimpleClientset(rs, olderPod1, olderPod2, newerPod)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list and one delete API
+		assert.Len(t, actions, 2)
+		_, ok := actions[1].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		assert.True(t, enqueued)
+	})
+	t.Run("maxUnavailable zero", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		zeroUnavailable := intstr.FromInt(0)
+		ro.Spec.Strategy.Canary.MaxUnavailable = &zeroUnavailable
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs},
+		}
+		client := fake.NewSimpleClientset(rs, olderPod1, olderPod2, newerPod)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list and one delete API
+		assert.Len(t, actions, 2)
+		_, ok := actions[1].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		assert.True(t, enqueued)
+	})
+	t.Run("maxUnavailable 100%", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		allUnavailable := intstr.FromString("100%")
+		ro.Spec.Strategy.Canary.MaxUnavailable = &allUnavailable
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs},
+		}
+		client := fake.NewSimpleClientset(rs, olderPod1, olderPod2, newerPod)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.NotNil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list and two delete API
+		assert.Len(t, actions, 3)
+		_, ok := actions[1].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		_, ok = actions[2].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		assert.False(t, enqueued)
 	})
 }

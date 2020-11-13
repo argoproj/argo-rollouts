@@ -147,12 +147,50 @@ spec:
 
 func (s *FunctionalSuite) TestRolloutRestart() {
 	s.Given().
-		HealthyRollout(`@functional/rollout-basic.yaml`).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-restart
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      maxUnavailable: 75%
+      steps:
+      - setWeight: 25
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-restart
+  template:
+    metadata:
+      labels:
+        app: rollout-restart
+    spec:
+      containers:
+      - name: rollout-restart
+        image: nginx:1.19-alpine
+        lifecycle:
+          postStart:
+            exec:
+              command: [sleep, "5"]
+          preStop:
+            exec:
+              command: [sleep, "5"]
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m
+`).
 		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
 		Sleep(time.Second). // need to sleep so that clock will advanced past pod creationTimestamp
 		RestartRollout().
-		WaitForRolloutStatus("Progressing").
-		WaitForRolloutStatus("Healthy")
+		Sleep(2*time.Second).
+		Then().
+		ExpectReplicaCounts(4, 4, 1, 1, 1)
 }
 
 func (s *FunctionalSuite) TestMalformedRollout() {
