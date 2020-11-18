@@ -36,11 +36,11 @@ func (m mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime t
 	panic("Not used")
 }
 
-func (m mockAPI) LabelNames(ctx context.Context) ([]string, v1.Warnings, error) {
+func (m mockAPI) LabelNames(ctx context.Context, startTime time.Time, endTime time.Time) ([]string, v1.Warnings, error) {
 	panic("Not used")
 }
 
-func (m mockAPI) LabelValues(ctx context.Context, label string) (model.LabelValues, v1.Warnings, error) {
+func (m mockAPI) LabelValues(ctx context.Context, label string, startTime time.Time, endTime time.Time) (model.LabelValues, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -81,5 +81,13 @@ func (m mockAPI) Rules(ctx context.Context) (v1.RulesResult, error) {
 }
 
 func (m mockAPI) TargetsMetadata(ctx context.Context, matchTarget string, metric string, limit string) ([]v1.MetricMetadata, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) Runtimeinfo(ctx context.Context) (v1.RuntimeinfoResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
 	panic("Not used")
 }

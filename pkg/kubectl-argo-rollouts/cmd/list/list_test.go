@@ -235,8 +235,8 @@ func TestListWithWatch(t *testing.T) {
 
 	expectedOut := strings.TrimPrefix(`
 NAME           STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
-can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2        
 bg-guestbook   BlueGreen  Progressing   -     -           1/4    5        3           2        
+can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2        
 can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           3        
 `, "\n")
 	assert.Equal(t, expectedOut, stdout)
@@ -296,8 +296,8 @@ func TestListExperiments(t *testing.T) {
 	assert.Empty(t, stderr)
 	expectedOut := strings.TrimPrefix(`
 NAMESPACE           NAME            STATUS   DURATION  REMAINING  AGE
-test                my-experiment   Running  3h        119m       7d 
 my-other-namespace  my-experiment2  Running  -         -          7d 
+test                my-experiment   Running  3h        119m       7d 
 `, "\n")
 	assert.Equal(t, expectedOut, stdout)
 }

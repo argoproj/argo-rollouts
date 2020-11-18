@@ -823,6 +823,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -1361,6 +1370,15 @@ spec:
                                                       type: string
                                                     user:
                                                       type: string
+                                                  type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
                                                   type: object
                                                 windowsOptions:
                                                   properties:
@@ -1905,6 +1923,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -2090,6 +2117,15 @@ spec:
                                               user:
                                                 type: string
                                             type: object
+                                          seccompProfile:
+                                            properties:
+                                              localhostProfile:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - type
+                                            type: object
                                           supplementalGroups:
                                             items:
                                               format: int64
@@ -2121,6 +2157,8 @@ spec:
                                         type: string
                                       serviceAccountName:
                                         type: string
+                                      setHostnameAsFQDN:
+                                        type: boolean
                                       shareProcessNamespace:
                                         type: boolean
                                       subdomain:
@@ -2298,6 +2336,85 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
+                                              type: object
+                                            ephemeral:
+                                              properties:
+                                                readOnly:
+                                                  type: boolean
+                                                volumeClaimTemplate:
+                                                  properties:
+                                                    metadata:
+                                                      type: object
+                                                    spec:
+                                                      properties:
+                                                        accessModes:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        dataSource:
+                                                          properties:
+                                                            apiGroup:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                          required:
+                                                          - kind
+                                                          - name
+                                                          type: object
+                                                        resources:
+                                                          properties:
+                                                            limits:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                            requests:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                          type: object
+                                                        selector:
+                                                          properties:
+                                                            matchExpressions:
+                                                              items:
+                                                                properties:
+                                                                  key:
+                                                                    type: string
+                                                                  operator:
+                                                                    type: string
+                                                                  values:
+                                                                    items:
+                                                                      type: string
+                                                                    type: array
+                                                                required:
+                                                                - key
+                                                                - operator
+                                                                type: object
+                                                              type: array
+                                                            matchLabels:
+                                                              additionalProperties:
+                                                                type: string
+                                                              type: object
+                                                          type: object
+                                                        storageClassName:
+                                                          type: string
+                                                        volumeMode:
+                                                          type: string
+                                                        volumeName:
+                                                          type: string
+                                                      type: object
+                                                  required:
+                                                  - spec
+                                                  type: object
                                               type: object
                                             fc:
                                               properties:
@@ -3655,6 +3772,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -4193,6 +4319,15 @@ spec:
                                                       type: string
                                                     user:
                                                       type: string
+                                                  type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
                                                   type: object
                                                 windowsOptions:
                                                   properties:
@@ -4737,6 +4872,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -4922,6 +5066,15 @@ spec:
                                               user:
                                                 type: string
                                             type: object
+                                          seccompProfile:
+                                            properties:
+                                              localhostProfile:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - type
+                                            type: object
                                           supplementalGroups:
                                             items:
                                               format: int64
@@ -4953,6 +5106,8 @@ spec:
                                         type: string
                                       serviceAccountName:
                                         type: string
+                                      setHostnameAsFQDN:
+                                        type: boolean
                                       shareProcessNamespace:
                                         type: boolean
                                       subdomain:
@@ -5130,6 +5285,85 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
+                                              type: object
+                                            ephemeral:
+                                              properties:
+                                                readOnly:
+                                                  type: boolean
+                                                volumeClaimTemplate:
+                                                  properties:
+                                                    metadata:
+                                                      type: object
+                                                    spec:
+                                                      properties:
+                                                        accessModes:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        dataSource:
+                                                          properties:
+                                                            apiGroup:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                          required:
+                                                          - kind
+                                                          - name
+                                                          type: object
+                                                        resources:
+                                                          properties:
+                                                            limits:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                            requests:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                          type: object
+                                                        selector:
+                                                          properties:
+                                                            matchExpressions:
+                                                              items:
+                                                                properties:
+                                                                  key:
+                                                                    type: string
+                                                                  operator:
+                                                                    type: string
+                                                                  values:
+                                                                    items:
+                                                                      type: string
+                                                                    type: array
+                                                                required:
+                                                                - key
+                                                                - operator
+                                                                type: object
+                                                              type: array
+                                                            matchLabels:
+                                                              additionalProperties:
+                                                                type: string
+                                                              type: object
+                                                          type: object
+                                                        storageClassName:
+                                                          type: string
+                                                        volumeMode:
+                                                          type: string
+                                                        volumeName:
+                                                          type: string
+                                                      type: object
+                                                  required:
+                                                  - spec
+                                                  type: object
                                               type: object
                                             fc:
                                               properties:
@@ -6415,6 +6649,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -6953,6 +7196,15 @@ spec:
                                                       type: string
                                                     user:
                                                       type: string
+                                                  type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
                                                   type: object
                                                 windowsOptions:
                                                   properties:
@@ -7497,6 +7749,15 @@ spec:
                                                     user:
                                                       type: string
                                                   type: object
+                                                seccompProfile:
+                                                  properties:
+                                                    localhostProfile:
+                                                      type: string
+                                                    type:
+                                                      type: string
+                                                  required:
+                                                  - type
+                                                  type: object
                                                 windowsOptions:
                                                   properties:
                                                     gmsaCredentialSpec:
@@ -7682,6 +7943,15 @@ spec:
                                               user:
                                                 type: string
                                             type: object
+                                          seccompProfile:
+                                            properties:
+                                              localhostProfile:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - type
+                                            type: object
                                           supplementalGroups:
                                             items:
                                               format: int64
@@ -7713,6 +7983,8 @@ spec:
                                         type: string
                                       serviceAccountName:
                                         type: string
+                                      setHostnameAsFQDN:
+                                        type: boolean
                                       shareProcessNamespace:
                                         type: boolean
                                       subdomain:
@@ -7890,6 +8162,85 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
+                                              type: object
+                                            ephemeral:
+                                              properties:
+                                                readOnly:
+                                                  type: boolean
+                                                volumeClaimTemplate:
+                                                  properties:
+                                                    metadata:
+                                                      type: object
+                                                    spec:
+                                                      properties:
+                                                        accessModes:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        dataSource:
+                                                          properties:
+                                                            apiGroup:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                          required:
+                                                          - kind
+                                                          - name
+                                                          type: object
+                                                        resources:
+                                                          properties:
+                                                            limits:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                            requests:
+                                                              additionalProperties:
+                                                                anyOf:
+                                                                - type: integer
+                                                                - type: string
+                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                                x-kubernetes-int-or-string: true
+                                                              type: object
+                                                          type: object
+                                                        selector:
+                                                          properties:
+                                                            matchExpressions:
+                                                              items:
+                                                                properties:
+                                                                  key:
+                                                                    type: string
+                                                                  operator:
+                                                                    type: string
+                                                                  values:
+                                                                    items:
+                                                                      type: string
+                                                                    type: array
+                                                                required:
+                                                                - key
+                                                                - operator
+                                                                type: object
+                                                              type: array
+                                                            matchLabels:
+                                                              additionalProperties:
+                                                                type: string
+                                                              type: object
+                                                          type: object
+                                                        storageClassName:
+                                                          type: string
+                                                        volumeMode:
+                                                          type: string
+                                                        volumeName:
+                                                          type: string
+                                                      type: object
+                                                  required:
+                                                  - spec
+                                                  type: object
                                               type: object
                                             fc:
                                               properties:
@@ -9150,6 +9501,15 @@ spec:
                                         user:
                                           type: string
                                       type: object
+                                    seccompProfile:
+                                      properties:
+                                        localhostProfile:
+                                          type: string
+                                        type:
+                                          type: string
+                                      required:
+                                      - type
+                                      type: object
                                     windowsOptions:
                                       properties:
                                         gmsaCredentialSpec:
@@ -9688,6 +10048,15 @@ spec:
                                           type: string
                                         user:
                                           type: string
+                                      type: object
+                                    seccompProfile:
+                                      properties:
+                                        localhostProfile:
+                                          type: string
+                                        type:
+                                          type: string
+                                      required:
+                                      - type
                                       type: object
                                     windowsOptions:
                                       properties:
@@ -10232,6 +10601,15 @@ spec:
                                         user:
                                           type: string
                                       type: object
+                                    seccompProfile:
+                                      properties:
+                                        localhostProfile:
+                                          type: string
+                                        type:
+                                          type: string
+                                      required:
+                                      - type
+                                      type: object
                                     windowsOptions:
                                       properties:
                                         gmsaCredentialSpec:
@@ -10417,6 +10795,15 @@ spec:
                                   user:
                                     type: string
                                 type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                - type
+                                type: object
                               supplementalGroups:
                                 items:
                                   format: int64
@@ -10448,6 +10835,8 @@ spec:
                             type: string
                           serviceAccountName:
                             type: string
+                          setHostnameAsFQDN:
+                            type: boolean
                           shareProcessNamespace:
                             type: boolean
                           subdomain:
@@ -10625,6 +11014,85 @@ spec:
                                       - type: string
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
+                                  type: object
+                                ephemeral:
+                                  properties:
+                                    readOnly:
+                                      type: boolean
+                                    volumeClaimTemplate:
+                                      properties:
+                                        metadata:
+                                          type: object
+                                        spec:
+                                          properties:
+                                            accessModes:
+                                              items:
+                                                type: string
+                                              type: array
+                                            dataSource:
+                                              properties:
+                                                apiGroup:
+                                                  type: string
+                                                kind:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              - name
+                                              type: object
+                                            resources:
+                                              properties:
+                                                limits:
+                                                  additionalProperties:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
+                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                    x-kubernetes-int-or-string: true
+                                                  type: object
+                                                requests:
+                                                  additionalProperties:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
+                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                    x-kubernetes-int-or-string: true
+                                                  type: object
+                                              type: object
+                                            selector:
+                                              properties:
+                                                matchExpressions:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      operator:
+                                                        type: string
+                                                      values:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                              type: object
+                                            storageClassName:
+                                              type: string
+                                            volumeMode:
+                                              type: string
+                                            volumeName:
+                                              type: string
+                                          type: object
+                                      required:
+                                      - spec
+                                      type: object
                                   type: object
                                 fc:
                                   properties:
@@ -12231,6 +12699,15 @@ spec:
                                   user:
                                     type: string
                                 type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                - type
+                                type: object
                               windowsOptions:
                                 properties:
                                   gmsaCredentialSpec:
@@ -12769,6 +13246,15 @@ spec:
                                     type: string
                                   user:
                                     type: string
+                                type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                - type
                                 type: object
                               windowsOptions:
                                 properties:
@@ -13313,6 +13799,15 @@ spec:
                                   user:
                                     type: string
                                 type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                - type
+                                type: object
                               windowsOptions:
                                 properties:
                                   gmsaCredentialSpec:
@@ -13498,6 +13993,15 @@ spec:
                             user:
                               type: string
                           type: object
+                        seccompProfile:
+                          properties:
+                            localhostProfile:
+                              type: string
+                            type:
+                              type: string
+                          required:
+                          - type
+                          type: object
                         supplementalGroups:
                           items:
                             format: int64
@@ -13529,6 +14033,8 @@ spec:
                       type: string
                     serviceAccountName:
                       type: string
+                    setHostnameAsFQDN:
+                      type: boolean
                     shareProcessNamespace:
                       type: boolean
                     subdomain:
@@ -13706,6 +14212,85 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                            type: object
+                          ephemeral:
+                            properties:
+                              readOnly:
+                                type: boolean
+                              volumeClaimTemplate:
+                                properties:
+                                  metadata:
+                                    type: object
+                                  spec:
+                                    properties:
+                                      accessModes:
+                                        items:
+                                          type: string
+                                        type: array
+                                      dataSource:
+                                        properties:
+                                          apiGroup:
+                                            type: string
+                                          kind:
+                                            type: string
+                                          name:
+                                            type: string
+                                        required:
+                                        - kind
+                                        - name
+                                        type: object
+                                      resources:
+                                        properties:
+                                          limits:
+                                            additionalProperties:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type: object
+                                          requests:
+                                            additionalProperties:
+                                              anyOf:
+                                              - type: integer
+                                              - type: string
+                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                              x-kubernetes-int-or-string: true
+                                            type: object
+                                        type: object
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                      storageClassName:
+                                        type: string
+                                      volumeMode:
+                                        type: string
+                                      volumeName:
+                                        type: string
+                                    type: object
+                                required:
+                                - spec
+                                type: object
                             type: object
                           fc:
                             properties:
