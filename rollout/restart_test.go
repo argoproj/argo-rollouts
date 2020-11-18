@@ -539,4 +539,93 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		assert.True(t, ok)
 		assert.False(t, enqueued)
 	})
+	t.Run("replicas:1 weight:50", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Strategy.Canary.MaxUnavailable = nil
+		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
+		olderPod2 := pod("older2", "test", metav1.NewTime(now.Add(-10*time.Second)), rs2)
+
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs, rs2},
+		}
+		client := fake.NewSimpleClientset(rs, rs2, olderPod1, olderPod2)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list and two delete API
+		assert.Len(t, actions, 2)
+		_, ok := actions[1].(k8stesting.DeleteAction)
+		assert.True(t, ok)
+		assert.True(t, enqueued)
+	})
+	t.Run("replicas:1 weight:50, already at minAvailable", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Strategy.Canary.MaxUnavailable = nil
+		rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
+		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
+		rs2.UID = "4444-5555-6666-7777-8888"
+		olderPod2 := pod("older2", "test", metav1.NewTime(now.Add(-10*time.Second)), rs2)
+		olderPod2.Status.Conditions = nil // make olderPod2 unavailable
+
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs, rs2},
+		}
+		client := fake.NewSimpleClientset(rs, rs2, olderPod1, olderPod2)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.Nil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list
+		assert.Len(t, actions, 1)
+		assert.True(t, enqueued)
+	})
+	t.Run("replicas:0", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Replicas = pointer.Int32Ptr(0)
+		rs := replicaSet("rollout-restart-abc123", "test", 0, 0)
+		roCtx := &rolloutContext{
+			rollout:  ro,
+			log:      log.WithRollout(ro),
+			stableRS: rs,
+			allRSs:   []*appsv1.ReplicaSet{rs},
+		}
+		client := fake.NewSimpleClientset(rs)
+		enqueued := false
+		r := RolloutPodRestarter{
+			client: client,
+			enqueueAfter: func(obj interface{}, duration time.Duration) {
+				enqueued = true
+			},
+		}
+		err := r.Reconcile(roCtx)
+		assert.NotNil(t, roCtx.newStatus.RestartedAt)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		// Client uses list
+		assert.Len(t, actions, 1)
+		assert.False(t, enqueued)
+	})
 }
