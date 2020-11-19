@@ -26,8 +26,10 @@ import (
 )
 
 // AnalysisRunLister helps list AnalysisRuns.
+// All objects returned here must be treated as read-only.
 type AnalysisRunLister interface {
 	// List lists all AnalysisRuns in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AnalysisRun, err error)
 	// AnalysisRuns returns an object that can list and get AnalysisRuns.
 	AnalysisRuns(namespace string) AnalysisRunNamespaceLister
@@ -58,10 +60,13 @@ func (s *analysisRunLister) AnalysisRuns(namespace string) AnalysisRunNamespaceL
 }
 
 // AnalysisRunNamespaceLister helps list and get AnalysisRuns.
+// All objects returned here must be treated as read-only.
 type AnalysisRunNamespaceLister interface {
 	// List lists all AnalysisRuns in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AnalysisRun, err error)
 	// Get retrieves the AnalysisRun from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.AnalysisRun, error)
 	AnalysisRunNamespaceListerExpansion
 }
