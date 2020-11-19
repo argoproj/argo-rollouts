@@ -69,15 +69,22 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 	if err != nil {
 		return err
 	}
+	// total replicas can be higher than spec.replicas (e.g. when we are a canary weight that is not
+	// evenly divisible by the spec.replicas)
+	totalReplicas := replicasetutil.GetReplicaCountForReplicaSets(s.allRSs)
 	replicas := defaults.GetReplicasOrDefault(roCtx.rollout.Spec.Replicas)
 	available := getAvailablePodCount(rolloutPods, roCtx.rollout.Spec.MinReadySeconds)
 	maxUnavailable := replicasetutil.MaxUnavailable(roCtx.rollout)
-	// maxUnavailable might be 0. we need to be able to restart at least 1
+	// maxUnavailable might be 0. we ignore this because need to be able to restart at least 1
 	concurrentRestart := maxInt(maxUnavailable, int32(1))
-	effMinAvailable := replicas - concurrentRestart
-	canRestart := int(available - effMinAvailable)
-	logCtx.Infof("Reconcile pod restart (replicas:%d, available:%d, maxUnavailable:%d, effectiveMinAvailable:%d, concurrentRestart:%d, canRestart:%d)",
-		replicas, available, maxUnavailable, effMinAvailable, concurrentRestart, canRestart)
+
+	// we take the higher of totalReplicas vs. replicas when calculating effectiveMinAvailable
+	// to handle the case where we are at a non-divisible canary weight
+	effMinAvailable := maxInt(replicas, totalReplicas) - concurrentRestart
+
+	canRestart := available - effMinAvailable
+	logCtx.Infof("Reconcile pod restart (replicas:%d, totalReplicas:%d, available:%d, maxUnavailable:%d, effectiveMinAvailable:%d, concurrentRestart:%d, canRestart:%d)",
+		replicas, totalReplicas, available, maxUnavailable, effMinAvailable, concurrentRestart, canRestart)
 
 	restartedAt := roCtx.rollout.Spec.RestartAt
 	needsRestart := 0
