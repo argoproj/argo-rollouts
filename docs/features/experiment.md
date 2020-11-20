@@ -96,7 +96,10 @@ An Experiment is considered complete when:
 1. An AnalysisRun created by an Experiment enters a failed or error state.
 1. An external process (i.e. user or pipeline) sets the `.spec.terminate` to true
 
+## Run Experiment Indefinitely
 
+Experiments can run for an indefinite duration by omitting the duration field. Indefinite
+experiments would be stopped externally, or through the completion of a referenced analysis.
 
 
 ## Integration With Rollouts

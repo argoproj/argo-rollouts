@@ -5,6 +5,8 @@ Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced 
 
 Argo Rollouts (optionally) integrates with ingress controllers and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.
 
+[![Argo Rollotus Demo](https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg)](https://youtu.be/hIL0E2gLkf8)
+
 ## Why Argo Rollouts?
 Kubernetes Deployments provides the `RollingUpdate` strategy which provide a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:
 
@@ -17,7 +19,7 @@ Kubernetes Deployments provides the `RollingUpdate` strategy which provide a bas
 For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too aggressively, and provides no automated rollback upon failures.
 
 ## Features
-* Blue-Green (aka red-black) update strategy
+* Blue-Green update strategy
 * Canary update strategy
 * Fine-grained, weighted traffic shifting
 * Automated rollbacks and promotions
@@ -27,7 +29,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Service Mesh integration: Istio, Linkerd, SMI
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs
 
-### Quick Start
+## Quick Start
 
 ```
 kubectl create namespace argo-rollouts
@@ -36,10 +38,10 @@ kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/arg
 
 Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
 
-### How does it work?
+## How does it work?
 Similar to the deployment object, the Argo Rollouts controller will manage the creation, scaling, and deletion of ReplicaSets. These ReplicaSets are defined by the `spec.template` field, which uses the same pod template as the deployment object. When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet has successfully progressed into the stable version, that Rollout will be marked as the stable ReplicaSet. If another change occurs in the `spec.template` during a transition from a stable ReplicaSet to a new ReplicaSet. The previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the `spec.template` field. There is more information on the behaviors of each strategy in the [spec](spec/) section.
 
-### Use cases of Argo Rollouts
+## Use cases of Argo Rollouts
 
 - A user wants to run last minute functional tests on the new version before it starts to serve production traffic. With the BlueGreen strategy, Argo Rollouts allow users to specify a preview service and an active service. The Rollout will configure the preview service to send traffic to the new version while the active service continues to receive production traffic. Once a user is satisfied, they can promote the preview service to be the new active service. ([example](https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-bluegreen.yaml))
 

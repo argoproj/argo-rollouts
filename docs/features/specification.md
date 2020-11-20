@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: guestbook
-        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        image: argoproj/rollouts-demo:blue
   # Minimum number of seconds for which a newly created pod should be ready without any of its
   # container crashing, for it to be considered available.
   # Defaults to 0 (pod will be considered available as soon as it is ready)
@@ -30,8 +30,9 @@ spec:
   # Defaults to 10
   revisionHistoryLimit: 3
   # Pause allows a user to manually pause a rollout at any time. A rollout will not advance through
-  # its steps while it is manually paused, but HPA auto-scaling will still occur.
-  # Usually not used in the manifest, but if true at initial creation of Rollout, replicas are not scaled up automatically from zero unless manually promoted.
+  # its steps while it is manually paused, but HPA auto-scaling will still occur. Usually not used
+  # in the manifest, but if true at initial creation of Rollout, replicas are not scaled up
+  # automatically from zero unless manually promoted.
   paused: true
   # The maximum time in seconds in which a rollout must make progress during an update, before it is
   # considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition
@@ -66,13 +67,20 @@ spec:
           value: guestbook-svc.default.svc.cluster.local
       # Name of the service that the rollout modifies as the preview service. +optional
       previewService: preview-service
-      # The number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs +optional
+      # The number of replicas to run under the preview service before the switchover. Once the
+      # rollout is resumed the new replicaset will be full scaled up before the switch occurs +optional
       previewReplicaCount: 1
-      # Indicates if the rollout should automatically promote the new ReplicaSet to the active service or enter a paused state. If not specified, the default value is true. +optional
+      # Indicates if the rollout should automatically promote the new ReplicaSet to the active
+      # service or enter a paused state. If not specified, the default value is true. +optional
       autoPromotionEnabled: false
-      # Automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by resetting spec.Paused to false. +optional
+      # Automatically promotes the current ReplicaSet to active after the specified pause delay
+      # in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains
+      # in a paused state until manually resumed by resetting spec.Paused to false. +optional
       autoPromotionSeconds: 30
-      # Adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
+      # Adds a delay before scaling down the previous replicaset. If omitted, the Rollout waits
+      # 30 seconds before scaling down the previous ReplicaSet. A minimum of 30 seconds is
+      # recommended to ensure IP table propagation across the nodes in a cluster.
+      # See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for more information
       scaleDownDelaySeconds: 30
       # Limits the number of old RS that can run at once before getting scaled down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
@@ -86,9 +94,30 @@ spec:
       canaryService: canary-service
       # StableService holds the name of a service which selects pods with stable version and don't select any pods with canary version. +optional
       stableService: stable-service
-      # The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old RC can be scaled down by 30% immediately when the rolling update starts. Once new pods are ready, old RC can be scaled down further, followed by scaling up the new RC, ensuring that at least 70% of original number of pods are available at all times during the update. +optional
+      # metadata which should be attached to the stable pods
+      stableMetadata:
+        labels:
+          role: stable
+      # metadata which should be attached to the canary pods (only set during updates)
+      canaryMetadata:
+        labels:
+          role: canary
+      # The maximum number of pods that can be unavailable during the update. Value can be an 
+      # absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+      # Absolute number is calculated from percentage by rounding down. This can not be 0 if 
+      # MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%,
+      # the old RC can be scaled down by 30% immediately when the rolling update starts. Once new
+      # pods are ready, old RC can be scaled down further, followed by scaling up the new RC,
+      # ensuring that at least 70% of original number of pods are available at all times during the
+      # update. +optional
       maxUnavailable: 1
-      # The maximum number of pods that can be scheduled above the original number of pods. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new RC can be scaled up by 30% immediately when the rolling update starts. Once old pods have been killed, new RC can be scaled up further, ensuring that total number of pods running at any time during the update is at most 130% of original pods. +optional
+      # The maximum number of pods that can be scheduled above the original number of pods. Value
+      # can be an absolute number (ex: 5) or a percentage of total pods at the start of the update
+      # (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from
+      # percentage by rounding up. By default, a value of 1 is used. Example: when this is set to
+      # 30%, the new RC can be scaled up by 30% immediately when the rolling update starts. Once
+      # old pods have been killed, new RC can be scaled up further, ensuring that total number of
+      # pods running at any time during the update is at most 130% of original pods. +optional
       maxSurge: "20%"
       # Background analysis to run during the rollout
       analysis:
@@ -108,6 +137,15 @@ spec:
       - setWeight: 40
         # Pauses indefinitely until manually resumed
       - pause: {}
+        # set canary scale to a explicit count
+      - setCanaryScale:
+          replicas: 3
+        # set canary scale to a percentage of spec.replicas
+      - setCanaryScale:
+          weight: 25
+        # set canary scale to matching the canary traffic weight (default behavior)
+      - setCanaryScale:
+          matchTrafficWeight: true
       # Anti Affinity configuration between desired and previous replicaset. Only one must be specified
       antiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution: {}
