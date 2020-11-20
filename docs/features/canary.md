@@ -66,49 +66,58 @@ If no `duration` specified for a pause step the rollout will be paused indefinit
 kubectl argo rollouts promote <rollout>
 ```
 
-## Mimicking Rolling Update
-If the steps field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the `maxSurge` and `maxUnavailable` fields to configure how the Rollout should progress to the new version.
+## Controlling Canary Scale
 
+By default, the rollout controller will scale the canary to match the current trafficWeight of the
+current step. For example, if the current weight is 25%, and there are four replicas, there the
+canary will be scaled to 1, to match the traffic weight.
 
-## Ephemeral Metadata
+It is possible to control the canary replica's scale during the steps such that it does not necessary
+match the traffic weight. Some use cases for this:
+
+1. The new version should not yet be exposed to the public (setWeight: 0), but you would like to
+   scale the canary up in order for testing purposes.
+2. You wish to scale the canary stack up minimally, and use some header based traffic shaping to
+   the canary, while setWeight is still set to 0.
+3. You wish to scale the canary up 100%, in order to facilitate traffic shadowing.
+
 
 !!! important
-    Available since v0.10.0
+  Setting canary scale is only available when using the canary strategy with a traffic router, since
+  the basic canary needs to control canary scale in order to approximate canary weight.
 
-One use case is for a Rollout to label or annotate the canary/stable pods with user-defined labels/annotations,
-for *only* the duration which they are the canary or stable set, and for the labels to be updated/removed as soon
-as the ReplicaSet switches roles (e.g. from canary to stable). The use case which this enables, is to allow
-prometheus, wavefront, datadog queries and dashboards to be built, which can rely on a consistent
-labels, rather than the `rollouts-pod-template-hash` which is unpredictable and changing from revision
-to revision.
-
-A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or 
-canary Pods using the `stableMetadata` and `canaryMetadata` fields respectively.
+To control canary weights during steps, use the `setCanaryScale` step and indicate which scale the
+the canary should use:
+* explicit replica count
+* explicit weight percentage of total spec.repicas
+* to match current canary setWeight
 
 ```yaml
 spec:
   strategy:
     canary:
-      stableMetadata:
-        labels:
-          role: stable
-      canaryMetadata:
-        labels:
-          role: canary
+      steps:
+      # explicit count
+      - setCanaryScale:
+          replicas: 3
+      # a percentage of spec.replicas
+      - setCanaryScale:
+          weight: 25
+      # matchTrafficWeight returns to the default behavior of matching the canary traffic weight
+      - setCanaryScale:
+          matchTrafficWeight: true
 ```
 
-During an update, the Rollout will create the canary ReplicaSet while also merging the metadata
-defined in `canaryMetadata` to the canary ReplicaSet's `spec.template.metadata`. This results in all
-Pods of the ReplicaSet being created with the canary metadata. When the rollout becomes fully
-promoted, the canary ReplicaSet becomes the stable, and is updated to use the labels and annotations
-under `stableMetadata`. The Pods of the ReplicaSet will then be updated *in place* to use the stable
-metadata (without recreating the pods).
+If no `duration` specified for a pause step the rollout will be paused indefinitely. To unpause use the [argo kubectl plugin](kubectl-plugin.md) `promote` command. 
 
-!!! important
-    In order for tooling to take advantage of this feature, they would need to recognize the change
-    in labels and/or annotations that happen *after* the Pod has already started. Not all tools may
-    detect this.
+```shell
+# promote to the next step
+kubectl argo rollouts promote <rollout>
+```
 
+
+## Mimicking Rolling Update
+If the steps field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the `maxSurge` and `maxUnavailable` fields to configure how the Rollout should progress to the new version.
 
 ## Other Configurable Features
 Here are the optional fields that will modify the behavior of canary strategy:
