@@ -6,7 +6,7 @@ require (
 	github.com/antonmedv/expr v1.8.9
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-openapi/spec v0.19.3
+	github.com/go-openapi/spec v0.19.15
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
@@ -24,8 +24,7 @@ require (
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery v1.1.2
-	gopkg.in/yaml.v2 v2.3.0
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.19.4
 	k8s.io/apiextensions-apiserver v0.19.4
 	k8s.io/apimachinery v0.19.4
