@@ -42,7 +42,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {}
 `
 	s.Given().
-		RolloutTemplate("@functional/alb-template.yaml", "set-canary-scale").
+		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").
 		SetSteps(canarySteps).
 		When().
 		ApplyManifests().
