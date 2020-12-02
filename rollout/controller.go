@@ -347,13 +347,13 @@ func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
 		log.Errorf("Error processing istio vsvc from watch: %v: %v", err, vsvc)
 		return
 	}
-	vsvcToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
+	rolloutToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
 	if err != nil {
 		log.Errorf("Cannot process indexer: %s", err.Error())
 		return
 	}
-	for i := range vsvcToEnqueue {
-		controllerutil.EnqueueParentObject(vsvcToEnqueue[i], register.RolloutKind, c.enqueueRollout)
+	for i := range rolloutToEnqueue {
+		c.enqueueRollout(rolloutToEnqueue[i])
 	}
 }
 
