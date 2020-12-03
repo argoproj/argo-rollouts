@@ -21,5 +21,5 @@ kubectl kustomize "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifest
 update_image "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-kubectl kustomize "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+kustomize build --load_restrictor none "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
 update_image "${SRCROOT}/manifests/namespace-install.yaml"
