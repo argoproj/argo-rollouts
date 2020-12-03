@@ -130,6 +130,10 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 	if err != nil {
 		return true
 	}
+	// It's still possible for a v0.9 rollout to have an all numeric hash, this covers that corner case
+	if int64(observedGen) > ro.Generation {
+		return true
+	}
 	return int64(observedGen) == ro.Generation
 }
 
