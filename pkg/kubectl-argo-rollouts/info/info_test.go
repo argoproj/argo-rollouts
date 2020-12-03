@@ -309,6 +309,20 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, "Progressing", status)
 		assert.Equal(t, "more replicas need to be updated", message)
 	}
+	{
+		// Verify isGenerationObserved detects a v0.9 legacy rollout which has an all numeric hash
+		ro := newCanaryRollout()
+		ro.Generation = 2
+		ro.Spec.Replicas = nil
+		ro.Status = v1alpha1.RolloutStatus{
+			StableRS:           "abc1234",
+			CurrentPodHash:     "abc1234",
+			ObservedGeneration: "1366344857",
+		}
+		status, message := RolloutStatusString(ro)
+		assert.Equal(t, "Progressing", status)
+		assert.Equal(t, "more replicas need to be updated", message)
+	}
 }
 
 func TestRolloutStatusHealthy(t *testing.T) {
