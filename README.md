@@ -17,7 +17,7 @@ kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
 ```
 
-Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
+Follow the full [getting started guide](docs/getting-started.md) to walk through creating and then updating a rollout object. 
 
 ## Why Argo Rollouts?
 Kubernetes Deployments provides the `RollingUpdate` strategy which provide a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:
