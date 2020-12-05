@@ -19,6 +19,11 @@ type Then struct {
 	Common
 }
 
+func (t *Then) Assert(assertFunc func(t *Then)) *Then {
+	assertFunc(t)
+	return t
+}
+
 type RolloutExpectation func(*rov1.Rollout) bool
 
 func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) *Then {
@@ -271,6 +276,43 @@ func (t *Then) ExpectServiceSelector(service string, selector map[string]string)
 	}
 	t.log.Infof("Expectation %s selector: %v met", service, selector)
 	return t
+}
+
+type ExperimentListExpectation func(*rov1.ExperimentList) bool
+type ExperimentExpectation func(*rov1.Experiment) bool
+
+func (t *Then) ExpectExperiments(expectation string, expectFunc ExperimentListExpectation) *Then {
+	exps := t.GetRolloutExperiments()
+	if !expectFunc(&exps) {
+		t.log.Errorf("Experiment expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentCount(expectedCount int) *Then {
+	return t.ExpectExperiments(fmt.Sprintf("experiment count == %d", expectedCount), func(exps *rov1.ExperimentList) bool {
+		return len(exps.Items) == expectedCount
+	})
+}
+
+func (t *Then) ExpectExperimentByRevision(expectation string, revision string, expectFunc ExperimentExpectation) *Then {
+	exp := t.GetExperimentByRevision(revision)
+	if !expectFunc(exp) {
+		t.log.Errorf("Experiment expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentByRevisionPhase(revision string, phase string) *Then {
+	return t.ExpectExperimentByRevision(fmt.Sprintf("experiment rev:%s phase == %s", revision, phase), revision,
+		func(run *rov1.Experiment) bool {
+			return string(run.Status.Phase) == phase
+		},
+	)
 }
 
 func (t *Then) When() *When {
