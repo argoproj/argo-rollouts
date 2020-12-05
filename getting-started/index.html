@@ -1362,7 +1362,7 @@ a paused state, and now has 1 of 5 replicas running the new version of the pod t
 replicas running the old version. This equates to the 20% canary weight as defined by the
 <code>setWeight: 20</code> step.</p>
 <h2 id="3-promoting-a-rollout">3. Promoting a Rollout<a class="headerlink" href="#3-promoting-a-rollout" title="Permanent link">&para;</a></h2>
-<p>The rollout is now in an paused state. When a Rollout reaches a <code>pause</code> step with no duration, it 
+<p>The rollout is now in a paused state. When a Rollout reaches a <code>pause</code> step with no duration, it 
 will remain in a paused state indefinitely until it is resumed/promoted. To manually promote a
 rollout to the next step, run the <code>promote</code> command of the plugin:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts promote rollouts-demo
@@ -1375,8 +1375,8 @@ fully transitioned to the new version. Watch the rollout again until it has comp
 <p><img alt="Promoted Rollout" src="basic/promoted-rollout.png" /></p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>The <code>promote</code> command also supports the ability to skip all remaining steps with the
-<code>--skip-all-steps</code> flag.</p>
+<p>The <code>promote</code> command also supports the ability to skip all remaining steps and analysis with the
+<code>--full</code> flag.</p>
 </div>
 <p>Once all steps complete successfully, the new ReplicaSet is marked as the "stable" ReplicaSet.
 Whenever a rollout is aborted during an update, either automatically via a failed canary analysis,
@@ -1426,9 +1426,15 @@ to route traffic. Instead, it used normal Kubernetes Service networking (i.e. ku
 an <em>approximate</em> canary weight, based on the closest ratio of new to old replica counts.
 As a result, this Rollout had a limitation in that it could only achieve a minimum canary
 weight of 20%, by scaling 1 of 5 pods to run the new version. In order to achieve much
-finer grained canarys, a ingress controller or service mesh is necessary.</p>
-<p>Follow the <a href="nginx/">NGINX Guide</a> to see how Argo Rollouts can leverage a networking provider
-to gain more advanced traffic shaping.</p>
+finer grained canaries, an ingress controller or service mesh is necessary.</p>
+<p>Follow one of the traffic routing guides to see how Argo Rollouts can leverage a networking
+provider to achieve more advanced traffic shaping.</p>
+<ul>
+<li><a href="nginx/">NGINX Guide</a></li>
+<li><a href="alb/">ALB Guide</a></li>
+<li><a href="istio/">Istio Guide</a></li>
+<li><a href="smi/">SMI Guide</a></li>
+</ul>
                 
               
               

@@ -704,8 +704,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#use-cases-of-the-experiment-crd" class="md-nav__link">
-    Use cases of the Experiment CRD
+  <a href="#use-cases-of-experiments" class="md-nav__link">
+    Use cases of Experiments
   </a>
   
 </li>
@@ -1247,8 +1247,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#use-cases-of-the-experiment-crd" class="md-nav__link">
-    Use cases of the Experiment CRD
+  <a href="#use-cases-of-experiments" class="md-nav__link">
+    Use cases of Experiments
   </a>
   
 </li>
@@ -1300,21 +1300,34 @@
                 
                 <h1 id="experiment-crd">Experiment CRD<a class="headerlink" href="#experiment-crd" title="Permanent link">&para;</a></h1>
 <h2 id="what-is-the-experiment-crd">What is the Experiment CRD?<a class="headerlink" href="#what-is-the-experiment-crd" title="Permanent link">&para;</a></h2>
-<p>The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets. Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.</p>
-<h2 id="use-cases-of-the-experiment-crd">Use cases of the Experiment CRD<a class="headerlink" href="#use-cases-of-the-experiment-crd" title="Permanent link">&para;</a></h2>
+<p>The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to
+running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
+Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.</p>
+<h2 id="use-cases-of-experiments">Use cases of Experiments<a class="headerlink" href="#use-cases-of-experiments" title="Permanent link">&para;</a></h2>
 <ul>
 <li>
-<p>A user wants to run two versions of an application for a specific duration to enable Kayenta-style analysis of their application. The Experiment CRD creates 2 ReplicaSets (a baseline and a canary) based on the <code>spec.templates</code> field of the Experiment and waits until both are healthy. After the duration passes, the Experiment scales down the ReplicaSets, and the user can start the Kayenta analysis run.</p>
+<p>A user wants to run two versions of an application for a specific duration to enable Kayenta-style
+analysis of their application. The Experiment CRD creates 2 ReplicaSets (a baseline and a canary)
+based on the <code>spec.templates</code> field of the Experiment and waits until both are healthy. After the
+duration passes, the Experiment scales down the ReplicaSets, and the user can start the Kayenta
+analysis run.</p>
 </li>
 <li>
-<p>A user can use experiments to enable A/B/C testing by launching multiple experiments with a different version of their application for a long duration. Each Experiment has one PodSpec template that defines a specific version a user would want to run. The Experiment allows users to launch multiple experiments at once and keep each Experiment self-contained.</p>
+<p>A user can use experiments to enable A/B/C testing by launching multiple experiments with a
+different version of their application for a long duration. Each Experiment has one PodSpec template
+that defines a specific version a user would want to run. The Experiment allows users to launch
+multiple experiments at once and keep each Experiment self-contained.</p>
 </li>
 <li>
-<p>Launching a new version of an existing application with different labels to avoid receiving traffic from a Kubernetes service. The user can run tests against the new version before continuing the Rollout.</p>
+<p>Launching a new version of an existing application with different labels to avoid receiving
+traffic from a Kubernetes service. The user can run tests against the new version before continuing
+the Rollout.</p>
 </li>
 </ul>
 <h2 id="experiment-spec">Experiment Spec<a class="headerlink" href="#experiment-spec" title="Permanent link">&para;</a></h2>
-<p>Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them for 60 seconds once they both become available. Also, the controller launches two AnalysisRuns after the ReplicaSets become available. </p>
+<p>Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them
+for 60 seconds once they both become available. Also, the controller launches two AnalysisRuns after
+the ReplicaSets become available. </p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Experiment</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1365,7 +1378,7 @@
             <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">8080</span>
             <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
   <span class="nt">analyses</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-benchmarkple</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
     <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-benchmark</span>
     <span class="nt">args</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">host</span>
@@ -1382,8 +1395,20 @@
 <li>Creating and scaling ReplicaSets</li>
 <li>Creating and watching AnalysisRuns</li>
 </ol>
-<p>The controller creates a ReplicaSet for each template in the Experiment's <code>.spec.templates</code>. Each template needs a unique name as the controller generates the ReplicaSet's names from the combination of the Experiment's name and template's name. Once the controller creates the ReplicaSets, it waits until those new ReplicaSets become available. Once all the ReplicaSets are available, the controller marks the Experiment as running. The Experiment stays in this state for the duration listed in the <code>spec.duration</code> field or indefinitely if omitted. </p>
-<p>Once the Experiment is running, the controller creates AnalysisRuns for each analysis listed in the Experiment's <code>.spec.analysis</code> field. These AnalysisRun execute in parallel with the running ReplicaSets. The controller generates the AnalysisRun's name by combining the experiment name and the analysis name with a dash. If an AnalysisRun exists with that name, the controller appends a number to the generated name before recreating the AnalysisRun. If there is another collision, the controller increments the number and try again until it creates an AnalysisRun. Once the Experiment finished, the controller scales down the ReplicaSets it created and terminates the AnalysisRuns if they have not finished.</p>
+<p>The controller creates a ReplicaSet for each template in the Experiment's <code>.spec.templates</code>. Each 
+template needs a unique name as the controller generates the ReplicaSet's names from the combination
+of the Experiment's name and template's name. Once the controller creates the ReplicaSets, it waits
+until those new ReplicaSets become available. Once all the ReplicaSets are available, the controller
+marks the Experiment as running. The Experiment stays in this state for the duration listed in the
+<code>spec.duration</code> field or indefinitely if omitted. </p>
+<p>Once the Experiment is running, the controller creates AnalysisRuns for each analysis listed in the
+Experiment's <code>.spec.analysis</code> field. These AnalysisRun execute in parallel with the running
+ReplicaSets. The controller generates the AnalysisRun's name by combining the experiment name and
+the analysis name with a dash. If an AnalysisRun exists with that name, the controller appends a
+number to the generated name before recreating the AnalysisRun. If there is another collision, the
+controller increments the number and try again until it creates an AnalysisRun. Once the Experiment
+finishes, the controller scales down the ReplicaSets it created and terminates the AnalysisRuns if
+they have not finished.</p>
 <p>An Experiment is considered complete when:</p>
 <ol>
 <li>More than the <code>spec.Duration</code> amount of time has passed since the ReplicaSets became healthy.</li>
@@ -1395,16 +1420,23 @@
 <p>Experiments can run for an indefinite duration by omitting the duration field. Indefinite
 experiments would be stopped externally, or through the completion of a referenced analysis.</p>
 <h2 id="integration-with-rollouts">Integration With Rollouts<a class="headerlink" href="#integration-with-rollouts" title="Permanent link">&para;</a></h2>
-<p>A rollout using the Canary strategy can create an experiment using the experiment step. The experiment step serves a blocking step for the Rollout as the Rollout does not continue until the Experiment succeeds. The Rollout creates an Experiment using the configuration in the experiment step of the Rollout. The controller generates the Experiment's name by combining the Rollout's name, the PodHash of the new ReplicaSet, the current revision of the Rollout, and the current step-index.</p>
-<p>If the Experiment fails or errors out, the Rollout enters an aborted state. While in the aborted state, the Rollout fully scales up the stable version and resets the current step index back to zero.</p>
-<p>Here is an example of a rollout with an experiment step:</p>
-<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<p>A rollout using the Canary strategy can create an experiment using the <code>experiment</code> step. The
+experiment step serves as a blocking step for the Rollout as the Rollout does not continue until the
+Experiment succeeds. The Rollout creates an Experiment using the configuration in the experiment
+step of the Rollout. If the Experiment fails or errors, the Rollout will abort.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Experiment names are generated by combining the Rollout's name, the PodHash of
+the new ReplicaSet, the current revision of the Rollout, and the current step-index.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
   <span class="nt">labels</span><span class="p">:</span>
     <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
 <span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
   <span class="nt">strategy</span><span class="p">:</span>
     <span class="nt">canary</span><span class="p">:</span> 
       <span class="nt">steps</span><span class="p">:</span>
@@ -1412,21 +1444,34 @@ experiments would be stopped externally, or through the completion of a referenc
           <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
           <span class="nt">templates</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
-          <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
-          <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span> <span class="c1"># optional defaults to 1</span>
+            <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
-          <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
-          <span class="nt">analysis</span><span class="p">:</span>
+            <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
+          <span class="nt">analyses</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name </span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
             <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
             <span class="nt">args</span><span class="p">:</span>
-            <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
-              <span class="nt">valueFrom</span><span class="p">:</span>
-                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
+            <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline-hash</span>
+              <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{templates.baseline.podTemplateHash}}&quot;</span>
             <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
-              <span class="nt">valueFrom</span><span class="p">:</span>
-                <span class="nt">podTemplateHash</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
+              <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;{{templates.canary.podTemplateHash}}&quot;</span>
 </code></pre></div>
-In the example above, the Experiment has two templates. The baseline template uses the PodSpec from the stable ReplicaSet, and the canary template uses the PodSpec from the canary ReplicaSet. The Experiment also has one analysis with the mann-whitney template. The stable-hash arg grabs the PodHash from the stable ReplicasSet, and the canary-hash arg grabs the PodHash from the canary ReplicasSet.</p>
+<p>In the example above, during an update of a Rollout, the Rollout will launch an Experiment. The
+Experiment will create two ReplicaSets: <code>baseline</code> and <code>canary</code>, with one replica each, and will run
+for one hour. The <code>baseline</code> template uses the PodSpec from the stable ReplicaSet, and the canary
+template uses the PodSpec from the canary ReplicaSet.</p>
+<p>Additionally, the Experiment will perform analysis using the <code>mann-whitney</code> AnalysisTemplate. That
+AnalysisTemplate is supplied with the pod-hash details of the baseline and canary to perform the
+necessary metrics queries, using the <code>{{templates.baseline.podTemplateHash}}</code> and
+<code>{{templates.canary.podTemplateHash}}</code> variables respectively.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The pod-hashes of the <code>baseline</code>/<code>canary</code> ReplicaSets created by the Experiment, will have
+different values than the pod-hashes of the <code>stable</code>/<code>canary</code> ReplicaSets created by the
+Rollout. This is despite the fact that the PodSpec are the same. This is intentional behavior,
+in order to allow the metrics of the Experiment's pods to be delineated and queried separately
+from the metrics of the Rollout pods.</p>
+</div>
                 
               
               
