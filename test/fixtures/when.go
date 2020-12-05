@@ -79,11 +79,14 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	}
 	var patchBytes []byte
 	if len(texts) == 0 {
-		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, time.Now()))
+		nowStr := time.Now().Format(time.RFC3339)
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
+		w.log.Infof("Updated rollout pod spec: %s", nowStr)
 	} else {
 		var err error
 		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
 		w.CheckError(err)
+		w.log.Infof("Updated rollout spec: %s", string(patchBytes))
 	}
 	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	w.CheckError(err)
