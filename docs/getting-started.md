@@ -82,7 +82,7 @@ replicas running the old version. This equates to the 20% canary weight as defin
 
 ## 3. Promoting a Rollout
 
-The rollout is now in an paused state. When a Rollout reaches a `pause` step with no duration, it 
+The rollout is now in a paused state. When a Rollout reaches a `pause` step with no duration, it 
 will remain in a paused state indefinitely until it is resumed/promoted. To manually promote a
 rollout to the next step, run the `promote` command of the plugin:
 
@@ -101,8 +101,8 @@ kubectl argo rollouts get rollout rollouts-demo --watch
 ![Promoted Rollout](getting-started/basic/promoted-rollout.png)
 
 !!! tip
-    The `promote` command also supports the ability to skip all remaining steps with the
-    `--skip-all-steps` flag.
+    The `promote` command also supports the ability to skip all remaining steps and analysis with the
+    `--full` flag.
 
 Once all steps complete successfully, the new ReplicaSet is marked as the "stable" ReplicaSet.
 Whenever a rollout is aborted during an update, either automatically via a failed canary analysis,
@@ -170,8 +170,14 @@ to route traffic. Instead, it used normal Kubernetes Service networking (i.e. ku
 an *approximate* canary weight, based on the closest ratio of new to old replica counts.
 As a result, this Rollout had a limitation in that it could only achieve a minimum canary
 weight of 20%, by scaling 1 of 5 pods to run the new version. In order to achieve much
-finer grained canarys, a ingress controller or service mesh is necessary.
+finer grained canaries, an ingress controller or service mesh is necessary.
 
-Follow the [NGINX Guide](getting-started/nginx/index.md) to see how Argo Rollouts can leverage a networking provider
-to gain more advanced traffic shaping.
+Follow one of the traffic routing guides to see how Argo Rollouts can leverage a networking
+provider to achieve more advanced traffic shaping.
+
+* [NGINX Guide](getting-started/nginx/index.md)
+* [ALB Guide](getting-started/alb/index.md)
+* [Istio Guide](getting-started/istio/index.md)
+* [SMI Guide](getting-started/smi/index.md)
+
 
