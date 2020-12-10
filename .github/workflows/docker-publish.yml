@@ -87,7 +87,7 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
 
-          echo '::set-output name=tag::$(echo $IMAGE_ID:$VERSION)'
+          echo ::set-output name=tag::$(echo $IMAGE_ID:$VERSION)
       - name: Build and push image
         uses: docker/build-push-action@v2
         with:
