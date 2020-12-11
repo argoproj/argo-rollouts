@@ -1,5 +1,16 @@
 # Changelog
 
+# v0.10.1
+
+## Changes since v0.10.0
+
+### Controller
+* fix: Correct Istio VirtualService immediately (#874)
+* fix: restart was restarting too many pods when available > spec.replicas (#856)
+
+### Plugin
+* fix: plugin incorrectly treated v0.9 rollout as v0.10 when it had numeric observedGeneration (#875)
+
 # v0.10.0
 
 ## Notable Features
