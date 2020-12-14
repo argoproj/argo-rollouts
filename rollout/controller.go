@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -346,13 +347,13 @@ func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
 		log.Errorf("Error processing istio vsvc from watch: %v: %v", err, vsvc)
 		return
 	}
-	vsvcToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
+	rolloutToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
 	if err != nil {
 		log.Errorf("Cannot process indexer: %s", err.Error())
 		return
 	}
-	for i := range vsvcToEnqueue {
-		controllerutil.EnqueueParentObject(vsvcToEnqueue[i], register.RolloutKind, c.enqueueRollout)
+	for i := range rolloutToEnqueue {
+		c.enqueueRollout(rolloutToEnqueue[i])
 	}
 }
 
@@ -380,13 +381,6 @@ func (c *Controller) syncHandler(key string) error {
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
-
-	// TODO(dthomson) remove in v0.9.0
-	migrated := c.migrateCanaryStableRS(r)
-	if migrated {
-		logCtx.Info("Migrated stableRS field")
-		return nil
-	}
 
 	if r.ObjectMeta.DeletionTimestamp != nil {
 		logCtx.Info("No reconciliation as rollout marked for deletion")
@@ -510,8 +504,7 @@ func (c *rolloutContext) createInvalidRolloutCondition(validationError error, r 
 		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errorMessage)
 	}
 	c.log.Error(errorMessage)
-	generation := conditions.ComputeGenerationHash(r.Spec)
-	if r.Status.ObservedGeneration != generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+	if r.Status.ObservedGeneration != strconv.Itoa(int(r.Generation)) || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 		newStatus := r.Status.DeepCopy()
 		// SetRolloutCondition only updates the condition when the status and/or reason changes, but
 		// the controller should update the invalidSpec if there is a change in why the spec is invalid
@@ -640,19 +633,23 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			}
 			analysisTemplates = append(analysisTemplates, templates...)
 		}
-		// Don't need to check for background AnalysisRuns since RO controls and can terminate them
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		canary := c.rollout.Spec.Strategy.Canary
-		if canary.Steps != nil {
-			for i, step := range canary.Steps {
-				if step.Analysis != nil {
-					templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.CanaryStep, i)
-					if err != nil {
-						return nil, err
-					}
-					analysisTemplates = append(analysisTemplates, templates...)
+		for i, step := range canary.Steps {
+			if step.Analysis != nil {
+				templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.InlineAnalysis, i)
+				if err != nil {
+					return nil, err
 				}
+				analysisTemplates = append(analysisTemplates, templates...)
 			}
+		}
+		if canary.Analysis != nil {
+			templates, err := c.getReferencedAnalysisTemplates(c.rollout, &canary.Analysis.RolloutAnalysis, validation.BackgroundAnalysis, 0)
+			if err != nil {
+				return nil, err
+			}
+			analysisTemplates = append(analysisTemplates, templates...)
 		}
 	}
 	return &analysisTemplates, nil
@@ -757,30 +754,6 @@ func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstruc
 		}
 	}
 	return &virtualServices, nil
-}
-
-func (c *Controller) migrateCanaryStableRS(rollout *v1alpha1.Rollout) bool {
-	ctx := context.TODO()
-	if rollout.Spec.Strategy.Canary == nil {
-		return false
-	}
-	if rollout.Status.StableRS == "" && rollout.Status.Canary.StableRS == "" {
-		return false
-	}
-	if rollout.Status.StableRS != "" && rollout.Status.Canary.StableRS != "" {
-		return false
-	}
-	stableRS := rollout.Status.StableRS
-	if rollout.Status.Canary.StableRS != "" {
-		stableRS = rollout.Status.Canary.StableRS
-	}
-	rollout.Status.Canary.StableRS = stableRS
-	rollout.Status.StableRS = stableRS
-	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(ctx, rollout, metav1.UpdateOptions{})
-	if err != nil {
-		logutil.WithRollout(rollout).Errorf("Unable to migrate Rollout's status.canary.stableRS to status.stableRS: %s", err.Error())
-	}
-	return true
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {

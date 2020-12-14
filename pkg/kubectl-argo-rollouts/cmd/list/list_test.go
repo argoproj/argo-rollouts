@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-mpatch"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubetesting "k8s.io/client-go/testing"
@@ -176,8 +176,11 @@ func TestListNamespaceAndTimestamp(t *testing.T) {
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"--all-namespaces", "--timestamps"})
 
-	patch := monkey.Patch(time.Now, func() time.Time { return time.Time{} })
-	err := cmd.Execute()
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+		return time.Time{}
+	})
+	assert.NoError(t, err)
+	err = cmd.Execute()
 	patch.Unpatch()
 
 	assert.NoError(t, err)
@@ -232,8 +235,8 @@ func TestListWithWatch(t *testing.T) {
 
 	expectedOut := strings.TrimPrefix(`
 NAME           STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
-can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2        
 bg-guestbook   BlueGreen  Progressing   -     -           1/4    5        3           2        
+can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2        
 can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           3        
 `, "\n")
 	assert.Equal(t, expectedOut, stdout)
@@ -293,8 +296,8 @@ func TestListExperiments(t *testing.T) {
 	assert.Empty(t, stderr)
 	expectedOut := strings.TrimPrefix(`
 NAMESPACE           NAME            STATUS   DURATION  REMAINING  AGE
-test                my-experiment   Running  3h        119m       7d 
 my-other-namespace  my-experiment2  Running  -         -          7d 
+test                my-experiment   Running  3h        119m       7d 
 `, "\n")
 	assert.Equal(t, expectedOut, stdout)
 }

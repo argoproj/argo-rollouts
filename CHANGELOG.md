@@ -1,5 +1,88 @@
 # Changelog
 
+# v0.10.1
+
+## Changes since v0.10.0
+
+### Controller
+* fix: Correct Istio VirtualService immediately (#874)
+* fix: restart was restarting too many pods when available > spec.replicas (#856)
+
+### Plugin
+* fix: plugin incorrectly treated v0.9 rollout as v0.10 when it had numeric observedGeneration (#875)
+
+# v0.10.0
+
+## Notable Features
+* Ability to set canary vs. stable ephemeral metadata on rollout Pods during an update
+* Support new metric providers: New Relic, Datadog
+* Ability to control canary scale during an update
+* Ability to restart up to maxUnavailable pods at a time for a canary rollout
+* Ability to self reference rollout metadata as arguments to analysis
+* Ability to fully promote blue-green and canary rollouts (skipping steps, analysis, pauses)
+* kubectl-argo-rollouts plugin command to lint rollout
+* kubectl-argo-rollouts plugin command to undo a rollout (same as kubectl rollout undo)
+
+## Upgrade Notes
+
+Rollouts v0.10 has switched to using Kubernetes [CRD Status Subresources](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource) ([PR #789](https://github.com/argoproj/argo-rollouts/pull/789)). This feature allows the rollout controller to record the numeric `metadata.generation` into `status.observedGeneration` which provides a reliable indicator of a Rollout who's spec has (or has not yet) been observed by the controller (for example if the argo-rollouts controller was down or delayed).
+
+A consequence of this change, is that the v0.10 rollout controller should be used with the v0.10 kubectl-argo-rollouts plugin in order to perform actions such as abort, pause, promote. Similarly, Argo CD v1.8 should be with the v0.10 rollout controller when performing those same actions. Both kubectl-argo-rollouts plugin v0.10 and Argo CD v1.8 are backwards compatible with v0.9 rollouts controller.
+
+## Changes since v0.9
+
+### Controller
+
+* feat: set canary/stable ephemeral metadata to pods during updates (#770)
+* feat: add support for valueFrom in analysis arguments. (#797)
+* feat: Adding rollout_info_replicas_desired metric. Fixes #748 (#749)
+* feat: restart pods up to maxUnavailable at a time
+* feat: add full rollout promotion (skip analysis, pause, steps) 
+* feat: use CRD status subresource (#789)
+* feat: Allow setting canary weight without side-effects. Fixes #556 (#677)
+* fix: namespaced scoped controller support (#818)
+* fix: fetch secrets on-demand to fix controller boot for large clusters (#829)
+
+### Analysis
+* feat: Add New Relic metricprovider (#772)
+* feat: Add Datadog metric provider. Fixes #702 (#705)
+
+### Plugin
+* feat: Implement kubectl argo rollouts lint
+* feat: Add undo command in kubectl plugin. Fixes #575 (#812)
+* fix: kubectl plugin should use dynamic client
+
+### Misc
+* fix: rollout kustomize transform analysis ref should use templateName instead of name (#809)
+* fix: add missing Service kustomize name reference in trafficRouting/alb/rootService (#699)
+
+
+# v0.9.3
+
+## Changes since v0.9.2
+
+### Controller
+* fix: scaleDownDelayRevisionLimit was off by one (#816)
+* fix: background analysis refs were not verified. requeue InvalidSpec rollouts (#814)
+* fix(controller): fix unhandled panic from malformed rollout (#801)
+* fix(controller): validation should not consider privileged security context (#802)
+
+# v0.9.2
+
+## Changes since v0.9.1
+
+### Controller
+* fix(controller): controller did not honor maxUnavailable during rollback (#786)
+* fix(controller): blue-green with analysis was broken (#780)
+* fix(controller): blue-green fast-tracked rollbacks would still start analysis templates
+* fix(controller): prePromotionAnalysis with previewReplicaCount would pause indefinitely w/o running analysis
+* fix(controller): calculate available replicas from active ReplicaSet (#757)
+
+### Plugin
+* feat(plugin): indicate the stable ReplicaSet for blue-green rollouts in plugin
+* feat(plugin): plugin now surfaces InvalidSpec errors and failed analysisrun messages (#729)
+* fix(plugin): bluegreen scaleDownDelay was delaying Healthy status. Present errors in message field (#768)
+
 # v0.9.1
 
 ## Changes since v0.9.0

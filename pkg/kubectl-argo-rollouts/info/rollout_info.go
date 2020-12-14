@@ -122,10 +122,28 @@ func RolloutErrorConditions(ro *v1alpha1.Rollout) []string {
 	return errorConditions
 }
 
+// isGenerationObserved determines if the rollout spec has been observed by the controller. This
+// only applies to v0.10 rollout which uses a numeric status.observedGeneration. For v0.9 rollouts
+// and below this function always returns true.
+func isGenerationObserved(ro *v1alpha1.Rollout) bool {
+	observedGen, err := strconv.Atoi(ro.Status.ObservedGeneration)
+	if err != nil {
+		return true
+	}
+	// It's still possible for a v0.9 rollout to have an all numeric hash, this covers that corner case
+	if int64(observedGen) > ro.Generation {
+		return true
+	}
+	return int64(observedGen) == ro.Generation
+}
+
 // RolloutStatusString returns a status and message for a rollout
 // This logic is more or less the same as the Argo CD rollouts health.lua check
 // Any changes to this function should also be changed there
 func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
+	if !isGenerationObserved(ro) {
+		return "Progressing", "waiting for rollout spec update to be observed"
+	}
 	for _, cond := range ro.Status.Conditions {
 		if cond.Type == v1alpha1.InvalidSpec {
 			return "Degraded", fmt.Sprintf("%s: %s", v1alpha1.InvalidSpec, cond.Message)
@@ -135,8 +153,11 @@ func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 			return "Degraded", fmt.Sprintf("%s: %s", cond.Reason, cond.Message)
 		}
 	}
-	if ro.Spec.Paused || len(ro.Status.PauseConditions) > 0 {
-		return "Paused", ""
+	if ro.Spec.Paused {
+		return "Paused", "manually paused"
+	}
+	for _, pauseCond := range ro.Status.PauseConditions {
+		return "Paused", string(pauseCond.Reason)
 	}
 	if ro.Status.UpdatedReplicas < defaults.GetReplicasOrDefault(ro.Spec.Replicas) {
 		return "Progressing", "more replicas need to be updated"
@@ -144,16 +165,11 @@ func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 	if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
 		return "Progressing", "updated replicas are still becoming available"
 	}
-	stableRS := ro.Status.StableRS
-	//TODO(dthomson) Remove canary.stableRS for v0.9
-	if ro.Status.Canary.StableRS != "" {
-		stableRS = ro.Status.Canary.StableRS
-	}
 	if ro.Spec.Strategy.BlueGreen != nil {
 		if ro.Status.BlueGreen.ActiveSelector == "" || ro.Status.BlueGreen.ActiveSelector != ro.Status.CurrentPodHash {
 			return "Progressing", "active service cutover pending"
 		}
-		if stableRS == "" || stableRS != ro.Status.CurrentPodHash {
+		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
 			return "Progressing", "waiting for analysis to complete"
 		}
 	} else if ro.Spec.Strategy.Canary != nil {
@@ -162,7 +178,7 @@ func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 			// scaleDownDelay feature which leaves the old stack of replicas running for a long time
 			return "Progressing", "old replicas are pending termination"
 		}
-		if stableRS == "" || stableRS != ro.Status.CurrentPodHash {
+		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
 			return "Progressing", "waiting for all steps to complete"
 		}
 	}

@@ -1,12 +1,19 @@
 package replicaset
 
 import (
+	"encoding/json"
 	"math"
 
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// EphemeralMetadataAnnotation denotes pod metadata which are ephemerally injected to canary/stable pods
+	EphemeralMetadataAnnotation = "rollout.argoproj.io/ephemeral-metadata"
 )
 
 // AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
@@ -285,6 +292,9 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 
 // GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
 func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
+	if rollout.Status.PromoteFull {
+		return nil, 100
+	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
 		if scs.Replicas != nil {
 			return scs.Replicas, 0
@@ -392,4 +402,79 @@ func GetCurrentExperimentStep(r *v1alpha1.Rollout) *v1alpha1.RolloutExperimentSt
 		}
 	}
 	return nil
+}
+
+// removeInjectedPodMetadata removes injected pod metadata from the replicaset
+func removeInjectedPodMetadata(rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) {
+	if rs.Spec.Template.Annotations != nil {
+		for key := range podMetadata.Annotations {
+			delete(rs.Spec.Template.Annotations, key)
+		}
+	}
+	if rs.Spec.Template.Labels != nil {
+		for key := range podMetadata.Labels {
+			delete(rs.Spec.Template.Labels, key)
+		}
+	}
+	delete(rs.Annotations, EphemeralMetadataAnnotation)
+}
+
+// UpdateEphemeralPodMetadata updates the supplied pod metadata to the replicaset, removing previous
+// existing metadata if it had changed. A podMetadata value of nil indicates canary/stable
+// meta should be removed
+func UpdateEphemeralPodMetadata(rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) (*appsv1.ReplicaSet, bool) {
+	var metadataStr string
+	if podMetadata != nil {
+		metadataBytes, _ := json.Marshal(podMetadata)
+		metadataStr = string(metadataBytes)
+	}
+
+	var existingPodMetadataStr string
+	var existingPodMetadata *v1alpha1.PodTemplateMetadata
+	if rs.Annotations != nil {
+		var ok bool
+		if existingPodMetadataStr, ok = rs.Annotations[EphemeralMetadataAnnotation]; ok {
+			err := json.Unmarshal([]byte(existingPodMetadataStr), &existingPodMetadata)
+			if err != nil {
+				log.Warnf("Failed to determine existing ephemeral metadata from annotation: %s", existingPodMetadataStr)
+				existingPodMetadata = nil
+				existingPodMetadataStr = ""
+			}
+		}
+	}
+	if existingPodMetadataStr == metadataStr {
+		return rs, false
+	}
+
+	rs = rs.DeepCopy()
+	if existingPodMetadata != nil {
+		// remove existing metadata
+		removeInjectedPodMetadata(rs, existingPodMetadata)
+	}
+
+	// Add new ephemeral metadata to ReplicaSet
+	if podMetadata != nil {
+		if len(podMetadata.Annotations) > 0 {
+			if rs.Spec.Template.Annotations == nil {
+				rs.Spec.Template.Annotations = make(map[string]string)
+			}
+			for k, v := range podMetadata.Annotations {
+				rs.Spec.Template.Annotations[k] = v
+			}
+		}
+		if len(podMetadata.Labels) > 0 {
+			if rs.Spec.Template.Labels == nil {
+				rs.Spec.Template.Labels = make(map[string]string)
+			}
+			for k, v := range podMetadata.Labels {
+				rs.Spec.Template.Labels[k] = v
+			}
+		}
+		// remember what we injected by annotating it
+		if rs.Annotations == nil {
+			rs.Annotations = make(map[string]string)
+		}
+		rs.Annotations[EphemeralMetadataAnnotation] = metadataStr
+	}
+	return rs, true
 }

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 )
@@ -326,6 +327,70 @@ func flattenMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*
 		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+}
+
+func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs []v1alpha1.Argument, name, generateName, namespace string) (*unstructured.Unstructured, error) {
+	var newArgs []v1alpha1.Argument
+
+	objArgs, ok, err := unstructured.NestedSlice(obj.Object, "spec", "args")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// Args not set in AnalysisTemplate
+		newArgs = templateArgs
+	} else {
+		var args []v1alpha1.Argument
+		argBytes, err := json.Marshal(objArgs)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(argBytes, &args)
+		if err != nil {
+			return nil, err
+		}
+		newArgs, err = MergeArgs(templateArgs, args)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Change kind to AnalysisRun
+	err = unstructured.SetNestedField(obj.Object, "AnalysisRun", "kind")
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedField(obj.Object, name, "metadata", "name")
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedField(obj.Object, generateName, "metadata", "generateName")
+	if err != nil {
+		return nil, err
+	}
+	err = unstructured.SetNestedField(obj.Object, namespace, "metadata", "namespace")
+	if err != nil {
+		return nil, err
+	}
+
+	// Set args
+	for i := 0; i < len(newArgs); i++ {
+		var newArgInterface map[string]interface{}
+		newArgBytes, err := json.Marshal(newArgs[i])
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(newArgBytes, &newArgInterface)
+		if err != nil {
+			return nil, err
+		}
+		err = unstructured.SetNestedMap(obj.Object, newArgInterface, field.NewPath("spec", "args").Index(i).String())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return obj, nil
 }
 
 //TODO(dthomson) remove v0.9.0

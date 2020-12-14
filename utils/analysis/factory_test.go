@@ -3,15 +3,18 @@ package analysis
 import (
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
+
 	new := v1alpha1.Latest
 	stable := v1alpha1.Stable
 	rolloutAnalysis := &v1alpha1.RolloutAnalysis{
@@ -32,6 +35,18 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 					PodTemplateHashValue: &new,
 				},
 			},
+			{
+				Name: "metadata.labels['app']",
+				ValueFrom: &v1alpha1.ArgumentValueFrom{
+					FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.labels['app']"},
+				},
+			},
+			{
+				Name: "metadata.labels['env']",
+				ValueFrom: &v1alpha1.ArgumentValueFrom{
+					FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.labels['env']"},
+				},
+			},
 		},
 	}
 	stableRS := &appsv1.ReplicaSet{
@@ -46,10 +61,53 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123456"},
 		},
 	}
-	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS)
+
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			UID:       uuid.NewUUID(),
+			Name:      "test",
+			Namespace: metav1.NamespaceDefault,
+			Annotations: map[string]string{
+				annotations.RevisionAnnotation: "1",
+			},
+			Labels: map[string]string{
+				"app": "app",
+				"env": "test",
+			},
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "app",
+						"env": "test",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "container-name",
+							Image: "foo/bar",
+						},
+					},
+				},
+			},
+			RevisionHistoryLimit: nil,
+			Replicas:             func() *int32 { i := int32(1); return &i }(),
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				"app": "app",
+				"env": "test",
+			}},
+		},
+		Status: v1alpha1.RolloutStatus{},
+	}
+
+	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
 	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: pointer.StringPtr("app")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: pointer.StringPtr("test")})
 
 }
 
@@ -300,6 +358,7 @@ func TestValidateMetrics(t *testing.T) {
 						Kayenta:    &v1alpha1.KayentaMetric{},
 						Web:        &v1alpha1.WebMetric{},
 						Datadog:    &v1alpha1.DatadogMetric{},
+						NewRelic:   &v1alpha1.NewRelicMetric{},
 					},
 				},
 			},

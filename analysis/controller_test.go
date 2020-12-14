@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/undefinedlabs/go-mpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +39,6 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 
-	// Secrets to put in the store.
-	secretRunLister []*corev1.Secret
 	// Objects to put in the store.
 	analysisRunLister []*v1alpha1.AnalysisRun
 	// Actions expected to happen on the client.
@@ -49,7 +46,7 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
-	unfreezeTime    func()
+	unfreezeTime    func() error
 	// fake provider
 	provider *mocks.Provider
 }
@@ -60,9 +57,10 @@ func newFixture(t *testing.T) *fixture {
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch := monkey.Patch(time.Now, func() time.Time {
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
 		return now
 	})
+	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
 	return f
 }
@@ -100,7 +98,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		KubeClientSet:        f.kubeclient,
 		ArgoProjClientset:    f.client,
 		AnalysisRunInformer:  i.Argoproj().V1alpha1().AnalysisRuns(),
-		SecretInformer:       k8sI.Core().V1().Secrets(),
 		JobInformer:          k8sI.Batch().V1().Jobs(),
 		ResyncPeriod:         resync(),
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
@@ -132,10 +129,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
-	}
-
-	for _, s := range f.secretRunLister {
-		k8sI.Core().V1().Secrets().Informer().GetIndexer().Add(s)
 	}
 
 	return c, i, k8sI
@@ -181,7 +174,7 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 	}
 
 	if len(f.actions) > len(actions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
+		f.t.Errorf("%d expected actions did not occur:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
 	}
 
 	// k8sActions := filterInformerActions(f.kubeclient.Actions())
@@ -196,7 +189,7 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 	// }
 
 	// if len(f.kubeactions) > len(k8sActions) {
-	// 	f.t.Errorf("%d additional expected actions:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
+	// 	f.t.Errorf("%d expected actions did not occur:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	// }
 	return c
 }

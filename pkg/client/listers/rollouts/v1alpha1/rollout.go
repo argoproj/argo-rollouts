@@ -26,8 +26,10 @@ import (
 )
 
 // RolloutLister helps list Rollouts.
+// All objects returned here must be treated as read-only.
 type RolloutLister interface {
 	// List lists all Rollouts in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error)
 	// Rollouts returns an object that can list and get Rollouts.
 	Rollouts(namespace string) RolloutNamespaceLister
@@ -58,10 +60,13 @@ func (s *rolloutLister) Rollouts(namespace string) RolloutNamespaceLister {
 }
 
 // RolloutNamespaceLister helps list and get Rollouts.
+// All objects returned here must be treated as read-only.
 type RolloutNamespaceLister interface {
 	// List lists all Rollouts in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error)
 	// Get retrieves the Rollout from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.Rollout, error)
 	RolloutNamespaceListerExpansion
 }

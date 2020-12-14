@@ -10,7 +10,6 @@ import (
 )
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=rollouts,shortName=ro
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.HPAReplicas,selectorpath=.status.selector
@@ -18,6 +17,7 @@ import (
 // +kubebuilder:printcolumn:name="Current",type="integer",JSONPath=".status.replicas",description="Total number of non-terminated pods targeted by this rollout"
 // +kubebuilder:printcolumn:name="Up-to-date",type="integer",JSONPath=".status.updatedReplicas",description="Total number of non-terminated pods targeted by this rollout that have the desired template spec"
 // +kubebuilder:printcolumn:name="Available",type="integer",JSONPath=".status.availableReplicas",description="Total number of available pods (ready for at least minReadySeconds) targeted by this rollout"
+// +kubebuilder:subresource:status
 
 // Rollout is a specification for a Rollout resource
 type Rollout struct {
@@ -190,6 +190,12 @@ type CanaryStrategy struct {
 	// AntiAffinity enables anti-affinity rules for Canary deployment
 	// +optional
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
+	// CanaryMetadata specify labels and annotations which will be attached to the canary pods for
+	// the duration which they act as a canary, and will be removed after
+	CanaryMetadata *PodTemplateMetadata `json:"canaryMetadata,omitempty"`
+	// StableMetadata specify labels and annotations which will be attached to the stable pods for
+	// the duration which they act as a canary, and will be removed after
+	StableMetadata *PodTemplateMetadata `json:"stableMetadata,omitempty"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
@@ -397,6 +403,13 @@ type AnalysisRunArgument struct {
 type ArgumentValueFrom struct {
 	// PodTemplateHashValue gets the value from one of the children ReplicaSet's Pod Template Hash
 	PodTemplateHashValue *ValueFromPodTemplateHash `json:"podTemplateHashValue,omitempty"`
+	//FieldRef
+	FieldRef *FieldRef `json:"fieldRef,omitempty"`
+}
+
+type FieldRef struct {
+	// Required: Path of the field to select in the specified API version
+	FieldPath string `json:"fieldPath"`
 }
 
 // ValueFromPodTemplateHash indicates which ReplicaSet pod template pod hash to use
@@ -550,6 +563,8 @@ type RolloutStatus struct {
 	StableRS string `json:"stableRS,omitempty"`
 	// RestartedAt indicates last time a Rollout was restarted
 	RestartedAt *metav1.Time `json:"restartedAt,omitempty"`
+	// PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
+	PromoteFull bool `json:"promoteFull,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -586,9 +601,6 @@ type BlueGreenStatus struct {
 
 // CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
-	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
-	// +optional
-	StableRS string `json:"stableRS,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	// TODO(Deprecated): Remove in v0.10
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`

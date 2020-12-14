@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -37,7 +39,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	c.log.Info("Cleaning up old replicasets, experiments, and analysis runs")
+	err = c.reconcileEphemeralMetadata()
+	if err != nil {
+		return err
+	}
+
 	if err := c.cleanupRollouts(c.otherRSs); err != nil {
 		return err
 	}
@@ -96,6 +102,9 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
+	if c.rollout.Status.PromoteFull {
+		return false
+	}
 
 	if len(c.rollout.Spec.Strategy.Canary.Steps) == 0 {
 		c.log.Info("Rollout does not have any steps")
@@ -115,7 +124,7 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
-		// As a result,, the controller needs to detect whether a rollout was unpaused or the
+		// As a result, the controller needs to detect whether a rollout was unpaused or the
 		// rollout needs to be paused for the first time. If the ControllerPause is false,
 		// the controller has not paused the rollout yet and needs to do so before it
 		// can proceed.
@@ -164,7 +173,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 		// Cannot scale down.
 		return 0, nil
 	}
-	c.log.Infof("Found %d available pods, scaling down old RSes", availablePodCount)
+	c.log.Infof("Found %d available pods, scaling down old RSes (minAvailable: %d, maxScaleDown: %d)", availablePodCount, minAvailable, maxScaleDown)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
@@ -178,7 +187,6 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 			continue
 		}
 		// Scale down.
-
 		scaleDownCount := int32(integer.IntMin(int(*(targetRS.Spec.Replicas)), int(maxScaleDown-totalScaledDown)))
 		newReplicasCount := *(targetRS.Spec.Replicas) - scaleDownCount
 
@@ -186,7 +194,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 		if err != nil {
 			return totalScaledDown, err
 		}
-		maxScaleDown -= newReplicasCount
+		//scaleDownCount := *targetRS.Spec.Replicas - newReplicasCount
+		maxScaleDown -= scaleDownCount
 		totalScaledDown += scaleDownCount
 	}
 
@@ -230,8 +239,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
-	//TODO(dthomson) Remove in v0.9.0
-	newStatus.Canary.StableRS = c.rollout.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
@@ -251,6 +258,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		newStatus = c.calculateRolloutConditions(newStatus)
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+		newStatus.PromoteFull = false
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -258,8 +266,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s", newStatus.CurrentPodHash)
 		c.log.Info(msg)
 		newStatus.StableRS = newStatus.CurrentPodHash
-		//TODO(dthomson) Remove in v0.9.0
-		newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		if stepCount > 0 {
 			if stepCount != *currentStepIndex {
 				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", msg)
@@ -270,6 +276,14 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		c.pauseContext.RemoveAbort()
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
+		if stepCount > 0 {
+			currentStepIndex = pointer.Int32Ptr(stepCount)
+		}
 	}
 
 	if c.pauseContext.IsAborted() {
@@ -290,8 +304,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+			newStatus.PromoteFull = false
 		}
 		c.pauseContext.ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(newStatus)
@@ -303,8 +316,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
@@ -360,4 +371,78 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
+func (c *rolloutContext) reconcileEphemeralMetadata() error {
+	ctx := context.TODO()
+	if c.rollout.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
+
+	if fullyRolledOut {
+		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
+		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		if err != nil {
+			return err
+		}
+	} else {
+		// we are in a upgrading state. newRS is a canary
+		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+		if err != nil {
+			return err
+		}
+		// sync stable metadata to the stable rs
+		err = c.syncEphemeralMetadata(ctx, c.stableRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
+	for _, rs := range c.otherRSs {
+		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
+	if rs == nil {
+		return nil
+	}
+	modifiedRS, modified := replicasetutil.UpdateEphemeralPodMetadata(rs, podMetadata)
+	if !modified {
+		return nil
+	}
+	// 1. Sync ephemeral metadata to pods
+	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods {
+		if reflect.DeepEqual(pod.Annotations, modifiedRS.Spec.Template.Annotations) &&
+			reflect.DeepEqual(pod.Labels, modifiedRS.Spec.Template.Labels) {
+			continue
+		}
+		// if we get here, the pod metadata needs correction
+		pod.Annotations = modifiedRS.Spec.Template.Annotations
+		pod.Labels = modifiedRS.Spec.Template.Labels
+		_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
+	}
+
+	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
+	_, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+	return nil
 }

@@ -67,7 +67,7 @@ spec:
           ingress: networking-ingress
       analysis:
         templates:
-        - name: random-fail
+        - templateName: random-fail
       steps:
       - experiment:
           templates:
@@ -78,7 +78,7 @@ spec:
             templateName: random-fail
       - analysis:
           templates:
-          - name: random-fail
+          - templateName: random-fail
 
 ---
 apiVersion: argoproj.io/v1alpha1

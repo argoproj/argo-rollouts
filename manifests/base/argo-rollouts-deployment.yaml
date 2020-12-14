@@ -17,18 +17,10 @@ spec:
     spec:
       serviceAccountName: argo-rollouts
       containers:
-      - command:
-        - "/bin/rollouts-controller"
+      - name: argo-rollouts
         image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
-        name: argo-rollouts
-        volumeMounts:
-        - name: tmp
-          mountPath: /tmp
       securityContext:
         runAsNonRoot: true
-      volumes:
-      - name: tmp
-        emptyDir: {}
   strategy:
     type: Recreate

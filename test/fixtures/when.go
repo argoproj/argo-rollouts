@@ -14,6 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+	watchutil "k8s.io/client-go/tools/watch"
+	retryutil "k8s.io/client-go/util/retry"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
@@ -75,11 +79,14 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	}
 	var patchBytes []byte
 	if len(texts) == 0 {
-		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, time.Now()))
+		nowStr := time.Now().Format(time.RFC3339)
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
+		w.log.Infof("Updated rollout pod spec: %s", nowStr)
 	} else {
 		var err error
 		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
 		w.CheckError(err)
+		w.log.Infof("Updated rollout spec: %s", string(patchBytes))
 	}
 	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	w.CheckError(err)
@@ -90,9 +97,19 @@ func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
-	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false)
+	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, false)
 	w.CheckError(err)
 	w.log.Info("Promoted rollout")
+	return w
+}
+
+func (w *When) PromoteRolloutFull() *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, true)
+	w.CheckError(err)
+	w.log.Info("Promoted rollout fully")
 	return w
 }
 
@@ -155,30 +172,33 @@ func (w *When) PatchSpec(patch string) *When {
 	w.CheckError(err)
 
 	// Apply patch
-	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
-	w.CheckError(err)
-	originalBytes, err := json.Marshal(ro)
-	w.CheckError(err)
-	newRolloutBytes, err := strategicpatch.StrategicMergePatch(originalBytes, jsonPatch, rov1.Rollout{})
-	w.CheckError(err)
-	var newRollout rov1.Rollout
-	err = json.Unmarshal(newRolloutBytes, &newRollout)
-	w.CheckError(err)
-	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(w.Context, &newRollout, metav1.UpdateOptions{})
+	err = retryutil.RetryOnConflict(retryutil.DefaultRetry, func() error {
+		ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+		w.CheckError(err)
+		originalBytes, err := json.Marshal(ro)
+		w.CheckError(err)
+		newRolloutBytes, err := strategicpatch.StrategicMergePatch(originalBytes, jsonPatch, rov1.Rollout{})
+		w.CheckError(err)
+		var newRollout rov1.Rollout
+		err = json.Unmarshal(newRolloutBytes, &newRollout)
+		w.CheckError(err)
+		_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Update(w.Context, &newRollout, metav1.UpdateOptions{})
+		return err
+	})
 	w.CheckError(err)
 	w.log.Infof("Patched rollout: %s", string(jsonPatch))
 	return w
 }
 
-func (w *When) WaitForRolloutStatus(status string) *When {
+func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		s, _ := info.RolloutStatusString(ro)
 		return s == status
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
 
-func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
+func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		if ro.Status.CurrentStepIndex == nil || *ro.Status.CurrentStepIndex != index {
 			return false
@@ -197,38 +217,49 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32) *When {
 		}
 		return true
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.currentStepIndex=%d", index), timeout...)
 }
 
-func (w *When) WaitForRolloutAvailableReplicas(count int32) *When {
+func (w *When) WaitForRolloutAvailableReplicas(count int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.AvailableReplicas == count
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.availableReplicas=%d", count), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.availableReplicas=%d", count), timeout...)
 }
 
-func (w *When) WaitForRolloutReplicas(count int32) *When {
+func (w *When) WaitForRolloutReplicas(count int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.Replicas == count
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status.replicas=%d", count), timeout...)
 }
 
-func (w *When) WaitForActiveRevision(revision string) *When {
+func (w *When) WaitForActiveRevision(revision string, timeout ...time.Duration) *When {
 	rs := w.GetReplicaSetByRevision(revision)
 	checkStatus := func(ro *rov1.Rollout) bool {
 		return ro.Status.BlueGreen.ActiveSelector == rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), E2EWaitTimeout)
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), timeout...)
 }
 
-func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
+func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
-	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(w.Context, opts)
+	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
+	ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
 	w.CheckError(err)
-	defer watch.Stop()
+	retryWatcher, err := watchutil.NewRetryWatcher(ro.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
 	timeoutCh := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
@@ -236,7 +267,7 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 	}()
 	for {
 		select {
-		case event := <-watch.ResultChan():
+		case event := <-retryWatcher.ResultChan():
 			ro, ok := event.Object.(*rov1.Rollout)
 			if ok {
 				if test(ro) {
@@ -290,20 +321,30 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.Analy
 	}
 }
 
-func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
-	checkPhase := func(ar *rov1.AnalysisRun) bool {
+func checkAnalysisRunPhase(phase string) func(ar *rov1.AnalysisRun) bool {
+	return func(ar *rov1.AnalysisRun) bool {
 		return string(ar.Status.Phase) == phase
 	}
+}
+
+func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
 	arun := w.GetBackgroundAnalysisRun()
-	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) WaitForInlineAnalysisRunPhase(phase string) *When {
-	checkPhase := func(ar *rov1.AnalysisRun) bool {
-		return string(ar.Status.Phase) == phase
-	}
 	arun := w.GetInlineAnalysisRun()
-	return w.WaitForAnalysisRunCondition(arun.Name, checkPhase, fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) WaitForPrePromotionAnalysisRunPhase(phase string) *When {
+	arun := w.GetPrePromotionAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) WaitForPostPromotionAnalysisRunPhase(phase string) *When {
+	arun := w.GetPostPromotionAnalysisRun()
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) Then() *Then {

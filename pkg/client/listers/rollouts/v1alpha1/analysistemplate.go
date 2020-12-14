@@ -26,8 +26,10 @@ import (
 )
 
 // AnalysisTemplateLister helps list AnalysisTemplates.
+// All objects returned here must be treated as read-only.
 type AnalysisTemplateLister interface {
 	// List lists all AnalysisTemplates in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AnalysisTemplate, err error)
 	// AnalysisTemplates returns an object that can list and get AnalysisTemplates.
 	AnalysisTemplates(namespace string) AnalysisTemplateNamespaceLister
@@ -58,10 +60,13 @@ func (s *analysisTemplateLister) AnalysisTemplates(namespace string) AnalysisTem
 }
 
 // AnalysisTemplateNamespaceLister helps list and get AnalysisTemplates.
+// All objects returned here must be treated as read-only.
 type AnalysisTemplateNamespaceLister interface {
 	// List lists all AnalysisTemplates in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AnalysisTemplate, err error)
 	// Get retrieves the AnalysisTemplate from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.AnalysisTemplate, error)
 	AnalysisTemplateNamespaceListerExpansion
 }

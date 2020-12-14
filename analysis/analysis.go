@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -223,7 +224,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 				return nil, nil, err
 			}
 			name := arg.ValueFrom.SecretKeyRef.Name
-			secret, err := c.secretLister.Secrets(namespace).Get(name)
+			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				return nil, nil, err
 			}

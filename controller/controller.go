@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -34,6 +33,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 const controllerAgentName = "rollouts-controller"
@@ -75,7 +75,6 @@ type Manager struct {
 	analysisRunSynced             cache.InformerSynced
 	analysisTemplateSynced        cache.InformerSynced
 	clusterAnalysisTemplateSynced cache.InformerSynced
-	secretSynced                  cache.InformerSynced
 	serviceSynced                 cache.InformerSynced
 	ingressSynced                 cache.InformerSynced
 	jobSynced                     cache.InformerSynced
@@ -106,7 +105,6 @@ func NewManager(
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	ingressesInformer extensionsinformers.IngressInformer,
-	secretInformer coreinformers.SecretInformer,
 	jobInformer batchinformers.JobInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
@@ -193,7 +191,6 @@ func NewManager(
 		KubeClientSet:        kubeclientset,
 		ArgoProjClientset:    argoprojclientset,
 		AnalysisRunInformer:  analysisRunInformer,
-		SecretInformer:       secretInformer,
 		JobInformer:          jobInformer,
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
@@ -231,7 +228,6 @@ func NewManager(
 		rolloutSynced:                 rolloutsInformer.Informer().HasSynced,
 		serviceSynced:                 servicesInformer.Informer().HasSynced,
 		ingressSynced:                 ingressesInformer.Informer().HasSynced,
-		secretSynced:                  secretInformer.Informer().HasSynced,
 		jobSynced:                     jobInformer.Informer().HasSynced,
 		experimentSynced:              experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
@@ -263,7 +259,6 @@ func NewManager(
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
 func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
-
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
 	defer c.ingressWorkqueue.ShutDown()
@@ -272,8 +267,14 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.analysisRunWorkqueue.ShutDown()
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.secretSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced, c.replicasSetSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
+	}
+	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+	if c.namespace == metav1.NamespaceAll {
+		if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
+			return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+		}
 	}
 	// Check if Istio exists
 	if istioutil.DoesIstioExist(c.dynamicClientSet, c.namespace, c.defaultIstioVersion) {

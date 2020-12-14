@@ -3,14 +3,12 @@ package validation
 import (
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/validation/field"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -86,7 +84,7 @@ func getAnalysisTemplateWithType() AnalysisTemplateWithType {
 				}},
 			},
 		},
-		TemplateType:    CanaryStep,
+		TemplateType:    InlineAnalysis,
 		AnalysisIndex:   0,
 		CanaryStepIndex: 0,
 	}
@@ -162,13 +160,22 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
-	t.Run("validate analysisTemplate - failure", func(t *testing.T) {
+	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
 		template := getAnalysisTemplateWithType()
 		template.AnalysisTemplate.Spec.Metrics[0].Count = 0
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Len(t, allErrs, 1)
 		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, "AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely")
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
+	})
+
+	// verify background analysis does not care about a metric that runs indefinitely
+	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
+		template := getAnalysisTemplateWithType()
+		template.TemplateType = BackgroundAnalysis
+		template.AnalysisTemplate.Spec.Metrics[0].Count = 0
+		allErrs := ValidateAnalysisTemplateWithType(template)
+		assert.Empty(t, allErrs)
 	})
 }
 
@@ -258,7 +265,7 @@ func TestGetAnalysisTemplateWithTypeFieldPath(t *testing.T) {
 	})
 
 	t.Run("get fieldPath for analysisTemplateType CanaryStep", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath(CanaryStep, 0, 0)
+		fldPath := GetAnalysisTemplateWithTypeFieldPath(InlineAnalysis, 0, 0)
 		expectedFldPath := field.NewPath("spec", "strategy", "canary", "steps").Index(0).Child("analysis", "templates").Index(0).Child("templateName")
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})

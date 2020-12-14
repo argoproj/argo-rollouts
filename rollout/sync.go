@@ -14,6 +14,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -83,10 +84,17 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
-	revisionNeedsUpdate := annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation])
-	if revisionNeedsUpdate {
-		c.log.Infof("Updating rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
+	if annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation]) {
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			c.log.WithError(err).Error("Error: updating rollout revision")
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Updated rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
 	}
+
 	// If no other Progressing condition has been recorded and we need to estimate the progress
 	// of this rollout then it is likely that old users started caring about progress. In that
 	// case we need to take into account the first time we noticed their new replica set.
@@ -95,15 +103,14 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		msg := fmt.Sprintf(conditions.FoundNewRSMessage, rsCopy.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FoundNewRSReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
-		c.log.Infof("Initializing Progressing condition: %v", condition)
-	}
-
-	if revisionNeedsUpdate || cond == nil {
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout")
+			c.log.WithError(err).Error("Error: updating rollout revision")
 			return nil, err
 		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Initialized Progressing condition: %v", condition)
 	}
 	return rsCopy, nil
 }
@@ -125,7 +132,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(c.rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 
 	// Create new ReplicaSet
-	newRS := appsv1.ReplicaSet{
+	newRS := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            c.rollout.Name + "-" + podTemplateSpecHash,
 			Namespace:       c.rollout.Namespace,
@@ -139,20 +146,33 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	allRSs := append(c.allRSs, &newRS)
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, allRSs, &newRS)
+	allRSs := append(c.allRSs, newRS)
+	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, allRSs, newRS)
 	if err != nil {
 		return nil, err
 	}
 
-	*(newRS.Spec.Replicas) = newReplicasCount
+	newRS.Spec.Replicas = pointer.Int32Ptr(newReplicasCount)
 	// Set new replica set's annotation
-	annotations.SetNewReplicaSetAnnotations(c.rollout, &newRS, newRevision, false)
+	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
+
+	if c.rollout.Spec.Strategy.Canary != nil {
+		if c.stableRS != nil && c.stableRS != c.newRS {
+			// If this is a canary rollout, with ephemeral *canary* metadata, and there is a stable RS,
+			// then inject the canary metadata so that all the RS's new pods get the canary labels/annotation
+			newRS, _ = replicasetutil.UpdateEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+		} else {
+			// Otherwise, if stableRS is nil, we are in a brand-new rollout and then this replicaset
+			// will eventually become the stableRS, so we should inject the stable labels/annotation
+			newRS, _ = replicasetutil.UpdateEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		}
+	}
+
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Rollout.
 	alreadyExists := false
-	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(ctx, &newRS, metav1.CreateOptions{})
+	createdRS, err := c.kubeclientset.AppsV1().ReplicaSets(c.rollout.Namespace).Create(ctx, newRS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Rollout.
 	case errors.IsAlreadyExists(err):
@@ -184,7 +204,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		*c.rollout.Status.CollisionCount++
 		// Update the collisionCount for the Rollout and let it requeue by returning the original
 		// error.
-		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		_, roErr := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if roErr == nil {
 			c.log.Warnf("Found a hash collision - bumped collisionCount (%d->%d) to resolve it", preCollisionCount, *c.rollout.Status.CollisionCount)
 		}
@@ -199,22 +219,33 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			c.log.Warnf("Error Patching Rollout: %s", patchErr.Error())
 		}
 		return nil, err
+	default:
+		c.log.Infof("Created ReplicaSet %s", createdRS.Name)
 	}
 
 	if !alreadyExists && newReplicasCount > 0 {
 		c.recorder.Eventf(c.rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
-	needsUpdate := annotations.SetRolloutRevision(c.rollout, newRevision)
+	if annotations.SetRolloutRevision(c.rollout, newRevision) {
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.log.Infof("Updated rollout revision to %s", c.rollout.Annotations[annotations.RevisionAnnotation])
+	}
 	if !alreadyExists {
 		msg := fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewReplicaSetReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
-		needsUpdate = true
-	}
-
-	if needsUpdate {
-		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, err
+		}
+		c.rollout = updatedRollout
+		c.newRollout = updatedRollout
+		c.log.Infof("Set rollout condition: %v", condition)
 	}
 	return createdRS, err
 }
@@ -333,6 +364,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		rsCopy := rs.DeepCopy()
+		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown {
@@ -341,7 +373,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
-			c.recorder.Eventf(rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)
+			c.recorder.Eventf(rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
 		}
 	}
 	return scaled, rs, err
@@ -376,6 +408,7 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	newStatus.CollisionCount = c.rollout.Status.CollisionCount
 	newStatus.Conditions = prevStatus.Conditions
 	newStatus.RestartedAt = c.newStatus.RestartedAt
+	newStatus.PromoteFull = (newStatus.CurrentPodHash != newStatus.StableRS) && prevStatus.PromoteFull
 	return newStatus
 }
 
@@ -471,7 +504,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
 	ctx := context.TODO()
 	conditions.SetRolloutCondition(newStatus, *condition)
-	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(r.Spec)
+	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
@@ -488,13 +521,12 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		c.log.Info("No status changes. Skipping patch")
 		return nil
 	}
-	c.log.Debugf("Rollout Condition Patch: %s", patch)
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		c.log.Warnf("Error patching rollout: %v", err)
 		return err
 	}
-	c.log.Info("Condition Patch status successfully")
+	c.log.Infof("Patched conditions: %s", string(patch))
 	return nil
 }
 
@@ -596,7 +628,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus) error {
 	ctx := context.TODO()
 	c.pauseContext.CalculatePauseStatus(newStatus)
-	newStatus.ObservedGeneration = conditions.ComputeGenerationHash(c.rollout.Spec)
+	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: c.rollout.Status,
@@ -613,9 +645,9 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
-	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
-		c.log.Warningf("Error updating application: %v", err)
+		c.log.Warningf("Error updating rollout: %v", err)
 		return err
 	}
 	c.log.Infof("Patched: %s", patch)

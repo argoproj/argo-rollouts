@@ -8,6 +8,17 @@ Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced 
 
 Argo Rollouts (optionally) integrates with ingress controllers and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.
 
+[![Argo Rollotus Demo](https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg)](https://youtu.be/hIL0E2gLkf8)
+
+## Quick Start
+
+```
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+```
+
+Follow the full [getting started guide](docs/getting-started.md) to walk through creating and then updating a rollout object. 
+
 ## Why Argo Rollouts?
 Kubernetes Deployments provides the `RollingUpdate` strategy which provide a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:
 * Few controls over the speed of the rollout
@@ -19,7 +30,7 @@ Kubernetes Deployments provides the `RollingUpdate` strategy which provide a bas
 For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too aggressively, and provides no automated rollback upon failures.
 
 ## Features
-* Blue-Green (aka red-black) update strategy
+* Blue-Green update strategy
 * Canary update strategy
 * Fine-grained, weighted traffic shifting
 * Automated rollbacks and promotions
@@ -43,7 +54,10 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Spotify](https://www.spotify.com/)
+1. [New Relic](https://newrelic.com/)
+1. [Quipper](https://www.quipper.com/)
 
 ## Community Blogs and Presentations
+* [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY) @ [The DevOps Toolkit Series](https://www.youtube.com/c/TheDevOpsToolkitSeries)
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
 * [Leveling Up Your CD: Unlocking Progressive Delivery on Kubernetes](https://www.youtube.com/watch?v=Nv0PPwbIEkY)

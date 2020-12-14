@@ -22,6 +22,12 @@ func TestFunctionalSuite(t *testing.T) {
 	suite.Run(t, new(FunctionalSuite))
 }
 
+func (s *FunctionalSuite) SetupSuite() {
+	s.E2ESuite.SetupSuite()
+	// shared analysis templates for suite
+	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
+}
+
 func countReplicaSets(count int) fixtures.ReplicaSetExpectation {
 	return func(rsets *appsv1.ReplicaSetList) bool {
 		return len(rsets.Items) == count
@@ -45,14 +51,151 @@ func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 		WaitForRolloutStatus("Healthy")
 }
 
+// TestCanaryPromoteFull verifies behavior when performing full promotion with a canary strategy
+func (s *FunctionalSuite) TestCanaryPromoteFull() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-promote-full
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      maxUnavailable: 0
+      analysis:
+        templates:
+        - templateName: sleep-job
+        startingStep: 2
+      steps:
+      - pause: {}
+      - pause: {}
+  selector:
+    matchLabels:
+      app: canary-promote-full
+  template:
+    metadata:
+      labels:
+        app: canary-promote-full
+    spec:
+      containers:
+      - name: canary-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		UpdateSpec().
+		AbortRollout().
+		Sleep(time.Second).
+		PromoteRolloutFull().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0)
+}
+
+// TestBlueGreenPromoteFull verifies behavior when performing full promotion with a blue-green strategy
+func (s *FunctionalSuite) TestBlueGreenPromoteFull() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-promote-full-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-promote-full
+spec:
+  replicas: 3
+  strategy:
+    blueGreen:
+      activeService: bluegreen-promote-full-active
+      autoPromotionEnabled: false
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+      postPromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+  selector:
+    matchLabels:
+      app: bluegreen-promote-full
+  template:
+    metadata:
+      labels:
+        app: bluegreen-promote-full
+    spec:
+      containers:
+      - name: bluegreen-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		Sleep(time.Second).
+		PromoteRolloutFull().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0)
+}
+
 func (s *FunctionalSuite) TestRolloutRestart() {
 	s.Given().
-		HealthyRollout(`@functional/rollout-basic.yaml`).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-restart
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      maxUnavailable: 75%
+      steps:
+      - setWeight: 25
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-restart
+  template:
+    metadata:
+      labels:
+        app: rollout-restart
+    spec:
+      containers:
+      - name: rollout-restart
+        image: nginx:1.19-alpine
+        lifecycle:
+          postStart:
+            exec:
+              command: [sleep, "5"]
+          preStop:
+            exec:
+              command: [sleep, "5"]
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m
+`).
 		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
 		Sleep(time.Second). // need to sleep so that clock will advanced past pod creationTimestamp
 		RestartRollout().
-		WaitForRolloutStatus("Progressing").
-		WaitForRolloutStatus("Healthy")
+		Sleep(2*time.Second).
+		Then().
+		ExpectReplicaCounts(4, 4, 1, 1, 1)
+}
+
+func (s *FunctionalSuite) TestMalformedRollout() {
+	s.Given().
+		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
 }
 
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
@@ -429,4 +572,132 @@ spec:
 		Then().
 		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
 		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"})
+}
+
+// TestFixInvalidSpec verifies we recover from an InvalidSpec after applying
+func (s *FunctionalSuite) TestFixInvalidSpec() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: fix-invalid-spec
+spec:
+  replicas: 0
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: doesnt-exist-yet
+  selector:
+    matchLabels:
+      app: fix-invalid-spec
+  template:
+    metadata:
+      labels:
+        app: fix-invalid-spec
+    spec:
+      containers:
+      - name: fix-invalid-spec
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: doesnt-exist-yet
+spec:
+  metrics:
+  - name: web
+    interval: 5s
+    successCondition: result.major == '1'
+    provider:
+      web:
+        url: https://kubernetes.default.svc/version
+        insecure: true
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy")
+}
+
+// TestBlueGreenScaleDownDelay verifies the scaleDownDelay feature
+func (s *FunctionalSuite) TestBlueGreenScaleDownDelay() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-scaledowndelay
+spec:
+  replicas: 1
+  strategy:
+    blueGreen:
+      activeService: bluegreen-scaledowndelay-active
+      scaleDownDelaySeconds: 86400 # one day
+      scaleDownDelayRevisionLimit: 2
+  selector:
+    matchLabels:
+      app: bluegreen-scaledowndelay
+  template:
+    metadata:
+      labels:
+        app: bluegreen-scaledowndelay
+    spec:
+      containers:
+      - name: bluegreen-scaledowndelay
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 1).
+		ExpectReplicaCounts(1, 2, 1, 1, 1). // desired, current, updated, ready, available
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPodCount("4", 1).
+		ExpectRevisionPodCount("3", 1).
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 0).
+		ExpectReplicaCounts(1, 3, 1, 1, 1).
+		When().
+		// lower scaleDownDelayRevisionLimit to 1 old RS. it should cause revision 2 to ScaleDown
+		PatchSpec(`
+spec:
+  strategy:
+    blueGreen:
+      scaleDownDelayRevisionLimit: 1`).
+		Sleep(time.Second).
+		Then().
+		ExpectRevisionPodCount("4", 1).
+		ExpectRevisionPodCount("3", 1).
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("1", 0).
+		ExpectReplicaCounts(1, 2, 1, 1, 1)
 }

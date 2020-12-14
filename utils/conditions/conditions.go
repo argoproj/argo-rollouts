@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -231,7 +231,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
-		rollout.Status.ObservedGeneration == ComputeGenerationHash(rollout.Spec) &&
+		rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation)) &&
 		completedStrategy
 }
 
@@ -251,14 +251,6 @@ func ComputeStepHash(rollout *v1alpha1.Rollout) string {
 		panic(err)
 	}
 	return rand.SafeEncodeString(fmt.Sprint(rolloutStepHasher.Sum32()))
-}
-
-// ComputeGenerationHash returns a hash value calculated from the Rollout Spec. The hash will
-// be safe encoded to avoid bad words.
-func ComputeGenerationHash(spec v1alpha1.RolloutSpec) string {
-	rolloutSpecHasher := fnv.New32a()
-	hashutil.DeepHashObject(rolloutSpecHasher, spec)
-	return rand.SafeEncodeString(fmt.Sprint(rolloutSpecHasher.Sum32()))
 }
 
 // RolloutTimedOut considers a rollout to have timed out once its condition that reports progress

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	"github.com/stretchr/testify/assert"
+	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -74,7 +74,7 @@ type fixture struct {
 	kubeobjects     []runtime.Object
 	objects         []runtime.Object
 	enqueuedObjects map[string]int
-	unfreezeTime    func()
+	unfreezeTime    func() error
 }
 
 func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
@@ -105,7 +105,10 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch := monkey.Patch(time.Now, func() time.Time { return now })
+	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+		return now
+	})
+	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
 	return f
 }
@@ -419,7 +422,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 	}
 
 	if len(f.actions) > len(actions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
+		f.t.Errorf("%d expected actions did not occur:%+v", len(f.actions)-len(actions), f.actions[len(actions):])
 	}
 
 	k8sActions := filterInformerActions(f.kubeclient.Actions())
@@ -435,7 +438,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 	}
 
 	if len(f.kubeactions) > len(k8sActions) {
-		f.t.Errorf("%d additional expected actions:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
+		f.t.Errorf("%d expected actions did not occur:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	return c
 }

@@ -132,6 +132,8 @@ type MetricProvider struct {
 	Datadog *DatadogMetric `json:"datadog,omitempty"`
 	// Wavefront specifies the wavefront metric to query
 	Wavefront *WavefrontMetric `json:"wavefront,omitempty"`
+	// NewRelic specifies the newrelic metric to query
+	NewRelic *NewRelicMetric `json:"newRelic,omitempty"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty"`
 }
@@ -172,6 +174,14 @@ type WavefrontMetric struct {
 	Address string `json:"address,omitempty"`
 	// Query is a raw wavefront query to perform
 	Query string `json:"query,omitempty"`
+}
+
+// NewRelicMetric defines the newrelic query to perform canary analysis
+type NewRelicMetric struct {
+	// Profile is the name of the secret holding NR account configuration
+	Profile string `json:"profile,omitempty"`
+	// Query is a raw newrelic NRQL query to perform
+	Query string `json:"query"`
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -231,6 +241,10 @@ type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
 	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty"`
+	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
+	//valueFrom
+	// +optional
+	FieldRef *FieldRef `json:"fieldRef,omitempty"`
 }
 
 type SecretKeyRef struct {

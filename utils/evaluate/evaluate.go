@@ -1,11 +1,13 @@
 package evaluate
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 
 	"github.com/antonmedv/expr"
+	"github.com/antonmedv/expr/file"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -65,25 +67,29 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 		"asFloat": asFloat,
 	}
 
-	// Setup a clean recovery in case the eval code panics.
-	// TODO: this actually might not be necessary since it seems evaluation lib handles panics from functions internally
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("evaluation logic panicked: %v", r)
+	unwrapFileErr := func(e error) error {
+		if fileErr, ok := err.(*file.Error); ok {
+			e = errors.New(fileErr.Message)
 		}
-	}()
+		return e
+	}
 
-	program, err := expr.Compile(condition, expr.Env(env), expr.AsBool())
+	program, err := expr.Compile(condition, expr.Env(env))
 	if err != nil {
-		return false, err
+		return false, unwrapFileErr(err)
 	}
 
 	output, err := expr.Run(program, env)
 	if err != nil {
-		return false, err
+		return false, unwrapFileErr(err)
 	}
 
-	return output.(bool), err
+	switch val := output.(type) {
+	case bool:
+		return val, nil
+	default:
+		return false, fmt.Errorf("expected bool, but got %T", val)
+	}
 }
 
 func asInt(in interface{}) int64 {

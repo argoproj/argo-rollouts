@@ -340,3 +340,78 @@ func TestPromoteCmdNotFoundError(t *testing.T) {
 	assert.Empty(t, stdout)
 	assert.Equal(t, "Error: rollouts.argoproj.io \"doesnotexist\" not found\n", stderr)
 }
+
+func TestPromoteCmdFull(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{},
+		Status: v1alpha1.RolloutStatus{
+			StableRS:       "abc123",
+			CurrentPodHash: "def456",
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			if string(patchAction.GetPatch()) == promoteFullPatch {
+				ro.Status.PromoteFull = true
+			}
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "--full"})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+
+	assert.True(t, ro.Status.PromoteFull)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
+	assert.Empty(t, stderr)
+}
+
+func TestPromoteCmdAlreadyFullyPromoted(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{},
+		Status: v1alpha1.RolloutStatus{
+			StableRS:       "abc123",
+			CurrentPodHash: "abc123",
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if _, ok := action.(kubetesting.PatchAction); ok {
+			// should not be called if we are already fully promoted
+			t.FailNow()
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "--full"})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+
+	assert.False(t, ro.Status.PromoteFull)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
+	assert.Empty(t, stderr)
+}

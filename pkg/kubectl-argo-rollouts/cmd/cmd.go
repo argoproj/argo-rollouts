@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/create"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/lint"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/pause"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
@@ -13,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/terminate"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/version"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
@@ -27,7 +29,7 @@ const (
 
   # Promote the guestbook rollout
   %[1]s promote guestbook
-  
+
   # Abort the guestbook rollout
   %[1]s abort guestbook
 
@@ -51,6 +53,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	o.AddKubectlFlags(cmd)
 	cmd.AddCommand(create.NewCmdCreate(o))
 	cmd.AddCommand(get.NewCmdGet(o))
+	cmd.AddCommand(lint.NewCmdLint(o))
 	cmd.AddCommand(list.NewCmdList(o))
 	cmd.AddCommand(pause.NewCmdPause(o))
 	cmd.AddCommand(promote.NewCmdPromote(o))
@@ -60,5 +63,6 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(retry.NewCmdRetry(o))
 	cmd.AddCommand(terminate.NewCmdTerminate(o))
 	cmd.AddCommand(set.NewCmdSet(o))
+	cmd.AddCommand(undo.NewCmdUndo(o))
 	return cmd
 }

@@ -31,7 +31,7 @@ kind: Ingress
 metadata:
   name: REPLACEME-ingress
   annotations:
-    kubernetes.io/ingress.class: alb
+    kubernetes.io/ingress.class: nginx
 spec:
   rules:
     - http:
@@ -39,7 +39,7 @@ spec:
           - path: /*
             backend:
               serviceName: REPLACEME-stable
-              servicePort: use-annotation
+              servicePort: 80
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -71,6 +71,5 @@ spec:
       canaryService: REPLACEME-canary
       stableService: REPLACEME-stable
       trafficRouting:
-        alb:
-          ingress: REPLACEME-ingress
-          servicePort: 80
+        nginx:
+          stableIngress: REPLACEME-ingress

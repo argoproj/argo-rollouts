@@ -19,6 +19,11 @@ type Then struct {
 	Common
 }
 
+func (t *Then) Assert(assertFunc func(t *Then)) *Then {
+	assertFunc(t)
+	return t
+}
+
 type RolloutExpectation func(*rov1.Rollout) bool
 
 func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) *Then {
@@ -69,6 +74,7 @@ func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available i
 type PodExpectation func(*corev1.PodList) bool
 
 func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
+	t.t.Helper()
 	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
 	pods, err := t.kubeClient.CoreV1().Pods(t.namespace).List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
@@ -81,14 +87,27 @@ func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
 	return t
 }
 
+func (t *Then) ExpectRevisionPods(expectation string, revision string, expectFunc PodExpectation) *Then {
+	t.t.Helper()
+	pods := t.GetPodsByRevision(revision)
+	if !expectFunc(pods) {
+		t.log.Errorf("Pod expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Pod expectation '%s' met", expectation)
+	return t
+}
+
 func (t *Then) ExpectCanaryStablePodCount(canaryCount, stableCount int) *Then {
+	t.t.Helper()
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	return t.expectPodCountByHash("canary", ro.Status.CurrentPodHash, canaryCount).
-		expectPodCountByHash("stable", ro.Status.Canary.StableRS, stableCount)
+		expectPodCountByHash("stable", ro.Status.StableRS, stableCount)
 }
 
 func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then {
+	t.t.Helper()
 	rs := t.GetReplicaSetByRevision(revision)
 	description := fmt.Sprintf("revision:%s", revision)
 	hash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
@@ -120,6 +139,7 @@ func (t *Then) expectPodCountByHash(description, hash string, expectedCount int)
 type ReplicaSetExpectation func(*appsv1.ReplicaSetList) bool
 
 func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpectation) *Then {
+	t.t.Helper()
 	selector, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
 	t.CheckError(err)
 	replicasets, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
@@ -136,6 +156,7 @@ type AnalysisRunListExpectation func(*rov1.AnalysisRunList) bool
 type AnalysisRunExpectation func(*rov1.AnalysisRun) bool
 
 func (t *Then) ExpectAnalysisRuns(expectation string, expectFunc AnalysisRunListExpectation) *Then {
+	t.t.Helper()
 	aruns := t.GetRolloutAnalysisRuns()
 	if !expectFunc(&aruns) {
 		t.log.Errorf("AnalysisRun expectation '%s' failed", expectation)
@@ -146,12 +167,14 @@ func (t *Then) ExpectAnalysisRuns(expectation string, expectFunc AnalysisRunList
 }
 
 func (t *Then) ExpectAnalysisRunCount(expectedCount int) *Then {
+	t.t.Helper()
 	return t.ExpectAnalysisRuns(fmt.Sprintf("analysisrun count == %d", expectedCount), func(aruns *rov1.AnalysisRunList) bool {
 		return len(aruns.Items) == expectedCount
 	})
 }
 
 func (t *Then) ExpectBackgroundAnalysisRun(expectation string, expectFunc AnalysisRunExpectation) *Then {
+	t.t.Helper()
 	bgArun := t.GetBackgroundAnalysisRun()
 	if !expectFunc(bgArun) {
 		t.log.Errorf("Background AnalysisRun expectation '%s' failed", expectation)
@@ -162,6 +185,7 @@ func (t *Then) ExpectBackgroundAnalysisRun(expectation string, expectFunc Analys
 }
 
 func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
+	t.t.Helper()
 	return t.ExpectBackgroundAnalysisRun(fmt.Sprintf("background analysis phase == %s", phase),
 		func(run *rov1.AnalysisRun) bool {
 			return string(run.Status.Phase) == phase
@@ -171,6 +195,7 @@ func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
 
 // ExpectStableRevision verifies the ReplicaSet with the specified revision is marked stable
 func (t *Then) ExpectStableRevision(revision string) *Then {
+	t.t.Helper()
 	verifyRevision := func() error {
 		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 		t.CheckError(err)
@@ -187,11 +212,13 @@ func (t *Then) ExpectStableRevision(revision string) *Then {
 
 // ExpectPreviewRevision verifies the preview service selector is pointing to the specified revision
 func (t *Then) ExpectPreviewRevision(revision string) *Then {
+	t.t.Helper()
 	return t.verifyBlueGreenSelectorRevision("preview", revision)
 }
 
 // ExpectActiveRevision verifies the active service selector is pointing to the specified revision
 func (t *Then) ExpectActiveRevision(revision string) *Then {
+	t.t.Helper()
 	return t.verifyBlueGreenSelectorRevision("active", revision)
 }
 
@@ -241,6 +268,7 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 }
 
 func (t *Then) ExpectServiceSelector(service string, selector map[string]string) *Then {
+	t.t.Helper()
 	svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(t.Context, service, metav1.GetOptions{})
 	t.CheckError(err)
 	if !reflect.DeepEqual(svc.Spec.Selector, selector) {
@@ -250,8 +278,51 @@ func (t *Then) ExpectServiceSelector(service string, selector map[string]string)
 	return t
 }
 
+type ExperimentListExpectation func(*rov1.ExperimentList) bool
+type ExperimentExpectation func(*rov1.Experiment) bool
+
+func (t *Then) ExpectExperiments(expectation string, expectFunc ExperimentListExpectation) *Then {
+	exps := t.GetRolloutExperiments()
+	if !expectFunc(&exps) {
+		t.log.Errorf("Experiment expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentCount(expectedCount int) *Then {
+	return t.ExpectExperiments(fmt.Sprintf("experiment count == %d", expectedCount), func(exps *rov1.ExperimentList) bool {
+		return len(exps.Items) == expectedCount
+	})
+}
+
+func (t *Then) ExpectExperimentByRevision(expectation string, revision string, expectFunc ExperimentExpectation) *Then {
+	exp := t.GetExperimentByRevision(revision)
+	if !expectFunc(exp) {
+		t.log.Errorf("Experiment expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentByRevisionPhase(revision string, phase string) *Then {
+	return t.ExpectExperimentByRevision(fmt.Sprintf("experiment rev:%s phase == %s", revision, phase), revision,
+		func(run *rov1.Experiment) bool {
+			return string(run.Status.Phase) == phase
+		},
+	)
+}
+
 func (t *Then) When() *When {
 	return &When{
+		Common: t.Common,
+	}
+}
+
+func (t *Then) Given() *Given {
+	return &Given{
 		Common: t.Common,
 	}
 }

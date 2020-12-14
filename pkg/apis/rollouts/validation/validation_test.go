@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func TestValidateRollout(t *testing.T) {
@@ -37,7 +39,6 @@ func TestValidateRollout(t *testing.T) {
 			},
 		},
 	}
-
 	t.Run("missing selector", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Selector = nil
@@ -63,6 +64,15 @@ func TestValidateRollout(t *testing.T) {
 			PreviewService: "preview",
 		}
 		allErrs := ValidateRollout(invalidRo)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("privileged container", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Privileged: pointer.BoolPtr(true),
+		}
+		allErrs := ValidateRollout(ro)
 		assert.Empty(t, allErrs)
 	})
 
@@ -119,6 +129,30 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = canaryStrategy
 
+	invalidArgs := []v1alpha1.AnalysisRunArgument{
+		{
+			Name: "metadata.labels['app']",
+			ValueFrom: &v1alpha1.ArgumentValueFrom{
+				FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.label['app']"},
+			},
+		},
+		{
+			Name:  "value-key",
+			Value: "hardcoded-value",
+		},
+	}
+	rolloutAnalysisStep := &v1alpha1.RolloutAnalysis{
+		Args: invalidArgs,
+	}
+
+	rolloutExperimentStep := &v1alpha1.RolloutExperimentStep{
+		Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{
+			{
+				Args: invalidArgs,
+			},
+		},
+	}
+
 	t.Run("duplicate services", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.CanaryService = "stable"
@@ -163,6 +197,18 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidDurationMessage, allErrs[0].Detail)
+	})
+	t.Run("invalid metadata references in analysis step", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps[0].Analysis = rolloutAnalysisStep
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidAnalysisArgsMessage, allErrs[0].Detail)
+	})
+	t.Run("invalid metadata references in experiment step", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps[0].Experiment = rolloutExperimentStep
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidAnalysisArgsMessage, allErrs[0].Detail)
 	})
 }
 
