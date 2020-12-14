@@ -5,6 +5,8 @@ bases:
 - ../crds
 - ../base
 - ../role
+
+resources:
 - argo-rollouts-rolebinding.yaml
 
 patchesStrategicMerge:
