@@ -50,6 +50,19 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
+		// resolves arguments in each metric task
+		for i, metric := range run.Spec.Metrics {
+			resolvedMetric, err := c.resolveMetricArgs(metric, run.Spec.Args)
+			if err != nil {
+				message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
+				log.Warn(message)
+				run.Status.Phase = v1alpha1.AnalysisPhaseError
+				run.Status.Message = message
+				c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+				return run
+			}
+			run.Spec.Metrics[i] = *resolvedMetric
+		}
 		err := analysisutil.ValidateMetrics(run.Spec.Metrics)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
@@ -248,15 +261,6 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	secrets := make([]string, 0, len(secretSet))
 	for k := range secretSet {
 		secrets = append(secrets, k)
-	}
-
-	// resolves arguments in each metric task
-	for i, task := range tasks {
-		resolvedMetric, err := c.resolveMetricArgs(task.metric, args)
-		if err != nil {
-			return nil, nil, err
-		}
-		tasks[i].metric = *resolvedMetric
 	}
 
 	return tasks, secrets, nil
