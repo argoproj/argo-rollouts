@@ -69,7 +69,7 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 	if res == nil {
 		return 1
 	}
-	return int(res.Count.IntVal + res.Error.IntVal + 1)
+	return int(res.Count + res.Error + 1)
 }
 
 func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.Job, error) {

@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
@@ -144,7 +142,7 @@ func TestRun(t *testing.T) {
 	run.Status.MetricResults = []v1alpha1.MetricResult{
 		{
 			Name:  metric.Name,
-			Count: intstr.FromInt(1),
+			Count: 1,
 		},
 	}
 	measurement = p.Run(run, metric)

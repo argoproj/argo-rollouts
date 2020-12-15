@@ -44,10 +44,10 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 		}
 		arInfo.Status = string(run.Status.Phase)
 		for _, mr := range run.Status.MetricResults {
-			arInfo.Successful += int32(mr.Successful.IntValue())
-			arInfo.Failed += int32(mr.Failed.IntValue())
-			arInfo.Inconclusive += int32(mr.Inconclusive.IntValue())
-			arInfo.Error += int32(mr.Error.IntValue())
+			arInfo.Successful += mr.Successful
+			arInfo.Failed += mr.Failed
+			arInfo.Inconclusive += mr.Inconclusive
+			arInfo.Error += mr.Error
 			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
 			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
 				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {

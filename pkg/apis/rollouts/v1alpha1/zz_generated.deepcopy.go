@@ -1077,12 +1077,6 @@ func (in *MetricResult) DeepCopyInto(out *MetricResult) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	out.Count = in.Count
-	out.Successful = in.Successful
-	out.Failed = in.Failed
-	out.Inconclusive = in.Inconclusive
-	out.Error = in.Error
-	out.ConsecutiveError = in.ConsecutiveError
 	return
 }
 
