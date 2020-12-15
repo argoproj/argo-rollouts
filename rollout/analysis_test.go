@@ -28,7 +28,8 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 		},
 		Spec: v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{{
-				Name: "example",
+				Name:  "example",
+				Count: &intstr.IntOrString{IntVal: 0},
 			}},
 		},
 	}

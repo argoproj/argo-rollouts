@@ -1788,8 +1788,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"count": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Count is the number of times to run the measurement. If both interval and count are omitted, the effective count is 1. If only interval is specified, metric runs indefinitely. If count > 1, interval must be specified.",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"successCondition": {
@@ -1809,22 +1808,19 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"failureLimit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "FailureLimit is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"inconclusiveLimit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "InconclusiveLimit is the maximum number of times the measurement is allowed to measure Inconclusive, before the entire metric is considered Inconclusive (default: 0)",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"consecutiveErrorLimit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in succession, before the metric is considered error (default: 4)",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"provider": {
@@ -1838,7 +1834,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -1943,43 +1939,37 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 					"count": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Count is the number of times the metric was measured without Error This is equal to the sum of Successful, Failed, Inconclusive",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"successful": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Successful is the number of times the metric was measured Successful",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"failed": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Failed is the number of times the metric was measured Failed",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"inconclusive": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Inconclusive is the number of times the metric was measured Inconclusive",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"error": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Error is the number of times an error was encountered during measurement",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"consecutiveError": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConsecutiveError is the number of times an error was encountered during measurement in succession Resets to zero when non-errors are encountered",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 				},
@@ -1987,7 +1977,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 

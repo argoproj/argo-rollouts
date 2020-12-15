@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -181,7 +183,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
-		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
+		if effectiveCount != nil && metricResult.Count.IntValue() >= effectiveCount.IntValue() {
 			// we have reached desired count
 			continue
 		}
@@ -332,20 +334,20 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				}
 				switch newMeasurement.Phase {
 				case v1alpha1.AnalysisPhaseSuccessful:
-					metricResult.Successful++
-					metricResult.Count++
-					metricResult.ConsecutiveError = 0
+					metricResult.Successful = intstr.FromInt(metricResult.Successful.IntValue() + 1)
+					metricResult.Count = intstr.FromInt(metricResult.Count.IntValue() + 1)
+					metricResult.ConsecutiveError = intstr.FromInt(0)
 				case v1alpha1.AnalysisPhaseFailed:
-					metricResult.Failed++
-					metricResult.Count++
-					metricResult.ConsecutiveError = 0
+					metricResult.Failed = intstr.FromInt(metricResult.Failed.IntValue() + 1)
+					metricResult.Count = intstr.FromInt(metricResult.Count.IntValue() + 1)
+					metricResult.ConsecutiveError = intstr.FromInt(0)
 				case v1alpha1.AnalysisPhaseInconclusive:
-					metricResult.Inconclusive++
-					metricResult.Count++
-					metricResult.ConsecutiveError = 0
+					metricResult.Inconclusive = intstr.FromInt(metricResult.Inconclusive.IntValue() + 1)
+					metricResult.Count = intstr.FromInt(metricResult.Count.IntValue() + 1)
+					metricResult.ConsecutiveError = intstr.FromInt(0)
 				case v1alpha1.AnalysisPhaseError:
-					metricResult.Error++
-					metricResult.ConsecutiveError++
+					metricResult.Error = intstr.FromInt(metricResult.Error.IntValue() + 1)
+					metricResult.ConsecutiveError = intstr.FromInt(metricResult.ConsecutiveError.IntValue() + 1)
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
@@ -477,8 +479,8 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
 	// taken into consideration above, and we do not want to fail if failures < failureLimit.
 	effectiveCount := metric.EffectiveCount()
-	if effectiveCount != nil && result.Count >= *effectiveCount {
-		log.Infof("metric assessed %s: count (%d) reached", v1alpha1.AnalysisPhaseSuccessful, *effectiveCount)
+	if effectiveCount != nil && result.Count.IntValue() >= effectiveCount.IntValue() {
+		log.Infof("metric assessed %s: count (%s) reached", v1alpha1.AnalysisPhaseSuccessful, effectiveCount.String())
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
 	// if we get here, this metric runs indefinitely
@@ -492,18 +494,18 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, string) {
 	var message string
 	var phase v1alpha1.AnalysisPhase
-	if result.Failed > metric.FailureLimit {
+	if result.Failed.IntValue() > metric.FailureLimit.IntValue() {
 		phase = v1alpha1.AnalysisPhaseFailed
-		message = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
+		message = fmt.Sprintf("failed (%s) > failureLimit (%s)", result.Failed.String(), metric.FailureLimit.String())
 	}
-	if result.Inconclusive > metric.InconclusiveLimit {
+	if result.Inconclusive.IntValue() > metric.InconclusiveLimit.IntValue() {
 		phase = v1alpha1.AnalysisPhaseInconclusive
-		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
+		message = fmt.Sprintf("inconclusive (%s) > inconclusiveLimit (%s)", result.Inconclusive.String(), metric.InconclusiveLimit.String())
 	}
 	consecutiveErrorLimit := defaults.GetConsecutiveErrorLimitOrDefault(&metric)
-	if result.ConsecutiveError > consecutiveErrorLimit {
+	if int32(result.ConsecutiveError.IntValue()) > consecutiveErrorLimit {
 		phase = v1alpha1.AnalysisPhaseError
-		message = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)
+		message = fmt.Sprintf("consecutiveErrors (%s) > consecutiveErrorLimit (%d)", result.ConsecutiveError.String(), consecutiveErrorLimit)
 	}
 	return phase, message
 }
@@ -551,7 +553,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
-		if effectiveCount != nil && metricResult.Count >= *effectiveCount {
+		if effectiveCount != nil && metricResult.Count.IntValue() >= effectiveCount.IntValue() {
 			// we have reached desired count
 			continue
 		}
@@ -570,7 +572,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// there was no error (meaning we don't need to retry). no need to requeue this metric.
 			// NOTE: we shouldn't ever get here since it means we are not doing proper bookkeeping
 			// of count.
-			logCtx.Warnf("skipping requeue. no interval or error (count: %d, effectiveCount: %d)", metricResult.Count, metric.EffectiveCount())
+			logCtx.Warnf("skipping requeue. no interval or error (count: %s, effectiveCount: %s)", metricResult.Count.StrVal, metric.EffectiveCount().StrVal)
 			continue
 		}
 		// Take the earliest time of all metrics
