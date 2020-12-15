@@ -111,11 +111,9 @@ type Metric struct {
 // If only interval is specified, metric runs indefinitely and there is no effective count (nil)
 // Otherwise, it is the user specified value
 func (m *Metric) EffectiveCount() *intstrutil.IntOrString {
-	if m.Count.IntValue() == 0 {
+	if m.Count == nil || m.Count.IntValue() == 0 {
 		if m.Interval == "" {
-			one := intstrutil.IntOrString{
-				IntVal: 1,
-			}
+			one := intstrutil.FromInt(1)
 			return &one
 		}
 		return nil
