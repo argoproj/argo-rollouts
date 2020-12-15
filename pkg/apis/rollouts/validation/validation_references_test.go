@@ -80,7 +80,7 @@ func getAnalysisTemplateWithType() AnalysisTemplateWithType {
 				Metrics: []v1alpha1.Metric{{
 					Name:     "metric-name",
 					Interval: "1m",
-					Count:    1,
+					Count:    &intstr.IntOrString{IntVal: 1},
 				}},
 			},
 		},
@@ -162,7 +162,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
 		template := getAnalysisTemplateWithType()
-		template.AnalysisTemplate.Spec.Metrics[0].Count = 0
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Len(t, allErrs, 1)
 		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, "AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely")
@@ -173,7 +173,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
-		template.AnalysisTemplate.Spec.Metrics[0].Count = 0
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Empty(t, allErrs)
 	})

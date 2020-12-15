@@ -3,6 +3,8 @@ package analysis
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
@@ -162,8 +164,8 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        1,
-					FailureLimit: 2,
+					Count:        &intstr.IntOrString{IntVal: 1},
+					FailureLimit: intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -172,7 +174,7 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= failureLimit")
-		spec.Metrics[0].Count = 0
+		spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	})
@@ -181,8 +183,8 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:              "success-rate",
-					Count:             1,
-					InconclusiveLimit: 2,
+					Count:             &intstr.IntOrString{IntVal: 1},
+					InconclusiveLimit: intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -191,7 +193,7 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= inconclusiveLimit")
-		spec.Metrics[0].Count = 0
+		spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	})
@@ -200,9 +202,9 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &intstr.IntOrString{IntVal: 2},
 					Interval:     "60s",
-					FailureLimit: 2,
+					FailureLimit: intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -217,9 +219,9 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &intstr.IntOrString{IntVal: 2},
 					Interval:     "60s-typo",
-					FailureLimit: 2,
+					FailureLimit: intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -234,10 +236,10 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &intstr.IntOrString{IntVal: 2},
 					Interval:     "60s",
 					InitialDelay: "60s-typo",
-					FailureLimit: 2,
+					FailureLimit: intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -259,7 +261,7 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:  "success-rate",
-					Count: 2,
+					Count: &intstr.IntOrString{IntVal: 2},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -277,12 +279,14 @@ func TestValidateMetrics(t *testing.T) {
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
+					Count: &intstr.IntOrString{IntVal: 0},
 				},
 				{
 					Name: "success-rate",
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
+					Count: &intstr.IntOrString{IntVal: 0},
 				},
 			},
 		}
@@ -294,7 +298,8 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					FailureLimit: -1,
+					FailureLimit: intstr.IntOrString{IntVal: -1},
+					Count:        &intstr.IntOrString{IntVal: 0},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -309,7 +314,8 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:              "success-rate",
-					InconclusiveLimit: -1,
+					InconclusiveLimit: intstr.IntOrString{IntVal: -1},
+					Count:             &intstr.IntOrString{IntVal: 0},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -324,7 +330,8 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:                  "success-rate",
-					ConsecutiveErrorLimit: pointer.Int32Ptr(-1),
+					ConsecutiveErrorLimit: intstr.IntOrString{IntVal: -1},
+					Count:                 &intstr.IntOrString{IntVal: 0},
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -339,7 +346,7 @@ func TestValidateMetrics(t *testing.T) {
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:  "success-rate",
-					Count: 1,
+					Count: &intstr.IntOrString{IntVal: 1},
 				},
 			},
 		}
@@ -360,6 +367,7 @@ func TestValidateMetrics(t *testing.T) {
 						Datadog:    &v1alpha1.DatadogMetric{},
 						NewRelic:   &v1alpha1.NewRelicMetric{},
 					},
+					Count: &intstr.IntOrString{IntVal: 0},
 				},
 			},
 		}

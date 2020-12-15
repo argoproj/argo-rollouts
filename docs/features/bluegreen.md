@@ -57,14 +57,14 @@ spec:
   strategy:
     blueGreen:
       autoPromotionEnabled: boolean
-      autoPromotionSeconds: *int32
+      autoPromotionSeconds: intOrString
       antiAffinity: object
       previewService: string
       prePromotionAnalysis: object
       postPromotionAnalysis: object
-      previewReplicaCount: *int32
-      scaleDownDelaySeconds: *int32
-      scaleDownDelayRevisionLimit: *int32
+      previewReplicaCount: intOrString
+      scaleDownDelaySeconds: intOrString
+      scaleDownDelayRevisionLimit: intOrString
 ```
 
 ### autoPromotionEnabled

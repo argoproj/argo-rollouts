@@ -113,15 +113,15 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
-	if metric.Count > 0 {
-		if metric.Count < metric.FailureLimit {
+	if metric.Count.IntValue() > 0 {
+		if metric.Count.IntValue() < metric.FailureLimit.IntValue() {
 			return fmt.Errorf("count must be >= failureLimit")
 		}
-		if metric.Count < metric.InconclusiveLimit {
+		if metric.Count.IntValue() < metric.InconclusiveLimit.IntValue() {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
 	}
-	if metric.Count > 1 && metric.Interval == "" {
+	if metric.Count.IntValue() > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	if metric.Interval != "" {
@@ -135,13 +135,13 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if metric.FailureLimit < 0 {
+	if metric.FailureLimit.IntValue() < 0 {
 		return fmt.Errorf("failureLimit must be >= 0")
 	}
-	if metric.InconclusiveLimit < 0 {
+	if metric.InconclusiveLimit.IntValue() < 0 {
 		return fmt.Errorf("inconclusiveLimit must be >= 0")
 	}
-	if metric.ConsecutiveErrorLimit != nil && *metric.ConsecutiveErrorLimit < 0 {
+	if &metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
 		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
 	}
 	numProviders := 0
