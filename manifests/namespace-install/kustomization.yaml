@@ -6,6 +6,9 @@ bases:
 - ../base
 - ../role
 
+resources:
+- argo-rollouts-rolebinding.yaml
+
 patchesStrategicMerge:
 - add-namespaced-flag.yaml
 
