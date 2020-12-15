@@ -572,7 +572,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			// there was no error (meaning we don't need to retry). no need to requeue this metric.
 			// NOTE: we shouldn't ever get here since it means we are not doing proper bookkeeping
 			// of count.
-			logCtx.Warnf("skipping requeue. no interval or error (count: %s, effectiveCount: %s)", metricResult.Count.StrVal, metric.EffectiveCount().StrVal)
+			logCtx.Warnf("skipping requeue. no interval or error (count: %s, effectiveCount: %s)", metricResult.Count.String(), metric.EffectiveCount().String())
 			continue
 		}
 		// Take the earliest time of all metrics

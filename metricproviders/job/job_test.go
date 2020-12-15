@@ -144,7 +144,7 @@ func TestRun(t *testing.T) {
 	run.Status.MetricResults = []v1alpha1.MetricResult{
 		{
 			Name:  metric.Name,
-			Count: intstr.IntOrString{IntVal: 1},
+			Count: intstr.FromInt(1),
 		},
 	}
 	measurement = p.Run(run, metric)

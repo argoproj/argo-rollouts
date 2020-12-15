@@ -21,6 +21,7 @@ import (
 )
 
 func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
+	count := intstr.FromInt(0)
 	return &v1alpha1.AnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -29,7 +30,7 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 		Spec: v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{{
 				Name:  "example",
-				Count: &intstr.IntOrString{IntVal: 0},
+				Count: &count,
 			}},
 		},
 	}

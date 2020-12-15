@@ -71,6 +71,7 @@ spec:
       weight: 0`
 
 func getAnalysisTemplateWithType() AnalysisTemplateWithType {
+	count := intstr.FromInt(1)
 	return AnalysisTemplateWithType{
 		AnalysisTemplate: &v1alpha1.AnalysisTemplate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -80,7 +81,7 @@ func getAnalysisTemplateWithType() AnalysisTemplateWithType {
 				Metrics: []v1alpha1.Metric{{
 					Name:     "metric-name",
 					Interval: "1m",
-					Count:    &intstr.IntOrString{IntVal: 1},
+					Count:    &count,
 				}},
 			},
 		},
@@ -161,8 +162,9 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	})
 
 	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
+		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
-		template.AnalysisTemplate.Spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Len(t, allErrs, 1)
 		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, "AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely")
@@ -171,9 +173,10 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	// verify background analysis does not care about a metric that runs indefinitely
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
+		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
-		template.AnalysisTemplate.Spec.Metrics[0].Count = &intstr.IntOrString{IntVal: 0}
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Empty(t, allErrs)
 	})
