@@ -1939,37 +1939,43 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 					"count": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Count is the number of times the metric was measured without Error This is equal to the sum of Successful, Failed, Inconclusive",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"successful": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Successful is the number of times the metric was measured Successful",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"failed": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Failed is the number of times the metric was measured Failed",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"inconclusive": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Inconclusive is the number of times the metric was measured Inconclusive",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"error": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Error is the number of times an error was encountered during measurement",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"consecutiveError": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConsecutiveError is the number of times an error was encountered during measurement in succession Resets to zero when non-errors are encountered",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -1977,7 +1983,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement"},
 	}
 }
 

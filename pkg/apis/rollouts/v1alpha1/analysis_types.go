@@ -281,18 +281,18 @@ type MetricResult struct {
 	Message string `json:"message,omitempty"`
 	// Count is the number of times the metric was measured without Error
 	// This is equal to the sum of Successful, Failed, Inconclusive
-	Count intstrutil.IntOrString `json:"count,omitempty"`
+	Count int32 `json:"count,omitempty"`
 	// Successful is the number of times the metric was measured Successful
-	Successful intstrutil.IntOrString `json:"successful,omitempty"`
+	Successful int32 `json:"successful,omitempty"`
 	// Failed is the number of times the metric was measured Failed
-	Failed intstrutil.IntOrString `json:"failed,omitempty"`
+	Failed int32 `json:"failed,omitempty"`
 	// Inconclusive is the number of times the metric was measured Inconclusive
-	Inconclusive intstrutil.IntOrString `json:"inconclusive,omitempty"`
+	Inconclusive int32 `json:"inconclusive,omitempty"`
 	// Error is the number of times an error was encountered during measurement
-	Error intstrutil.IntOrString `json:"error,omitempty"`
+	Error int32 `json:"error,omitempty"`
 	// ConsecutiveError is the number of times an error was encountered during measurement in succession
 	// Resets to zero when non-errors are encountered
-	ConsecutiveError intstrutil.IntOrString `json:"consecutiveError,omitempty"`
+	ConsecutiveError int32 `json:"consecutiveError,omitempty"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
