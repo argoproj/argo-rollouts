@@ -9,8 +9,14 @@ spec:
     value: 0s
   - name: exit-code
     value: "0"
+  - name: count
+    value: "2"
+  - name: failure-limit
+    value: "1"
   metrics:
   - name: sleep-job
+    count: "{{args.count}}"
+    failureLimit: "{{args.failure-limit}}"
     provider:
       job:
         spec:
