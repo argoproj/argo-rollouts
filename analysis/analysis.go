@@ -332,20 +332,20 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				}
 				switch newMeasurement.Phase {
 				case v1alpha1.AnalysisPhaseSuccessful:
-					metricResult.Successful = metricResult.Successful + 1
-					metricResult.Count = metricResult.Count + 1
+					metricResult.Successful++
+					metricResult.Count++
 					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisPhaseFailed:
-					metricResult.Failed = metricResult.Failed + 1
-					metricResult.Count = metricResult.Count + 1
+					metricResult.Failed++
+					metricResult.Count++
 					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisPhaseInconclusive:
-					metricResult.Inconclusive = metricResult.Inconclusive + 1
-					metricResult.Count = metricResult.Count + 1
+					metricResult.Inconclusive++
+					metricResult.Count++
 					metricResult.ConsecutiveError = 0
 				case v1alpha1.AnalysisPhaseError:
-					metricResult.Error = metricResult.Error + 1
-					metricResult.ConsecutiveError = metricResult.ConsecutiveError + 1
+					metricResult.Error++
+					metricResult.ConsecutiveError++
 					log.Warnf("measurement had error: %s", newMeasurement.Message)
 				}
 			}
