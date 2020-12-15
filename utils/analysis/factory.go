@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -113,15 +114,19 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
-	if metric.Count.IntValue() > 0 {
-		if metric.Count.IntValue() < metric.FailureLimit.IntValue() {
+	count := intstr.FromInt(0)
+	if metric.Count != nil {
+		count = *metric.Count
+	}
+	if count.IntValue() > 0 {
+		if count.IntValue() < metric.FailureLimit.IntValue() {
 			return fmt.Errorf("count must be >= failureLimit")
 		}
-		if metric.Count.IntValue() < metric.InconclusiveLimit.IntValue() {
+		if count.IntValue() < metric.InconclusiveLimit.IntValue() {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
 	}
-	if metric.Count.IntValue() > 1 && metric.Interval == "" {
+	if count.IntValue() > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	if metric.Interval != "" {
