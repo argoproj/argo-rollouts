@@ -8,7 +8,9 @@ purposes.
 Some dependencies are installable via the Helm stable repository:
 
 ```shell
-helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+helm repo add stable https://charts.helm.sh/stable
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 ```
 
@@ -28,7 +30,7 @@ Optionally, Prometheus and Grafana can be installed to utilize progressive deliv
 ```
 # Install Prometheus
 kubectl create ns monitoring
-helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
+helm install prometheus prometheus-community/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
 
 # Patch the ingress-nginx-controller pod so that it has the required
 # prometheus annotations. This allows the pod to be scraped by the
@@ -36,7 +38,7 @@ helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/
 kubectl patch deploy ingress-nginx-controller -n kube-system -p "$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)"
 
 # Install grafana along with nginx ingress dashboards
-helm install grafana stable/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
+helm install grafana grafana/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
 
 # Grafana UI can be accessed by running:
 minikube service grafana -n monitoring
@@ -64,7 +66,7 @@ functionality:
 
 ```
 # Install Grafana and Istio dashboards
-helm install grafana stable/grafana -n istio-system -f docs/getting-started/setup/values-grafana-istio.yaml
+helm install grafana grafana/grafana -n istio-system -f docs/getting-started/setup/values-grafana-istio.yaml
 
 # Grafana UI can be accessed by running
 minikube service grafana -n istio-system
@@ -125,9 +127,9 @@ supplied in the request in order to determine how to route the request to the co
 ### Determining the hostname to IP mapping
 
 For the Host header to be set in the request, the hostname of the service should resolve to the
-public IP address of the ingress or service mesh. Depending on if you are using a ingress controller
-or a service mesh, use one of the following techniques to determine the correct hostname to IP
-mapping:
+public IP address of the ingress or service mesh. Depending on if you are using an ingress
+controller or a service mesh, use one of the following techniques to determine the correct hostname
+to IP mapping:
 
 #### Ingresses
 

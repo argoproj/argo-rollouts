@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -414,7 +413,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	if rs == nil {
 		return nil
 	}
-	modifiedRS, modified := replicasetutil.UpdateEphemeralPodMetadata(rs, podMetadata)
+	modifiedRS, modified := replicasetutil.SyncReplicaSetEphemeralPodMetadata(rs, podMetadata)
 	if !modified {
 		return nil
 	}
@@ -423,19 +422,17 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	if err != nil {
 		return err
 	}
+	existingPodMetadata := replicasetutil.ParseExistingPodMetadata(rs)
 	for _, pod := range pods {
-		if reflect.DeepEqual(pod.Annotations, modifiedRS.Spec.Template.Annotations) &&
-			reflect.DeepEqual(pod.Labels, modifiedRS.Spec.Template.Labels) {
-			continue
+		newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&pod.ObjectMeta, existingPodMetadata, podMetadata)
+		if podModified {
+			pod.ObjectMeta = *newPodObjectMeta
+			_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+			c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
 		}
-		// if we get here, the pod metadata needs correction
-		pod.Annotations = modifiedRS.Spec.Template.Annotations
-		pod.Labels = modifiedRS.Spec.Template.Labels
-		_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
 	}
 
 	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
