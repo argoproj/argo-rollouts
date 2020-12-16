@@ -50,6 +50,11 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 	return w
 }
 
+func (w *When) DeleteObject(kind, name string) *When {
+	w.deleteObject(kind, name)
+	return w
+}
+
 // injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
 // preStart and postStart handlers which sleeps for the specified duration.
 func (w *When) injectDelays(un *unstructured.Unstructured) {

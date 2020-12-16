@@ -1,5 +1,15 @@
 # Changelog
 
+# v0.10.2
+
+## Changes since v0.10.1
+
+### Controller
+* fix: switch pod restart to use evict API to honor PDBs
+* fix: ephemeral metadata injection was dropping metadata injected by mutating webhooks
+* fix: requiredForCompletion did not work for an experiment started by a rollout
+* fix: Add missing RoleBinding file to namespace installation
+
 # v0.10.1
 
 ## Changes since v0.10.0

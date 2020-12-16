@@ -75,15 +75,21 @@ rules:
   - get
   - list
   - watch
-# pod delete needed for restart. pod update needed for updating ephemeral data
+# pod list/update needed for updating ephemeral data
 - apiGroups:
   - ""
   resources:
   - pods
   verbs:
   - list
-  - delete
   - update
+# pods eviction needed for restart
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
 # event write needed for emitting events
 - apiGroups:
   - ""
@@ -93,8 +99,9 @@ rules:
   - create
   - update
   - patch
-# ingress patch needed for managing ingress annotations
+# ingress patch needed for managing ingress annotations, create needed for nginx canary
 - apiGroups:
+  - networking.k8s.io
   - extensions
   resources:
   - ingresses

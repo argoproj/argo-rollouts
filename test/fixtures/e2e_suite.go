@@ -59,6 +59,11 @@ var (
 		Version:  "v1",
 		Resource: "ingresses",
 	}
+	pdbGVR = schema.GroupVersionResource{
+		Group:    "policy",
+		Version:  "v1beta1",
+		Resource: "poddisruptionbudgets",
+	}
 )
 
 func init() {
@@ -158,6 +163,7 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		rov1.ExperimentGVR,
 		serviceGVR,
 		ingressGVR,
+		pdbGVR,
 		istioutil.GetIstioGVR("v1alpha3"),
 	}
 	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
