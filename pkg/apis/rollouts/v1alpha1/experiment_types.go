@@ -199,7 +199,7 @@ type ExperimentAnalysisTemplateRef struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
-	// RequiredForCompletion indicates that experiment should complete after analysis finishes
+	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }
 

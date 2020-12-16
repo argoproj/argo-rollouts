@@ -11415,6 +11415,8 @@ spec:
                                       type: boolean
                                     name:
                                       type: string
+                                    requiredForCompletion:
+                                      type: boolean
                                     templateName:
                                       type: string
                                   required:

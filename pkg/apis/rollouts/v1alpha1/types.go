@@ -285,6 +285,8 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
+	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
