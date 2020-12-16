@@ -51,7 +51,7 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	// PodTemplate change, which in turn would triggers an unexpected redeploy of the replicaset.
 	for _, rs := range rsList {
 		// Remove injected canary/stable metadata from spec.template.metadata before comparing
-		rsCopy, _ := UpdateEphemeralPodMetadata(rs, nil)
+		rsCopy, _ := SyncReplicaSetEphemeralPodMetadata(rs, nil)
 		// Remove anti-affinity from template.Spec.Affinity before comparing
 		live := &rsCopy.Spec.Template
 		live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
