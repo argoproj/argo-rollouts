@@ -7,6 +7,8 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -102,8 +104,20 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 		}
 		newLogCtx := logCtx.WithField("Pod", pod.Name).WithField("CreatedAt", pod.CreationTimestamp.Format(time.RFC3339)).WithField("RestartAt", restartedAt.Format(time.RFC3339))
 		newLogCtx.Info("restarting Pod that's older than restartAt Time")
-		err := p.client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
+		evictTarget := policy.Eviction{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+		}
+		err := p.client.CoreV1().Pods(pod.Namespace).Evict(ctx, &evictTarget)
 		if err != nil {
+			if k8serrors.IsTooManyRequests(err) {
+				// A PodDisruptionBudget prevented us from evicting the pod.
+				// Continue and allow rollout requeue to try again later.
+				newLogCtx.Warn(err)
+				continue
+			}
 			return err
 		}
 		canRestart -= 1
@@ -112,7 +126,7 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 	remaining := needsRestart - restarted
 
 	if remaining != 0 {
-		logCtx.Infof("%d/%d pods require restart. restarted %d", needsRestart, len(rolloutPods), restarted)
+		logCtx.Infof("%d/%d pods require restart. restarted %d. retrying in %v", needsRestart, len(rolloutPods), restarted, restartPodCheckTime)
 		p.enqueueAfter(roCtx.rollout, restartPodCheckTime)
 	} else {
 		logCtx.Infof("all %d pods are current. setting restartedAt", len(rolloutPods))

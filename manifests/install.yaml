@@ -14361,8 +14361,13 @@ rules:
   - pods
   verbs:
   - list
-  - delete
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
 - apiGroups:
   - ""
   resources:
@@ -14372,6 +14377,7 @@ rules:
   - update
   - patch
 - apiGroups:
+  - networking.k8s.io
   - extensions
   resources:
   - ingresses

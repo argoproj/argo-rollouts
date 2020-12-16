@@ -193,6 +193,68 @@ spec:
 		ExpectReplicaCounts(4, 4, 1, 1, 1)
 }
 
+// Test which verifies pod restart honors PodDisruptionBudget
+func (s *FunctionalSuite) TestRolloutPDBRestart() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: rollout-pdb-restart
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: rollout-pdb-restart
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-pdb-restart
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      maxUnavailable: 100%
+      steps:
+      - setWeight: 25
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-pdb-restart
+  template:
+    metadata:
+      labels:
+        app: rollout-pdb-restart
+    spec:
+      containers:
+      - name: rollout-pdb-restart
+        image: nginx:1.19-alpine
+        lifecycle:
+          postStart:
+            exec:
+              command: [sleep, "5"]
+          preStop:
+            exec:
+              command: [sleep, "5"]
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m
+`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Sleep(time.Second). // need to sleep so that clock will advanced past pod creationTimestamp
+		RestartRollout().
+		Sleep(2*time.Second).
+		Then().
+		ExpectReplicaCounts(4, 4, 1, 4, 4). // ensure PDB prevented rollout from deleting pod
+		When().
+		DeleteObject("pdb", "rollout-pdb-restart").
+		WaitForRolloutAvailableReplicas(0) // wait for rollout to retry deletion (30s)
+}
+
 func (s *FunctionalSuite) TestMalformedRollout() {
 	s.Given().
 		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
