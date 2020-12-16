@@ -1465,7 +1465,9 @@
 purposes.</p>
 <h2 id="helm">Helm<a class="headerlink" href="#helm" title="Permanent link">&para;</a></h2>
 <p>Some dependencies are installable via the Helm stable repository:</p>
-<div class="highlight"><pre><span></span><code>helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+<div class="highlight"><pre><span></span><code>helm repo add stable https://charts.helm.sh/stable
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 </code></pre></div>
 <h2 id="minikube">Minikube<a class="headerlink" href="#minikube" title="Permanent link">&para;</a></h2>
@@ -1477,7 +1479,7 @@ basic ingress support, only the "ingress" addon needs to be enabled:</p>
 <p>Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
 <div class="highlight"><pre><span></span><code># Install Prometheus
 kubectl create ns monitoring
-helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
+helm install prometheus prometheus-community/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
 
 # Patch the ingress-nginx-controller pod so that it has the required
 # prometheus annotations. This allows the pod to be scraped by the
@@ -1485,7 +1487,7 @@ helm install prometheus stable/prometheus -n monitoring -f docs/getting-started/
 kubectl patch deploy ingress-nginx-controller -n kube-system -p &quot;$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)&quot;
 
 # Install grafana along with nginx ingress dashboards
-helm install grafana stable/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
+helm install grafana grafana/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
 
 # Grafana UI can be accessed by running:
 minikube service grafana -n monitoring
@@ -1506,7 +1508,7 @@ kubectl label namespace default istio-injection<span class="o">=</span>enabled
 services, Grafana and Istio dashboards can be installed via Helm to leverage progressive delivery
 functionality:</p>
 <div class="highlight"><pre><span></span><code># Install Grafana and Istio dashboards
-helm install grafana stable/grafana -n istio-system -f docs/getting-started/setup/values-grafana-istio.yaml
+helm install grafana grafana/grafana -n istio-system -f docs/getting-started/setup/values-grafana-istio.yaml
 
 # Grafana UI can be accessed by running
 minikube service grafana -n istio-system
@@ -1549,9 +1551,9 @@ kubectl patch deploy ingress-nginx-controller -n kube-system \
 supplied in the request in order to determine how to route the request to the correct pod.</p>
 <h3 id="determining-the-hostname-to-ip-mapping">Determining the hostname to IP mapping<a class="headerlink" href="#determining-the-hostname-to-ip-mapping" title="Permanent link">&para;</a></h3>
 <p>For the Host header to be set in the request, the hostname of the service should resolve to the
-public IP address of the ingress or service mesh. Depending on if you are using a ingress controller
-or a service mesh, use one of the following techniques to determine the correct hostname to IP
-mapping:</p>
+public IP address of the ingress or service mesh. Depending on if you are using an ingress
+controller or a service mesh, use one of the following techniques to determine the correct hostname
+to IP mapping:</p>
 <h4 id="ingresses">Ingresses<a class="headerlink" href="#ingresses" title="Permanent link">&para;</a></h4>
 <p>For traffic which is reaching the cluster network via a normal Kubernetes Ingress, the hostname
 should map to the IP of the ingress. We can retrieve the external IP of the ingress from the
