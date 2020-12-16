@@ -16,6 +16,7 @@ spec:
   metrics:
   - name: sleep-job
     count: "{{args.count}}"
+    interval: 5s
     failureLimit: "{{args.failure-limit}}"
     provider:
       job:
