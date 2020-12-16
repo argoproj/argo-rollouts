@@ -386,3 +386,14 @@ func (c *Common) applyObject(obj *unstructured.Unstructured) {
 	}
 	c.log.Info(string(out))
 }
+
+func (c *Common) deleteObject(kind, name string) {
+	cmd := exec.Command("kubectl", "delete", kind, name)
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		c.log.Errorf("kubectl delete of %s/%s failed: %s", kind, name, out)
+		c.t.FailNow()
+	}
+	c.log.Info(string(out))
+}
