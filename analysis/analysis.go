@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -16,7 +15,6 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
 
 const (
@@ -48,21 +46,19 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	log := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
+	metrics, err := analysisutil.ResolveMetrics(run.Spec.Metrics, run.Spec.Args)
+	if err != nil {
+		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
+		log.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+		return run
+	}
+	run.Spec.Metrics = metrics
+
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
-		// resolves arguments in each metric task
-		for i, metric := range run.Spec.Metrics {
-			resolvedMetric, err := c.resolveMetricArgs(metric, run.Spec.Args)
-			if err != nil {
-				message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
-				log.Warn(message)
-				run.Status.Phase = v1alpha1.AnalysisPhaseError
-				run.Status.Message = message
-				c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
-				return run
-			}
-			run.Spec.Metrics[i] = *resolvedMetric
-		}
 		err := analysisutil.ValidateMetrics(run.Spec.Metrics)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
@@ -76,7 +72,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	tasks := generateMetricTasks(run)
 	log.Infof("taking %d measurements", len(tasks))
-	err := c.runMeasurements(run, tasks)
+	err = c.runMeasurements(run, tasks)
 	if err != nil {
 		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
 		log.Warn(message)
@@ -118,27 +114,6 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
-}
-
-// resolveMetricArgs resolves args for single metric in AnalysisRun
-// Returns resolved metric
-// Uses ResolveQuotedArgs to handle escaped quotes
-func (c *Controller) resolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
-	metricBytes, err := json.Marshal(metric)
-	if err != nil {
-		return nil, err
-	}
-	var newMetricStr string
-	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)
-	if err != nil {
-		return nil, err
-	}
-	var newMetric v1alpha1.Metric
-	err = json.Unmarshal([]byte(newMetricStr), &newMetric)
-	if err != nil {
-		return nil, err
-	}
-	return &newMetric, nil
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -227,15 +202,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	for i, arg := range args {
 		//if secret specified in valueFrom, replace value with secret value
 		//error if arg has both value and valueFrom
-		if arg.ValueFrom != nil {
-			if arg.Value != nil {
-				err := fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
-				return nil, nil, err
-			}
-			if arg.ValueFrom.SecretKeyRef == nil {
-				err := fmt.Errorf("arg '%s' does not contain a secret reference", arg.Name)
-				return nil, nil, err
-			}
+		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
 			name := arg.ValueFrom.SecretKeyRef.Name
 			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
@@ -261,6 +228,15 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	secrets := make([]string, 0, len(secretSet))
 	for k := range secretSet {
 		secrets = append(secrets, k)
+	}
+
+	// resolves arguments in each metric task
+	for i, task := range tasks {
+		resolvedMetric, err := analysisutil.ResolveMetricArgs(task.metric, args)
+		if err != nil {
+			return nil, nil, err
+		}
+		tasks[i].metric = *resolvedMetric
 	}
 
 	return tasks, secrets, nil

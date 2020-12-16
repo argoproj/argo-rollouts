@@ -1,8 +1,11 @@
 package analysis
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
+
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -93,6 +96,48 @@ func StepLabels(index int32, podHash, instanceID string) map[string]string {
 		labels[v1alpha1.LabelKeyControllerInstanceID] = instanceID
 	}
 	return labels
+}
+
+// resolveMetricArgs resolves args for single metric in AnalysisRun
+// Returns resolved metric
+// Uses ResolveQuotedArgs to handle escaped quotes
+func ResolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
+	metricBytes, err := json.Marshal(metric)
+	if err != nil {
+		return nil, err
+	}
+	var newMetricStr string
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)
+	if err != nil {
+		return nil, err
+	}
+	var newMetric v1alpha1.Metric
+	err = json.Unmarshal([]byte(newMetricStr), &newMetric)
+	if err != nil {
+		return nil, err
+	}
+	return &newMetric, nil
+}
+
+func ResolveMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+	for i, arg := range args {
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				return nil, fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
+			}
+			argVal := "dummy-value"
+			args[i].Value = &argVal
+		}
+	}
+
+	for i, metric := range metrics {
+		resolvedMetric, err := ResolveMetricArgs(metric, args)
+		if err != nil {
+			return nil, err
+		}
+		metrics[i] = *resolvedMetric
+	}
+	return metrics, nil
 }
 
 // ValidateMetrics validates an analysis template spec

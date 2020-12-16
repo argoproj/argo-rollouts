@@ -1077,50 +1077,6 @@ func TestTrimMeasurementHistory(t *testing.T) {
 	}
 }
 
-// TestResolveMetricArgs verifies that metric arguments are resolved
-func TestResolveMetricArgs(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg1, arg2 := "success-rate", "success-rate2"
-	args := []v1alpha1.Argument{
-		{
-			Name:  "metric-name",
-			Value: &arg1,
-		},
-		{
-			Name:  "metric-name2",
-			Value: &arg2,
-		},
-	}
-	metric1 := v1alpha1.Metric{Name: "metric-name", SuccessCondition: "result > {{args.metric-name}}"}
-	metric2 := v1alpha1.Metric{Name: "metric-name2", SuccessCondition: "result < {{args.metric-name2}}"}
-	newMetric1, _ := c.resolveMetricArgs(metric1, args)
-	newMetric2, _ := c.resolveMetricArgs(metric2, args)
-	assert.Equal(t, fmt.Sprintf("result > %s", arg1), newMetric1.SuccessCondition)
-	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
-}
-
-//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
-func TestResolveMetricArgsWithQuotes(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg := "foo \"bar\" baz"
-
-	arguments := []v1alpha1.Argument{{
-		Name:  "rate",
-		Value: &arg,
-	}}
-	metric := v1alpha1.Metric{
-		Name:             "rate",
-		SuccessCondition: "{{args.rate}}",
-	}
-	newMetric, err := c.resolveMetricArgs(metric, arguments)
-	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
-}
-
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1145,43 +1101,43 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
 }
 
-func TestSecretContentReferenceValueFromError(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	argName := "apikey"
-	argVal := "value"
-	count := intstr.FromInt(0)
-	run := &v1alpha1.AnalysisRun{
-		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{{
-				Name:  argName,
-				Value: &argVal,
-				ValueFrom: &v1alpha1.ValueFrom{
-					SecretKeyRef: &v1alpha1.SecretKeyRef{
-						Name: "web-metric-secret",
-						Key:  "apikey",
-					},
-				}},
-			},
-			Metrics: []v1alpha1.Metric{{
-				Name: "rate",
-				Provider: v1alpha1.MetricProvider{
-					Web: &v1alpha1.WebMetric{
-						Headers: []v1alpha1.WebMetricHeader{{
-							Key:   "apikey",
-							Value: "{{args.apikey}}",
-						}},
-					},
-				},
-				Count: &count,
-			}},
-		},
-	}
-	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
-	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argName), newRun.Status.Message)
-}
+//func TestSecretContentReferenceValueFromError(t *testing.T) {
+//	f := newFixture(t)
+//	defer f.Close()
+//	c, _, _ := f.newController(noResyncPeriodFunc)
+//	argName := "apikey"
+//	argVal := "value"
+//	count := intstr.FromInt(0)
+//	run := &v1alpha1.AnalysisRun{
+//		Spec: v1alpha1.AnalysisRunSpec{
+//			Args: []v1alpha1.Argument{{
+//				Name:  argName,
+//				Value: &argVal,
+//				ValueFrom: &v1alpha1.ValueFrom{
+//					SecretKeyRef: &v1alpha1.SecretKeyRef{
+//						Name: "web-metric-secret",
+//						Key:  "apikey",
+//					},
+//				}},
+//			},
+//			Metrics: []v1alpha1.Metric{{
+//				Name: "rate",
+//				Provider: v1alpha1.MetricProvider{
+//					Web: &v1alpha1.WebMetric{
+//						Headers: []v1alpha1.WebMetricHeader{{
+//							Key:   "apikey",
+//							Value: "{{args.apikey}}",
+//						}},
+//					},
+//				},
+//				Count: &count,
+//			}},
+//		},
+//	}
+//	newRun := c.reconcileAnalysisRun(run)
+//	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+//	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argName), newRun.Status.Message)
+//}
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
 func TestSecretContentReferenceSuccess(t *testing.T) {
@@ -1387,30 +1343,6 @@ func TestSecretNotFound(t *testing.T) {
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
-}
-
-func TestArgDoesNotContainSecretRefError(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-
-	args := []v1alpha1.Argument{{
-		Name: "secret-empty",
-		ValueFrom: &v1alpha1.ValueFrom{
-			SecretKeyRef: nil,
-		},
-	}}
-	count := intstr.FromInt(0)
-	tasks := []metricTask{{
-		metric: v1alpha1.Metric{
-			Name:             "metric-name",
-			SuccessCondition: "{{args.secret-empty}}",
-			Count:            &count,
-		},
-		incompleteMeasurement: nil,
-	}}
-	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "arg 'secret-empty' does not contain a secret reference", err.Error())
 }
 
 func TestKeyNotInSecret(t *testing.T) {
