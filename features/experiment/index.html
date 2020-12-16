@@ -718,15 +718,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-does-it-work" class="md-nav__link">
-    How does it work?
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-experiment-indefinitely" class="md-nav__link">
-    Run Experiment Indefinitely
+  <a href="#experiment-lifecycle" class="md-nav__link">
+    Experiment Lifecycle
   </a>
   
 </li>
@@ -1261,15 +1254,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-does-it-work" class="md-nav__link">
-    How does it work?
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run-experiment-indefinitely" class="md-nav__link">
-    Run Experiment Indefinitely
+  <a href="#experiment-lifecycle" class="md-nav__link">
+    Experiment Lifecycle
   </a>
   
 </li>
@@ -1326,19 +1312,28 @@ the Rollout.</p>
 </ul>
 <h2 id="experiment-spec">Experiment Spec<a class="headerlink" href="#experiment-spec" title="Permanent link">&para;</a></h2>
 <p>Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them
-for 60 seconds once they both become available. Also, the controller launches two AnalysisRuns after
-the ReplicaSets become available. </p>
+for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to
+perform analysis against the pods of the Experiment </p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Experiment</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-experiment</span>
 <span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1m</span> <span class="c1"># How long to run the Experiment once the ReplicaSets created from the templates are healthy</span>
+  <span class="c1"># Duration of the experiment, beginning from when all ReplicaSets became healthy (optional)</span>
+  <span class="c1"># If omitted, will run indefinitely until terminated, or until all analyses which were marked</span>
+  <span class="c1"># `requiredForCompletion` have completed.</span>
+  <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20m</span>
+
+  <span class="c1"># Deadline in seconds in which a ReplicaSet should make progress towards becoming available.</span>
+  <span class="c1"># If exceeded, the Experiment will fail.</span>
   <span class="nt">progressDeadlineSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+
+  <span class="c1"># List of pod template specs to run in the experiment as ReplicaSets</span>
   <span class="nt">templates</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span> <span class="c1"># (required) Unique name for the template that gets used as a part of the ReplicaSet name.</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
+    <span class="c1"># Number of replicas to run (optional). If omitted, will run a single replica</span>
     <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
-    <span class="nt">selector</span><span class="p">:</span> <span class="c1"># Same selector that has been as in Deployments and Rollouts</span>
+    <span class="nt">selector</span><span class="p">:</span>
       <span class="nt">matchLabels</span><span class="p">:</span>
         <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
         <span class="nt">color</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
@@ -1347,7 +1342,7 @@ the ReplicaSets become available. </p>
         <span class="nt">labels</span><span class="p">:</span>
           <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
           <span class="nt">color</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
-      <span class="nt">spec</span><span class="p">:</span> <span class="c1"># Same Pod Spec that has been as in Deployments and Rollouts</span>
+      <span class="nt">spec</span><span class="p">:</span>
         <span class="nt">containers</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
           <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:purple</span>
@@ -1359,7 +1354,7 @@ the ReplicaSets become available. </p>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orange</span>
     <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
     <span class="nt">minReadySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
-    <span class="nt">selector</span><span class="p">:</span> <span class="c1"># Same selector that has been as in Deployments and Rollouts</span>
+    <span class="nt">selector</span><span class="p">:</span>
       <span class="nt">matchLabels</span><span class="p">:</span>
         <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
         <span class="nt">color</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orange</span>
@@ -1368,7 +1363,7 @@ the ReplicaSets become available. </p>
         <span class="nt">labels</span><span class="p">:</span>
           <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
           <span class="nt">color</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orange</span>
-      <span class="nt">spec</span><span class="p">:</span> <span class="c1"># Same Pod Spec that has been as in Deployments and Rollouts</span>
+      <span class="nt">spec</span><span class="p">:</span>
         <span class="nt">containers</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
           <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:orange</span>
@@ -1377,6 +1372,8 @@ the ReplicaSets become available. </p>
           <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
             <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">8080</span>
             <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
+
+  <span class="c1"># List of AnalysisTemplate references to perform during the experiment</span>
   <span class="nt">analyses</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
     <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-benchmark</span>
@@ -1388,40 +1385,44 @@ the ReplicaSets become available. </p>
     <span class="nt">args</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">host</span>
       <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orange</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">compare-results</span>
+    <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">compare</span>
+    <span class="c1"># If requiredForCompletion is true for an analysis reference, the Experiment will not complete</span>
+    <span class="c1"># until this analysis has completed.</span>
+    <span class="nt">requiredForCompletion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+    <span class="nt">args</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">host</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">purple</span>
 </code></pre></div>
-<h2 id="how-does-it-work">How does it work?<a class="headerlink" href="#how-does-it-work" title="Permanent link">&para;</a></h2>
-<p>The Experiment controller has two primary responsibilities for each Experiment:</p>
+<h2 id="experiment-lifecycle">Experiment Lifecycle<a class="headerlink" href="#experiment-lifecycle" title="Permanent link">&para;</a></h2>
+<p>An Experiment is intended to temporarily run one or more templates. The lifecycle of an Experiment
+is as follows:</p>
 <ol>
-<li>Creating and scaling ReplicaSets</li>
-<li>Creating and watching AnalysisRuns</li>
+<li>Create and scale a ReplicaSet for each pod template specified under <code>spec.templates</code></li>
+<li>Wait for all ReplicaSets reach full availability. If a ReplicaSet does not become available
+   within <code>spec.progressDeadlineSeconds</code>, the Experiment will fail. Once available, the Experiment
+   will transition from the <code>Pending</code> state to a <code>Running</code> state.</li>
+<li>Once an Experiment is considered <code>Running</code>, it will begin an AnalysisRun for every
+   AnalysisTemplate referenced under <code>spec.analyses</code>.</li>
+<li>If a duration is specified under <code>spec.duration</code>, the Experiment will wait until the duration
+   has elapsed before completing the Experiment.</li>
+<li>If an AnalysisRun fails or errors, the Experiment will end prematurely, with a status equal to
+   the unsuccessful AnalysisRun (i.e. <code>Failed</code> or <code>Error</code>)</li>
+<li>If one or more of the referenced AnalysisTemplates is marked with <code>requiredForCompletion: true</code>,
+   the Experiment will not complete until those AnalysisRuns have completed, even if it exceeds
+   the Experiment duration.</li>
+<li>If neither a <code>spec.duration</code> or <code>requiredForCompletion: true</code> is specified, the Experiment will
+   run indefinitely, until explicitly terminated (by setting <code>spec.terminate: true</code>).</li>
+<li>Once an Experiment is complete, the ReplicaSets will be scaled to zero, and any incomplete
+   AnalysisRuns will be terminated.</li>
 </ol>
-<p>The controller creates a ReplicaSet for each template in the Experiment's <code>.spec.templates</code>. Each 
-template needs a unique name as the controller generates the ReplicaSet's names from the combination
-of the Experiment's name and template's name. Once the controller creates the ReplicaSets, it waits
-until those new ReplicaSets become available. Once all the ReplicaSets are available, the controller
-marks the Experiment as running. The Experiment stays in this state for the duration listed in the
-<code>spec.duration</code> field or indefinitely if omitted. </p>
-<p>Once the Experiment is running, the controller creates AnalysisRuns for each analysis listed in the
-Experiment's <code>.spec.analysis</code> field. These AnalysisRun execute in parallel with the running
-ReplicaSets. The controller generates the AnalysisRun's name by combining the experiment name and
-the analysis name with a dash. If an AnalysisRun exists with that name, the controller appends a
-number to the generated name before recreating the AnalysisRun. If there is another collision, the
-controller increments the number and try again until it creates an AnalysisRun. Once the Experiment
-finishes, the controller scales down the ReplicaSets it created and terminates the AnalysisRuns if
-they have not finished.</p>
-<p>An Experiment is considered complete when:</p>
-<ol>
-<li>More than the <code>spec.Duration</code> amount of time has passed since the ReplicaSets became healthy.</li>
-<li>One of the ReplicaSets does not become available, and the progress deadline seconds pass.</li>
-<li>An AnalysisRun created by an Experiment enters a failed or error state.</li>
-<li>An external process (i.e. user or pipeline) sets the <code>.spec.terminate</code> to true</li>
-</ol>
-<h2 id="run-experiment-indefinitely">Run Experiment Indefinitely<a class="headerlink" href="#run-experiment-indefinitely" title="Permanent link">&para;</a></h2>
-<p>Experiments can run for an indefinite duration by omitting the duration field. Indefinite
-experiments would be stopped externally, or through the completion of a referenced analysis.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ReplicaSet names are generated by combining the Experiment name with the template name.</p>
+</div>
 <h2 id="integration-with-rollouts">Integration With Rollouts<a class="headerlink" href="#integration-with-rollouts" title="Permanent link">&para;</a></h2>
-<p>A rollout using the Canary strategy can create an experiment using the <code>experiment</code> step. The
-experiment step serves as a blocking step for the Rollout as the Rollout does not continue until the
+<p>A rollout using the Canary strategy can create an experiment using an <code>experiment</code> step. The
+experiment step serves as a blocking step for the Rollout, and a Rollout will not continue until the
 Experiment succeeds. The Rollout creates an Experiment using the configuration in the experiment
 step of the Rollout. If the Experiment fails or errors, the Rollout will abort.</p>
 <div class="admonition note">
@@ -1460,8 +1461,8 @@ the new ReplicaSet, the current revision of the Rollout, and the current step-in
 Experiment will create two ReplicaSets: <code>baseline</code> and <code>canary</code>, with one replica each, and will run
 for one hour. The <code>baseline</code> template uses the PodSpec from the stable ReplicaSet, and the canary
 template uses the PodSpec from the canary ReplicaSet.</p>
-<p>Additionally, the Experiment will perform analysis using the <code>mann-whitney</code> AnalysisTemplate. That
-AnalysisTemplate is supplied with the pod-hash details of the baseline and canary to perform the
+<p>Additionally, the Experiment will perform analysis using the AnalysisTemplate named <code>mann-whitney</code>.
+The AnalysisRun is supplied with the pod-hash details of the baseline and canary to perform the
 necessary metrics queries, using the <code>{{templates.baseline.podTemplateHash}}</code> and
 <code>{{templates.canary.podTemplateHash}}</code> variables respectively.</p>
 <div class="admonition note">
