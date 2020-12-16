@@ -1194,7 +1194,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 					},
 					"requiredForCompletion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RequiredForCompletion indicates that experiment should complete after analysis finishes",
+							Description: "RequiredForCompletion blocks the Experiment from completing until the analysis has completed",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2578,6 +2578,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 									},
 								},
 							},
+						},
+					},
+					"requiredForCompletion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RequiredForCompletion blocks the Experiment from completing until the analysis has completed",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

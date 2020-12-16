@@ -769,7 +769,7 @@ func TestGetCurrentExperiment(t *testing.T) {
 
 }
 
-func TestUpdateEphemeralPodMetadata(t *testing.T) {
+func TestSyncReplicaSetEphemeralPodMetadata(t *testing.T) {
 	rs := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
@@ -805,7 +805,7 @@ func TestUpdateEphemeralPodMetadata(t *testing.T) {
 				"ddd": "444",
 			},
 		}
-		newRS, modified := UpdateEphemeralPodMetadata(&rs, &oldPodMetadata)
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, &oldPodMetadata)
 		assert.False(t, modified)
 		assert.Equal(t, rs.Annotations, newRS.Annotations)
 		assert.Equal(t, rs.Spec.Template.Labels, newRS.Spec.Template.Labels)
@@ -821,7 +821,7 @@ func TestUpdateEphemeralPodMetadata(t *testing.T) {
 				"ccc": "333",
 			},
 		}
-		newRS, modified := UpdateEphemeralPodMetadata(&rs, &newPodMetadata)
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, &newPodMetadata)
 		assert.True(t, modified)
 		assert.Equal(t, newPodMetadata.Labels, newRS.Spec.Template.Labels)
 		assert.Equal(t, newPodMetadata.Annotations, newRS.Spec.Template.Annotations)
@@ -829,10 +829,67 @@ func TestUpdateEphemeralPodMetadata(t *testing.T) {
 	}
 	{
 		// verify we can remove metadata
-		newRS, modified := UpdateEphemeralPodMetadata(&rs, nil)
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, nil)
 		assert.True(t, modified)
 		assert.Empty(t, newRS.Spec.Template.Labels)
 		assert.Empty(t, newRS.Spec.Template.Annotations)
 		assert.Empty(t, newRS.Annotations[EphemeralMetadataAnnotation])
 	}
+}
+
+func TestSyncEphemeralPodMetadata(t *testing.T) {
+	meta := metav1.ObjectMeta{
+		Labels: map[string]string{
+			"aaa":    "111",
+			"do-not": "touch",
+			"bbb":    "222",
+		},
+		Annotations: map[string]string{
+			"ccc":    "333",
+			"do-not": "touch",
+			"ddd":    "444",
+		},
+	}
+	existing := v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			"aaa": "111",
+			"bbb": "222",
+		},
+		Annotations: map[string]string{
+			"ccc": "333",
+			"ddd": "444",
+		},
+	}
+	{
+		// verify modified is false if there are no changes
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &existing)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	}
+	{
+		// verify we don't touch metadata that we did not inject ourselves
+		desired := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "222",
+			},
+			Annotations: map[string]string{
+				"ccc": "444",
+			},
+		}
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &desired)
+		assert.True(t, modified)
+		expected := metav1.ObjectMeta{
+			Labels: map[string]string{
+				"aaa":    "222",
+				"do-not": "touch",
+			},
+			Annotations: map[string]string{
+				"ccc":    "444",
+				"do-not": "touch",
+			},
+		}
+		assert.True(t, modified)
+		assert.Equal(t, expected, *newMetadata)
+	}
+
 }
