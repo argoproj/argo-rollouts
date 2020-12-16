@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -167,7 +168,8 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Len(t, allErrs, 1)
-		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, "AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely")
+		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric-name", count.String())
+		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, msg)
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
 	})
 

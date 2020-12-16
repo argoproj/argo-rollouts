@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -388,4 +389,42 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
 	})
+}
+
+// TestResolveMetricArgs verifies that metric arguments are resolved
+func TestResolveMetricArgs(t *testing.T) {
+	arg1, arg2 := "success-rate", "success-rate2"
+	args := []v1alpha1.Argument{
+		{
+			Name:  "metric-name",
+			Value: &arg1,
+		},
+		{
+			Name:  "metric-name2",
+			Value: &arg2,
+		},
+	}
+	metric1 := v1alpha1.Metric{Name: "metric-name", SuccessCondition: "result > {{args.metric-name}}"}
+	metric2 := v1alpha1.Metric{Name: "metric-name2", SuccessCondition: "result < {{args.metric-name2}}"}
+	newMetric1, _ := ResolveMetricArgs(metric1, args)
+	newMetric2, _ := ResolveMetricArgs(metric2, args)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg1), newMetric1.SuccessCondition)
+	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
+}
+
+//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+func TestResolveMetricArgsWithQuotes(t *testing.T) {
+	arg := "foo \"bar\" baz"
+
+	arguments := []v1alpha1.Argument{{
+		Name:  "rate",
+		Value: &arg,
+	}}
+	metric := v1alpha1.Metric{
+		Name:             "rate",
+		SuccessCondition: "{{args.rate}}",
+	}
+	newMetric, err := ResolveMetricArgs(metric, arguments)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
 }

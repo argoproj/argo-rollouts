@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 
@@ -106,11 +107,17 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
 	}
 	if template.TemplateType != BackgroundAnalysis {
-		for _, metric := range templateSpec.Metrics {
-			effectiveCount := metric.EffectiveCount()
-			if effectiveCount == nil {
-				msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely", templateName, metric.Name)
-				allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
+		if err != nil {
+			msg := fmt.Sprintf("AnalysisTemplate %s: %v", templateName, err)
+			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+		} else {
+			for _, metric := range resolvedMetrics {
+				effectiveCount := metric.EffectiveCount()
+				if effectiveCount == nil {
+					msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", templateName, metric.Name, metric.Count)
+					allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+				}
 			}
 		}
 	}
