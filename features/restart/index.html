@@ -65,7 +65,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#rollout-pod-restarts" class="md-skip">
+        <a href="#restarting-rollout-pods" class="md-skip">
           Skip to content
         </a>
       
@@ -459,15 +459,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kubectl-command" class="md-nav__link">
-    Kubectl command
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rescheduled-restarts" class="md-nav__link">
-    Rescheduled Restarts
+  <a href="#scheduled-restarts" class="md-nav__link">
+    Scheduled Restarts
   </a>
   
 </li>
@@ -1228,15 +1221,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kubectl-command" class="md-nav__link">
-    Kubectl command
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rescheduled-restarts" class="md-nav__link">
-    Rescheduled Restarts
+  <a href="#scheduled-restarts" class="md-nav__link">
+    Scheduled Restarts
   </a>
   
 </li>
@@ -1258,27 +1244,38 @@
                   </a>
                 
                 
-                <h1 id="rollout-pod-restarts">Rollout Pod Restarts<a class="headerlink" href="#rollout-pod-restarts" title="Permanent link">&para;</a></h1>
-<p>For various reasons, applications sometimes need a restart. Since the restart is not changing the 
-version, the application should not have to go through the entire BlueGreen or canary deployment 
-process. The Rollout object supports restarting an application by having the controller do a rolling
-recreate of all the Pods in a Rollout without going through all the regular BlueGreen or Canary 
-deployments. The controller kills up to <code>maxUnavailable</code> Pods at a time and relies on the ReplicaSet
-to scale up new Pods until all the Pods are newer than the restarted time.</p>
+                <h1 id="restarting-rollout-pods">Restarting Rollout Pods<a class="headerlink" href="#restarting-rollout-pods" title="Permanent link">&para;</a></h1>
+<p>For various reasons, applications often need to be restarted, e.g. for hygiene purposes or to force
+startup logic to occur again such as reloading of a modified Secret. In these scenarios, it is
+undesirable to go through an entire blue-green or canary update process. Argo Rollouts supports
+the ability to restart all of its Pods by performing a rolling recreate of all the Pods in a Rollout
+while skipping the regular BlueGreen or Canary update strategy.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>The Rollout object has a field called <code>.spec.restartAt</code> that takes in a 
-<a href="https://tools.ietf.org/html/rfc3339">RFC 3339 formatted</a> string (ie. 2020-03-30T21:19:35Z). If the
-current time is past the <code>restartAt</code> time, the controller knows it needs to restart all the Pods in
-the Rollout. The controller goes through each ReplicaSet to see if all the Pods have a creation
-timestamp newer than the <code>restartAt</code> time. To prevent too many Pods from restarting at once, the
-controller limits itself to deleting up to <code>maxUnavailable</code> Pod at a time and checks that no other Pods in that
-ReplicaSet have a deletion timestamp and that ReplicaSet is fully available.  The controller checks
-the ReplicaSets in the following order: 1. stable ReplicaSet, 2. new ReplicaSet, and 3rd. all the
-other ReplicaSets starting with the oldest. Once the controller has confirmed all the Pods are newer
-than the <code>restartAt</code> time, the controller sets the <code>status.restartedAt</code> field to indicate that the
-Rollout has been successfully restarted. If a change occurs to the <code>spec.template</code> during a restart,
-the restart is canceled (by setting the <code>status.restartedAt</code> to the <code>spec.restartAt</code>) since the
-Rollout has to bring up a new stack.</p>
+<p>A rollout can be restarted via the kubectl plugin, using the
+<a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/">restart command</a>:</p>
+<div class="highlight"><pre><span></span><code>kubectl-argo-rollouts restart ROLLOUT
+</code></pre></div>
+<p>Alternatively, if Rollouts is used with Argo CD, the there is a bundled "restart" action which can
+be performed via the Argo CD UI or CLI:</p>
+<div class="highlight"><pre><span></span><code>argocd app actions run my-app restart --kind Rollout --resource-name my-rollout
+</code></pre></div>
+<p>Both of these mechanisms updates the Rollout's <code>.spec.restartAt</code> to the current time in the
+form of a <a href="https://tools.ietf.org/html/rfc3339">RFC 3339 formatted</a> UTC string
+(e.g. 2020-03-30T21:19:35Z), which indicates to the Rollout controller that all of a Rollout's
+Pods should have been created after this timestamp.</p>
+<p>During a restart, the controller iterates through each ReplicaSet to see if all the Pods have a 
+creation timestamp which is newer than the <code>restartAt</code> time. For every pod older than the
+<code>restartAt</code> timestamp, the Pod will be evicted, allowing the ReplicaSet to replace the pod with a
+recreated one.</p>
+<p>To prevent too many Pods from restarting at once, the controller limits itself to deleting up to 
+<code>maxUnavailable</code> Pods at a time (for the canary strategy). Secondly, since pods are evicted
+and not deleted, the restart process will honor any PodDisruptionBudgets which are in place.
+The controller restarts ReplicaSets in the following order:
+  1. stable ReplicaSet
+  2. current ReplicaSet
+  3. all other ReplicaSets beginning with the oldest</p>
+<p>If a Rollout's pod template spec (<code>spec.template</code>) is modified in the middle of a restart, the
+restart is canceled, and the normal blue-green or canary update will occur.</p>
 <p>Note: Unlike deployments, where a "restart" is nothing but a normal rolling upgrade that happened to
 be triggered by a timestamp in the pod spec annotation, Argo Rollouts facilitates restarts by
 terminating pods and allowing the existing ReplicaSet to replace the terminated pods. This design
@@ -1288,15 +1285,12 @@ long-running blue-green/canary update (e.g. a paused canary). However, some cons
 <li>Restarting a Rollout which has a single replica will cause downtime since Argo Rollouts needs to
   terminate the pod in order to replace it.</li>
 <li>Restarting a rollout will be slower than a deployment's rolling update, since maxSurge is not
-  considered used to bring up newer pods faster.</li>
+  used to bring up newer pods faster.</li>
 <li>maxUnavailable will be used to restart multiple pods at a time (starting in v0.10). But if
   maxUnavailable pods is 0, the controller will still restart pods one at a time.</li>
 </ul>
-<h2 id="kubectl-command">Kubectl command<a class="headerlink" href="#kubectl-command" title="Permanent link">&para;</a></h2>
-<p>The Argo Rollouts kubectl plugin has a command for restarting Rollouts. Check it out
-<a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/">here</a>.</p>
-<h2 id="rescheduled-restarts">Rescheduled Restarts<a class="headerlink" href="#rescheduled-restarts" title="Permanent link">&para;</a></h2>
-<p>Users can reschedule a restart on their Rollout by setting the <code>.spec.restartAt</code> field to a time in
+<h2 id="scheduled-restarts">Scheduled Restarts<a class="headerlink" href="#scheduled-restarts" title="Permanent link">&para;</a></h2>
+<p>Users can schedule a restart on their Rollout by setting the <code>.spec.restartAt</code> field to a time in
 the future. The controller only starts the restart after the current time is after the restartAt
 time. </p>
                 
