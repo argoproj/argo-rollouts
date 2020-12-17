@@ -14471,7 +14471,7 @@ spec:
         app.kubernetes.io/name: argo-rollouts
     spec:
       containers:
-      - image: argoproj/argo-rollouts:v0.10.1
+      - image: argoproj/argo-rollouts:v0.10.2
         imagePullPolicy: Always
         name: argo-rollouts
       securityContext:

@@ -14472,7 +14472,7 @@ spec:
       containers:
       - args:
         - --namespaced
-        image: argoproj/argo-rollouts:v0.10.1
+        image: argoproj/argo-rollouts:v0.10.2
         imagePullPolicy: Always
         name: argo-rollouts
       securityContext:
