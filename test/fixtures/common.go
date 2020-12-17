@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -11,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -74,6 +77,16 @@ func (c *Common) PrintRollout(name string) {
 	ri, err := controller.GetRolloutInfo()
 	c.CheckError(err)
 	getOptions.PrintRollout(ri)
+}
+
+func (c *Common) PrintRolloutYAML(ro *rov1.Rollout) {
+	ro = ro.DeepCopy()
+	// declutter the output
+	delete(ro.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	ro.ManagedFields = nil
+	yamlBytes, err := yaml.Marshal(ro)
+	c.CheckError(err)
+	fmt.Fprintf(logrus.StandardLogger().Out, "\n---\n%s\n", string(yamlBytes))
 }
 
 func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {

@@ -16,10 +16,12 @@ if [ ! -z "${IMAGE_TAG}" ]; then
   (cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argo-rollouts:${IMAGE_TAG})
 fi
 
+kustomize version
+
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-kubectl kustomize "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+kustomize build --load_restrictor none "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 update_image "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-kubectl kustomize "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+kustomize build --load_restrictor none "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
 update_image "${SRCROOT}/manifests/namespace-install.yaml"

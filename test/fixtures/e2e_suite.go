@@ -144,6 +144,7 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 		s.CheckError(err)
 		for _, ro := range roList.Items {
 			s.PrintRollout(ro.Name)
+			s.PrintRolloutYAML(&ro)
 		}
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {
