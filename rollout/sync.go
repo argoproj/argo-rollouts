@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -501,11 +502,18 @@ func (c *rolloutContext) checkPausedConditions() error {
 	return err
 }
 
+func logWithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
+	return entry.WithFields(map[string]interface{}{
+		"resourceVersion": r.ResourceVersion,
+		"generation":      r.Generation,
+	})
+}
+
 func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
 	ctx := context.TODO()
 	conditions.SetRolloutCondition(newStatus, *condition)
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
-
+	logCtx := logWithVersionFields(c.log, r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: r.Status,
@@ -514,19 +522,19 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})
 	if err != nil {
-		c.log.Errorf("Error constructing app status patch: %v", err)
+		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return err
 	}
 	if !modified {
-		c.log.Info("No status changes. Skipping patch")
+		logCtx.Info("No status changes. Skipping patch")
 		return nil
 	}
 	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
-		c.log.Warnf("Error patching rollout: %v", err)
+		logCtx.Warnf("Error patching rollout: %v", err)
 		return err
 	}
-	c.log.Infof("Patched conditions: %s", string(patch))
+	logCtx.Infof("Patched conditions: %s", string(patch))
 	return nil
 }
 
@@ -629,6 +637,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	ctx := context.TODO()
 	c.pauseContext.CalculatePauseStatus(newStatus)
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
+	logCtx := logWithVersionFields(c.log, c.rollout)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: c.rollout.Status,
@@ -637,20 +646,20 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 			Status: *newStatus,
 		}, v1alpha1.Rollout{})
 	if err != nil {
-		c.log.Errorf("Error constructing app status patch: %v", err)
+		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return err
 	}
 	if !modified {
-		c.log.Info("No status changes. Skipping patch")
+		logCtx.Info("No status changes. Skipping patch")
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
 	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
-		c.log.Warningf("Error updating rollout: %v", err)
+		logCtx.Warningf("Error updating rollout: %v", err)
 		return err
 	}
-	c.log.Infof("Patched: %s", patch)
+	logCtx.Infof("Patched: %s", patch)
 	c.newRollout = newRollout
 	return nil
 }
