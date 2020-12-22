@@ -33,7 +33,7 @@ require (
 	k8s.io/cli-runtime v0.19.4
 	k8s.io/client-go v0.19.4
 	k8s.io/code-generator v0.19.4
-	k8s.io/component-base v0.19.4
+	k8s.io/component-base v0.20.1
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	k8s.io/kubectl v0.19.4
