@@ -62,9 +62,9 @@ spec:
       previewService: string
       prePromotionAnalysis: object
       postPromotionAnalysis: object
-      previewReplicaCount: intOrString
-      scaleDownDelaySeconds: intOrString
-      scaleDownDelayRevisionLimit: intOrString
+      previewReplicaCount: *int32
+      scaleDownDelaySeconds: *int32
+      scaleDownDelayRevisionLimit: *int32
 ```
 
 ### autoPromotionEnabled
