@@ -7,8 +7,6 @@ import (
 
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/kubernetes/pkg/fieldpath"
@@ -160,19 +158,30 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
-	count := intstr.FromInt(0)
+	count := 0
 	if metric.Count != nil {
-		count = *metric.Count
+		count = metric.Count.IntValue()
 	}
-	if count.IntValue() > 0 {
-		if count.IntValue() < metric.FailureLimit.IntValue() {
+
+	failureLimit := 0
+	if metric.FailureLimit != nil {
+		failureLimit = metric.FailureLimit.IntValue()
+	}
+
+	inconclusiveLimit := 0
+	if metric.InconclusiveLimit != nil {
+		inconclusiveLimit = metric.InconclusiveLimit.IntValue()
+	}
+
+	if count > 0 {
+		if count < failureLimit {
 			return fmt.Errorf("count must be >= failureLimit")
 		}
-		if count.IntValue() < metric.InconclusiveLimit.IntValue() {
+		if count < inconclusiveLimit {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
 	}
-	if count.IntValue() > 1 && metric.Interval == "" {
+	if count > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	if metric.Interval != "" {
@@ -186,13 +195,14 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if metric.FailureLimit.IntValue() < 0 {
+	if failureLimit < 0 {
 		return fmt.Errorf("failureLimit must be >= 0")
 	}
-	if metric.InconclusiveLimit.IntValue() < 0 {
+	if inconclusiveLimit < 0 {
 		return fmt.Errorf("inconclusiveLimit must be >= 0")
 	}
-	if &metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
+
+	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
 		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
 	}
 	numProviders := 0

@@ -189,7 +189,7 @@ func TestGetExperimentProgressDeadlineSecondsOrDefault(t *testing.T) {
 func TestGetConsecutiveErrorLimitOrDefault(t *testing.T) {
 	errorLimit := intstr.FromInt(2)
 	metricNonDefaultValue := &v1alpha1.Metric{
-		ConsecutiveErrorLimit: errorLimit,
+		ConsecutiveErrorLimit: &errorLimit,
 	}
 	assert.Equal(t, int32(errorLimit.IntValue()), GetConsecutiveErrorLimitOrDefault(metricNonDefaultValue))
 

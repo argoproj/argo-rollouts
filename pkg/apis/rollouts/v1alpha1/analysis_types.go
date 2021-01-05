@@ -95,13 +95,13 @@ type Metric struct {
 	FailureCondition string `json:"failureCondition,omitempty"`
 	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
-	FailureLimit intstrutil.IntOrString `json:"failureLimit,omitempty"`
+	FailureLimit *intstrutil.IntOrString `json:"failureLimit,omitempty"`
 	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
-	InconclusiveLimit intstrutil.IntOrString `json:"inconclusiveLimit,omitempty"`
+	InconclusiveLimit *intstrutil.IntOrString `json:"inconclusiveLimit,omitempty"`
 	// ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
-	ConsecutiveErrorLimit intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty"`
+	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
 }

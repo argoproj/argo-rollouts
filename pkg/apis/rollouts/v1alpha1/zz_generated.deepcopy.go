@@ -999,9 +999,21 @@ func (in *Metric) DeepCopyInto(out *Metric) {
 		*out = new(intstr.IntOrString)
 		**out = **in
 	}
-	out.FailureLimit = in.FailureLimit
-	out.InconclusiveLimit = in.InconclusiveLimit
-	out.ConsecutiveErrorLimit = in.ConsecutiveErrorLimit
+	if in.FailureLimit != nil {
+		in, out := &in.FailureLimit, &out.FailureLimit
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
+	if in.InconclusiveLimit != nil {
+		in, out := &in.InconclusiveLimit, &out.InconclusiveLimit
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
+	if in.ConsecutiveErrorLimit != nil {
+		in, out := &in.ConsecutiveErrorLimit, &out.ConsecutiveErrorLimit
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
 	in.Provider.DeepCopyInto(&out.Provider)
 	return
 }

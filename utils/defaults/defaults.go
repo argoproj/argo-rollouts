@@ -111,7 +111,7 @@ func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 }
 
 func GetConsecutiveErrorLimitOrDefault(metric *v1alpha1.Metric) int32 {
-	if &metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() > 0 {
+	if metric.ConsecutiveErrorLimit != nil {
 		return int32(metric.ConsecutiveErrorLimit.IntValue())
 	}
 	return DefaultConsecutiveErrorLimit

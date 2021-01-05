@@ -472,14 +472,25 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, string) {
 	var message string
 	var phase v1alpha1.AnalysisPhase
-	if result.Failed > int32(metric.FailureLimit.IntValue()) {
+
+	failureLimit := int32(0)
+	if metric.FailureLimit != nil {
+		failureLimit = int32(metric.FailureLimit.IntValue())
+	}
+	if result.Failed > failureLimit {
 		phase = v1alpha1.AnalysisPhaseFailed
-		message = fmt.Sprintf("failed (%d) > failureLimit (%s)", result.Failed, metric.FailureLimit.String())
+		message = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, failureLimit)
 	}
-	if result.Inconclusive > int32(metric.InconclusiveLimit.IntValue()) {
+
+	inconclusiveLimit := int32(0)
+	if metric.InconclusiveLimit != nil {
+		inconclusiveLimit = int32(metric.InconclusiveLimit.IntValue())
+	}
+	if result.Inconclusive > inconclusiveLimit {
 		phase = v1alpha1.AnalysisPhaseInconclusive
-		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%s)", result.Inconclusive, metric.InconclusiveLimit.String())
+		message = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, inconclusiveLimit)
 	}
+
 	consecutiveErrorLimit := defaults.GetConsecutiveErrorLimitOrDefault(&metric)
 	if result.ConsecutiveError > consecutiveErrorLimit {
 		phase = v1alpha1.AnalysisPhaseError
