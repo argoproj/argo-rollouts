@@ -67,6 +67,7 @@ const (
 
 // NewCmdCreate returns a new instance of an `rollouts create` command
 func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
+        o.DynamicClientset()
 	createOptions := CreateOptions{
 		ArgoRolloutsOptions: *o,
 	}
