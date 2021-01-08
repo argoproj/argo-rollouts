@@ -57,7 +57,7 @@ spec:
   strategy:
     blueGreen:
       autoPromotionEnabled: boolean
-      autoPromotionSeconds: intOrString
+      autoPromotionSeconds: *int32
       antiAffinity: object
       previewService: string
       prePromotionAnalysis: object
