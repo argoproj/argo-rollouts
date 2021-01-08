@@ -67,19 +67,27 @@ spec:
               items:
                 properties:
                   consecutiveErrorLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   count:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   failureCondition:
                     type: string
                   failureLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   inconclusiveLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   initialDelay:
                     type: string
                   interval:
@@ -3016,19 +3024,27 @@ spec:
               items:
                 properties:
                   consecutiveErrorLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   count:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   failureCondition:
                     type: string
                   failureLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   inconclusiveLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   initialDelay:
                     type: string
                   interval:
@@ -5893,19 +5909,27 @@ spec:
               items:
                 properties:
                   consecutiveErrorLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   count:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   failureCondition:
                     type: string
                   failureLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   inconclusiveLimit:
-                    format: int32
-                    type: integer
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    x-kubernetes-int-or-string: true
                   initialDelay:
                     type: string
                   interval:

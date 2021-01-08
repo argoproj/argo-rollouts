@@ -1,8 +1,11 @@
 package analysis
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
+
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -93,6 +96,48 @@ func StepLabels(index int32, podHash, instanceID string) map[string]string {
 	return labels
 }
 
+// resolveMetricArgs resolves args for single metric in AnalysisRun
+// Returns resolved metric
+// Uses ResolveQuotedArgs to handle escaped quotes
+func ResolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
+	metricBytes, err := json.Marshal(metric)
+	if err != nil {
+		return nil, err
+	}
+	var newMetricStr string
+	newMetricStr, err = templateutil.ResolveQuotedArgs(string(metricBytes), args)
+	if err != nil {
+		return nil, err
+	}
+	var newMetric v1alpha1.Metric
+	err = json.Unmarshal([]byte(newMetricStr), &newMetric)
+	if err != nil {
+		return nil, err
+	}
+	return &newMetric, nil
+}
+
+func ResolveMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+	for i, arg := range args {
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				return nil, fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
+			}
+			argVal := "dummy-value"
+			args[i].Value = &argVal
+		}
+	}
+
+	for i, metric := range metrics {
+		resolvedMetric, err := ResolveMetricArgs(metric, args)
+		if err != nil {
+			return nil, err
+		}
+		metrics[i] = *resolvedMetric
+	}
+	return metrics, nil
+}
+
 // ValidateMetrics validates an analysis template spec
 func ValidateMetrics(metrics []v1alpha1.Metric) error {
 	if len(metrics) == 0 {
@@ -113,15 +158,30 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
-	if metric.Count > 0 {
-		if metric.Count < metric.FailureLimit {
+	count := 0
+	if metric.Count != nil {
+		count = metric.Count.IntValue()
+	}
+
+	failureLimit := 0
+	if metric.FailureLimit != nil {
+		failureLimit = metric.FailureLimit.IntValue()
+	}
+
+	inconclusiveLimit := 0
+	if metric.InconclusiveLimit != nil {
+		inconclusiveLimit = metric.InconclusiveLimit.IntValue()
+	}
+
+	if count > 0 {
+		if count < failureLimit {
 			return fmt.Errorf("count must be >= failureLimit")
 		}
-		if metric.Count < metric.InconclusiveLimit {
+		if count < inconclusiveLimit {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
 	}
-	if metric.Count > 1 && metric.Interval == "" {
+	if count > 1 && metric.Interval == "" {
 		return fmt.Errorf("interval must be specified when count > 1")
 	}
 	if metric.Interval != "" {
@@ -135,13 +195,14 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if metric.FailureLimit < 0 {
+	if failureLimit < 0 {
 		return fmt.Errorf("failureLimit must be >= 0")
 	}
-	if metric.InconclusiveLimit < 0 {
+	if inconclusiveLimit < 0 {
 		return fmt.Errorf("inconclusiveLimit must be >= 0")
 	}
-	if metric.ConsecutiveErrorLimit != nil && *metric.ConsecutiveErrorLimit < 0 {
+
+	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
 		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
 	}
 	numProviders := 0
