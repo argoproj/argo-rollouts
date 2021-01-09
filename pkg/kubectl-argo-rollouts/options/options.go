@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -152,9 +153,23 @@ func (o *ArgoRolloutsOptions) DynamicClientset() dynamic.Interface {
 
 // Namespace returns the namespace based on client flags or kube context
 func (o *ArgoRolloutsOptions) Namespace() string {
+	namespace := getNamespace()
+	if namespace != "default" {
+		return namespace
+	}
 	namespace, _, err := o.RESTClientGetter.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		panic(err)
+	}
+	return namespace
+}
+
+func getNamespace() string {
+	namespace := "default"
+	for idx, arg := range os.Args {
+		if (arg == "-n" || arg == "--namespace") && len(os.Args) > idx {
+			namespace = os.Args[idx+1]
+		}
 	}
 	return namespace
 }
