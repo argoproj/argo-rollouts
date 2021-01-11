@@ -19,6 +19,7 @@ fi
 kustomize version
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
+(cd ${SRCROOT}/manifests/cluster-install && kustomize edit set namespace argo-rollouts)
 kustomize build --load_restrictor none "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 update_image "${SRCROOT}/manifests/install.yaml"
 
