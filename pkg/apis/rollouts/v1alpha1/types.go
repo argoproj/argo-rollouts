@@ -110,6 +110,18 @@ type BlueGreenStrategy struct {
 	// removing the pause condition.
 	// +optional
 	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
+	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+	// Absolute number is calculated from percentage by rounding down.
+	// This can not be 0 if MaxSurge is 0.
+	// By default, a fixed value of 1 is used.
+	// Example: when this is set to 30%, the old RC can be scaled down by 30%
+	// immediately when the rolling update starts. Once new pods are ready, old RC
+	// can be scaled down further, followed by scaling up the new RC, ensuring
+	// that at least 70% of original number of pods are available at all times
+	// during the update.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
 	// If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet.
 	// A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
