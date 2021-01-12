@@ -82,6 +82,11 @@ Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document 
 
 Defaults to nil
 
+### maxUnavailable
+The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
+
+Defaults to 0
+
 ### prePromotionAnalysis
 Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) before it switches traffic to the new version. The
 AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
