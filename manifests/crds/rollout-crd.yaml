@@ -112,6 +112,11 @@ spec:
                     autoPromotionSeconds:
                       format: int32
                       type: integer
+                    maxUnavailable:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      x-kubernetes-int-or-string: true
                     postPromotionAnalysis:
                       properties:
                         args:

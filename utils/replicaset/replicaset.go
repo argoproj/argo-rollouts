@@ -387,7 +387,7 @@ func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 // MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
 func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	if rollout.Spec.Strategy.Canary == nil || rolloutReplicas == 0 {
+	if rolloutReplicas == 0 {
 		return int32(0)
 	}
 
