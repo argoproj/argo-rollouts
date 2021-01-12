@@ -51,6 +51,9 @@ func GetMaxSurgeOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 }
 
 func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
+	if rollout.Spec.Strategy.BlueGreen != nil && rollout.Spec.Strategy.BlueGreen.MaxUnavailable != nil {
+		return rollout.Spec.Strategy.BlueGreen.MaxUnavailable
+	}
 	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.MaxUnavailable != nil {
 		return rollout.Spec.Strategy.Canary.MaxUnavailable
 	}
