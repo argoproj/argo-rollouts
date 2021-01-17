@@ -262,6 +262,7 @@ Status:          ✖ Degraded
 Message:         ProgressDeadlineExceeded: ReplicaSet "canary-demo-65fb5ffc84" has timed out progressing.
 Strategy:        Canary
   Step:          0/8
+  Steps:         [1]setWeight:20 -> [2]pause:∞ -> [3]setWeight:40 ...
   SetWeight:     20
   ActualWeight:  0
 Images:          argoproj/rollouts-demo:does-not-exist (canary)
@@ -310,6 +311,7 @@ Status:          ✖ Degraded
 Message:         ProgressDeadlineExceeded: ReplicaSet "rollout-experiment-analysis-6f646bf7b7" has timed out progressing.
 Strategy:        Canary
   Step:          1/2
+  Steps:         [1]setWeight:25
   SetWeight:     25
   ActualWeight:  25
 Images:          argoproj/rollouts-demo:blue (stable)
@@ -390,6 +392,7 @@ Status:          ◌ Progressing
 Message:         more replicas need to be updated
 Strategy:        Canary
   Step:          0/1
+  Steps:           
   SetWeight:     0
   ActualWeight:  0
 Images:          argoproj/rollouts-demo:blue (Σ:canary-preview)
@@ -439,6 +442,7 @@ Status:          ✖ Degraded
 Message:         InvalidSpec: The Rollout "rollout-invalid" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{"app":"doesnt-match"}: `+"`selector`"+` does not match template `+"`labels`"+`
 Strategy:        Canary
   Step:
+  Steps:
   SetWeight:     100
   ActualWeight:  100
 Replicas:
@@ -472,6 +476,7 @@ Status:          ✖ Degraded
 Message:         RolloutAborted: metric "web" assessed Failed due to failed (1) > failureLimit (0)
 Strategy:        Canary
   Step:          0/2
+  Steps:         [1]setWeight:10 -> [2]pause:∞
   SetWeight:     0
   ActualWeight:  0
 Images:          argoproj/rollouts-demo:blue (stable)

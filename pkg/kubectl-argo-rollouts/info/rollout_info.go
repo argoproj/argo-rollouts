@@ -22,6 +22,7 @@ type RolloutInfo struct {
 	Icon         string
 	Strategy     string
 	Step         string
+	Steps        []string
 	SetWeight    string
 	ActualWeight string
 
@@ -80,6 +81,8 @@ func NewRolloutInfo(
 				roInfo.ActualWeight = roInfo.SetWeight
 			}
 		}
+
+		roInfo.Steps = RolloutStepsDisplay(ro)
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		roInfo.Strategy = "BlueGreen"
 	}
@@ -325,4 +328,36 @@ func (r *RolloutInfo) AnalysisRunsByRevision(rev int) []AnalysisRunInfo {
 		}
 	}
 	return runs
+}
+
+func addSteps(stepsIndex int, index *int32, stepsData *[]string, steps v1alpha1.CanaryStep, ro *v1alpha1.Rollout) {
+	currentIcon := ""
+	if int32(stepsIndex)+1 == *index && *index <= int32(len(ro.Spec.Strategy.Canary.Steps)) {
+		currentIcon = "[*]"
+	}
+	if steps.SetWeight != nil {
+		*stepsData = append(*stepsData, fmt.Sprintf("%vsetWeight:%v", currentIcon, *steps.SetWeight))
+	}
+	if steps.Pause != nil {
+		pause := fmt.Sprintf("%vpause:%s", currentIcon, IconAlways)
+		if steps.Pause.Duration != nil {
+			pause = fmt.Sprintf("%vpause:%v", currentIcon, steps.Pause.Duration)
+		}
+		*stepsData = append(*stepsData, pause)
+	}
+
+}
+
+func RolloutStepsDisplay(ro *v1alpha1.Rollout) []string {
+	stepsData := make([]string, 0)
+	_, index := replicasetutil.GetCurrentCanaryStep(ro)
+	if index == nil {
+		return stepsData
+	}
+	for k, steps := range ro.Spec.Strategy.Canary.Steps {
+		if steps.SetWeight != nil || steps.Pause != nil {
+			addSteps(k, index, &stepsData, steps, ro)
+		}
+	}
+	return stepsData
 }

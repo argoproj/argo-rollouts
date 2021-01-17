@@ -20,6 +20,7 @@ const (
 	IconBad         = "✖"
 	IconPaused      = "॥"
 	IconNeutral     = "•"
+	IconAlways      = "∞"
 )
 
 const (

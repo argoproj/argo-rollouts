@@ -115,6 +115,7 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "Strategy:", roInfo.Strategy)
 	if roInfo.Strategy == "Canary" {
 		fmt.Fprintf(o.Out, tableFormat, "  Step:", roInfo.Step)
+		o.PrintCanarySteps(roInfo)
 		fmt.Fprintf(o.Out, tableFormat, "  SetWeight:", roInfo.SetWeight)
 		fmt.Fprintf(o.Out, tableFormat, "  ActualWeight:", roInfo.ActualWeight)
 	}
@@ -234,4 +235,67 @@ func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunIn
 func (o *GetOptions) PrintJob(w io.Writer, jobInfo info.JobInfo, prefix string, subpfx string) {
 	name := o.colorizeStatus(jobInfo.Name, jobInfo.Status)
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconJob, name, "Job", o.colorize(jobInfo.Icon), jobInfo.Status, jobInfo.Age(), "")
+}
+
+func (o *GetOptions) setCanarySteps(roInfo *info.RolloutInfo) ([]string, int) {
+	newSteps := make([]string, 0)
+	currentIndex := 0
+	for k, step := range roInfo.Steps {
+		stepIndex := fmt.Sprintf("[%v]", k+1)
+		if strings.Contains(step, "[*]") {
+			tempStep := strings.Replace(step, "[*]", "", -1)
+			newSteps = append(newSteps, fmt.Sprintf("%s%s", stepIndex, o.colorizeStatus(tempStep, info.InfoTagStable)))
+			currentIndex = k
+		} else {
+			newSteps = append(newSteps, fmt.Sprintf("%s%s", stepIndex, step))
+		}
+	}
+	return newSteps, currentIndex
+}
+
+const (
+	stepsMsg     = "  Steps:"
+	maxPrintStep = 3
+)
+
+func (o *GetOptions) PrintCanarySteps(roInfo *info.RolloutInfo) {
+	newSteps, currentIndex := o.setCanarySteps(roInfo)
+	maxSteps := len(newSteps) - 1
+	if maxSteps <= maxPrintStep {
+		fmt.Fprintf(o.Out, tableFormat, stepsMsg, strings.Join(newSteps, " -> "))
+		return
+	}
+
+	centre := currentIndex
+	if currentIndex == 0 {
+		if maxSteps > maxPrintStep {
+			fmt.Fprintf(o.Out, tableFormat, stepsMsg, strings.Join(newSteps[0:3], " -> ")+" ...")
+		} else {
+			fmt.Fprintf(o.Out, tableFormat, stepsMsg, strings.Join(newSteps[0:maxSteps+1], " -> "))
+		}
+		return
+	}
+	if currentIndex >= maxSteps {
+		fmt.Fprintf(o.Out, tableFormat, stepsMsg, "... "+strings.Join(newSteps[maxSteps-2:maxSteps+1], " -> "))
+		return
+	}
+
+	printSteps := make([]string, 0)
+	if centre+1 <= maxSteps {
+		if currentIndex >= 1 {
+			printSteps = append(printSteps, "... ")
+			printSteps = append(printSteps, newSteps[centre-1:centre+2]...)
+			printSteps = append(printSteps, " ...")
+			fmt.Fprintf(o.Out, tableFormat, stepsMsg, strings.Join(printSteps, " -> "))
+		} else {
+			printSteps = append(printSteps, newSteps[0:centre+3]...)
+			printSteps = append(printSteps, " ...")
+			fmt.Fprintf(o.Out, tableFormat, stepsMsg, strings.Join(printSteps, " -> "))
+		}
+		return
+	}
+	if centre+1 >= maxSteps {
+		fmt.Fprintf(o.Out, tableFormat, stepsMsg, "... "+strings.Join(newSteps[centre-2:maxSteps+1], " -> "))
+		return
+	}
 }
