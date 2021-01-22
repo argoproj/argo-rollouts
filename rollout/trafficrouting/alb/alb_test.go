@@ -1,25 +1,29 @@
 package alb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/aws"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 )
 
@@ -110,27 +114,29 @@ func ingress(name string, stableSvc, canarySvc string, port, weight int32, manag
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 	})
 	assert.Equal(t, Type, r.Type())
+	assert.NoError(t, err)
 }
 
 func TestIngressNotFound(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.True(t, k8serrors.IsNotFound(err))
 }
 
@@ -141,14 +147,15 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.Errorf(t, err, "ingress does not use the stable service")
 }
 
@@ -158,14 +165,15 @@ func TestNoChanges(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 0)
 }
@@ -177,14 +185,15 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.Errorf(t, err, "incorrectly formatted managed actions annotation")
 }
 
@@ -195,14 +204,15 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
 }
@@ -213,14 +223,15 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
-	err := r.Reconcile(10)
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
 }
@@ -240,20 +251,120 @@ func TestErrorPatching(t *testing.T) {
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	r := NewReconciler(ReconcilerConfig{
+	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
+	assert.NoError(t, err)
 
 	errMessage := "some error occurred"
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("patch", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf(errMessage)
 	})
 
-	err := r.Reconcile(10)
+	err = r.SetWeight(10)
 	assert.Error(t, err, "some error occurred")
 	assert.Len(t, client.Actions(), 1)
+}
+
+type fakeAWSClient struct {
+	targetGroups []aws.TargetGroupMeta
+	loadBalancer *elbv2types.LoadBalancer
+}
+
+func (f *fakeAWSClient) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]aws.TargetGroupMeta, error) {
+	return f.targetGroups, nil
+}
+
+func (f *fakeAWSClient) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
+	return f.loadBalancer, nil
+}
+
+func TestVerifyWeight(t *testing.T) {
+	newFakeReconciler := func() (*Reconciler, *fakeAWSClient) {
+		ro := fakeRollout("stable-svc", "canary-svc", "ingress", 443)
+		i := ingress("ingress", "stable-svc", "canary-svc", 443, 5, ro.Name)
+		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{
+				{
+					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
+				},
+			},
+		}
+
+		client := fake.NewSimpleClientset(i)
+		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       &record.FakeRecorder{},
+			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+			IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+			VerifyWeight:   pointer.BoolPtr(true),
+		})
+		assert.NoError(t, err)
+		fakeAWS := fakeAWSClient{}
+		r.aws = &fakeAWS
+		return r, &fakeAWS
+	}
+
+	// LoadBalancer not found
+	{
+		r, _ := newFakeReconciler()
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, weightVerified)
+	}
+
+	// LoadBalancer found, not at weight
+	{
+		r, fakeClient := newFakeReconciler()
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+			DNSName:         pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(11),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, weightVerified)
+	}
+
+	// LoadBalancer found, at weight
+	{
+		r, fakeClient := newFakeReconciler()
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+			DNSName:         pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(10),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.True(t, weightVerified)
+	}
 }

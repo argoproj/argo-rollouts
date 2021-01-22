@@ -103,14 +103,14 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if c.rollout.Status.PromoteFull {
 		return false
 	}
-
-	if len(c.rollout.Spec.Strategy.Canary.Steps) == 0 {
+	totalSteps := len(c.rollout.Spec.Strategy.Canary.Steps)
+	if totalSteps == 0 {
 		c.log.Info("Rollout does not have any steps")
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 
-	if len(c.rollout.Spec.Strategy.Canary.Steps) <= int(*currentStepIndex) {
+	if totalSteps <= int(*currentStepIndex) {
 		c.log.Info("No Steps remain in the canary steps")
 		return false
 	}
@@ -118,7 +118,7 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-	c.log.Infof("Reconciling canary pause step (stepIndex: %d)", *currentStepIndex)
+	c.log.Infof("Reconciling canary pause step (stepIndex: %d/%d)", *currentStepIndex, totalSteps)
 	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
@@ -201,33 +201,36 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 	return totalScaledDown, nil
 }
 
-func (c *rolloutContext) completedCurrentCanaryStep() bool {
+func (c *rolloutContext) completedCurrentCanaryStep() (bool, error) {
 	if c.rollout.Spec.Paused {
-		return false
+		return false, nil
 	}
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
-		return false
+		return false, nil
 	}
-	if currentStep.Pause != nil {
-		return c.pauseContext.CompletedPauseStep(*currentStep.Pause)
+	switch {
+	case currentStep.Pause != nil:
+		return c.pauseContext.CompletedPauseStep(*currentStep.Pause), nil
+	case currentStep.SetCanaryScale != nil:
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs), nil
+	case currentStep.SetWeight != nil:
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+			return false, nil
+		}
+		if c.weightVerified != nil && !*c.weightVerified {
+			return false, nil
+		}
+		return true, nil
+	case currentStep.Experiment != nil:
+		experiment := c.currentEx
+		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful, nil
+	case currentStep.Analysis != nil:
+		currentStepAr := c.currentArs.CanaryStep
+		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
+		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful, nil
 	}
-	modifyReplicasStep := currentStep.SetWeight != nil || currentStep.SetCanaryScale != nil
-	if modifyReplicasStep && replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
-		c.log.Info("Rollout has reached the desired state for the correct weight")
-		return true
-	}
-	experiment := c.currentEx
-	if currentStep.Experiment != nil && experiment != nil && experiment.Status.Phase.Completed() && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-		return true
-	}
-	currentStepAr := c.currentArs.CanaryStep
-	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
-	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-		return true
-	}
-
-	return false
+	return false, nil
 }
 
 func (c *rolloutContext) syncRolloutStatusCanary() error {
@@ -297,9 +300,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if currentStepIndex != nil && *currentStepIndex == stepCount {
-		c.log.Info("Rollout has executed every step")
-		newStatus.CurrentStepIndex = &stepCount
+	if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == stepCount) {
+		c.log.Infof("Rollout has executed all %d steps", stepCount)
+		if stepCount > 0 {
+			newStatus.CurrentStepIndex = &stepCount
+		}
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
@@ -310,17 +315,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if stepCount == 0 {
-		c.log.Info("Rollout has no steps")
-		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
-			c.log.Info("New RS has successfully progressed")
-			newStatus.StableRS = newStatus.CurrentPodHash
-		}
-		newStatus = c.calculateRolloutConditions(newStatus)
-		return c.persistRolloutStatus(&newStatus)
+	completedStep, err := c.completedCurrentCanaryStep()
+	if err != nil {
+		return err
 	}
-
-	if c.completedCurrentCanaryStep() {
+	if completedStep {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
 		newStatus.Canary.CurrentStepAnalysisRun = ""

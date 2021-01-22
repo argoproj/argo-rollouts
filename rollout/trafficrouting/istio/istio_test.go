@@ -140,7 +140,7 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 	vsvcLister := getVirtualServiceLister(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
 	client.ClearActions()
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -153,7 +153,7 @@ func TestReconcileNoChanges(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
-	err := r.Reconcile(0)
+	err := r.SetWeight(0)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
 	assert.Equal(t, "get", client.Actions()[0].GetVerb())
@@ -167,7 +167,7 @@ func TestReconcileInvalidValidation(t *testing.T) {
 	vsvcLister := getVirtualServiceLister(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
 	client.ClearActions()
-	err := r.Reconcile(0)
+	err := r.SetWeight(0)
 	assert.Equal(t, "Route 'route-not-found' is not found", err.Error())
 }
 
@@ -178,7 +178,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	vsvcLister := getVirtualServiceLister(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
 	client.ClearActions()
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))
 }

@@ -42,6 +42,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/rollout/mocks"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -99,7 +100,7 @@ type fixture struct {
 	enqueuedObjects map[string]int
 	unfreezeTime    func() error
 
-	fakeTrafficRouting *FakeTrafficRoutingReconciler
+	fakeTrafficRouting *mocks.TrafficRoutingReconciler
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -112,7 +113,7 @@ func newFixture(t *testing.T) *fixture {
 	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
 	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
-	f.fakeTrafficRouting = &FakeTrafficRoutingReconciler{}
+	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
 	return f
 }
 

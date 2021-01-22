@@ -14,3 +14,12 @@ go run "${MOCKERY_PKG}"/cmd/mockery/mockery.go \
     -name Provider \
     -output "${PROJECT_ROOT}"/metricproviders/mocks
 
+go run "${MOCKERY_PKG}"/cmd/mockery/mockery.go \
+    -dir "${PROJECT_ROOT}"/utils/aws \
+    -name ELBv2APIClient \
+    -output "${PROJECT_ROOT}"/utils/aws/mocks
+
+go run "${MOCKERY_PKG}"/cmd/mockery/mockery.go \
+    -dir "${PROJECT_ROOT}"/rollout \
+    -name TrafficRoutingReconciler \
+    -output "${PROJECT_ROOT}"/rollout/mocks

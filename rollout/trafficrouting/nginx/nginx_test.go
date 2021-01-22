@@ -219,7 +219,7 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -238,7 +238,7 @@ func TestReconcileStableIngressFound(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -264,7 +264,7 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
 }
@@ -286,7 +286,7 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -310,7 +310,7 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -335,7 +335,7 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -368,7 +368,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
@@ -398,7 +398,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 		return true, nil, errors.New("fake error")
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Equal(t, "error creating canary ingress `rollout-stable-ingress-canary`: fake error", err.Error())
 	actions := client.Actions()
@@ -448,7 +448,7 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 		return true, canaryIngress, nil
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 3)

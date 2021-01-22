@@ -89,7 +89,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -122,7 +122,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -152,7 +152,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -187,7 +187,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -222,7 +222,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -253,7 +253,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -293,7 +293,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha1` was not modified"))
@@ -318,7 +318,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha2` was not modified"))
@@ -342,7 +342,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha3` was not modified"))
@@ -365,7 +365,7 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "trafficsplits", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, k8serrors.NewServerTimeout(schema.GroupResource{Group: "split.smi-spec.io", Resource: "trafficsplits"}, "get", 0)
 	})
-	err = r.Reconcile(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsServerTimeout(err))
 }
@@ -388,7 +388,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
 
@@ -406,7 +406,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
 
@@ -424,7 +424,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
 }
