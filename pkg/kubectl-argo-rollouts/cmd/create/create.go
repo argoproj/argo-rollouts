@@ -67,7 +67,6 @@ const (
 
 // NewCmdCreate returns a new instance of an `rollouts create` command
 func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
-	o.DynamicClientset()
 	createOptions := CreateOptions{
 		ArgoRolloutsOptions: *o,
 	}
@@ -78,6 +77,7 @@ func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Example:      o.Example(createExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			createOptions.DynamicClientset()
 			if len(createOptions.Files) == 0 {
 				return o.UsageErr(c)
 			}
