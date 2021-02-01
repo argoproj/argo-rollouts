@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -40,7 +40,7 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 			delete(managedActions, roName)
 			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
 			if err != nil {
-				logrus.WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
+				log.WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
 				return nil
 			}
 			newIngress.Annotations[actionKey] = resetALBAction

@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
@@ -13,7 +15,11 @@ import (
 
 // TrafficRoutingReconciler common function across all TrafficRouting implementation
 type TrafficRoutingReconciler interface {
-	Reconcile(desiredWeight int32) error
+	// SetWeight sets the canary weight to the desired weight
+	SetWeight(desiredWeight int32) error
+	// VerifyWeight returns true if the canary is at the desired weight
+	VerifyWeight(desiredWeight int32) (bool, error)
+	// Type returns the type of the traffic routing reconciler
 	Type() string
 }
 
@@ -46,7 +52,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
-		}), nil
+		})
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 		return smi.NewReconciler(smi.ReconcilerConfig{
@@ -70,9 +76,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	}
 	c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-	_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
-	if index != nil {
+	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash {
+		// when we are fully promoted. desired canary weight should be 0
+	} else if index != nil {
 		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
@@ -94,9 +102,28 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 	}
 
-	err = reconciler.Reconcile(desiredWeight)
+	err = reconciler.SetWeight(desiredWeight)
 	if err != nil {
 		c.recorder.Event(c.rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
+		return err
 	}
-	return err
+
+	// If we are at a setWeight step, also perform weight verification. Note that we don't do this
+	// every reconciliation because weight verification typically involves API calls to the cloud
+	// provider which could incur rate limiting
+	if currentStep != nil && currentStep.SetWeight != nil {
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight)
+		if err != nil {
+			return err
+		}
+		if !weightVerified {
+			c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
+		} else {
+			c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+		}
+		c.weightVerified = &weightVerified
+	}
+
+	return nil
 }

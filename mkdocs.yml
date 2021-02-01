@@ -81,6 +81,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
 - Roadmap: roadmap.md

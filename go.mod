@@ -4,6 +4,8 @@ go 1.13
 
 require (
 	github.com/antonmedv/expr v1.8.9
+	github.com/aws/aws-sdk-go-v2/config v1.0.0
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.0.0
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.3

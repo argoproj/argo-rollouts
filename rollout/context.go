@@ -41,6 +41,11 @@ type rolloutContext struct {
 
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
+
+	// weightVerified keeps track of the verified weight. nil indicates the check was not performed.
+	// we only perform weight verification when we are at a setWeight step since we do not want to
+	// continually verify weight in case it could incur rate-limiting or other expenses.
+	weightVerified *bool
 }
 
 func (c *rolloutContext) reconcile() error {

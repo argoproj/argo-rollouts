@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -39,6 +40,8 @@ const (
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
+	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
+	EnvVarE2EALBIngressAnnotations = "E2E_ALB_INGESS_ANNOTATIONS"
 )
 
 var (
@@ -64,6 +67,8 @@ var (
 		Version:  "v1beta1",
 		Resource: "poddisruptionbudgets",
 	}
+
+	E2EALBIngressAnnotations map[string]string
 )
 
 func init() {
@@ -84,6 +89,13 @@ func init() {
 		}
 		E2EPodDelay = delay
 	}
+	if e2eALBAnnotations, ok := os.LookupEnv(EnvVarE2EALBIngressAnnotations); ok {
+		err := json.Unmarshal([]byte(e2eALBAnnotations), &E2EALBIngressAnnotations)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid E2E_ALB_INGESS_ANNOTATIONS value: %s", e2eALBAnnotations))
+		}
+	}
+
 }
 
 type E2ESuite struct {

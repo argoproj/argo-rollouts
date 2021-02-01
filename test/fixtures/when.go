@@ -45,6 +45,9 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
 			w.injectDelays(obj)
 		}
+		if obj.GetKind() == "Ingress" {
+			w.injectIngressAnnotations(obj)
+		}
 		w.applyObject(obj)
 	}
 	return w
@@ -76,6 +79,21 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
 	w.CheckError(err)
+}
+
+// injectIngressAnnotations injects ingress annotations defined in environment variables. Currently
+// E2E_ALB_INGESS_ANNOTATIONS
+func (w *When) injectIngressAnnotations(un *unstructured.Unstructured) {
+	annotations := un.GetAnnotations()
+	if len(annotations) == 0 {
+		return
+	}
+	if annotations["kubernetes.io/ingress.class"] == "alb" && len(E2EALBIngressAnnotations) > 0 {
+		for k, v := range E2EALBIngressAnnotations {
+			annotations[k] = v
+		}
+		un.SetAnnotations(annotations)
+	}
 }
 
 func (w *When) UpdateSpec(texts ...string) *When {
