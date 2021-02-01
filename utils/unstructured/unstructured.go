@@ -41,7 +41,7 @@ func ObjectToRollout(obj interface{}) *v1alpha1.Rollout {
 	}
 	ro, ok := obj.(*v1alpha1.Rollout)
 	if !ok {
-		log.Warn("objet is neither a rollout or unstructured")
+		log.Warn("Object is neither a rollout or unstructured")
 	}
 	return ro
 }
@@ -59,7 +59,7 @@ func ObjectToAnalysisRun(obj interface{}) *v1alpha1.AnalysisRun {
 	}
 	ar, ok := obj.(*v1alpha1.AnalysisRun)
 	if !ok {
-		log.Warn("objet is neither a rollout or unstructured")
+		log.Warn("Object is neither a rollout or unstructured")
 	}
 	return ar
 }
