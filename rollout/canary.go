@@ -201,36 +201,36 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 	return totalScaledDown, nil
 }
 
-func (c *rolloutContext) completedCurrentCanaryStep() (bool, error) {
+func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
-		return false, nil
+		return false
 	}
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
-		return false, nil
+		return false
 	}
 	switch {
 	case currentStep.Pause != nil:
-		return c.pauseContext.CompletedPauseStep(*currentStep.Pause), nil
+		return c.pauseContext.CompletedPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
-		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs), nil
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 	case currentStep.SetWeight != nil:
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
-			return false, nil
+			return false
 		}
 		if c.weightVerified != nil && !*c.weightVerified {
-			return false, nil
+			return false
 		}
-		return true, nil
+		return true
 	case currentStep.Experiment != nil:
 		experiment := c.currentEx
-		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful, nil
+		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	case currentStep.Analysis != nil:
 		currentStepAr := c.currentArs.CanaryStep
 		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
-		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful, nil
+		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	}
-	return false, nil
+	return false
 }
 
 func (c *rolloutContext) syncRolloutStatusCanary() error {
@@ -315,10 +315,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	completedStep, err := c.completedCurrentCanaryStep()
-	if err != nil {
-		return err
-	}
+	completedStep := c.completedCurrentCanaryStep()
 	if completedStep {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
