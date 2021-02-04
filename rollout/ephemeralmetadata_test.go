@@ -14,9 +14,9 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
-// TestSyncEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
+// TestSyncCanaryEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
 // (with no previous revisions), that the ReplicaSet will get the stable metadata.
-func TestSyncEphemeralMetadataInitialRevision(t *testing.T) {
+func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -43,6 +43,45 @@ func TestSyncEphemeralMetadataInitialRevision(t *testing.T) {
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
 		"role":                       "stable",
+		"rollouts-pod-template-hash": r1.Status.CurrentPodHash,
+	}
+	assert.Equal(t, expectedLabels, createdRS1.Spec.Template.Labels)
+}
+
+// TestSyncBlueGreenEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
+// (with no previous revisions), that the ReplicaSet will get the active metadata.
+func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.PreviewMetadata = &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			"role": "preview",
+		},
+	}
+	r1.Spec.Strategy.BlueGreen.ActiveMetadata = &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			"role": "active",
+		},
+	}
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+	previewSvc := newService("preview", 80, nil, r1)
+	activeSvc := newService("active", 80, nil, r1)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	f.expectUpdateRolloutStatusAction(r1)
+	idx := f.expectCreateReplicaSetAction(rs1)
+	_ = f.expectPatchRolloutAction(r1)
+	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	f.run(getKey(r1, t))
+	createdRS1 := f.getCreatedReplicaSet(idx)
+	expectedLabels := map[string]string{
+		"foo":                        "bar",
+		"role":                       "active",
 		"rollouts-pod-template-hash": r1.Status.CurrentPodHash,
 	}
 	assert.Equal(t, expectedLabels, createdRS1.Spec.Template.Labels)

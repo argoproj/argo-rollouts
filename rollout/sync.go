@@ -157,16 +157,26 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	// Set new replica set's annotation
 	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
 
-	if c.rollout.Spec.Strategy.Canary != nil {
+	if c.rollout.Spec.Strategy.Canary != nil || c.rollout.Spec.Strategy.BlueGreen != nil {
+		var ephemeralMetadata *v1alpha1.PodTemplateMetadata
 		if c.stableRS != nil && c.stableRS != c.newRS {
 			// If this is a canary rollout, with ephemeral *canary* metadata, and there is a stable RS,
 			// then inject the canary metadata so that all the RS's new pods get the canary labels/annotation
-			newRS, _ = replicasetutil.SyncReplicaSetEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+			if c.rollout.Spec.Strategy.Canary != nil {
+				ephemeralMetadata = c.rollout.Spec.Strategy.Canary.CanaryMetadata
+			} else {
+				ephemeralMetadata = c.rollout.Spec.Strategy.BlueGreen.PreviewMetadata
+			}
 		} else {
 			// Otherwise, if stableRS is nil, we are in a brand-new rollout and then this replicaset
 			// will eventually become the stableRS, so we should inject the stable labels/annotation
-			newRS, _ = replicasetutil.SyncReplicaSetEphemeralPodMetadata(newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+			if c.rollout.Spec.Strategy.Canary != nil {
+				ephemeralMetadata = c.rollout.Spec.Strategy.Canary.StableMetadata
+			} else {
+				ephemeralMetadata = c.rollout.Spec.Strategy.BlueGreen.ActiveMetadata
+			}
 		}
+		newRS, _ = replicasetutil.SyncReplicaSetEphemeralPodMetadata(newRS, ephemeralMetadata)
 	}
 
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
