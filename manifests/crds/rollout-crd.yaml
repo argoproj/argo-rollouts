@@ -92,6 +92,17 @@ spec:
               properties:
                 blueGreen:
                   properties:
+                    activeMetadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                     activeService:
                       type: string
                     antiAffinity:
@@ -194,6 +205,17 @@ spec:
                                 type: string
                             type: object
                           type: array
+                      type: object
+                    previewMetadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
                       type: object
                     previewReplicaCount:
                       format: int32

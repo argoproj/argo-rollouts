@@ -139,6 +139,12 @@ type BlueGreenStrategy struct {
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 	// PostPromotionAnalysis configuration to run analysis after a selector switch
 	PostPromotionAnalysis *RolloutAnalysis `json:"postPromotionAnalysis,omitempty"`
+	// PreviewMetadata specify labels and annotations which will be attached to the preview pods for
+	// the duration which they act as a preview pod, and will be removed after
+	PreviewMetadata *PodTemplateMetadata `json:"previewMetadata,omitempty"`
+	// ActiveMetadata specify labels and annotations which will be attached to the active pods for
+	// the duration which they act as a active pod, and will be removed after
+	ActiveMetadata *PodTemplateMetadata `json:"activeMetadata,omitempty"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
