@@ -60,6 +60,12 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	if err != nil {
 		return err
 	}
+
+	err = c.reconcileEphemeralMetadata()
+	if err != nil {
+		return err
+	}
+
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 
