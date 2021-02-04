@@ -47,7 +47,7 @@ func TestGetMaxSurgeOrDefault(t *testing.T) {
 
 func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	maxUnavailable := intstr.FromInt(2)
-	rolloutNonDefaultValue := &v1alpha1.Rollout{
+	rolloutCanaryNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
@@ -57,7 +57,19 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutCanaryNonDefaultValue))
+
+	rolloutBlueGreenNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					MaxUnavailable: &maxUnavailable,
+				},
+			},
+		},
+	}
+	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutBlueGreenNonDefaultValue))
+
 	rolloutDefaultValue := &v1alpha1.Rollout{}
 	assert.Equal(t, intstr.FromInt(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
 }
