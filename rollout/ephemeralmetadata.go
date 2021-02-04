@@ -13,25 +13,32 @@ import (
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	ctx := context.TODO()
-	if c.rollout.Spec.Strategy.Canary == nil {
+	var newMetadata, stableMetadata *v1alpha1.PodTemplateMetadata
+	if c.rollout.Spec.Strategy.Canary != nil {
+		newMetadata = c.rollout.Spec.Strategy.Canary.CanaryMetadata
+		stableMetadata = c.rollout.Spec.Strategy.Canary.StableMetadata
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
+		newMetadata = c.rollout.Spec.Strategy.BlueGreen.PreviewMetadata
+		stableMetadata = c.rollout.Spec.Strategy.BlueGreen.ActiveMetadata
+	} else {
 		return nil
 	}
 	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
 
 	if fullyRolledOut {
 		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		err := c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata)
 		if err != nil {
 			return err
 		}
 	} else {
 		// we are in a upgrading state. newRS is a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
+		err := c.syncEphemeralMetadata(ctx, c.newRS, newMetadata)
 		if err != nil {
 			return err
 		}
 		// sync stable metadata to the stable rs
-		err = c.syncEphemeralMetadata(ctx, c.stableRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
+		err = c.syncEphemeralMetadata(ctx, c.stableRS, stableMetadata)
 		if err != nil {
 			return err
 		}
