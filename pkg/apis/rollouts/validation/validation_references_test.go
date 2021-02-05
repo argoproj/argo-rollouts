@@ -182,6 +182,19 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Empty(t, allErrs)
 	})
+
+	t.Run("validate analysisTemplate NaNResult - failure", func(t *testing.T) {
+		count := intstr.FromInt(0)
+		template := getAnalysisTemplateWithType()
+		template.TemplateType = BackgroundAnalysis
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
+		template.AnalysisTemplate.Spec.Metrics[0].NaNResult = "Error"
+		allErrs := ValidateAnalysisTemplateWithType(template)
+		assert.Len(t, allErrs, 1)
+		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s with invalid NanResult field: %s. NaN result must be %s, %s, or %s", "analysis-template-name", "metric-name", "Error", v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive)
+		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, msg)
+		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
+	})
 }
 
 func TestValidateIngress(t *testing.T) {
