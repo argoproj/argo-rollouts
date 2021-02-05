@@ -96,6 +96,9 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		valueStr := value.Value.String()
 		result := float64(value.Value)
 		if math.IsNaN(result) {
+			//if metric.NaNResult == string(v1alpha1.AnalysisPhaseInconclusive) {
+			//
+			//}
 			return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
 		}
 		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
