@@ -140,6 +140,7 @@ spec:
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(time.Second).
 		Then().
 		// after fully promoted, revision 2 should switch to active metadata
 		ExpectRevisionPods("revision 2 has active metadata", "2", podsHaveActiveMetadata).
@@ -153,7 +154,7 @@ spec:
         labels:
           role: null
           role2: active2`).
-		Sleep(time.Second).
+		Sleep(2*time.Second).
 		Then().
 		ExpectRevisionPods("revision 2 has active metadata2", "2", podsHaveActiveMetadata2)
 }
