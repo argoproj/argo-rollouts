@@ -145,7 +145,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 		wavefrontResponse.newValue = fmt.Sprintf("%.2f", value)
 		wavefrontResponse.epochsUsed = time
 		if math.IsNaN(value) {
-			wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
+			wavefrontResponse.newStatus = metric.NaNResult
 			return wavefrontResponse, nil
 		}
 		wavefrontResponse.newStatus = evaluate.EvaluateResult(value, metric, p.logCtx)
@@ -173,7 +173,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 		wavefrontResponse.epochsUsed = epochsStr
 		for _, result := range results {
 			if math.IsNaN(result) {
-				wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
+				wavefrontResponse.newStatus = metric.NaNResult
 				return wavefrontResponse, nil
 			}
 		}

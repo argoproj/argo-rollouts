@@ -104,11 +104,11 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
-	// NotANumberValue allows users to define how NaN result is interpreted
+	// NaNResult allows users to define how NaN result is interpreted
 	// Can set to Failure/Inconclusive/Successful
 	// Default is Inconclusive
 	// TODO: verify in validation
-	NaNResult string `json:"nanResult,omitempty"`
+	NaNResult AnalysisPhase `json:"nanResult,omitempty"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified

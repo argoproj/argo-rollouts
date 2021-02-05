@@ -1831,7 +1831,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"nanResult": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NotANumberValue allows users to define how NaN result is interpreted Can set to Failure/Inconclusive/Successful Default is Inconclusive",
+							Description: "NaNResult allows users to define how NaN result is interpreted Can set to Failure/Inconclusive/Successful Default is Inconclusive",
 							Type:        []string{"string"},
 							Format:      "",
 						},
