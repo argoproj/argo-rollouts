@@ -70,7 +70,7 @@ func (s *BlueGreenSuite) TestEphemeralMetadata() {
 apiVersion: v1
 kind: Service
 metadata:
-  name: ephemeral-metadata
+  name: ephemeral-metadata-bg
 spec:
   ports:
   - port: 80
@@ -83,7 +83,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: ephemeral-metadata
+  name: ephemeral-metadata-bg
 spec:
   replicas: 2
   strategy:
@@ -94,15 +94,15 @@ spec:
       activeMetadata:
         labels:
           role: active
-      activeService: ephemeral-metadata
+      activeService: ephemeral-metadata-bg
       autoPromotionEnabled: false
   selector:
     matchLabels:
-      app: ephemeral-metadata
+      app: ephemeral-metadata-bg
   template:
     metadata:
       labels:
-        app: ephemeral-metadata
+        app: ephemeral-metadata-bg
     spec:
       containers:
       - name: ephemeral-metadata
