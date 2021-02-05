@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -236,6 +237,7 @@ spec:
 func (s *CanarySuite) TestEphemeralMetadata() {
 	podsHaveStableMetadata := func(pods *corev1.PodList) bool {
 		for _, pod := range pods.Items {
+			log.Printf("+%v", pod.Labels)
 			if pod.Labels["role"] != "stable" {
 				return false
 			}
@@ -311,6 +313,7 @@ spec:
 		When().
 		ApplyManifests().
 		WaitForRolloutReplicas(2).
+		Sleep(2*time.Second).
 		Then().
 		ExpectPods("all pods have stable metadata", podsHaveStableMetadata).
 		When().
