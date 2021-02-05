@@ -14,7 +14,7 @@ const (
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
 	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
-	DefaultMaxUnavailable = 0
+	DefaultMaxUnavailable = "25"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
@@ -57,7 +57,7 @@ func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.MaxUnavailable != nil {
 		return rollout.Spec.Strategy.Canary.MaxUnavailable
 	}
-	defaultValue := intstr.FromInt(DefaultMaxUnavailable)
+	defaultValue := intstr.FromString(DefaultMaxUnavailable)
 	return &defaultValue
 }
 

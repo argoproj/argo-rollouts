@@ -71,7 +71,7 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutBlueGreenNonDefaultValue))
 
 	rolloutDefaultValue := &v1alpha1.Rollout{}
-	assert.Equal(t, intstr.FromInt(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
+	assert.Equal(t, intstr.FromString(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
 }
 
 func TestGetCanaryIngressAnnotationPrefixOrDefault(t *testing.T) {
