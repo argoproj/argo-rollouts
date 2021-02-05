@@ -1,3 +1,5 @@
+// +build e2e
+
 package e2e
 
 import (
@@ -65,6 +67,19 @@ func (s *BlueGreenSuite) TestEphemeralMetadata() {
 
 	s.Given().
 		RolloutObjects(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: ephemeral-metadata
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: ephemeral-metadata
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -79,9 +94,8 @@ spec:
       activeMetadata:
         labels:
           role: active
-      steps:
-      - setWeight: 50
-      - pause: {}
+      activeService: ephemeral-metadata
+      autoPromotionEnabled: false
   selector:
     matchLabels:
       app: ephemeral-metadata
