@@ -96,7 +96,11 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		valueStr := value.Value.String()
 		result := float64(value.Value)
 		if math.IsNaN(result) {
-			return valueStr, metric.NaNResult, nil
+			if metric.NaNResult != "" {
+				return valueStr, metric.NaNResult, nil
+			} else {
+				return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+			}
 		}
 		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
 		return valueStr, newStatus, nil
@@ -116,7 +120,11 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		valueStr = valueStr + "]"
 		for _, result := range results {
 			if math.IsNaN(result) {
-				return valueStr, metric.NaNResult, nil
+				if metric.NaNResult != "" {
+					return valueStr, metric.NaNResult, nil
+				} else {
+					return valueStr, v1alpha1.AnalysisPhaseInconclusive, nil
+				}
 			}
 		}
 		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
