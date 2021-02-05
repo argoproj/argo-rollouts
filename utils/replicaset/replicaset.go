@@ -413,7 +413,7 @@ func MaxSurge(rollout *v1alpha1.Rollout) int32 {
 		return int32(0)
 	}
 	// Error caught by validation
-	maxSurge, _, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxSurgeOrDefault(rollout), rolloutReplicas)
+	maxSurge, _, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
 	return maxSurge
 }
 
