@@ -486,10 +486,10 @@ func SyncEphemeralPodMetadata(metadata *metav1.ObjectMeta, existingPodMetadata, 
 func SyncReplicaSetEphemeralPodMetadata(rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) (*appsv1.ReplicaSet, bool) {
 	existingPodMetadata := ParseExistingPodMetadata(rs)
 	newObjectMeta, modified := SyncEphemeralPodMetadata(&rs.Spec.Template.ObjectMeta, existingPodMetadata, podMetadata)
+	rs = rs.DeepCopy()
 	if !modified {
 		return rs, false
 	}
-	rs = rs.DeepCopy()
 	rs.Spec.Template.ObjectMeta = *newObjectMeta
 	if podMetadata != nil {
 		// remember what we injected by annotating it
