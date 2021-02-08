@@ -1,10 +1,12 @@
 # Ephemeral Metadata
 
 !!! important
-Available for canary rollouts since v0.10.0
+
+    Available for canary rollouts since v0.10.0
 
 !!! important
-Available for blue-green rollouts since v1.0
+
+    Available for blue-green rollouts since v1.0
 
 One use case is for a Rollout to label or annotate the desired/stable pods with user-defined
 labels/annotations, for _only_ the duration which they are the desired or stable set, and for the
