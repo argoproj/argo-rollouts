@@ -34,7 +34,7 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Restore go build cache
-      uses: actions/cache@v2
+      uses: actions/cache@v2.1.4
       with:
         path: ~/.cache/go-build
         key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
