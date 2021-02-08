@@ -57,6 +57,7 @@ type ReferencedResources struct {
 	Ingresses                []v1beta1.Ingress
 	ServiceWithType          []ServiceWithType
 	VirtualServices          []unstructured.Unstructured
+	AmbassadorMappings       []unstructured.Unstructured
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
@@ -72,6 +73,9 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	}
 	for _, vsvc := range referencedResources.VirtualServices {
 		allErrs = append(allErrs, ValidateVirtualService(rollout, vsvc)...)
+	}
+	for _, mapping := range referencedResources.AmbassadorMappings {
+		allErrs = append(allErrs, ValidateAmbassadorMapping(rollout, mapping)...)
 	}
 	return allErrs
 }
@@ -213,6 +217,11 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
 	}
 	return allErrs
+}
+
+// TODO: implement this validation
+func ValidateAmbassadorMapping(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
+	return field.ErrorList{}
 }
 
 func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {
