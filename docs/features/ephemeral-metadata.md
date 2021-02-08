@@ -8,7 +8,7 @@ Available for blue-green rollouts since v1.0
 
 One use case is for a Rollout to label or annotate the desired/stable pods with user-defined
 labels/annotations, for _only_ the duration which they are the desired or stable set, and for the
-labels to be updated/removed as soonas the ReplicaSet switches roles (e.g. from desired to stable).
+labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).
 The use case which this enables, is to allow prometheus, wavefront, datadog queries and dashboards
 to be built, which can rely on a consistent labels, rather than the `rollouts-pod-template-hash`
 which is unpredictable and changing from revision to revision.
@@ -28,7 +28,7 @@ spec:
           role: canary
 ```
 
-A Rollout using the blue-green strategy has the ability to attach ephemeral metadata to the stable
+A Rollout using the blue-green strategy has the ability to attach ephemeral metadata to the active
 or preview Pods using the `activeMetadata` and `previewMetadata` fields respectively.
 
 ```yaml
