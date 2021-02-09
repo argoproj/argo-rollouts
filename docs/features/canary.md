@@ -163,7 +163,7 @@ Defaults to "25%".
 ### maxUnavailable
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
-Defaults to 0
+Defaults to 25%
 
 ### trafficRouting
 The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
