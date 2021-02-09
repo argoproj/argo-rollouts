@@ -45,7 +45,7 @@ To learn more about Argo Rollouts go to the [complete documentation](https://arg
 
 ## Who uses Argo Rollouts?
 
-[Official Argo Rollouts User List](https://github.com/argoproj/argo-rollouts/blob/master/README.md)
+[Official Argo Rollouts User List](https://github.com/argoproj/argo-rollouts/blob/master/USERS.md)
 
 ## Community Blogs and Presentations
 * [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY) @ [The DevOps Toolkit Series](https://www.youtube.com/c/TheDevOpsToolkitSeries)
