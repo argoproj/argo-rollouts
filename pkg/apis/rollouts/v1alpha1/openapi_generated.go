@@ -1829,13 +1829,6 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"),
 						},
 					},
-					"nanResult": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NaNResult allows users to define how NaN result is interpreted Can set to Failure/Inconclusive/Successful Default is Inconclusive",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"name", "provider"},
 			},

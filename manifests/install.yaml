@@ -94,8 +94,6 @@ spec:
                     type: string
                   name:
                     type: string
-                  nanResult:
-                    type: string
                   provider:
                     properties:
                       datadog:
@@ -3053,8 +3051,6 @@ spec:
                     type: string
                   name:
                     type: string
-                  nanResult:
-                    type: string
                   provider:
                     properties:
                       datadog:
@@ -5939,8 +5935,6 @@ spec:
                   interval:
                     type: string
                   name:
-                    type: string
-                  nanResult:
                     type: string
                   provider:
                     properties:

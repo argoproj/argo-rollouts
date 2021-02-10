@@ -87,8 +87,6 @@ spec:
                     type: string
                   name:
                     type: string
-                  nanResult:
-                    type: string
                   provider:
                     properties:
                       datadog:

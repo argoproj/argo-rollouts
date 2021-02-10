@@ -121,13 +121,6 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 			}
 		}
 	}
-	for _, metric := range templateSpec.Metrics {
-		// metric.NaNResult must be left blank or set to Success, Failed, or Inconclusive
-		if metric.NaNResult != "" && metric.NaNResult != v1alpha1.AnalysisPhaseInconclusive && metric.NaNResult != v1alpha1.AnalysisPhaseSuccessful && metric.NaNResult != v1alpha1.AnalysisPhaseFailed {
-			msg := fmt.Sprintf("AnalysisTemplate %s has metric %s with invalid NanResult field: %s. NaN result must be %s, %s, or %s", templateName, metric.Name, metric.NaNResult, v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive)
-			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
-		}
-	}
 	return allErrs
 }
 

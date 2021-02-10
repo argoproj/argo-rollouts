@@ -3,6 +3,7 @@ package evaluate
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 
@@ -65,6 +66,7 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 		"result":  resultValue,
 		"asInt":   asInt,
 		"asFloat": asFloat,
+		"isNaN":   math.IsNaN,
 	}
 
 	unwrapFileErr := func(e error) error {
