@@ -274,7 +274,7 @@ different parameters, such as the workload name:
 ## Integrating with GitOps
 
 Earlier it was explained that VirtualServices should be deployed with an initial canary and stable
-weight of 0 and 100, respectively. i.e. like the following example:
+weight of 0 and 100, respectively, such as in the following example:
 
 ```yaml
   http:
@@ -288,21 +288,71 @@ weight of 0 and 100, respectively. i.e. like the following example:
       weight: 0
 ```
 
-This introduces a problem for users practicing GitOps. Since Argo Rollouts modifies these
-VirtualServices weights as a Rollout progresses through its steps, the Virtual Service will becomes
-out of sync with the Git version. Additionally, if a GitOps tool does an apply after the Argo
-Rollouts controller changes the Virtual Service's weight, the apply would revert the weight to the
-percentage stored in the Git repo. At best, the user can specify the desired weight of 100% to the
-stable service and 0% to the canary service. In this case, the Virtual Service is synced with the
-Git repo when the Rollout completed all the steps. 
+This introduces a problem for users practicing GitOps. Since a Rollout will modify these
+VirtualService weights as the Rollout progresses through its steps, it unfortunately causes the
+VirtualService to become OutOfSync with the version in git. Additionally, if the VirtualService in
+git were to be applied while the Rollout is in this state (splitting traffic between the services),
+the apply would revert the weights back to the values in git (i.e. 100 to stable, 0 to canary).
 
-Argo CD has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913) to address this problem. The proposed solution is to introduce an annotation to the VirtualService which tells Argo CD controller to respect the current weights listed and let the Argo Rollouts controller manage them instead.
+One protection which is implemented in Argo Rollouts, is that it continually watches for changes to
+managed VirtualServices. In the event that a `kubectl apply` were to happen using the VirtualService
+in git, the change would be detected immediately by the rollout controller, and the controller will
+instantly set the VirtualService weights back to the canary weight appropriate for the given step of
+the Rollout. But since there is momentary flapping of weights, this behavior should be understood.
+
+Some best practices to follow when using Argo CD with Argo Rollouts to prevent this behavior, is to
+leverage the following Argo CD features:
+
+1. Configure the application to ignore differences in the VirtualService. e.g.:
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: guestbook
+    spec:
+      ignoreDifferences:
+      - group: networking.istio.io
+        kind: VirtualService
+        jsonPointers:
+        - /spec/http/0
+    ```
+
+    Ignoring the differences in the VirtualServices HTTP route, prevents gitops differences
+    in the VirtualService HTTP routes to contribute to the overall sync status of the Argo CD
+    application. This adds the additional benefit of prevent auto-sync operations from being
+    triggered.
+
+2. Configure the Application to only apply OutOfSync resources:
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: guestbook
+    spec:
+      syncPolicy:
+        syncOptions:
+        - ApplyOutOfSyncOnly=true
+    ```
+
+    By default, when Argo CD  syncs an application, it runs `kubectl apply` against all resources in
+    git which are part of the application. The `ApplyOutOfSyncOnly=true` sync option indicates to
+    Argo CD to skip applying resources which it already considers `Synced`, and only apply the ones
+    which are `OutOfSync`. This option, when used in conjunction with the `ignoreDifferences`
+    feature, provides a way to manage the conflict in the desired state of a VirtualService between
+    Argo CD and Argo Rollouts.
+
+Argo CD also has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913) which would
+help address this problem. The proposed solution is to introduce an annotation to resources, which
+indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
+other controllers (e.g. Argo Rollouts) controller manage them instead.
 
 ## Alternatives Considered
 
 ### Rollout ownership over the Virtual Service  
 
-Instead of the controller modifying a reference to a VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
+An early design alternative was that instead of the controller modifying a referenced VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
 
 *  To provide the same flexibility as referencing VirtualService within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unnecessary complicated.
 * If Istio introduces a feature, that feature will not be available in Argo Rollouts until implemented within Argo Rollouts.

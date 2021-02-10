@@ -99,23 +99,6 @@ func (w *When) injectIngressAnnotations(un *unstructured.Unstructured) {
 	}
 }
 
-// func (w *When) applyObject(obj runtime.Object) {
-// 	objBytes, err := json.Marshal(obj)
-// 	w.CheckError(err)
-// 	cmd := exec.Command("kubectl", "apply", "-f", "-")
-// 	cmd.Env = os.Environ()
-// 	cmd.Stdin = bytes.NewReader(objBytes)
-// 	out, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		gvk := obj.GetObjectKind().GroupVersionKind()
-// 		objMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-// 		un := unstructured.Unstructured{Object: objMap}
-// 		w.log.Errorf("kubectl apply of %s %s failed: %s", gvk.Kind, un.GetName(), out)
-// 		w.t.FailNow()
-// 	}
-// 	w.log.Info(string(out))
-// }
-
 func (w *When) UpdateSpec(texts ...string) *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")

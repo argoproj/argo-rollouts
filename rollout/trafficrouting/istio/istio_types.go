@@ -4,6 +4,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// VirtualService is an Istio VirtualService containing only the fields which we care about
+type VirtualService struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              VirtualServiceSpec `json:"spec,omitempty"`
+}
+
+type VirtualServiceSpec struct {
+	HTTP []VirtualServiceHTTPRoute `json:"http,omitempty"`
+}
+
 // VirtualServiceHTTPRoute is a route in a VirtualService
 type VirtualServiceHTTPRoute struct {
 	Name  string                               `json:"name,omitempty"`

@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -200,6 +201,9 @@ func (c *Controller) syncService(key string) error {
 	if patch != "" {
 		_, err = c.kubeclientset.CoreV1().Services(svc.Namespace).Patch(ctx, svc.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		logCtx.Infof("cleaned service")
