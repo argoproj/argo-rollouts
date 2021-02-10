@@ -2,7 +2,6 @@ package wavefront
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -160,34 +159,6 @@ func TestGarbageCollect(t *testing.T) {
 	p := NewWavefrontProvider(mock, *e)
 	err := p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
 	assert.NoError(t, err)
-}
-
-func TestProcessNaNResponse(t *testing.T) {
-	logCtx := log.WithField("test", "test")
-	p := Provider{
-		logCtx: *logCtx,
-	}
-	metric := v1alpha1.Metric{
-		SuccessCondition: "true",
-		FailureCondition: "false",
-	}
-
-	mockSeries := wavefrontapi.TimeSeries{
-		DataPoints: []wavefrontapi.DataPoint{
-			[]float64{12000, math.NaN()},
-		},
-	}
-
-	response := &wavefrontapi.QueryResponse{
-		TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
-	}
-
-	result, err := p.processResponse(metric, response, metav1.Unix(13000, 0))
-	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, result.newStatus)
-	assert.Equal(t, "NaN", result.newValue)
-	assert.Equal(t, "NaN", result.newValue)
-
 }
 
 func TestProcessMultipleTimeseriesResponse(t *testing.T) {

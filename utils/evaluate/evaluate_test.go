@@ -2,6 +2,7 @@ package evaluate
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -91,7 +92,7 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
 }
 
-func TestEvaluateConditionWithSucces(t *testing.T) {
+func TestEvaluateConditionWithSuccess(t *testing.T) {
 	b, err := EvalCondition(true, "result == true")
 	assert.Nil(t, err)
 	assert.True(t, b)
@@ -240,4 +241,10 @@ func TestAsFloat(t *testing.T) {
 			assert.Equal(t, test.output, asFloat(test.input))
 		}
 	}
+}
+
+func TestIsInf(t *testing.T) {
+	inf, notInf := math.Inf(0), 0.0
+	assert.True(t, isInf(inf))
+	assert.False(t, isInf(notInf))
 }
