@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-rollout-destrule
+spec:
+  host: istio-rollout
+  subsets:
+  - name: canary
+    labels:
+      app: istio-rollout
+  - name: stable
+    labels:
+      app: istio-rollout

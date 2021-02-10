@@ -220,3 +220,8 @@ func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollo
 	desired[ingressutil.ManagedActionsAnnotation] = m.String()
 	return desired, nil
 }
+
+// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+	return nil
+}

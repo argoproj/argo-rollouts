@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: istio-rollout-analysis
+spec:
+  args:
+  - name: service
+  metrics:
+  - name: success-rate
+    interval: 20s
+    initialDelay: 30s
+    successCondition: result[0] > 0.90
+    inconclusiveLimit: 10
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc:9090
+        query: >+
+            sum(irate(
+                istio_requests_total{
+                    reporter="source",
+                    destination_service=~"{{args.service}}",
+                    response_code!~"5.*"}[1m]))
+            /
+            sum(irate(
+                istio_requests_total{
+                    reporter="source",
+                    destination_service=~"{{args.service}}"}[1m]))

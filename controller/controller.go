@@ -33,7 +33,6 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 const controllerAgentName = "rollouts-controller"
@@ -79,16 +78,12 @@ type Manager struct {
 	ingressSynced                 cache.InformerSynced
 	jobSynced                     cache.InformerSynced
 	replicasSetSynced             cache.InformerSynced
-	istioVirtualServiceSynced     cache.InformerSynced
 
 	rolloutWorkqueue     workqueue.RateLimitingInterface
 	serviceWorkqueue     workqueue.RateLimitingInterface
 	ingressWorkqueue     workqueue.RateLimitingInterface
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
-
-	defaultIstioVersion        string
-	defaultTrafficSplitVersion string
 
 	dynamicClientSet dynamic.Interface
 
@@ -112,12 +107,11 @@ func NewManager(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	istioVirtualServiceInformer cache.SharedIndexInformer,
+	istioDestinationRuleInformer cache.SharedIndexInformer,
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
-	defaultIstioVersion string,
-	defaultTrafficSplitVersion string,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
 ) *Manager {
@@ -158,6 +152,7 @@ func NewManager(
 		AnalysisTemplateInformer:        analysisTemplateInformer,
 		ClusterAnalysisTemplateInformer: clusterAnalysisTemplateInformer,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
+		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ReplicaSetInformer:              replicaSetInformer,
 		ServicesInformer:                servicesInformer,
 		IngressInformer:                 ingressesInformer,
@@ -168,8 +163,6 @@ func NewManager(
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
-		DefaultIstioVersion:             defaultIstioVersion,
-		DefaultTrafficSplitVersion:      defaultTrafficSplitVersion,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
@@ -234,7 +227,6 @@ func NewManager(
 		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
 		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
 		replicasSetSynced:             replicaSetInformer.Informer().HasSynced,
-		istioVirtualServiceSynced:     istioVirtualServiceInformer.HasSynced,
 		rolloutWorkqueue:              rolloutWorkqueue,
 		experimentWorkqueue:           experimentWorkqueue,
 		analysisRunWorkqueue:          analysisRunWorkqueue,
@@ -245,8 +237,6 @@ func NewManager(
 		ingressController:             ingressController,
 		experimentController:          experimentController,
 		analysisController:            analysisController,
-		defaultIstioVersion:           defaultIstioVersion,
-		defaultTrafficSplitVersion:    defaultTrafficSplitVersion,
 		dynamicClientSet:              dynamicclientset,
 		namespace:                     namespace,
 	}
@@ -274,13 +264,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	if c.namespace == metav1.NamespaceAll {
 		if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
 			return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
-		}
-	}
-	// Check if Istio exists
-	if istioutil.DoesIstioExist(c.dynamicClientSet, c.namespace, c.defaultIstioVersion) {
-		// Wait for Istio cache to sync before starting workers
-		if ok := cache.WaitForCacheSync(stopCh, c.istioVirtualServiceSynced); !ok {
-			return fmt.Errorf("failed to wait for istio virtualService cache to sync")
 		}
 	}
 

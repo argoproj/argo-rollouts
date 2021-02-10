@@ -57,6 +57,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioDestinationRule":                            schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                             schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric":                                       schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref),
@@ -1486,6 +1487,41 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name holds the name of the DestinationRule",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"canarySubsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CanarySubsetName is the subset name to modify labels with canary ReplicaSet pod template hash value",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"stableSubsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "canarySubsetName", "stableSubsetName"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1495,8 +1531,14 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 				Properties: map[string]spec.Schema{
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
-							Description: "VirtualService reference to a Virtual Service that modified to shape traffic",
+							Description: "VirtualService references an Istio VirtualService to modify to shape traffic",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"),
+						},
+					},
+					"destinationRule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DestinationRule references an Istio DestinationRule to modify to shape traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioDestinationRule"),
 						},
 					},
 				},
@@ -1504,7 +1546,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioDestinationRule", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"},
 	}
 }
 

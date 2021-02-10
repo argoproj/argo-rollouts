@@ -230,3 +230,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 	return true, nil
 }
+
+// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+	return nil
+}

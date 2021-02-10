@@ -504,6 +504,19 @@ spec:
                           type: object
                         istio:
                           properties:
+                            destinationRule:
+                              properties:
+                                canarySubsetName:
+                                  type: string
+                                name:
+                                  type: string
+                                stableSubsetName:
+                                  type: string
+                              required:
+                              - canarySubsetName
+                              - name
+                              - stableSubsetName
+                              type: object
                             virtualService:
                               properties:
                                 name:

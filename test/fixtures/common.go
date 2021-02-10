@@ -410,3 +410,9 @@ func (c *Common) deleteObject(kind, name string) {
 	}
 	c.log.Info(string(out))
 }
+
+func (c *Common) SetLabels(obj *unstructured.Unstructured) {
+	labels := obj.GetLabels()
+	labels[E2ELabelKeyTestName] = c.t.Name()
+	obj.SetLabels(labels)
+}

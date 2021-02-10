@@ -416,7 +416,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	// Pass in objects to to dynamicClient
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioGVR("v1alpha3")).Informer()
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
+	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
@@ -441,13 +442,13 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
+		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ResyncPeriod:                    resync(),
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        &FakeEventRecorder{},
-		DefaultIstioVersion:             "v1alpha3",
 	})
 
 	var enqueuedObjectsLock sync.Mutex
@@ -1461,31 +1462,6 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
-	})
-}
-
-func TestGetReferencedVirtualServices(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
-				Name: "istio-vsvc-name",
-			},
-		},
-	}
-	r.Namespace = metav1.NamespaceDefault
-
-	t.Run("get referenced virtualService - fail", func(t *testing.T) {
-		c, _, _ := f.newController(noResyncPeriodFunc)
-		schema := runtime.NewScheme()
-		c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedVirtualServices()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 }
 

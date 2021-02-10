@@ -1,6 +1,10 @@
 package defaults
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -24,6 +28,11 @@ const (
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
 	// erroring the entire metric.
 	DefaultConsecutiveErrorLimit int32 = 4
+)
+
+const (
+	DefaultIstioVersion           = "v1alpha3"
+	DefaultSMITrafficSplitVersion = "v1alpha1"
 )
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
@@ -118,4 +127,19 @@ func GetConsecutiveErrorLimitOrDefault(metric *v1alpha1.Metric) int32 {
 		return int32(metric.ConsecutiveErrorLimit.IntValue())
 	}
 	return DefaultConsecutiveErrorLimit
+}
+
+func Namespace() string {
+	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
+	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
+	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
+		return ns
+	}
+	// Fall back to the namespace associated with the service account token, if available
+	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+			return ns
+		}
+	}
+	return "argo-rollouts"
 }

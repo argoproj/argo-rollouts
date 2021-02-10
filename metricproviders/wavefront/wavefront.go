@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
 	"strconv"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	wavefrontapi "github.com/spaceapegames/go-wavefront"
@@ -16,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 )
@@ -196,7 +194,7 @@ func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 
 // NewWavefrontAPI generates a Wavefront API client from the metric configuration
 func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (WavefrontClientAPI, error) {
-	ns := Namespace()
+	ns := defaults.Namespace()
 	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), WavefrontTokensSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -215,19 +213,4 @@ func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface)
 	} else {
 		return nil, errors.New("API token not found")
 	}
-}
-
-func Namespace() string {
-	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
-	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
-	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
-		return ns
-	}
-	// Fall back to the namespace associated with the service account token, if available
-	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
-			return ns
-		}
-	}
-	return "argo-rollouts"
 }

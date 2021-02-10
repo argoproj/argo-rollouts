@@ -176,10 +176,18 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 	return true
 }
 
+// metaNamespaceKeyFunc is a wrapper around cache.MetaNamespaceKeyFunc but also accepts strings
+func metaNamespaceKeyFunc(obj interface{}) (string, error) {
+	if objStr, ok := obj.(string); ok {
+		obj = cache.ExplicitKey(objStr)
+	}
+	return cache.MetaNamespaceKeyFunc(obj)
+}
+
 func Enqueue(obj interface{}, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+	if key, err = metaNamespaceKeyFunc(obj); err != nil {
 		runtime.HandleError(err)
 		return
 	}
@@ -189,7 +197,7 @@ func Enqueue(obj interface{}, q workqueue.RateLimitingInterface) {
 func EnqueueAfter(obj interface{}, duration time.Duration, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+	if key, err = metaNamespaceKeyFunc(obj); err != nil {
 		runtime.HandleError(err)
 		return
 	}
@@ -199,7 +207,7 @@ func EnqueueAfter(obj interface{}, duration time.Duration, q workqueue.RateLimit
 func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+	if key, err = metaNamespaceKeyFunc(obj); err != nil {
 		runtime.HandleError(err)
 		return
 	}

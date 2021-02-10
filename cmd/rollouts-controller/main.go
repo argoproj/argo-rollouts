@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/istio"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
@@ -35,9 +37,7 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName                    = "argo-rollouts"
-	defaultIstioVersion        = "v1alpha3"
-	defaultTrafficSplitVersion = "v1alpha1"
+	cliName = "argo-rollouts"
 )
 
 func newCommand() *cobra.Command {
@@ -75,6 +75,7 @@ func newCommand() *cobra.Command {
 			stopCh := signals.SetupSignalHandler()
 
 			alb.SetDefaultVerifyWeight(albVerifyWeight)
+			istio.SetIstioAPIVersion(istioVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -111,7 +112,6 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
-			istioGVR := istioutil.GetIstioGVR(istioVersion)
 			// We need three dynamic informer factories:
 			// 1. The first is the dynamic informer for rollouts, analysisruns, analysistemplates, experiments
 			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, instanceIDTweakListFunc)
@@ -120,9 +120,8 @@ func newCommand() *cobra.Command {
 			// is to support the mode when the rollout controller is started and only operating against
 			// a single namespace (i.e. rollouts-controller --namespace foo).
 			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
-			// 3. We finally need an istio dynamic informer factory which uses different resync
-			// period and does not use a tweakListFunc.
-			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, namespace, nil)
+			// 3. We finally need an istio dynamic informer factory which does not use a tweakListFunc.
+			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, nil)
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
@@ -138,13 +137,12 @@ func newCommand() *cobra.Command {
 				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
-				istioDynamicInformerFactory.ForResource(istioGVR).Informer(),
+				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
+				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
 				resyncDuration,
 				instanceID,
 				metricsPort,
 				k8sRequestProvider,
-				istioVersion,
-				trafficSplitVersion,
 				nginxIngressClasses,
 				albIngressClasses)
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
@@ -157,7 +155,7 @@ func newCommand() *cobra.Command {
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			if istioutil.DoesIstioExist(dynamicClient, namespace, istioVersion) {
+			if istioutil.DoesIstioExist(dynamicClient, namespace) {
 				istioDynamicInformerFactory.Start(stopCh)
 			}
 
@@ -183,8 +181,8 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
-	command.Flags().StringVar(&istioVersion, "istio-api-version", defaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
-	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaultTrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
+	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
+	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	command.Flags().BoolVar(&albVerifyWeight, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")

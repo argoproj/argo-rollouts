@@ -106,7 +106,7 @@ func TestEnqueue(t *testing.T) {
 
 func TestEnqueueInvalidObj(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	Enqueue("Invalid Object", q)
+	Enqueue(struct{}{}, q)
 	assert.Equal(t, 0, q.Len())
 }
 
@@ -124,9 +124,15 @@ func TestEnqueueAfter(t *testing.T) {
 	assert.Equal(t, 1, q.Len())
 }
 
+func TestEnqueueString(t *testing.T) {
+	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	Enqueue("default/foo", q)
+	assert.Equal(t, 1, q.Len())
+}
+
 func TestEnqueueAfterInvalidObj(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	EnqueueAfter("Invalid Object", time.Duration(1), q)
+	EnqueueAfter(struct{}{}, time.Duration(1), q)
 	assert.Equal(t, 0, q.Len())
 	time.Sleep(2 * time.Second)
 	assert.Equal(t, 0, q.Len())
@@ -148,7 +154,7 @@ func TestEnqueueRateLimited(t *testing.T) {
 
 func TestEnqueueRateLimitedInvalidObject(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	EnqueueRateLimited("invalid Object", q)
+	EnqueueRateLimited(struct{}{}, q)
 	assert.Equal(t, 0, q.Len())
 	time.Sleep(time.Second)
 	assert.Equal(t, 0, q.Len())

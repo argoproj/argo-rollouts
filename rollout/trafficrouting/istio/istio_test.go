@@ -5,22 +5,20 @@ import (
 	"strings"
 	"testing"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/dynamic/dynamiclister"
-
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 func strToUnstructured(yamlStr string) *unstructured.Unstructured {
@@ -34,7 +32,7 @@ func strToUnstructured(yamlStr string) *unstructured.Unstructured {
 }
 
 func getVirtualServiceLister(client dynamic.Interface) dynamiclister.Lister {
-	istioGVR := istioutil.GetIstioGVR("v1alpha3")
+	istioGVR := istioutil.GetIstioVirtualServiceGVR()
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(client, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioGVR).Informer()
 	stopCh := make(chan struct{})
@@ -138,7 +136,7 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
 	client.ClearActions()
 	err := r.SetWeight(10)
 	assert.Nil(t, err)
@@ -152,7 +150,7 @@ func TestReconcileNoChanges(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil)
 	err := r.SetWeight(0)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
@@ -165,7 +163,7 @@ func TestReconcileInvalidValidation(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
 	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
 	client.ClearActions()
 	err := r.SetWeight(0)
 	assert.Equal(t, "Route 'route-not-found' is not found", err.Error())
@@ -176,7 +174,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", vsvcLister)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
 	client.ClearActions()
 	err := r.SetWeight(10)
 	assert.NotNil(t, err)
@@ -187,7 +185,7 @@ func TestType(t *testing.T) {
 	schema := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, "v1alpha3", nil)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil)
 	assert.Equal(t, Type, r.Type())
 }
 
@@ -245,10 +243,10 @@ func TestValidateHTTPRoutes(t *testing.T) {
 			},
 		}
 	}
-	httpRoutes := []HttpRoute{{
+	httpRoutes := []VirtualServiceHTTPRoute{{
 		Name: "test",
-		Route: []route{{
-			Destination: destination{
+		Route: []VirtualServiceHTTPRouteDestination{{
+			Destination: VirtualServiceDestination{
 				Host: "stable",
 			},
 		}},
@@ -257,12 +255,12 @@ func TestValidateHTTPRoutes(t *testing.T) {
 	err := ValidateHTTPRoutes(rollout, httpRoutes)
 	assert.Equal(t, fmt.Errorf("Route 'test' does not have exactly two routes"), err)
 
-	httpRoutes[0].Route = []route{{
-		Destination: destination{
+	httpRoutes[0].Route = []VirtualServiceHTTPRouteDestination{{
+		Destination: VirtualServiceDestination{
 			Host: "stable",
 		},
 	}, {
-		Destination: destination{
+		Destination: VirtualServiceDestination{
 			Host: "canary",
 		},
 	}}
@@ -276,57 +274,32 @@ func TestValidateHTTPRoutes(t *testing.T) {
 }
 
 func TestValidateHosts(t *testing.T) {
-	hr := HttpRoute{
+	hr := VirtualServiceHTTPRoute{
 		Name: "test",
-		Route: []route{{
-			Destination: destination{
+		Route: []VirtualServiceHTTPRouteDestination{{
+			Destination: VirtualServiceDestination{
 				Host: "stable",
 			},
 		}},
 	}
-	err := validateHosts(hr, "stable", "canary")
+	err := validateVirtualServiceHTTPRouteDestinations(hr, "stable", "canary", nil)
 	assert.Equal(t, fmt.Errorf("Route 'test' does not have exactly two routes"), err)
 
-	hr.Route = []route{{
-		Destination: destination{
+	hr.Route = []VirtualServiceHTTPRouteDestination{{
+		Destination: VirtualServiceDestination{
 			Host: "stable",
 		},
 	}, {
-		Destination: destination{
+		Destination: VirtualServiceDestination{
 			Host: "canary",
 		},
 	}}
-	err = validateHosts(hr, "stable", "canary")
+	err = validateVirtualServiceHTTPRouteDestinations(hr, "stable", "canary", nil)
 	assert.Nil(t, err)
 
-	err = validateHosts(hr, "not-found-stable", "canary")
+	err = validateVirtualServiceHTTPRouteDestinations(hr, "not-found-stable", "canary", nil)
 	assert.Equal(t, fmt.Errorf("Stable Service 'not-found-stable' not found in route"), err)
 
-	err = validateHosts(hr, "stable", "not-found-canary")
+	err = validateVirtualServiceHTTPRouteDestinations(hr, "stable", "not-found-canary", nil)
 	assert.Equal(t, fmt.Errorf("Canary Service 'not-found-canary' not found in route"), err)
-}
-
-func TestGetRolloutVirtualServiceKeys(t *testing.T) {
-	ro := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{},
-		},
-	}
-	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
-	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
-	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
-	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
-		VirtualService: v1alpha1.IstioVirtualService{},
-	}
-	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "test"
-	keys := GetRolloutVirtualServiceKeys(ro)
-	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0], "default/test")
 }

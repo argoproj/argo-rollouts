@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
@@ -22,6 +21,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -31,6 +31,7 @@ func newFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	r.On("Type").Return("fake")
 	r.On("SetWeight", mock.Anything).Return(nil)
 	r.On("VerifyWeight", mock.Anything).Return(true, nil)
+	r.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	return &r
 }
 
@@ -80,6 +81,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
 	f.runExpectError(getKey(ro, t), true)
 }
@@ -89,6 +91,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(false, errors.New("Error message"))
 	f.runExpectError(getKey(ro, t), true)
@@ -99,6 +102,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(false, nil)
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
@@ -152,6 +156,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(10), desiredWeight)
@@ -200,6 +205,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(10), desiredWeight)
@@ -240,6 +246,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 	f.expectPatchRolloutAction(r1)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(0), desiredWeight)
@@ -251,9 +258,12 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
 	rc := Controller{}
-	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion("v1alpha3")
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), 0)
-	rc.istioVirtualServiceInformer = dynamicInformerFactory.ForResource(gvk).Informer()
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	druleGVR := istioutil.GetIstioDestinationRuleGVR()
+	rc.IstioController = &istio.IstioController{}
+	rc.IstioController.VirtualServiceInformer = dynamicInformerFactory.ForResource(vsvcGVR).Informer()
+	rc.IstioController.DestinationRuleInformer = dynamicInformerFactory.ForResource(druleGVR).Informer()
 
 	steps := []v1alpha1.CanaryStep{
 		{
@@ -303,7 +313,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		dynamicInformerFactory.Start(stopCh)
 		dynamicInformerFactory.WaitForCacheSync(stopCh)
 		close(stopCh)
-		rc.istioVirtualServiceLister = dynamiclister.New(rc.istioVirtualServiceInformer.GetIndexer(), gvk)
+		rc.IstioController.VirtualServiceLister = dynamiclister.New(rc.IstioController.VirtualServiceInformer.GetIndexer(), vsvcGVR)
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
@@ -346,21 +356,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		assert.Equal(t, alb.Type, networkReconciler.Type())
 	}
 	{
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-			SMI: &v1alpha1.SMITrafficRouting{},
-		}
-		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
-		}
-		_, err := rc.NewTrafficRoutingReconciler(roCtx)
-		assert.NotNil(t, err)
-		assert.EqualError(t, err, "Unsupported TrafficSplit API version ``")
-	}
-	{
 		tsController := Controller{}
-		tsController.defaultTrafficSplitVersion = "v1alpha1"
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},

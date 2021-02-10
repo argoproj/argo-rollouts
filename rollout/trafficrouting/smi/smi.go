@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -33,7 +34,6 @@ type ReconcilerConfig struct {
 	Client         smiclientset.Interface
 	Recorder       record.EventRecorder
 	ControllerKind schema.GroupVersionKind
-	ApiVersion     string
 }
 
 // Reconciler holds required fields to reconcile SMI resources
@@ -52,6 +52,12 @@ type VersionedTrafficSplits struct {
 	ts3 *smiv1alpha3.TrafficSplit
 }
 
+var smiAPIVersion = defaults.DefaultSMITrafficSplitVersion
+
+func SetSMIAPIVersion(apiVersion string) {
+	smiAPIVersion = apiVersion
+}
+
 // NewReconciler returns a reconciler struct that brings the SMI into the desired state
 func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	r := &Reconciler{
@@ -59,7 +65,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		log: logutil.WithRollout(cfg.Rollout),
 	}
 	ctx := context.TODO()
-	switch apiVersion := r.cfg.ApiVersion; apiVersion {
+	switch smiAPIVersion {
 	case "v1alpha1":
 		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
 			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
@@ -169,7 +175,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 			return metav1.IsControlledBy(ts.ts3, r.cfg.Rollout)
 		}
 	default:
-		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", apiVersion)
+		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", smiAPIVersion)
 		return nil, err
 	}
 	return r, nil
@@ -239,7 +245,7 @@ func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeigh
 
 	objectMeta := objectMeta(trafficSplitName, r.cfg.Rollout, r.cfg.ControllerKind)
 
-	switch apiVersion := r.cfg.ApiVersion; apiVersion {
+	switch smiAPIVersion {
 	case "v1alpha1":
 		trafficSplits.ts1 = trafficSplitV1Alpha1(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
 	case "v1alpha2":
@@ -315,4 +321,9 @@ func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 			},
 		},
 	}
+}
+
+// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+	return nil
 }
