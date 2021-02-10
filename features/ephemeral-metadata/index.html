@@ -1284,15 +1284,19 @@
                 <h1 id="ephemeral-metadata">Ephemeral Metadata<a class="headerlink" href="#ephemeral-metadata" title="Permanent link">&para;</a></h1>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Available since v0.10.0</p>
+<p>Available for canary rollouts since v0.10.0</p>
 </div>
-<p>One use case is for a Rollout to label or annotate the canary/stable pods with user-defined labels/annotations,
-for <em>only</em> the duration which they are the canary or stable set, and for the labels to be updated/removed as soon
-as the ReplicaSet switches roles (e.g. from canary to stable). The use case which this enables, is to allow
-prometheus, wavefront, datadog queries and dashboards to be built, which can rely on a consistent
-labels, rather than the <code>rollouts-pod-template-hash</code> which is unpredictable and changing from revision
-to revision.</p>
-<p>A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or 
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available for blue-green rollouts since v1.0</p>
+</div>
+<p>One use case is for a Rollout to label or annotate the desired/stable pods with user-defined
+labels/annotations, for <em>only</em> the duration which they are the desired or stable set, and for the
+labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).
+The use case which this enables, is to allow prometheus, wavefront, datadog queries and dashboards
+to be built, which can rely on a consistent labels, rather than the <code>rollouts-pod-template-hash</code>
+which is unpredictable and changing from revision to revision.</p>
+<p>A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or
 canary Pods using the <code>stableMetadata</code> and <code>canaryMetadata</code> fields respectively.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">strategy</span><span class="p">:</span>
@@ -1304,18 +1308,30 @@ canary Pods using the <code>stableMetadata</code> and <code>canaryMetadata</code
         <span class="nt">labels</span><span class="p">:</span>
           <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
 </code></pre></div>
-<p>During an update, the Rollout will create the canary ReplicaSet while also merging the metadata
-defined in <code>canaryMetadata</code> to the canary ReplicaSet's <code>spec.template.metadata</code>. This results in all
-Pods of the ReplicaSet being created with the canary metadata. When the rollout becomes fully
-promoted, the canary ReplicaSet becomes the stable, and is updated to use the labels and annotations
-under <code>stableMetadata</code>. The Pods of the ReplicaSet will then be updated <em>in place</em> to use the stable
-metadata (without recreating the pods).</p>
+<p>A Rollout using the blue-green strategy has the ability to attach ephemeral metadata to the active
+or preview Pods using the <code>activeMetadata</code> and <code>previewMetadata</code> fields respectively.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">blueGreen</span><span class="p">:</span>
+      <span class="nt">activeMetadata</span><span class="p">:</span>
+        <span class="nt">labels</span><span class="p">:</span>
+          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">active</span>
+      <span class="nt">previewMetadata</span><span class="p">:</span>
+        <span class="nt">labels</span><span class="p">:</span>
+          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview</span>
+</code></pre></div>
+<p>During an update, the Rollout will create the desired ReplicaSet while also merging the metadata
+defined in <code>canaryMetadata</code>/<code>previewMetadata</code> to the desired ReplicaSet's <code>spec.template.metadata</code>.
+This results in all Pods of the ReplicaSet being created with the desired metadata. When the rollout
+becomes fully promoted, the desired ReplicaSet becomes the stable, and is updated to use the labels
+and annotations under <code>stableMetadata</code>/<code>activeMetadata</code>. The Pods of the ReplicaSet will then be
+updated <em>in place</em> to use the stable metadata (without recreating the pods).</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>In order for tooling to take advantage of this feature, they would need to recognize the change
-in labels and/or annotations that happen <em>after</em> the Pod has already started. Not all tools may
-detect this.</p>
 </div>
+<p>In order for tooling to take advantage of this feature, they would need to recognize the change in
+labels and/or annotations that happen <em>after</em> the Pod has already started. Not all tools may detect
+this.</p>
                 
               
               
