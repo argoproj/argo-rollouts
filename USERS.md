@@ -12,3 +12,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [New Relic](https://newrelic.com/)
 1. [Quipper](https://www.quipper.com/)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
+1. [Quizlet](https://quizlet.com)

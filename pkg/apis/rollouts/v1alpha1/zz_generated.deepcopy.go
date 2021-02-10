@@ -427,6 +427,16 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(RolloutAnalysis)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PreviewMetadata != nil {
+		in, out := &in.PreviewMetadata, &out.PreviewMetadata
+		*out = new(PodTemplateMetadata)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ActiveMetadata != nil {
+		in, out := &in.ActiveMetadata, &out.ActiveMetadata
+		*out = new(PodTemplateMetadata)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

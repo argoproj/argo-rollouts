@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -236,6 +237,7 @@ spec:
 func (s *CanarySuite) TestEphemeralMetadata() {
 	podsHaveStableMetadata := func(pods *corev1.PodList) bool {
 		for _, pod := range pods.Items {
+			log.Printf("+%v", pod.Labels)
 			if pod.Labels["role"] != "stable" {
 				return false
 			}
@@ -278,7 +280,7 @@ func (s *CanarySuite) TestEphemeralMetadata() {
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: ephemeral-metadata
+  name: ephemeral-metadata-canary
 spec:
   replicas: 2
   strategy:
@@ -294,11 +296,11 @@ spec:
       - pause: {}
   selector:
     matchLabels:
-      app: ephemeral-metadata
+      app: ephemeral-metadata-canary
   template:
     metadata:
       labels:
-        app: ephemeral-metadata
+        app: ephemeral-metadata-canary
     spec:
       containers:
       - name: ephemeral-metadata

@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"context"
 	"fmt"
 	"sort"
 
@@ -366,76 +365,4 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-// reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
-func (c *rolloutContext) reconcileEphemeralMetadata() error {
-	ctx := context.TODO()
-	if c.rollout.Spec.Strategy.Canary == nil {
-		return nil
-	}
-	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
-
-	if fullyRolledOut {
-		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
-		if err != nil {
-			return err
-		}
-	} else {
-		// we are in a upgrading state. newRS is a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, c.rollout.Spec.Strategy.Canary.CanaryMetadata)
-		if err != nil {
-			return err
-		}
-		// sync stable metadata to the stable rs
-		err = c.syncEphemeralMetadata(ctx, c.stableRS, c.rollout.Spec.Strategy.Canary.StableMetadata)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
-	for _, rs := range c.otherRSs {
-		err := c.syncEphemeralMetadata(ctx, rs, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
-	if rs == nil {
-		return nil
-	}
-	modifiedRS, modified := replicasetutil.SyncReplicaSetEphemeralPodMetadata(rs, podMetadata)
-	if !modified {
-		return nil
-	}
-	// 1. Sync ephemeral metadata to pods
-	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
-	if err != nil {
-		return err
-	}
-	existingPodMetadata := replicasetutil.ParseExistingPodMetadata(rs)
-	for _, pod := range pods {
-		newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&pod.ObjectMeta, existingPodMetadata, podMetadata)
-		if podModified {
-			pod.ObjectMeta = *newPodObjectMeta
-			_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			}
-			c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
-		}
-	}
-
-	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
-	_, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
-	return nil
 }
