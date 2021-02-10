@@ -642,24 +642,3 @@ spec:
         - key: Authorization
           value: "Bearer {{ args.api-token }}" 
 ```
-
-## Handling NaN (Not a Number) Results
-
-The Rollout Controller considers NaN Metric results Inconclusive by default. Users have the capability to determine how
-NaN results are interpeted. They can be set to "Inconclusive", "Failed", or "Success".
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-spec:
-...
-  metrics:
-  - name: webmetric
-    provider:
-      web:
-        headers:
-        - key: Authorization
-          value: "Bearer {{ args.api-token }}"
-    nanResult: 
-```
-
