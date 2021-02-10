@@ -644,10 +644,10 @@ spec:
 ```
 
 ## Handling Metric Results - NaN and Infinity
-Metric providers can sometimes return values of NaN (not a number) and infinity. Users can edit the successCondition and failureCondition fields
+Metric providers can sometimes return values of NaN (not a number) and infinity. Users can edit the `successCondition` and `failureCondition` fields
 to handle these cases accordingly.
 
-Here are three examples where `NaN` is marked `Successful`, `Inconclusive` and `Failed` respectively.
+Here are three examples where a metric result of NaN is considered successful, inconclusive and failed respectively.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -710,7 +710,7 @@ status:
   startedAt: "2021-02-10T00:15:26Z"
 ```
 
-Here are two examples where `+Inf` is marked `Successful` and `Failed` respectively.
+Here are two examples where a metric result of infinity is considered successful and failed respectively.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
