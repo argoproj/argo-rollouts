@@ -48,6 +48,8 @@ To learn more about Argo Rollouts go to the [complete documentation](https://arg
 [Official Argo Rollouts User List](https://github.com/argoproj/argo-rollouts/blob/master/USERS.md)
 
 ## Community Blogs and Presentations
-* [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY) @ [The DevOps Toolkit Series](https://www.youtube.com/c/TheDevOpsToolkitSeries)
+
+* [Automation of Everything - How To Combine Argo Events, Workflows & Pipelines, CD, and Rollouts](https://youtu.be/XNXJtxkUKeY)
+* [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY)
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
 * [Leveling Up Your CD: Unlocking Progressive Delivery on Kubernetes](https://www.youtube.com/watch?v=Nv0PPwbIEkY)
