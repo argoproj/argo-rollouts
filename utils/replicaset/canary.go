@@ -1,12 +1,20 @@
 package replicaset
 
 import (
+	"encoding/json"
 	"math"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// EphemeralMetadataAnnotation denotes pod metadata which are ephemerally injected to canary/stable pods
+	EphemeralMetadataAnnotation = "rollout.argoproj.io/ephemeral-metadata"
 )
 
 // AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
@@ -285,6 +293,9 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 
 // GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
 func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
+	if rollout.Status.PromoteFull {
+		return nil, 100
+	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
 		if scs.Replicas != nil {
 			return scs.Replicas, 0
@@ -392,4 +403,103 @@ func GetCurrentExperimentStep(r *v1alpha1.Rollout) *v1alpha1.RolloutExperimentSt
 		}
 	}
 	return nil
+}
+
+// ParseExistingPodMetadata returns the existing podMetadata which was injected to the ReplicaSet
+// based on examination of rollout.argoproj.io/ephemeral-metadata annotation on  the ReplicaSet.
+// Returns nil if there was no metadata, or the metadata was not parseable.
+func ParseExistingPodMetadata(rs *appsv1.ReplicaSet) *v1alpha1.PodTemplateMetadata {
+	var existingPodMetadata *v1alpha1.PodTemplateMetadata
+	if rs.Annotations != nil {
+		if existingPodMetadataStr, ok := rs.Annotations[EphemeralMetadataAnnotation]; ok {
+			err := json.Unmarshal([]byte(existingPodMetadataStr), &existingPodMetadata)
+			if err != nil {
+				log.Warnf("Failed to determine existing ephemeral metadata from annotation: %s", existingPodMetadataStr)
+				return nil
+			}
+			return existingPodMetadata
+		}
+	}
+	return nil
+}
+
+// SyncEphemeralPodMetadata will inject the desired pod metadata to the ObjectMeta as well as remove
+// previously injected pod metadata which is no longer desired. This function is careful to only
+// modify metadata that we injected previously, and not affect other metadata which might be
+// controlled by other controllers (e.g. istio pod sidecar injector)
+func SyncEphemeralPodMetadata(metadata *metav1.ObjectMeta, existingPodMetadata, desiredPodMetadata *v1alpha1.PodTemplateMetadata) (*metav1.ObjectMeta, bool) {
+	modified := false
+	metadata = metadata.DeepCopy()
+
+	// Inject the desired metadata
+	if desiredPodMetadata != nil {
+		for k, v := range desiredPodMetadata.Annotations {
+			if metadata.Annotations == nil {
+				metadata.Annotations = make(map[string]string)
+			}
+			if prev := metadata.Annotations[k]; prev != v {
+				metadata.Annotations[k] = v
+				modified = true
+			}
+		}
+		for k, v := range desiredPodMetadata.Labels {
+			if metadata.Labels == nil {
+				metadata.Labels = make(map[string]string)
+			}
+			if prev := metadata.Labels[k]; prev != v {
+				metadata.Labels[k] = v
+				modified = true
+			}
+		}
+	}
+
+	isMetadataStillDesired := func(key string, desired map[string]string) bool {
+		_, ok := desired[key]
+		return ok
+	}
+	// Remove existing metadata which is no longer desired
+	if existingPodMetadata != nil {
+		for k := range existingPodMetadata.Annotations {
+			if desiredPodMetadata == nil || !isMetadataStillDesired(k, desiredPodMetadata.Annotations) {
+				if metadata.Annotations != nil {
+					delete(metadata.Annotations, k)
+					modified = true
+				}
+			}
+		}
+		for k := range existingPodMetadata.Labels {
+			if desiredPodMetadata == nil || !isMetadataStillDesired(k, desiredPodMetadata.Labels) {
+				if metadata.Labels != nil {
+					delete(metadata.Labels, k)
+					modified = true
+				}
+			}
+		}
+	}
+	return metadata, modified
+}
+
+// SyncReplicaSetEphemeralPodMetadata injects the desired pod metadata to the ReplicaSet, and
+// removes previously injected metadata (based on the rollout.argoproj.io/ephemeral-metadata
+// annotation) if it is no longer desired. A podMetadata value of nil indicates all ephemeral
+// metadata should be removed completely.
+func SyncReplicaSetEphemeralPodMetadata(rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) (*appsv1.ReplicaSet, bool) {
+	existingPodMetadata := ParseExistingPodMetadata(rs)
+	newObjectMeta, modified := SyncEphemeralPodMetadata(&rs.Spec.Template.ObjectMeta, existingPodMetadata, podMetadata)
+	rs = rs.DeepCopy()
+	if !modified {
+		return rs, false
+	}
+	rs.Spec.Template.ObjectMeta = *newObjectMeta
+	if podMetadata != nil {
+		// remember what we injected by annotating it
+		metadataBytes, _ := json.Marshal(podMetadata)
+		if rs.Annotations == nil {
+			rs.Annotations = make(map[string]string)
+		}
+		rs.Annotations[EphemeralMetadataAnnotation] = string(metadataBytes)
+	} else {
+		delete(rs.Annotations, EphemeralMetadataAnnotation)
+	}
+	return rs, true
 }

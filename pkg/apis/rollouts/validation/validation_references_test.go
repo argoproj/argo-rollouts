@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,6 +72,7 @@ spec:
       weight: 0`
 
 func getAnalysisTemplateWithType() AnalysisTemplateWithType {
+	count := intstr.FromInt(1)
 	return AnalysisTemplateWithType{
 		AnalysisTemplate: &v1alpha1.AnalysisTemplate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -80,11 +82,11 @@ func getAnalysisTemplateWithType() AnalysisTemplateWithType {
 				Metrics: []v1alpha1.Metric{{
 					Name:     "metric-name",
 					Interval: "1m",
-					Count:    1,
+					Count:    &count,
 				}},
 			},
 		},
-		TemplateType:    CanaryStep,
+		TemplateType:    InlineAnalysis,
 		AnalysisIndex:   0,
 		CanaryStepIndex: 0,
 	}
@@ -160,13 +162,25 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
-	t.Run("validate analysisTemplate - failure", func(t *testing.T) {
+	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
+		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
-		template.AnalysisTemplate.Spec.Metrics[0].Count = 0
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(template)
 		assert.Len(t, allErrs, 1)
-		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, "AnalysisTemplate analysis-template-name has metric metric-name which runs indefinitely")
+		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric-name", count.String())
+		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, msg)
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
+	})
+
+	// verify background analysis does not care about a metric that runs indefinitely
+	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
+		count := intstr.FromInt(0)
+		template := getAnalysisTemplateWithType()
+		template.TemplateType = BackgroundAnalysis
+		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
+		allErrs := ValidateAnalysisTemplateWithType(template)
+		assert.Empty(t, allErrs)
 	})
 }
 
@@ -256,7 +270,7 @@ func TestGetAnalysisTemplateWithTypeFieldPath(t *testing.T) {
 	})
 
 	t.Run("get fieldPath for analysisTemplateType CanaryStep", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath(CanaryStep, 0, 0)
+		fldPath := GetAnalysisTemplateWithTypeFieldPath(InlineAnalysis, 0, 0)
 		expectedFldPath := field.NewPath("spec", "strategy", "canary", "steps").Index(0).Child("analysis", "templates").Index(0).Child("templateName")
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})

@@ -47,7 +47,7 @@ func TestGetMaxSurgeOrDefault(t *testing.T) {
 
 func TestGetMaxUnavailableOrDefault(t *testing.T) {
 	maxUnavailable := intstr.FromInt(2)
-	rolloutNonDefaultValue := &v1alpha1.Rollout{
+	rolloutCanaryNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
@@ -57,9 +57,21 @@ func TestGetMaxUnavailableOrDefault(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutCanaryNonDefaultValue))
+
+	rolloutBlueGreenNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					MaxUnavailable: &maxUnavailable,
+				},
+			},
+		},
+	}
+	assert.Equal(t, maxUnavailable, *GetMaxUnavailableOrDefault(rolloutBlueGreenNonDefaultValue))
+
 	rolloutDefaultValue := &v1alpha1.Rollout{}
-	assert.Equal(t, intstr.FromInt(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
+	assert.Equal(t, intstr.FromString(DefaultMaxUnavailable), *GetMaxUnavailableOrDefault(rolloutDefaultValue))
 }
 
 func TestGetCanaryIngressAnnotationPrefixOrDefault(t *testing.T) {
@@ -187,11 +199,11 @@ func TestGetExperimentProgressDeadlineSecondsOrDefault(t *testing.T) {
 }
 
 func TestGetConsecutiveErrorLimitOrDefault(t *testing.T) {
-	errorLimit := int32(2)
+	errorLimit := intstr.FromInt(2)
 	metricNonDefaultValue := &v1alpha1.Metric{
 		ConsecutiveErrorLimit: &errorLimit,
 	}
-	assert.Equal(t, errorLimit, GetConsecutiveErrorLimitOrDefault(metricNonDefaultValue))
+	assert.Equal(t, int32(errorLimit.IntValue()), GetConsecutiveErrorLimitOrDefault(metricNonDefaultValue))
 
 	metricDefaultValue := &v1alpha1.Metric{}
 	assert.Equal(t, DefaultConsecutiveErrorLimit, GetConsecutiveErrorLimitOrDefault(metricDefaultValue))

@@ -75,6 +75,7 @@ func (o *ArgoRolloutsOptions) PersistentPreRunE(c *cobra.Command, args []string)
 	// NOTE: we set the output of the cobra command to stderr because the only thing that should
 	// emit to this are returned errors from command.RunE
 	c.SetOut(o.ErrOut)
+	c.SetErr(o.ErrOut)
 	level, err := log.ParseLevel(o.LogLevel)
 	if err != nil {
 		return err

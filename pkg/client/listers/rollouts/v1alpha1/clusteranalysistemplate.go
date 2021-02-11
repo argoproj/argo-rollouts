@@ -26,10 +26,13 @@ import (
 )
 
 // ClusterAnalysisTemplateLister helps list ClusterAnalysisTemplates.
+// All objects returned here must be treated as read-only.
 type ClusterAnalysisTemplateLister interface {
 	// List lists all ClusterAnalysisTemplates in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.ClusterAnalysisTemplate, err error)
 	// Get retrieves the ClusterAnalysisTemplate from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.ClusterAnalysisTemplate, error)
 	ClusterAnalysisTemplateListerExpansion
 }

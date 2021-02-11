@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
@@ -58,5 +59,10 @@ func NewCmdAbort(o *options.ArgoRolloutsOptions) *cobra.Command {
 // AbortRollout aborts a rollout
 func AbortRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
 	ctx := context.TODO()
-	return rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(abortPatch), metav1.PatchOptions{})
+	// attempt using status subresource, first
+	ro, err := rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(abortPatch), metav1.PatchOptions{}, "status")
+	if err != nil && k8serrors.IsNotFound(err) {
+		ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(abortPatch), metav1.PatchOptions{})
+	}
+	return ro, err
 }

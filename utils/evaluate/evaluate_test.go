@@ -89,7 +89,6 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	logCtx := logrus.WithField("test", "test")
 	status := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
-
 }
 
 func TestEvaluateConditionWithSucces(t *testing.T) {
@@ -112,7 +111,7 @@ func TestErrorWithNonBoolReturn(t *testing.T) {
 
 func TestErrorWithInvalidReference(t *testing.T) {
 	b, err := EvalCondition(true, "invalidVariable")
-	assert.Equal(t, fmt.Errorf("unknown name invalidVariable (1:1)\n | invalidVariable\n | ^"), err)
+	assert.Equal(t, fmt.Errorf("unknown name invalidVariable"), err)
 	assert.False(t, b)
 }
 

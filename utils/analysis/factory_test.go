@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"fmt"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -158,12 +161,14 @@ func TestBackgroundLabels(t *testing.T) {
 
 func TestValidateMetrics(t *testing.T) {
 	t.Run("Ensure count >= failureLimit", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        1,
-					FailureLimit: 2,
+					Count:        &count,
+					FailureLimit: &failureLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -172,17 +177,20 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= failureLimit")
-		spec.Metrics[0].Count = 0
+		count = intstr.FromInt(0)
+		spec.Metrics[0].Count = &count
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	})
 	t.Run("Ensure count must be >= inconclusiveLimit", func(t *testing.T) {
+		inconclusiveLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:              "success-rate",
-					Count:             1,
-					InconclusiveLimit: 2,
+					Count:             &count,
+					InconclusiveLimit: &inconclusiveLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -191,18 +199,21 @@ func TestValidateMetrics(t *testing.T) {
 		}
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: count must be >= inconclusiveLimit")
-		spec.Metrics[0].Count = 0
+		count = intstr.FromInt(0)
+		spec.Metrics[0].Count = &count
 		err = ValidateMetrics(spec.Metrics)
 		assert.NoError(t, err)
 	})
 	t.Run("Validate metric", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(2)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &count,
 					Interval:     "60s",
-					FailureLimit: 2,
+					FailureLimit: &failureLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -213,13 +224,15 @@ func TestValidateMetrics(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("Ensure valid internal string", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(2)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &count,
 					Interval:     "60s-typo",
-					FailureLimit: 2,
+					FailureLimit: &failureLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -230,14 +243,16 @@ func TestValidateMetrics(t *testing.T) {
 		assert.Regexp(t, `metrics\[0\]: invalid interval string: time: unknown unit (")?s-typo(")? in duration (")?60s-typo(")?`, err)
 	})
 	t.Run("Ensure valid initialDelay string", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(2)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					Count:        2,
+					Count:        &count,
 					Interval:     "60s",
 					InitialDelay: "60s-typo",
-					FailureLimit: 2,
+					FailureLimit: &failureLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -255,11 +270,12 @@ func TestValidateMetrics(t *testing.T) {
 		assert.EqualError(t, err, "no metrics specified")
 	})
 	t.Run("Ensure interval set when count > 1", func(t *testing.T) {
+		count := intstr.FromInt(2)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:  "success-rate",
-					Count: 2,
+					Count: &count,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -290,11 +306,12 @@ func TestValidateMetrics(t *testing.T) {
 		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
 	})
 	t.Run("Ensure failureLimit >= 0", func(t *testing.T) {
+		failureLimit := intstr.FromInt(-1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:         "success-rate",
-					FailureLimit: -1,
+					FailureLimit: &failureLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -305,11 +322,12 @@ func TestValidateMetrics(t *testing.T) {
 		assert.EqualError(t, err, "metrics[0]: failureLimit must be >= 0")
 	})
 	t.Run("Ensure inconclusiveLimit >= 0", func(t *testing.T) {
+		inconclusiveLimit := intstr.FromInt(-1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:              "success-rate",
-					InconclusiveLimit: -1,
+					InconclusiveLimit: &inconclusiveLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -320,11 +338,12 @@ func TestValidateMetrics(t *testing.T) {
 		assert.EqualError(t, err, "metrics[0]: inconclusiveLimit must be >= 0")
 	})
 	t.Run("Ensure consecutiveErrorLimit >= 0", func(t *testing.T) {
+		errorLimit := intstr.FromInt(-1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:                  "success-rate",
-					ConsecutiveErrorLimit: pointer.Int32Ptr(-1),
+					ConsecutiveErrorLimit: &errorLimit,
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{},
 					},
@@ -335,11 +354,12 @@ func TestValidateMetrics(t *testing.T) {
 		assert.EqualError(t, err, "metrics[0]: consecutiveErrorLimit must be >= 0")
 	})
 	t.Run("Ensure metric has provider", func(t *testing.T) {
+		count := intstr.FromInt(1)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
 					Name:  "success-rate",
-					Count: 1,
+					Count: &count,
 				},
 			},
 		}
@@ -366,4 +386,78 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
 	})
+}
+
+// TestResolveMetricArgs verifies that metric arguments are resolved
+func TestResolveMetricArgs(t *testing.T) {
+	arg1, arg2 := "success-rate", "success-rate2"
+	args := []v1alpha1.Argument{
+		{
+			Name:  "metric-name",
+			Value: &arg1,
+		},
+		{
+			Name:  "metric-name2",
+			Value: &arg2,
+		},
+	}
+	metric1 := v1alpha1.Metric{Name: "metric-name", SuccessCondition: "result > {{args.metric-name}}"}
+	metric2 := v1alpha1.Metric{Name: "metric-name2", SuccessCondition: "result < {{args.metric-name2}}"}
+	newMetric1, _ := ResolveMetricArgs(metric1, args)
+	newMetric2, _ := ResolveMetricArgs(metric2, args)
+	assert.Equal(t, fmt.Sprintf("result > %s", arg1), newMetric1.SuccessCondition)
+	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
+}
+
+//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+func TestResolveMetricArgsWithQuotes(t *testing.T) {
+	arg := "foo \"bar\" baz"
+
+	arguments := []v1alpha1.Argument{{
+		Name:  "rate",
+		Value: &arg,
+	}}
+	metric := v1alpha1.Metric{
+		Name:             "rate",
+		SuccessCondition: "{{args.rate}}",
+	}
+	newMetric, err := ResolveMetricArgs(metric, arguments)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
+}
+
+func TestResolveMetrics(t *testing.T) {
+	count, failureLimit := "5", "1"
+	args := []v1alpha1.Argument{
+		{
+			Name:  "count",
+			Value: &count,
+		},
+		{
+			Name:  "failure-limit",
+			Value: &failureLimit,
+		},
+		{
+			Name: "secret",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name: "web-metric-secret",
+					Key:  "apikey",
+				},
+			},
+		},
+	}
+
+	countVal := intstr.FromString("{{args.count}}")
+	failureLimitVal := intstr.FromString("{{args.failure-limit}}")
+	metrics := []v1alpha1.Metric{{
+		Name:         "metric-name",
+		Count:        &countVal,
+		FailureLimit: &failureLimitVal,
+	}}
+
+	resolvedMetrics, err := ResolveMetrics(metrics, args)
+	assert.Nil(t, err)
+	assert.Equal(t, count, resolvedMetrics[0].Count.String())
+	assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
 }

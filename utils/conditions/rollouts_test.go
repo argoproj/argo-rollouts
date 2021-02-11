@@ -1,6 +1,7 @@
 package conditions
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -361,6 +362,7 @@ func TestRolloutComplete(t *testing.T) {
 				AvailableReplicas: available,
 			},
 		}
+		r.Generation = 123
 		podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
 		r.Status.CurrentPodHash = podHash
 		return r
@@ -377,7 +379,7 @@ func TestRolloutComplete(t *testing.T) {
 		r.Status.BlueGreen.ActiveSelector = activeSelector
 		r.Status.BlueGreen.PreviewSelector = previewSelector
 		if correctObservedGeneration {
-			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
+			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
 		}
 		return r
 	}
@@ -396,7 +398,7 @@ func TestRolloutComplete(t *testing.T) {
 		r.Status.StableRS = stableRS
 		r.Status.CurrentStepIndex = stepIndex
 		if correctObservedGeneration {
-			r.Status.ObservedGeneration = ComputeGenerationHash(r.Spec)
+			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
 		}
 		return r
 	}
@@ -409,13 +411,13 @@ func TestRolloutComplete(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "6cb88c6bcf", "6cb88c6bcf"),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
 			expected: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "6cb88c6bcf", "6cb88c6bcf"),
+			r:        blueGreenRollout(5, 6, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
 			expected: true,
 		},
 		{
@@ -541,27 +543,6 @@ func TestRolloutTimedOut(t *testing.T) {
 			assert.Equal(t, test.expected, RolloutTimedOut(rollout, &test.newStatus))
 		})
 	}
-}
-
-func TestComputeGenerationHash(t *testing.T) {
-	ro := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(10),
-			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
-						Image: "name",
-					}},
-				},
-			},
-		},
-	}
-	baseline := ComputeGenerationHash(ro.Spec)
-	roPaused := ro.DeepCopy()
-	roPaused.Spec.Paused = true
-	roPausedHash := ComputeGenerationHash(roPaused.Spec)
-
-	assert.NotEqual(t, baseline, roPausedHash)
 }
 
 // TestComputeStableStepHash verifies we generate different hashes for various step definitions.

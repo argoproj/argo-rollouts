@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -21,11 +23,12 @@ type rolloutContext struct {
 	// newRS will be nil when the pod template spec changes.
 	newRS *appsv1.ReplicaSet
 	// stableRS is the "stable" ReplicaSet which will be scaled up upon an abort.
-	// stableRS will be nil when a Rollout is first deployed.
+	// stableRS will be nil when a Rollout is first deployed, and will be equal to newRS when fully promoted
 	stableRS *appsv1.ReplicaSet
 	// allRSs are all the ReplicaSets associated with the Rollout
 	allRSs []*appsv1.ReplicaSet
-	// olderRSs are "older" ReplicaSets -- anything which is not the new. includes stableRS
+	// olderRSs are "older" ReplicaSets -- anything which is not the new
+	// this includes the stableRS (when in the middle of an update)
 	olderRSs []*appsv1.ReplicaSet
 	// otherRSs are ReplicaSets which are neither new or stable (allRSs - newRS - stableRS)
 	otherRSs []*appsv1.ReplicaSet
@@ -38,6 +41,11 @@ type rolloutContext struct {
 
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
+
+	// weightVerified keeps track of the verified weight. nil indicates the check was not performed.
+	// we only perform weight verification when we are at a setWeight step since we do not want to
+	// continually verify weight in case it could incur rate-limiting or other expenses.
+	weightVerified *bool
 }
 
 func (c *rolloutContext) reconcile() error {
@@ -45,6 +53,9 @@ func (c *rolloutContext) reconcile() error {
 	err := c.getRolloutValidationErrors()
 	if err != nil {
 		if vErr, ok := err.(*field.Error); ok {
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(c.rollout, 20*time.Second)
 			return c.createInvalidRolloutCondition(vErr, c.rollout)
 		}
 		return err

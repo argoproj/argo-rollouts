@@ -1,22 +1,43 @@
-# AWS Application Load Balancer (ALB)
+# AWS Load Balancer Controller (ALB)
 
 ## Requirements
-* ALB Ingress Controller v1.1.5 or greater
+* AWS Load Balancer Controller v1.1.5 or greater
 
 ## Overview
 
-[AWS ALB Ingress Controller](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/) enables traffic management through an Ingress object which configures an ALB to route traffic to one or more
-Kubernetes services. ALBs supports the ability to split traffic through the concept of [weighted target groups](https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/). This feature is supported by the AWS ALB Ingress Controller through annotations made in the Ingress object to configure "actions".
+[AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller) 
+(also known as AWS ALB Ingress Controller) enables traffic management through an Ingress object,
+which configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
+services. ALBs provides advanced traffic splitting capability through the concept of
+[weighted target groups](https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/).
+This feature is supported by the AWS Load Balancer Controller through annotations made to the
+Ingress object to configure "actions".
 
-ALBs are configured via listeners and rules with actions. Listeners define how traffic from client comes in, and rules define how to handle those requests with various actions. One action allows users to forward traffic to multiple TargetGroups (with each being defined as a Kubernetes service) You can read more about ALB concepts [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
+## How it works
 
-An ALB Ingress defines a desired ALB with listener and rules through its annotations and spec. To leverage multiple target groups, ALB Ingress controller looks to an annotation on an Ingress called [`alb.ingress.kubernetes.io/actions.<service-name>`](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions). To indicate that the action annotation should be used for an specific ingress rule, the value "use-annotations" is used as the port value in lieue of a named or numeric port. Below is an example of an ingress which splits traffic between two Kubernetes services, canary-service and stable-service, with a traffic weight of 80 and 20 respectively:
+ALBs are configured via Listeners, and Rules which contain Actions. Listeners define how traffic
+from a client comes in, and Rules define how to handle those requests with various Actions. One
+type of Action allows users to forward traffic to multiple TargetGroups (with each being defined as
+a Kubernetes service). You can read more about ALB concepts
+[here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
+
+An Ingress which is managed by the AWS Load Balancer Controller, controls an ALB's Listener and
+Rules through the Ingress' annotations and spec. In order to split traffic among multiple target
+groups (e.g. different Kubernetes services), the AWS Load Balancer controller looks to a specific
+"action" annotation on the Ingress,
+[`alb.ingress.kubernetes.io/actions.<service-name>`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions).
+The action-name in the annotation must match the serviceName in the Ingress rules, and servicePort
+must be the literal value, `use-annotation`, in lieu of a named or numeric port. The following is an
+example of an Ingress which splits traffic between two Kubernetes services, canary-service and
+stable-service, with a traffic weight of 80 and 20 respectively:
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
+  name: ingress
   annotations:
+    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/actions.stable-service: |
       { 
         "Type":"forward",
@@ -35,8 +56,56 @@ metadata:
           ]
         }
       }
-    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: stable-service
+          servicePort: use-annotation
+        path: /*
+```
+
+The example Ingress uses the `alb.ingress.kubernetes.io/actions.stable-service` annotation to define
+how to split traffic to multiple services for the rule with the `stable-service` serviceName.
+During a canary update, the rollout controller injects, then continually modifies the
+`alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation to achieve the desired canary weight.
+
+## Usage
+
+To configure a Rollout to use the ALB integration and split traffic between the canary and stable 
+services during updates, the Rollout should be configured with the following fields:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+...
+spec:
+  strategy:
+    canary:
+      canaryService: canary-service  # required
+      stableService: stable-service  # required
+      trafficRouting:
+        alb:
+          ingress: ingress           # required
+          servicePort: 443           # required
+          rootService: root-service  # optional
+```
+
+The `ingress` field is a reference to an Ingress in the same namespace of the Rollout which manages
+the underlying ALB. The `servicePort` field refers to service port for which the service is handling
+traffic on. 
+
+Additionally, the referenced Ingress must specify `use-annotation` as the value of 
+`servicePort` (requirement from AWS Load Balancer Controller). e.g.:
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
   name: ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
 spec:
   rules:
     - http:
@@ -47,10 +116,30 @@ spec:
             path: /*
 ```
 
-This Ingress uses the `alb.ingress.kubernetes.io/actions.stable-service` annotation to define how to route traffic to the various services for the rule with the `stable-service` serviceName instead of sending traffic to the canary-service service. You can read more about these annotations on the official [documentation](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/ingress/annotation/#actions).
+During an update, the rollout controller examines the Ingress' `spec.rules` to find the service name
+referenced under `spec.strategy.canary.stableService` (or optionally `rootService` if specified).
+It then injects the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation, containing a
+JSON payload understood by the AWS Load Balancer Controller, directing it to split traffic between
+the `canaryService` and `stableService` according to the current canary weight. 
 
-## Integration with Argo Rollouts
-To configure a Rollout to split traffic between the canary and stable services during update via its ALB integration, the following fields should be specified:
+!!! note
+
+    Argo rollouts additionally injects an annotation, `rollouts.argoproj.io/managed-alb-actions`,
+    to the Ingress for bookkeeping purposes. The annotation indicates which actions are being
+    managed by the Rollout object (since multiple Rollouts can reference one Ingress). Upon a
+    rollout deletion, the rollout controller looks to this annotation to understand that this action
+    is no longer managed, and is reset to point only the stable service with 100 weight.
+
+### rootService
+
+By default, a rollout will inject the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation
+using the service/action name specified under `spec.strategy.canary.stableService`. However, it may
+be desirable to specify an explicit service/action name different from the `stableService`. For
+example, [one pattern](../best-practices.md#ingress-desiredstable-host-routes) is to use a single
+Ingress containing three different rules to reach the canary, stable, and root service separately
+(e.g. for testing purposes). In this case, you may want to specify a "root" service as the
+service/action name instead of stable. To do so, reference a service under `rootService` under the
+alb specification:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -58,23 +147,103 @@ kind: Rollout
 spec:
   strategy:
     canary:
-      canaryService: canary-service  # required
-      stableService: stable-service  # required
+      canaryService: guestbook-canary
+      stableService: guestbook-stable
       trafficRouting:
         alb:
-          ingress: ingress  # required
-          servicePort: 443  # required
-          rootService: # optional
-          annotationPrefix: custom.alb.ingress.kubernetes.io # optional
+          rootService: guestbook-root
+...
 ```
 
-The ingress field is a reference to an Ingress in the same namespace of the Rollout, and the servicePort field refers a port of a service. The Rollout requires the Ingress and servicePort to modify the ALB to route traffic to the stable and canary Services. Within the Ingress, looks for the stableService (or the optional rootService if specified) within the Ingress's rules and adds an action annotation for that the action. As the Rollout progresses through the Canary steps, the controller updates the Ingress's action annotation to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
+### Weight verification
 
-Since the ALB Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The Ingress uses that prefix instead of the default `alb.ingress.kubernetes.io` if the field set.
+!!! note
 
-The Rollout adds another annotation called `rollouts.argoproj.io/managed-alb-actions` to the Ingress to help the controller manage the Ingresses. This annotation indicates which actions are being managed by Rollout objects (since multiple Rollouts can reference one Ingress). If a Rollout is deleted, the Argo Rollouts controller uses this annotation to see that this action is no longer managed, and it is reset to only the stable service with 100 weight.
+    Since Argo Rollouts v1.0
 
-## Using Argo Rollouts with multiple ALB ingress controllers
-As a default, the Argo Rollouts controller only operates on ingresses with the `kubernetes.io/ingress.class` annotation set to `alb`. A user can configure the controller to operate on Ingresses with different `kubernetes.io/ingress.class` values by specifying the `--alb-ingress-classes` flag. A user can list the `--alb-ingress-classes` flag multiple times if the Argo Rollouts controller should operate on multiple values. This may be desired when a cluster has multiple Ingress controllers that operate on different `kubernetes.io/ingress.class` values.
+When Argo Rollouts adjusts a canary weight by updating the Ingress annotation, it assumes that
+the new weight immediately takes effect and moves on to the next step. However, due to external
+factors (e.g. AWS rate limiting, AWS load balancer controller downtime) it is possible that the
+ingress modification may take a long time to take effect (or possibly never even made). This is
+potentially dangerous when the rollout completes its steps, it will scale down the old stack. If
+the ALB Rules/Actions were still directing traffic to the old stack (because the weights never took
+effect), then this would cause downtime to the service when the old stack was scaled down.
 
-If the controller needs to operate on any Ingress without the `kubernetes.io/ingress.class` annotation, the flag can be specified with an empty string (e.g. `--alb-ingress-classes ''`).
+To mitigate this, the rollout controller has a feature to additionally *verify* the canary weight 
+after a `setWeight` canary step. It accomplishes this by querying AWS LoadBalancer APIs directly,
+to confirm that the Rules, Actions, and TargetGroups reflect the desire of Ingress annotation.
+To enable ALB weight verification, add `--alb-verify-weight` flag to the rollout-controller flags:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts
+spec:
+  template:
+    spec:
+      containers:
+      - name: argo-rollouts
+        args: [--alb-verify-weight]
+ ```
+
+For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
+under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html):
+* `DescribeTargetGroups`
+* `DescribeLoadBalancers`
+* `DescribeListeners`
+* `DescribeRules`
+* `DescribeTags`
+
+There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
+dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
+include:
+* AWS access and secret keys
+* [kiam](https://github.com/uswitch/kiam)
+* [kube2iam](https://github.com/jtblin/kube2iam)
+* [EKS ServiceAccount IAM Roles](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
+
+
+### Custom annotations-prefix
+
+The AWS Load Balancer Controller allows users to customize the
+[annotation prefix](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#ingress-annotations)
+used by the Ingress controller using a flag to the controller, `--annotations-prefix` (from the
+default of `alb.ingress.kubernetes.io`). If your AWS Load Balancer Controller is customized to use
+a different annotation prefix, `annotationPrefix` field should be specified such that the Ingress
+object will be annotated in a manner understood by the cluster's aws load balancer controller.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        alb:
+          annotationPrefix: custom.alb.ingress.kubernetes.io
+```
+
+### Custom kubernetes.io/ingress.class
+
+By default, Argo Rollout will operates on Ingresses with the annotation:
+
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: alb
+```
+
+To configure the controller to operate on Ingresses with different `kubernetes.io/ingress.class`
+values, the controller can specify a different value through the `--alb-ingress-classes` flag in
+the controller command line arguments.
+
+
+Note that the `--alb-ingress-classes` flag can be specified multiple times if the Argo Rollouts
+controller should operate on multiple values. This may be desired when a cluster has multiple
+Ingress controllers that operate on different `kubernetes.io/ingress.class` values.
+
+If the controller needs to operate on any Ingress without the `kubernetes.io/ingress.class`
+annotation, the flag can be specified with an empty string (e.g. `--alb-ingress-classes ''`).

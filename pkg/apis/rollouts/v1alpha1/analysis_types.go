@@ -3,6 +3,8 @@ package v1alpha1
 import (
 	"time"
 
+	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
+
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -79,7 +81,7 @@ type Metric struct {
 	// Count is the number of times to run the measurement. If both interval and count are omitted,
 	// the effective count is 1. If only interval is specified, metric runs indefinitely.
 	// If count > 1, interval must be specified.
-	Count int32 `json:"count,omitempty"`
+	Count *intstrutil.IntOrString `json:"count,omitempty"`
 	// SuccessCondition is an expression which determines if a measurement is considered successful
 	// Expression is a goevaluate expression. The keyword `result` is a variable reference to the
 	// value of measurement. Results can be both structured data or primitive.
@@ -93,13 +95,13 @@ type Metric struct {
 	FailureCondition string `json:"failureCondition,omitempty"`
 	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
-	FailureLimit int32 `json:"failureLimit,omitempty"`
+	FailureLimit *intstrutil.IntOrString `json:"failureLimit,omitempty"`
 	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
-	InconclusiveLimit int32 `json:"inconclusiveLimit,omitempty"`
+	InconclusiveLimit *intstrutil.IntOrString `json:"inconclusiveLimit,omitempty"`
 	// ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in
 	// succession, before the metric is considered error (default: 4)
-	ConsecutiveErrorLimit *int32 `json:"consecutiveErrorLimit,omitempty"`
+	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider"`
 }
@@ -108,15 +110,16 @@ type Metric struct {
 // If neither count or interval is specified, the effective count is 1
 // If only interval is specified, metric runs indefinitely and there is no effective count (nil)
 // Otherwise, it is the user specified value
-func (m *Metric) EffectiveCount() *int32 {
-	if m.Count == 0 {
+func (m *Metric) EffectiveCount() *intstrutil.IntOrString {
+	// Need to check if type is String
+	if m.Count == nil || m.Count.IntValue() == 0 {
 		if m.Interval == "" {
-			one := int32(1)
+			one := intstrutil.FromInt(1)
 			return &one
 		}
 		return nil
 	}
-	return &m.Count
+	return m.Count
 }
 
 // MetricProvider which external system to use to verify the analysis

@@ -8,6 +8,43 @@ metadata:
     app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  - rollouts/status
+  - rollouts/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns
+  - analysisruns/finalizers
+  - experiments
+  - experiments/finalizers
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  - clusteranalysistemplates
+  verbs:
+  - get
+  - list
+  - watch
+# replicaset access needed for managing ReplicaSets
+- apiGroups:
   - apps
   resources:
   - replicasets
@@ -19,6 +56,7 @@ rules:
   - update
   - patch
   - delete
+# services patch needed to update selector of canary/stable/active/preview services
 - apiGroups:
   - ""
   resources:
@@ -28,59 +66,52 @@ rules:
   - list
   - watch
   - patch
+# secret read access to run analysis templates which reference secrets
 - apiGroups:
-    - ""
+  - ""
   resources:
-    - secrets
-  verbs:
-    - get
-    - list
-    - watch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - rollouts
+  - secrets
   verbs:
   - get
   - list
   - watch
+# pod list/update needed for updating ephemeral data
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - update
+# pods eviction needed for restart
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+# event write needed for emitting events
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
   - update
   - patch
+# ingress patch needed for managing ingress annotations, create needed for nginx canary
 - apiGroups:
-  - argoproj.io
+  - networking.k8s.io
+  - extensions
   resources:
-  - rollouts/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - argoproj.io
-  resources:
-  - analysisruns
-  - experiments
+  - ingresses
   verbs:
   - create
   - get
   - list
   - watch
-  - update
   - patch
-  - delete
-- apiGroups:
-  - argoproj.io
-  resources:
-  - analysisruns/finalizers
-  - experiments/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - argoproj.io
-  resources:
-  - analysistemplates
-  - clusteranalysistemplates
-  verbs:
-  - get
-  - list
-  - watch
+# job access needed for analysis template job metrics
 - apiGroups:
   - batch
   resources:
@@ -93,24 +124,7 @@ rules:
   - update
   - patch
   - delete
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - update
-  - patch
+# virtualservice access needed for using the Istio provider
 - apiGroups:
   - networking.istio.io
   resources:
@@ -120,6 +134,7 @@ rules:
   - get
   - update
   - list
+# trafficsplit access needed for using the SMI provider
 - apiGroups:
   - split.smi-spec.io
   resources:
@@ -130,10 +145,3 @@ rules:
   - get
   - update
   - patch
-- apiGroups:
-    - ""
-  resources:
-    - pods
-  verbs:
-    - list
-    - delete

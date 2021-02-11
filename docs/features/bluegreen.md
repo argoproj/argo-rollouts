@@ -82,6 +82,11 @@ Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document 
 
 Defaults to nil
 
+### maxUnavailable
+The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
+
+Defaults to 0
+
 ### prePromotionAnalysis
 Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) before it switches traffic to the new version. The
 AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
@@ -110,8 +115,7 @@ The PreviewReplicaCount will indicate the number of replicas that the new versio
 
 This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.
 
-Defaults to nil
-
+If omitted, preview ReplicaSet stack will be scaled to 100% of the replicas.
 ### scaleDownDelaySeconds
 The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.
 
@@ -120,4 +124,4 @@ Defaults to 30
 ### scaleDownDelayRevisionLimit
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
-Defaults to nil
+If omitted, all ReplicaSets will be retained for the specified scaleDownDelay

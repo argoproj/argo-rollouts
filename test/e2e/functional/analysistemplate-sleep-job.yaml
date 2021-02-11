@@ -9,8 +9,11 @@ spec:
     value: 0s
   - name: exit-code
     value: "0"
+  - name: count
+    value: "1"
   metrics:
   - name: sleep-job
+    count: "{{args.count}}"
     provider:
       job:
         spec:

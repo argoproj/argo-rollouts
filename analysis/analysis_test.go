@@ -2,10 +2,13 @@ package analysis
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -541,9 +544,10 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, true))
 }
 func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
+	failureLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{
 		Name:         "success-rate",
-		FailureLimit: 2,
+		FailureLimit: &failureLimit,
 		Interval:     "60s",
 	}
 	result := v1alpha1.MetricResult{
@@ -558,15 +562,17 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
-	metric.FailureLimit = 3
+	newFailureLimit := intstr.FromInt(3)
+	metric.FailureLimit = &newFailureLimit
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
+	inconclusiveLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{
 		Name:              "success-rate",
-		InconclusiveLimit: 2,
+		InconclusiveLimit: &inconclusiveLimit,
 		Interval:          "60s",
 	}
 	result := v1alpha1.MetricResult{
@@ -581,7 +587,8 @@ func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	}
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
-	metric.InconclusiveLimit = 3
+	newInconclusiveLimit := intstr.FromInt(3)
+	metric.InconclusiveLimit = &newInconclusiveLimit
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
@@ -608,9 +615,10 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 }
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
+	count := intstr.FromInt(10)
 	metric := v1alpha1.Metric{
 		Name:  "success-rate",
-		Count: 10,
+		Count: &count,
 	}
 	result := v1alpha1.MetricResult{
 		Successful: 10,
@@ -714,11 +722,12 @@ func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
 
 func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 	now := metav1.Now()
+	count := intstr.FromInt(1)
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{{
 				Name:  "success-rate",
-				Count: 1,
+				Count: &count,
 			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -866,7 +875,8 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	}
 	{
 		// now set count to one and run should be completed immediately
-		run.Spec.Metrics[0].Count = 1
+		newCount := intstr.FromInt(1)
+		run.Spec.Metrics[0].Count = &newCount
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
@@ -875,7 +885,8 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	}
 	{
 		// run should complete immediately if both count and interval are omitted
-		run.Spec.Metrics[0].Count = 0
+		count := intstr.FromInt(0)
+		run.Spec.Metrics[0].Count = &count
 		run.Spec.Metrics[0].Interval = ""
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
@@ -1035,50 +1046,6 @@ func TestTrimMeasurementHistory(t *testing.T) {
 	}
 }
 
-// TestResolveMetricArgs verifies that metric arguments are resolved
-func TestResolveMetricArgs(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg1, arg2 := "success-rate", "success-rate2"
-	args := []v1alpha1.Argument{
-		{
-			Name:  "metric-name",
-			Value: &arg1,
-		},
-		{
-			Name:  "metric-name2",
-			Value: &arg2,
-		},
-	}
-	metric1 := v1alpha1.Metric{Name: "metric-name", SuccessCondition: "result > {{args.metric-name}}"}
-	metric2 := v1alpha1.Metric{Name: "metric-name2", SuccessCondition: "result < {{args.metric-name2}}"}
-	newMetric1, _ := c.resolveMetricArgs(metric1, args)
-	newMetric2, _ := c.resolveMetricArgs(metric2, args)
-	assert.Equal(t, fmt.Sprintf("result > %s", arg1), newMetric1.SuccessCondition)
-	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
-}
-
-//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
-func TestResolveMetricArgsWithQuotes(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	arg := "foo \"bar\" baz"
-
-	arguments := []v1alpha1.Argument{{
-		Name:  "rate",
-		Value: &arg,
-	}}
-	metric := v1alpha1.Metric{
-		Name:             "rate",
-		SuccessCondition: "{{args.rate}}",
-	}
-	newMetric, err := c.resolveMetricArgs(metric, arguments)
-	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
-}
-
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1150,8 +1117,8 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	argName := "apikey"
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1202,8 +1169,8 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -1268,8 +1235,8 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: metav1.NamespaceDefault,
@@ -1332,29 +1299,7 @@ func TestSecretNotFound(t *testing.T) {
 		incompleteMeasurement: nil,
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "secret \"secret-does-not-exist\" not found", err.Error())
-}
-
-func TestArgDoesNotContainSecretRefError(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-
-	args := []v1alpha1.Argument{{
-		Name: "secret-empty",
-		ValueFrom: &v1alpha1.ValueFrom{
-			SecretKeyRef: nil,
-		},
-	}}
-	tasks := []metricTask{{
-		metric: v1alpha1.Metric{
-			Name:             "metric-name",
-			SuccessCondition: "{{args.secret-empty}}",
-		},
-		incompleteMeasurement: nil,
-	}}
-	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "arg 'secret-empty' does not contain a secret reference", err.Error())
+	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
 }
 
 func TestKeyNotInSecret(t *testing.T) {
@@ -1366,8 +1311,8 @@ func TestKeyNotInSecret(t *testing.T) {
 		},
 	}
 	defer f.Close()
-	f.secretRunLister = append(f.secretRunLister, secret)
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	args := []v1alpha1.Argument{{
 		Name: "secret-wrong-key",
@@ -1400,7 +1345,7 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 		}},
 	}
 	phase, msg := assessMetricFailureInconclusiveOrError(metric, result)
-	expectedMsg := fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, metric.FailureLimit)
+	expectedMsg := fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, 0)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, phase)
 	assert.Equal(t, expectedMsg, msg)
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
@@ -1412,7 +1357,7 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 		}},
 	}
 	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
-	expectedMsg = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, metric.InconclusiveLimit)
+	expectedMsg = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, 0)
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, phase)
 	assert.Equal(t, expectedMsg, msg)
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
@@ -1530,5 +1475,4 @@ func TestTerminateAnalysisRun(t *testing.T) {
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 	assert.Equal(t, "run terminated", newRun.Status.Message)
-
 }

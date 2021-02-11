@@ -45,7 +45,7 @@ spec:
 ```
 
 ## Pause Duration
-Pause duration can be specified with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified. Values less than zero are not allowed. 
+Pause duration can be specified with an optional time unit suffix. Valid time units are "s", "m", "h". Defaults to "s" if not specified.
 
 ```yaml
 spec:
@@ -56,7 +56,6 @@ spec:
         - pause: { duration: 10s } # 10 seconds
         - pause: { duration: 10m } # 10 minutes
         - pause: { duration: 10h } # 10 hours
-        - pause: { duration: -10 } # invalid spec!
         - pause: {}                # pause indefinitely
 ```
 
@@ -67,11 +66,62 @@ If no `duration` specified for a pause step the rollout will be paused indefinit
 kubectl argo rollouts promote <rollout>
 ```
 
+## Controlling Canary Scale
+
+By default, the rollout controller will scale the canary to match the current trafficWeight of the
+current step. For example, if the current weight is 25%, and there are four replicas, there the
+canary will be scaled to 1, to match the traffic weight.
+
+It is possible to control the canary replica's scale during the steps such that it does not necessary
+match the traffic weight. Some use cases for this:
+
+1. The new version should not yet be exposed to the public (setWeight: 0), but you would like to
+   scale the canary up in order for testing purposes.
+2. You wish to scale the canary stack up minimally, and use some header based traffic shaping to
+   the canary, while setWeight is still set to 0.
+3. You wish to scale the canary up 100%, in order to facilitate traffic shadowing.
+
+
+!!! important
+  Setting canary scale is only available when using the canary strategy with a traffic router, since
+  the basic canary needs to control canary scale in order to approximate canary weight.
+
+To control canary weights during steps, use the `setCanaryScale` step and indicate which scale the
+the canary should use:
+* explicit replica count
+* explicit weight percentage of total spec.repicas
+* to match current canary setWeight
+
+```yaml
+spec:
+  strategy:
+    canary:
+      steps:
+      # explicit count
+      - setCanaryScale:
+          replicas: 3
+      # a percentage of spec.replicas
+      - setCanaryScale:
+          weight: 25
+      # matchTrafficWeight returns to the default behavior of matching the canary traffic weight
+      - setCanaryScale:
+          matchTrafficWeight: true
+```
+
+If no `duration` specified for a pause step the rollout will be paused indefinitely. To unpause use the [argo kubectl plugin](kubectl-plugin.md) `promote` command. 
+
+```shell
+# promote to the next step
+kubectl argo rollouts promote <rollout>
+```
+
+
 ## Mimicking Rolling Update
 If the steps field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the `maxSurge` and `maxUnavailable` fields to configure how the Rollout should progress to the new version.
 
 ## Other Configurable Features
 Here are the optional fields that will modify the behavior of canary strategy:
+
 ```yaml
 spec:
   strategy:
@@ -113,7 +163,7 @@ Defaults to "25%".
 ### maxUnavailable
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
 
-Defaults to 0
+Defaults to 25%
 
 ### trafficRouting
 The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.

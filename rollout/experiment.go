@@ -103,20 +103,12 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	for i := range step.Analyses {
 		analysis := step.Analyses[i]
 		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS, r)
-		var analysisTemplate v1alpha1.ExperimentAnalysisTemplateRef
-		if analysis.ClusterScope {
-			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{
-				Name:         analysis.Name,
-				TemplateName: analysis.TemplateName,
-				ClusterScope: true,
-				Args:         args,
-			}
-		} else {
-			analysisTemplate = v1alpha1.ExperimentAnalysisTemplateRef{
-				Name:         analysis.Name,
-				TemplateName: analysis.TemplateName,
-				Args:         args,
-			}
+		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
+			Name:                  analysis.Name,
+			TemplateName:          analysis.TemplateName,
+			ClusterScope:          analysis.ClusterScope,
+			Args:                  args,
+			RequiredForCompletion: analysis.RequiredForCompletion,
 		}
 		experiment.Spec.Analyses = append(experiment.Spec.Analyses, analysisTemplate)
 	}
@@ -143,7 +135,7 @@ func (c *Controller) getExperimentsForRollout(rollout *v1alpha1.Rollout) ([]*v1a
 }
 
 func (c *rolloutContext) reconcileExperiments() error {
-	if c.pauseContext.IsAborted() {
+	if c.pauseContext.IsAborted() || c.rollout.Status.PromoteFull {
 		allExs := append(c.otherExs, c.currentEx)
 		return c.cancelExperiments(allExs)
 	}

@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
@@ -35,20 +36,37 @@ type ReconcilerConfig struct {
 	Recorder       record.EventRecorder
 	ControllerKind schema.GroupVersionKind
 	IngressLister  extensionslisters.IngressLister
+	VerifyWeight   *bool
 }
 
 // Reconciler holds required fields to reconcile ALB Ingress resources
 type Reconciler struct {
 	cfg ReconcilerConfig
 	log *logrus.Entry
+	aws aws.Client
+}
+
+var (
+	defaultVerifyWeight = false
+)
+
+// SetDefaultVerifyWeight sets the default setWeight verification when instantiating the reconciler
+func SetDefaultVerifyWeight(b bool) {
+	defaultVerifyWeight = b
 }
 
 // NewReconciler returns a reconciler struct that brings the ALB Ingress into the desired state
-func NewReconciler(cfg ReconcilerConfig) *Reconciler {
-	return &Reconciler{
+func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
+	awsClient, err := aws.NewClient()
+	if err != nil {
+		return nil, err
+	}
+	reconciler := Reconciler{
 		cfg: cfg,
 		log: logutil.WithRollout(cfg.Rollout).WithField(logutil.IngressKey, cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress),
+		aws: awsClient,
 	}
+	return &reconciler, nil
 }
 
 // Type indicates this reconciler is an ALB ingress reconciler
@@ -56,8 +74,8 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
-// Reconcile modifies ALB Ingress resources to reach desired state
-func (r *Reconciler) Reconcile(desiredWeight int32) error {
+// SetWeight modifies ALB Ingress resources to reach desired state
+func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
@@ -96,6 +114,59 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
 	}
 	return nil
+}
+
+func (r *Reconciler) shouldVerifyWeight() bool {
+	if r.cfg.VerifyWeight != nil {
+		return *r.cfg.VerifyWeight
+	}
+	return defaultVerifyWeight
+}
+
+func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+	if !r.shouldVerifyWeight() {
+		return true, nil
+	}
+	ctx := context.TODO()
+	rollout := r.cfg.Rollout
+	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+	ingress, err := r.cfg.IngressLister.Ingresses(rollout.Namespace).Get(ingressName)
+	if err != nil {
+		return false, err
+	}
+	canaryService := rollout.Spec.Strategy.Canary.CanaryService
+	resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	if len(ingress.Status.LoadBalancer.Ingress) == 0 {
+		r.log.Infof("LoadBalancer not yet allocated")
+	}
+	for _, lbIngress := range ingress.Status.LoadBalancer.Ingress {
+		if lbIngress.Hostname == "" {
+			continue
+		}
+		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
+		if err != nil {
+			return false, err
+		}
+		if lb == nil || lb.LoadBalancerArn == nil {
+			r.log.Infof("LoadBalancer %s not found", lbIngress.Hostname)
+			return false, nil
+		}
+		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
+		if err != nil {
+			return false, err
+		}
+		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
+		for _, tg := range lbTargetGroups {
+			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == resourceID {
+				if tg.Weight != nil {
+					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
+					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", resourceID, desiredWeight, *tg.Weight)
+					return *tg.Weight == desiredWeight, nil
+				}
+			}
+		}
+	}
+	return false, nil
 }
 
 func calculatePatch(current *extensionsv1beta1.Ingress, desiredAnnotations map[string]string) ([]byte, bool, error) {

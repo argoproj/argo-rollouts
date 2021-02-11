@@ -6,21 +6,10 @@
 FROM golang:1.13.1 as builder
 
 RUN apt-get update && apt-get install -y \
-    git \
-    make \
     wget \
-    gcc \
-    zip \
     ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install docker
-ENV DOCKER_VERSION=18.06.0
-RUN curl -O https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}-ce.tgz && \
-  tar -xzf docker-${DOCKER_VERSION}-ce.tgz && \
-  mv docker/docker /usr/local/bin/docker && \
-  rm -rf ./docker
 
 # Install golangci-lint
 RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \

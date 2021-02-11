@@ -60,6 +60,12 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	if err != nil {
 		return err
 	}
+
+	err = c.reconcileEphemeralMetadata()
+	if err != nil {
+		return err
+	}
+
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 
@@ -118,6 +124,9 @@ func (c *rolloutContext) reconcileBlueGreenTemplateChange() bool {
 func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
 	if replicasetutil.HasScaleDownDeadline(c.newRS) {
 		c.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", c.newRS.Name)
+		return true
+	}
+	if c.rollout.Status.PromoteFull {
 		return true
 	}
 
@@ -205,8 +214,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-			} else if c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs == *c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
-				c.log.Info("At ScaleDownDelayRevisionLimit and scaling down the rest")
+			} else if c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs > *c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
+				c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", *c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit)
 			} else {
 				now := metav1.Now()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
@@ -244,6 +253,12 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 		c.SetRestartedAt()
 		newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
 		newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
+		newStatus.PromoteFull = false
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
 	}
 
 	previewSelector := serviceutil.GetRolloutSelectorLabel(previewSvc)
@@ -262,6 +277,7 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 	if c.shouldUpdateBlueGreenStable(newStatus) {
 		c.log.Infof("Updating stable RS (%s -> %s)", newStatus.StableRS, newStatus.CurrentPodHash)
 		newStatus.StableRS = newStatus.CurrentPodHash
+		newStatus.PromoteFull = false
 
 		// Now that we've marked the current RS as stable, start the scale-down countdown on the previous stable RS
 		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, c.rollout.Status.StableRS)
@@ -310,6 +326,9 @@ func (c *rolloutContext) shouldUpdateBlueGreenStable(newStatus v1alpha1.RolloutS
 	if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
 		// haven't service performed cutover yet
 		return false
+	}
+	if newStatus.PromoteFull {
+		return true
 	}
 	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
 		// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are

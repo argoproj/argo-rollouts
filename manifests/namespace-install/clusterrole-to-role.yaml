@@ -1,0 +1,9 @@
+- op: replace
+  path: /metadata/name
+  value: argo-rollouts-role
+- op: replace
+  path: /kind
+  value: Role
+- op: replace
+  path: /metadata/labels/app.kubernetes.io~1name
+  value: argo-rollouts-role

@@ -140,8 +140,8 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 		}, extensionsv1beta1.Ingress{})
 }
 
-// Reconcile modifies Nginx Ingress resources to reach desired state
-func (r *Reconciler) Reconcile(desiredWeight int32) error {
+// SetWeight modifies Nginx Ingress resources to reach desired state
+func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	ctx := context.TODO()
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
@@ -225,4 +225,8 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	return nil
+}
+
+func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+	return true, nil
 }

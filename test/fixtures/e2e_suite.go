@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -39,6 +40,8 @@ const (
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
+	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
+	EnvVarE2EALBIngressAnnotations = "E2E_ALB_INGESS_ANNOTATIONS"
 )
 
 var (
@@ -59,6 +62,13 @@ var (
 		Version:  "v1",
 		Resource: "ingresses",
 	}
+	pdbGVR = schema.GroupVersionResource{
+		Group:    "policy",
+		Version:  "v1beta1",
+		Resource: "poddisruptionbudgets",
+	}
+
+	E2EALBIngressAnnotations map[string]string
 )
 
 func init() {
@@ -79,6 +89,13 @@ func init() {
 		}
 		E2EPodDelay = delay
 	}
+	if e2eALBAnnotations, ok := os.LookupEnv(EnvVarE2EALBIngressAnnotations); ok {
+		err := json.Unmarshal([]byte(e2eALBAnnotations), &E2EALBIngressAnnotations)
+		if err != nil {
+			panic(fmt.Sprintf("Invalid E2E_ALB_INGESS_ANNOTATIONS value: %s", e2eALBAnnotations))
+		}
+	}
+
 }
 
 type E2ESuite struct {
@@ -132,14 +149,19 @@ func (s *E2ESuite) BeforeTest(suiteName, testName string) {
 }
 
 func (s *E2ESuite) AfterTest(suiteName, testName string) {
-	if s.T().Failed() && s.rollout != nil {
-		s.PrintRollout(s.Rollout())
+	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
+	s.CheckError(err)
+	if s.T().Failed() {
+		roList, err := s.rolloutClient.ArgoprojV1alpha1().Rollouts(s.namespace).List(s.Context, metav1.ListOptions{LabelSelector: req.String()})
+		s.CheckError(err)
+		for _, ro := range roList.Items {
+			s.PrintRollout(ro.Name)
+			s.PrintRolloutYAML(&ro)
+		}
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {
 		return
 	}
-	req, err := labels.NewRequirement(E2ELabelKeyTestName, selection.Equals, []string{testName})
-	s.CheckError(err)
 	s.deleteResources(req, metav1.DeletePropagationBackground)
 }
 
@@ -154,6 +176,7 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		rov1.ExperimentGVR,
 		serviceGVR,
 		ingressGVR,
+		pdbGVR,
 		istioutil.GetIstioGVR("v1alpha3"),
 	}
 	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}

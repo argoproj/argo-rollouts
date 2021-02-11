@@ -175,13 +175,17 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	return r, nil
 }
 
+func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+	return true, nil
+}
+
 // Type indicates this reconciler is an SMI reconciler
 func (r *Reconciler) Type() string {
 	return Type
 }
 
-// Reconcile creates and modifies traffic splits based on the desired weight
-func (r *Reconciler) Reconcile(desiredWeight int32) error {
+// SetWeight creates and modifies traffic splits based on the desired weight
+func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	// If TrafficSplitName not set, then set to Rollout name
 	trafficSplitName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
 	if trafficSplitName == "" {

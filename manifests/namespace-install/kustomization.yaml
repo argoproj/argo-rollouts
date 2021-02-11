@@ -4,3 +4,18 @@ kind: Kustomization
 bases:
 - ../crds
 - ../base
+- ../role
+
+resources:
+- argo-rollouts-rolebinding.yaml
+
+patchesStrategicMerge:
+- add-namespaced-flag.yaml
+
+patchesJson6902:
+- path: clusterrole-to-role.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: argo-rollouts-clusterrole
+    version: v1

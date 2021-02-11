@@ -26,8 +26,10 @@ import (
 )
 
 // ExperimentLister helps list Experiments.
+// All objects returned here must be treated as read-only.
 type ExperimentLister interface {
 	// List lists all Experiments in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Experiment, err error)
 	// Experiments returns an object that can list and get Experiments.
 	Experiments(namespace string) ExperimentNamespaceLister
@@ -58,10 +60,13 @@ func (s *experimentLister) Experiments(namespace string) ExperimentNamespaceList
 }
 
 // ExperimentNamespaceLister helps list and get Experiments.
+// All objects returned here must be treated as read-only.
 type ExperimentNamespaceLister interface {
 	// List lists all Experiments in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Experiment, err error)
 	// Get retrieves the Experiment from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.Experiment, error)
 	ExperimentNamespaceListerExpansion
 }

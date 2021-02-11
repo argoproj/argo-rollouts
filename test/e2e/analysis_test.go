@@ -168,7 +168,7 @@ spec:
 		ExpectPreviewRevision("2").
 		When().
 		ApplyManifests(original). // perform a rollback and make sure we skip pause/analysis
-		Sleep(2 * time.Second).   // checking too early may not catch the bug
+		Sleep(2 * time.Second).   // checking too early may not catch the bug where we create analysis unnecessarily
 		Then().
 		ExpectRolloutStatus("Healthy"). // rollout is healthy immediately
 		ExpectAnalysisRunCount(2).      // no new analysis runs created
@@ -230,6 +230,31 @@ spec:
 		ExpectAnalysisRunCount(1).
 		ExpectStableRevision("1").
 		ExpectActiveRevision("1").
+		ExpectPreviewRevision("2").
+		When().
+		PatchSpec(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: pre-promotion-fail
+spec:
+  strategy:
+    blueGreen:
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: exit-code
+          value: "0"
+        - name: duration
+          value: "5"
+`).
+		RetryRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(2).
+		ExpectStableRevision("2").
+		ExpectActiveRevision("2").
 		ExpectPreviewRevision("2")
 }
 

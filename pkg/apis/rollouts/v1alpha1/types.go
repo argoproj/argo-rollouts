@@ -10,7 +10,6 @@ import (
 )
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=rollouts,shortName=ro
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.HPAReplicas,selectorpath=.status.selector
@@ -18,6 +17,7 @@ import (
 // +kubebuilder:printcolumn:name="Current",type="integer",JSONPath=".status.replicas",description="Total number of non-terminated pods targeted by this rollout"
 // +kubebuilder:printcolumn:name="Up-to-date",type="integer",JSONPath=".status.updatedReplicas",description="Total number of non-terminated pods targeted by this rollout that have the desired template spec"
 // +kubebuilder:printcolumn:name="Available",type="integer",JSONPath=".status.availableReplicas",description="Total number of available pods (ready for at least minReadySeconds) targeted by this rollout"
+// +kubebuilder:subresource:status
 
 // Rollout is a specification for a Rollout resource
 type Rollout struct {
@@ -110,6 +110,18 @@ type BlueGreenStrategy struct {
 	// removing the pause condition.
 	// +optional
 	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
+	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+	// Absolute number is calculated from percentage by rounding down.
+	// This can not be 0 if MaxSurge is 0.
+	// By default, a fixed value of 1 is used.
+	// Example: when this is set to 30%, the old RC can be scaled down by 30%
+	// immediately when the rolling update starts. Once new pods are ready, old RC
+	// can be scaled down further, followed by scaling up the new RC, ensuring
+	// that at least 70% of original number of pods are available at all times
+	// during the update.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
 	// If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet.
 	// A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
@@ -127,6 +139,12 @@ type BlueGreenStrategy struct {
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
 	// PostPromotionAnalysis configuration to run analysis after a selector switch
 	PostPromotionAnalysis *RolloutAnalysis `json:"postPromotionAnalysis,omitempty"`
+	// PreviewMetadata specify labels and annotations which will be attached to the preview pods for
+	// the duration which they act as a preview pod, and will be removed after
+	PreviewMetadata *PodTemplateMetadata `json:"previewMetadata,omitempty"`
+	// ActiveMetadata specify labels and annotations which will be attached to the active pods for
+	// the duration which they act as a active pod, and will be removed after
+	ActiveMetadata *PodTemplateMetadata `json:"activeMetadata,omitempty"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -164,7 +182,7 @@ type CanaryStrategy struct {
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
 	// Absolute number is calculated from percentage by rounding down.
 	// This can not be 0 if MaxSurge is 0.
-	// By default, a fixed value of 1 is used.
+	// By default, a fixed value of 25% is used.
 	// Example: when this is set to 30%, the old RC can be scaled down by 30%
 	// immediately when the rolling update starts. Once new pods are ready, old RC
 	// can be scaled down further, followed by scaling up the new RC, ensuring
@@ -178,7 +196,7 @@ type CanaryStrategy struct {
 	// Value can be an absolute number (ex: 5) or a percentage of total pods at
 	// the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
 	// Absolute number is calculated from percentage by rounding up.
-	// By default, a value of 1 is used.
+	// By default, a value of 25% is used.
 	// Example: when this is set to 30%, the new RC can be scaled up by 30%
 	// immediately when the rolling update starts. Once old pods have been killed,
 	// new RC can be scaled up further, ensuring that total number of pods running
@@ -190,6 +208,12 @@ type CanaryStrategy struct {
 	// AntiAffinity enables anti-affinity rules for Canary deployment
 	// +optional
 	AntiAffinity *AntiAffinity `json:"antiAffinity,omitempty"`
+	// CanaryMetadata specify labels and annotations which will be attached to the canary pods for
+	// the duration which they act as a canary, and will be removed after
+	CanaryMetadata *PodTemplateMetadata `json:"canaryMetadata,omitempty"`
+	// StableMetadata specify labels and annotations which will be attached to the stable pods for
+	// the duration which they act as a canary, and will be removed after
+	StableMetadata *PodTemplateMetadata `json:"stableMetadata,omitempty"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
@@ -279,6 +303,8 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
+	RequiredForCompletion bool `json:"requiredForCompletion,omitempty"`
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -557,6 +583,8 @@ type RolloutStatus struct {
 	StableRS string `json:"stableRS,omitempty"`
 	// RestartedAt indicates last time a Rollout was restarted
 	RestartedAt *metav1.Time `json:"restartedAt,omitempty"`
+	// PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
+	PromoteFull bool `json:"promoteFull,omitempty"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -593,9 +621,6 @@ type BlueGreenStatus struct {
 
 // CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
-	// StableRS indicates the last replicaset that walked through all the canary steps or was the only replicaset
-	// +optional
-	StableRS string `json:"stableRS,omitempty"`
 	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
 	// TODO(Deprecated): Remove in v0.10
 	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 
@@ -82,7 +83,12 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 // RetryRollout retries a rollout after it's been aborted
 func RetryRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
 	ctx := context.TODO()
-	return rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{})
+	// attempt using status subresource, first
+	ro, err := rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{}, "status")
+	if err != nil && k8serrors.IsNotFound(err) {
+		ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{})
+	}
+	return ro, err
 }
 
 // NewCmdRetryExperiment returns a new instance of an `argo rollouts retry experiment` command

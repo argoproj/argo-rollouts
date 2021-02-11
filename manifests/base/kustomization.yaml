@@ -3,8 +3,6 @@ kind: Kustomization
 
 resources:
 - argo-rollouts-sa.yaml
-- argo-rollouts-role.yaml
-- argo-rollouts-rolebinding.yaml
 - argo-rollouts-deployment.yaml
 - argo-rollouts-aggregate-roles.yaml
 - argo-rollouts-metrics-service.yaml

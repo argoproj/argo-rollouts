@@ -187,8 +187,8 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
-// Reconcile modifies Istio resources to reach desired state
-func (r *Reconciler) Reconcile(desiredWeight int32) error {
+// SetWeight modifies Istio resources to reach desired state
+func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
@@ -218,6 +218,10 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
 	return err
+}
+
+func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+	return true, nil
 }
 
 // validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations

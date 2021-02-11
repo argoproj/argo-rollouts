@@ -26,6 +26,7 @@ import (
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
@@ -56,6 +57,8 @@ func newCommand() *cobra.Command {
 		trafficSplitVersion string
 		albIngressClasses   []string
 		nginxIngressClasses []string
+		albVerifyWeight     bool
+		namespaced          bool
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -71,13 +74,14 @@ func newCommand() *cobra.Command {
 			// set up signals so we handle the first shutdown signal gracefully
 			stopCh := signals.SetupSignalHandler()
 
-			// cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+			alb.SetDefaultVerifyWeight(albVerifyWeight)
+
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
 			namespace := metav1.NamespaceAll
-			configNS, modified, err := clientConfig.Namespace()
+			configNS, _, err := clientConfig.Namespace()
 			checkError(err)
-			if modified {
+			if namespaced {
 				namespace = configNS
 				log.Infof("Using namespace %s", namespace)
 			}
@@ -128,7 +132,6 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
-				kubeInformerFactory.Core().V1().Secrets(),
 				jobInformerFactory.Batch().V1().Jobs(),
 				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
@@ -147,7 +150,9 @@ func newCommand() *cobra.Command {
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			dynamicInformerFactory.Start(stopCh)
-			clusterDynamicInformerFactory.Start(stopCh)
+			if !namespaced {
+				clusterDynamicInformerFactory.Start(stopCh)
+			}
 			kubeInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
@@ -168,6 +173,7 @@ func newCommand() *cobra.Command {
 
 	clientConfig = addKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
+	command.Flags().BoolVar(&namespaced, "namespaced", false, "runs controller in namespaced mode (does not require cluster RBAC)")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
@@ -181,6 +187,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaultTrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
+	command.Flags().BoolVar(&albVerifyWeight, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
 	return &command
 }
 

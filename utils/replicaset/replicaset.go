@@ -1,6 +1,7 @@
 package replicaset
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
@@ -48,8 +50,10 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	// When this (rare) situation arises, we do not want to return nil, since nil is considered a
 	// PodTemplate change, which in turn would triggers an unexpected redeploy of the replicaset.
 	for _, rs := range rsList {
+		// Remove injected canary/stable metadata from spec.template.metadata before comparing
+		rsCopy, _ := SyncReplicaSetEphemeralPodMetadata(rs, nil)
 		// Remove anti-affinity from template.Spec.Affinity before comparing
-		live := rs.Spec.Template.DeepCopy()
+		live := &rsCopy.Spec.Template
 		live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
 
 		desired := rollout.Spec.Template.DeepCopy()
@@ -383,12 +387,19 @@ func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 // MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
 func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	if rollout.Spec.Strategy.Canary == nil || rolloutReplicas == 0 {
+	if rolloutReplicas == 0 {
 		return int32(0)
 	}
 
 	// Error caught by validation
-	_, maxUnavailable, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	var maxUnavailable int32
+	if rollout.Spec.Strategy.Canary != nil {
+		_, maxUnavailable, _ = resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	} else {
+		unavailable, _ := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(defaults.GetMaxUnavailableOrDefault(rollout), intstrutil.FromInt(0)), int(rolloutReplicas), false)
+		maxUnavailable = int32(unavailable)
+	}
+
 	if maxUnavailable > rolloutReplicas {
 		return rolloutReplicas
 	}
@@ -549,4 +560,22 @@ func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
+}
+
+// GetPodsOwnedByReplicaSet returns a list of pods owned by the given replicaset
+func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
+	pods, err := client.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(rs.Spec.Selector),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var podOwnedByRS []*corev1.Pod
+	for i := range pods.Items {
+		pod := pods.Items[i]
+		if metav1.IsControlledBy(&pod, rs) {
+			podOwnedByRS = append(podOwnedByRS, &pod)
+		}
+	}
+	return podOwnedByRS, nil
 }

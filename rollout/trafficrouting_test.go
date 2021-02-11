@@ -1,21 +1,22 @@
 package rollout
 
 import (
-	"fmt"
+	"errors"
 	"testing"
-
-	"k8s.io/client-go/dynamic/dynamiclister"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
@@ -24,24 +25,24 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-type FakeTrafficRoutingReconciler struct {
-	errMessage                 string
-	controllerSetDesiredWeight int32
+// newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
+func newFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
+	r := mocks.TrafficRoutingReconciler{}
+	r.On("Type").Return("fake")
+	r.On("SetWeight", mock.Anything).Return(nil)
+	r.On("VerifyWeight", mock.Anything).Return(true, nil)
+	return &r
 }
 
-func (r *FakeTrafficRoutingReconciler) Reconcile(desiredWeight int32) error {
-	if r.errMessage != "" {
-		return fmt.Errorf(r.errMessage)
-	}
-	r.controllerSetDesiredWeight = desiredWeight
-	return nil
+// newUnmockedFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with unmocked
+// methods (except Type() mocked)
+func newUnmockedFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
+	r := mocks.TrafficRoutingReconciler{}
+	r.On("Type").Return("fake")
+	return &r
 }
 
-func (r *FakeTrafficRoutingReconciler) Type() string {
-	return "fake"
-}
-
-func TestReconcileTrafficRoutingReturnErr(t *testing.T) {
+func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -55,8 +56,6 @@ func TestReconcileTrafficRoutingReturnErr(t *testing.T) {
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
 	r2.Spec.Strategy.Canary.StableService = "stable"
-
-	f.fakeTrafficRouting.errMessage = "Error message"
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -74,9 +73,42 @@ func TestReconcileTrafficRoutingReturnErr(t *testing.T) {
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
+	return f, r2
+}
 
-	f.runExpectError(getKey(r2, t), true)
+func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
+	f, ro := newTrafficWeightFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
+	f.runExpectError(getKey(ro, t), true)
+}
 
+// verify error is returned when VerifyWeight returns error
+func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
+	f, ro := newTrafficWeightFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(false, errors.New("Error message"))
+	f.runExpectError(getKey(ro, t), true)
+}
+
+// verify we requeue when VerifyWeight returns false
+func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
+	f, ro := newTrafficWeightFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(false, nil)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	enqueued := false
+	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+		enqueued = true
+	}
+	f.expectPatchRolloutAction(ro)
+	f.runController(getKey(ro, t), true, false, c, i, k8sI)
+	assert.True(t, enqueued)
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
@@ -118,9 +150,15 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
 
-	assert.Equal(t, int32(10), f.fakeTrafficRouting.controllerSetDesiredWeight)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
+		// make sure SetWeight was called with correct value
+		assert.Equal(t, int32(10), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutUsePreviousSetWeight(t *testing.T) {
@@ -160,9 +198,15 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 
 	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
 
-	assert.Equal(t, int32(10), f.fakeTrafficRouting.controllerSetDesiredWeight)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
+		// make sure SetWeight was called with correct value
+		assert.Equal(t, int32(10), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
@@ -178,8 +222,6 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
-
-	f.fakeTrafficRouting.controllerSetDesiredWeight = 10
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 
@@ -197,9 +239,14 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.objects = append(f.objects, r1)
 
 	f.expectPatchRolloutAction(r1)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(func(desiredWeight int32) error {
+		// make sure SetWeight was called with correct value
+		assert.Equal(t, int32(0), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
 	f.run(getKey(r1, t))
-
-	assert.Equal(t, int32(0), f.fakeTrafficRouting.controllerSetDesiredWeight)
 }
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {

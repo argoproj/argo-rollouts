@@ -77,6 +77,7 @@ func NewCmdCreate(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Example:      o.Example(createExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			createOptions.DynamicClientset()
 			if len(createOptions.Files) == 0 {
 				return o.UsageErr(c)
 			}
@@ -156,11 +157,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Experiments(ns).Create(ctx, &exp, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.ExperimentGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.ExperimentSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.ExperimentSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.RolloutKind:
 		var ro v1alpha1.Rollout
@@ -168,11 +169,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().Rollouts(ns).Create(ctx, &ro, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.RolloutSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.RolloutSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.AnalysisTemplateKind:
 		var template v1alpha1.AnalysisTemplate
@@ -180,11 +181,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(ns).Create(ctx, &template, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.ClusterAnalysisTemplateKind:
 		var template v1alpha1.ClusterAnalysisTemplate
@@ -192,11 +193,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Create(ctx, &template, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisTemplateSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.AnalysisRunKind:
 		var run v1alpha1.AnalysisRun
@@ -204,11 +205,11 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj, err := c.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, &run, metav1.CreateOptions{})
+		obj, err := c.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, &un, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisRunSingular, rollouts.Group, obj.Name)
+		fmt.Fprintf(c.Out, "%s.%s/%s created\n", rollouts.AnalysisRunSingular, rollouts.Group, obj.GetName())
 		return obj, nil
 	default:
 		return nil, fmt.Errorf("creates of %s/%s unsupported", gvk.Group, gvk.Kind)
@@ -244,21 +245,26 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return err
 			}
 			var templateName string
-			var template *v1alpha1.AnalysisTemplate
-			var clusterTemplate *v1alpha1.ClusterAnalysisTemplate
+			var obj *unstructured.Unstructured
 
 			if createOptions.Global {
-				clusterTemplate, err = createOptions.getClusterAnalysisTemplate()
+				obj, err = createOptions.getClusterAnalysisTemplate()
 				if err != nil {
 					return err
 				}
-				templateName = clusterTemplate.Name
 			} else {
-				template, err = createOptions.getAnalysisTemplate()
+				obj, err = createOptions.getAnalysisTemplate()
 				if err != nil {
 					return err
 				}
-				templateName = template.Name
+			}
+
+			objName, notFound, err := unstructured.NestedString(obj.Object, "metadata", "name")
+			if err != nil {
+				return err
+			}
+			if !notFound {
+				templateName = objName
 			}
 
 			var name, generateName string
@@ -271,30 +277,24 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			ns := o.Namespace()
 
-			var run *v1alpha1.AnalysisRun
-
-			if clusterTemplate != nil {
-				run, err = analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, templateArgs, name, generateName, ns)
-				if err != nil {
-					return err
-				}
-			} else {
-				run, err = analysisutil.NewAnalysisRunFromTemplate(template, templateArgs, name, generateName, ns)
-				if err != nil {
-					return err
-				}
-			}
-
-			if createOptions.InstanceID != "" {
-				run.Labels = map[string]string{
-					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
-				}
-			}
-			created, err := createOptions.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(ns).Create(ctx, run, metav1.CreateOptions{})
+			obj, err = analysisutil.NewAnalysisRunFromUnstructured(obj, templateArgs, name, generateName, ns)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", created.Name)
+			if createOptions.InstanceID != "" {
+				labels := map[string]string{
+					v1alpha1.LabelKeyControllerInstanceID: createOptions.InstanceID,
+				}
+				err = unstructured.SetNestedStringMap(obj.Object, labels, "metadata", "labels")
+				if err != nil {
+					return err
+				}
+			}
+			obj, err = createOptions.DynamicClient.Resource(v1alpha1.AnalysisRunGVR).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(createOptions.Out, "analysisrun.argoproj.io/%s created\n", obj.GetName())
 			return nil
 		},
 	}
@@ -308,39 +308,39 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*v1alpha1.AnalysisTemplate, error) {
+func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().AnalysisTemplates(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
-		var tmpl v1alpha1.AnalysisTemplate
-		err = unmarshal(fileBytes, &tmpl)
+		var un unstructured.Unstructured
+		err = unmarshal(fileBytes, &un)
 		if err != nil {
 			return nil, err
 		}
-		return &tmpl, nil
+		return &un, nil
 	}
 }
 
-func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*v1alpha1.ClusterAnalysisTemplate, error) {
+func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.Unstructured, error) {
 	ctx := context.TODO()
 	if c.From != "" {
-		return c.RolloutsClientset().ArgoprojV1alpha1().ClusterAnalysisTemplates().Get(ctx, c.From, metav1.GetOptions{})
+		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
 		fileBytes, err := ioutil.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
-		var tmpl v1alpha1.ClusterAnalysisTemplate
-		err = unmarshal(fileBytes, &tmpl)
+		var un unstructured.Unstructured
+		err = unmarshal(fileBytes, &un)
 		if err != nil {
 			return nil, err
 		}
-		return &tmpl, nil
+		return &un, nil
 	}
 }
 

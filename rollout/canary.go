@@ -36,7 +36,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	c.log.Info("Cleaning up old replicasets, experiments, and analysis runs")
+	err = c.reconcileEphemeralMetadata()
+	if err != nil {
+		return err
+	}
+
 	if err := c.cleanupRollouts(c.otherRSs); err != nil {
 		return err
 	}
@@ -95,14 +99,17 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-
-	if len(c.rollout.Spec.Strategy.Canary.Steps) == 0 {
+	if c.rollout.Status.PromoteFull {
+		return false
+	}
+	totalSteps := len(c.rollout.Spec.Strategy.Canary.Steps)
+	if totalSteps == 0 {
 		c.log.Info("Rollout does not have any steps")
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 
-	if len(c.rollout.Spec.Strategy.Canary.Steps) <= int(*currentStepIndex) {
+	if totalSteps <= int(*currentStepIndex) {
 		c.log.Info("No Steps remain in the canary steps")
 		return false
 	}
@@ -110,11 +117,11 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	if currentStep.Pause == nil {
 		return false
 	}
-	c.log.Infof("Reconciling canary pause step (stepIndex: %d)", *currentStepIndex)
+	c.log.Infof("Reconciling canary pause step (stepIndex: %d/%d)", *currentStepIndex, totalSteps)
 	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonCanaryPauseStep)
 	if cond == nil {
 		// When the pause condition is null, that means the rollout is in an not paused state.
-		// As a result,, the controller needs to detect whether a rollout was unpaused or the
+		// As a result, the controller needs to detect whether a rollout was unpaused or the
 		// rollout needs to be paused for the first time. If the ControllerPause is false,
 		// the controller has not paused the rollout yet and needs to do so before it
 		// can proceed.
@@ -163,7 +170,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 		// Cannot scale down.
 		return 0, nil
 	}
-	c.log.Infof("Found %d available pods, scaling down old RSes", availablePodCount)
+	c.log.Infof("Found %d available pods, scaling down old RSes (minAvailable: %d, maxScaleDown: %d)", availablePodCount, minAvailable, maxScaleDown)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 
@@ -176,17 +183,17 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 			// cannot scale down this ReplicaSet.
 			continue
 		}
-		scaleDownCount := *(targetRS.Spec.Replicas)
 		// Scale down.
 		newReplicasCount := int32(0)
-		if scaleDownCount > maxScaleDown {
-			newReplicasCount = maxScaleDown
+		if *(targetRS.Spec.Replicas) > maxScaleDown {
+			newReplicasCount = *(targetRS.Spec.Replicas) - maxScaleDown
 		}
 		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
 		if err != nil {
 			return totalScaledDown, err
 		}
-		maxScaleDown -= newReplicasCount
+		scaleDownCount := *targetRS.Spec.Replicas - newReplicasCount
+		maxScaleDown -= scaleDownCount
 		totalScaledDown += scaleDownCount
 	}
 
@@ -201,24 +208,27 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if currentStep == nil {
 		return false
 	}
-	if currentStep.Pause != nil {
+	switch {
+	case currentStep.Pause != nil:
 		return c.pauseContext.CompletedPauseStep(*currentStep.Pause)
-	}
-	modifyReplicasStep := currentStep.SetWeight != nil || currentStep.SetCanaryScale != nil
-	if modifyReplicasStep && replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
-		c.log.Info("Rollout has reached the desired state for the correct weight")
+	case currentStep.SetCanaryScale != nil:
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+	case currentStep.SetWeight != nil:
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+			return false
+		}
+		if c.weightVerified != nil && !*c.weightVerified {
+			return false
+		}
 		return true
+	case currentStep.Experiment != nil:
+		experiment := c.currentEx
+		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
+	case currentStep.Analysis != nil:
+		currentStepAr := c.currentArs.CanaryStep
+		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
+		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	}
-	experiment := c.currentEx
-	if currentStep.Experiment != nil && experiment != nil && experiment.Status.Phase.Completed() && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-		return true
-	}
-	currentStepAr := c.currentArs.CanaryStep
-	analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
-	if currentStep.Analysis != nil && analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-		return true
-	}
-
 	return false
 }
 
@@ -230,8 +240,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
-	//TODO(dthomson) Remove in v0.9.0
-	newStatus.Canary.StableRS = c.rollout.Status.Canary.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
@@ -251,6 +259,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		newStatus = c.calculateRolloutConditions(newStatus)
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+		newStatus.PromoteFull = false
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -258,8 +267,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s", newStatus.CurrentPodHash)
 		c.log.Info(msg)
 		newStatus.StableRS = newStatus.CurrentPodHash
-		//TODO(dthomson) Remove in v0.9.0
-		newStatus.Canary.StableRS = newStatus.CurrentPodHash
 		if stepCount > 0 {
 			if stepCount != *currentStepIndex {
 				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", msg)
@@ -270,6 +277,14 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		c.pauseContext.RemoveAbort()
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
+		if stepCount > 0 {
+			currentStepIndex = pointer.Int32Ptr(stepCount)
+		}
 	}
 
 	if c.pauseContext.IsAborted() {
@@ -284,33 +299,23 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if currentStepIndex != nil && *currentStepIndex == stepCount {
-		c.log.Info("Rollout has executed every step")
-		newStatus.CurrentStepIndex = &stepCount
+	if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == stepCount) {
+		c.log.Infof("Rollout has executed all %d steps", stepCount)
+		if stepCount > 0 {
+			newStatus.CurrentStepIndex = &stepCount
+		}
 		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 			c.log.Info("New RS has successfully progressed")
 			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
+			newStatus.PromoteFull = false
 		}
 		c.pauseContext.ClearPauseConditions()
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if stepCount == 0 {
-		c.log.Info("Rollout has no steps")
-		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
-			c.log.Info("New RS has successfully progressed")
-			newStatus.StableRS = newStatus.CurrentPodHash
-			//TODO(dthomson) Remove in v0.9.0
-			newStatus.Canary.StableRS = newStatus.CurrentPodHash
-		}
-		newStatus = c.calculateRolloutConditions(newStatus)
-		return c.persistRolloutStatus(&newStatus)
-	}
-
-	if c.completedCurrentCanaryStep() {
+	completedStep := c.completedCurrentCanaryStep()
+	if completedStep {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
 		newStatus.Canary.CurrentStepAnalysisRun = ""

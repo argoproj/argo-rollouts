@@ -59,3 +59,25 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: coverage.out
+
+  codegen:
+    name: Verify Codegen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
+      - name: Download & vendor dependencies
+        run: |
+          # We need to vendor go modules for codegen yet
+          go mod download
+          go mod vendor -v
+      - name: Run codegen
+        run: |
+          make codegen
+          make manifests
+      - name: Ensure nothing changed
+        run: git diff --exit-code

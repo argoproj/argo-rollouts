@@ -59,7 +59,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("Switched selector for service '%s' to value '%s'", service.Name, newRolloutUniqueLabelValue)
+	msg := fmt.Sprintf("Switched selector for service '%s' from '%s' to '%s'", service.Name, oldPodHash, newRolloutUniqueLabelValue)
 	c.log.Info(msg)
 	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue

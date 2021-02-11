@@ -33,18 +33,26 @@ nav:
     - BlueGreen: features/bluegreen.md
     - Canary: features/canary.md
   - Rollout Spec: features/specification.md
-  - Traffic Management:
-    - Overview: features/traffic-management/index.md
-    - Istio: features/traffic-management/istio.md
-    - NGINX: features/traffic-management/nginx.md
-    - AWS ALB: features/traffic-management/alb.md
-    - SMI: features/traffic-management/smi.md
-  - Anti Affinity: features/anti-affinity/anti-affinity.md
-  - HPA Support: features/hpa-support.md
-  - Kustomize Support: features/kustomize.md
+  - HPA: features/hpa-support.md
+  - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
+  - Anti Affinity: features/anti-affinity/anti-affinity.md
+  - Kustomize: features/kustomize.md
   - Controller Metrics: features/controller-metrics.md
-- Analysis: features/analysis.md
+- Traffic Management:
+  - Overview: features/traffic-management/index.md
+  - Istio: features/traffic-management/istio.md
+  - NGINX: features/traffic-management/nginx.md
+  - AWS ALB: features/traffic-management/alb.md
+  - SMI: features/traffic-management/smi.md
+- Analysis:
+  - Overview: features/analysis.md
+  - DataDog: analysis/datadog.md
+  - NewRelic: analysis/newrelic.md
+  - Wavefront: analysis/wavefront.md
+  - Job: analysis/job.md
+  - Web: analysis/web.md
+  - Kayenta: analysis/kayenta.md
 - Experiments: features/experiment.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
@@ -56,6 +64,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
@@ -70,7 +79,9 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
 - Roadmap: roadmap.md

@@ -55,7 +55,6 @@ status:
       message: metric "web" assessed Failed due to failed (1) > failureLimit (0)
       name: rollout-background-analysis-db976bc44-2
       status: Failed
-    stableRS: 7d84d44bb8
   conditions:
   - lastTransitionTime: "2020-09-22T09:09:47Z"
     lastUpdateTime: "2020-09-22T09:09:47Z"
@@ -72,7 +71,7 @@ status:
   currentPodHash: db976bc44
   currentStepHash: 849b756fd4
   currentStepIndex: 0
-  observedGeneration: 7d77fd9646
+  observedGeneration: "15"
   readyReplicas: 1
   replicas: 1
   selector: app=rollout-background-analysis

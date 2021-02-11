@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -38,9 +39,7 @@ func newRollout(
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			Canary: v1alpha1.CanaryStatus{
-				StableRS: stablePodHash,
-			},
+			StableRS:       stablePodHash,
 			CurrentPodHash: currentPodHash,
 		},
 	}
@@ -80,6 +79,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 		setWeight           int32
 		maxSurge            intstr.IntOrString
 		maxUnavailable      intstr.IntOrString
+		promoteFull         bool
 
 		stableSpecReplica      int32
 		stableAvailableReplica int32
@@ -535,11 +535,48 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 1,
 			expectedCanaryReplicaCount: 3, // should only reduce by 1 to honor maxUnavailable
 		},
+		{
+			// verify when promoting a rollout fully, we don't consider canary weight
+			name:                "promote full does not consider weight",
+			promoteFull:         true,
+			rolloutSpecReplicas: 4,
+			setWeight:           1,
+			maxSurge:            intstr.FromInt(4),
+			maxUnavailable:      intstr.FromInt(4),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 4,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 4,
+		},
+		{
+			// verify when promoting a rollout fully, we still honor maxSurge and maxUnavailable
+			name:                "promote full still honors maxSurge/maxUnavailable",
+			promoteFull:         true,
+			rolloutSpecReplicas: 4,
+			setWeight:           1,
+			maxSurge:            intstr.FromInt(3),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      4,
+			stableAvailableReplica: 4,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 4,
+			expectedCanaryReplicaCount: 3,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable", test.setCanaryScale, test.trafficRouting)
+			rollout.Status.PromoteFull = test.promoteFull
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
@@ -729,5 +766,130 @@ func TestGetCurrentExperiment(t *testing.T) {
 	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
+
+}
+
+func TestSyncReplicaSetEphemeralPodMetadata(t *testing.T) {
+	rs := appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: corev1.NamespaceDefault,
+			Annotations: map[string]string{
+				EphemeralMetadataAnnotation: `{"labels":{"aaa":"111","bbb":"222"},"annotations":{"ccc":"333","ddd":"444"}}`,
+			},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"aaa": "111",
+						"bbb": "222",
+					},
+					Annotations: map[string]string{
+						"ccc": "333",
+						"ddd": "444",
+					},
+				},
+			},
+		},
+	}
+	{
+		// verify applying the same pod-metadata is a noop
+		oldPodMetadata := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "111",
+				"bbb": "222",
+			},
+			Annotations: map[string]string{
+				"ccc": "333",
+				"ddd": "444",
+			},
+		}
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, &oldPodMetadata)
+		assert.False(t, modified)
+		assert.Equal(t, rs.Annotations, newRS.Annotations)
+		assert.Equal(t, rs.Spec.Template.Labels, newRS.Spec.Template.Labels)
+		assert.Equal(t, rs.Spec.Template.Annotations, newRS.Spec.Template.Annotations)
+	}
+	{
+		// verify applying new new update works
+		newPodMetadata := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "111",
+			},
+			Annotations: map[string]string{
+				"ccc": "333",
+			},
+		}
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, &newPodMetadata)
+		assert.True(t, modified)
+		assert.Equal(t, newPodMetadata.Labels, newRS.Spec.Template.Labels)
+		assert.Equal(t, newPodMetadata.Annotations, newRS.Spec.Template.Annotations)
+		assert.Equal(t, newRS.Annotations[EphemeralMetadataAnnotation], `{"labels":{"aaa":"111"},"annotations":{"ccc":"333"}}`)
+	}
+	{
+		// verify we can remove metadata
+		newRS, modified := SyncReplicaSetEphemeralPodMetadata(&rs, nil)
+		assert.True(t, modified)
+		assert.Empty(t, newRS.Spec.Template.Labels)
+		assert.Empty(t, newRS.Spec.Template.Annotations)
+		assert.Empty(t, newRS.Annotations[EphemeralMetadataAnnotation])
+	}
+}
+
+func TestSyncEphemeralPodMetadata(t *testing.T) {
+	meta := metav1.ObjectMeta{
+		Labels: map[string]string{
+			"aaa":    "111",
+			"do-not": "touch",
+			"bbb":    "222",
+		},
+		Annotations: map[string]string{
+			"ccc":    "333",
+			"do-not": "touch",
+			"ddd":    "444",
+		},
+	}
+	existing := v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			"aaa": "111",
+			"bbb": "222",
+		},
+		Annotations: map[string]string{
+			"ccc": "333",
+			"ddd": "444",
+		},
+	}
+	{
+		// verify modified is false if there are no changes
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &existing)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	}
+	{
+		// verify we don't touch metadata that we did not inject ourselves
+		desired := v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{
+				"aaa": "222",
+			},
+			Annotations: map[string]string{
+				"ccc": "444",
+			},
+		}
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &desired)
+		assert.True(t, modified)
+		expected := metav1.ObjectMeta{
+			Labels: map[string]string{
+				"aaa":    "222",
+				"do-not": "touch",
+			},
+			Annotations: map[string]string{
+				"ccc":    "444",
+				"do-not": "touch",
+			},
+		}
+		assert.True(t, modified)
+		assert.Equal(t, expected, *newMetadata)
+	}
 
 }
