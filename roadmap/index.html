@@ -1138,59 +1138,9 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          Roadmap
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         Roadmap
       </a>
-      
-        
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#webhook-notifications" class="md-nav__link">
-    Webhook Notifications
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rollback-window" class="md-nav__link">
-    Rollback Window
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#header-based-routing" class="md-nav__link">
-    Header Based Routing
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shadow-traffic" class="md-nav__link">
-    Shadow Traffic
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1314,42 +1264,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#webhook-notifications" class="md-nav__link">
-    Webhook Notifications
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rollback-window" class="md-nav__link">
-    Rollback Window
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#header-based-routing" class="md-nav__link">
-    Header Based Routing
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shadow-traffic" class="md-nav__link">
-    Shadow Traffic
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1371,6 +1285,8 @@ may fall into releases, visit the <a href="https://github.com/argoproj/argo-roll
 and notice if the item appears in the milestone description.</p>
 <ul>
 <li><a href="#roadmap">Roadmap</a><ul>
+<li><a href="#weight-verification">Weight Verification</a></li>
+<li><a href="#istio-canary-using-destinationrule-subsets">Istio Canary using DestinationRule subsets</a></li>
 <li><a href="#webhook-notifications">Webhook Notifications</a></li>
 <li><a href="#rollback-window">Rollback Window</a></li>
 <li><a href="#header-based-routing">Header Based Routing</a></li>
@@ -1378,11 +1294,68 @@ and notice if the item appears in the milestone description.</p>
 </ul>
 </li>
 </ul>
+<h1 id="v10">v1.0<a class="headerlink" href="#v10" title="Permanent link">&para;</a></h1>
+<h2 id="weight-verification">Weight Verification<a class="headerlink" href="#weight-verification" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/argoproj/argo-rollouts/issues/701">Issue #701</a></p>
+<p>When Argo Rollouts adjusts a canary weight, it currently assumes that the adjustment was made and
+moves on to the next step. However, for some traffic routing providers, this change can take a long
+time to take effect (or possibly never even made) since external factors may cause the change to
+become delayed.</p>
+<p>This proposal is to add verification to the traffic routers so that after a setWeight step, the
+rollout controller could verify that the weight took effect before moving on to the next step. This
+is especially important for the ALB ingress controller which are affected by things like rate
+limiting, the ALB ingress controller not running, etc...</p>
+<h2 id="istio-canary-using-destinationrule-subsets">Istio Canary using DestinationRule subsets<a class="headerlink" href="#istio-canary-using-destinationrule-subsets" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/argoproj/argo-rollouts/issues/617">Issue #617</a></p>
+<p>Currently, Rollouts supports only host-level traffic splitting using two Kubernetes Services.
+For some use cases (e.g. east-west canarying intra-cluster), this pattern not desirable and traffic
+splitting should be achieved using two
+Istio <a href="https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset">DestinationRule Subsets</a>
+instead.</p>
+<h1 id="v11">v1.1+<a class="headerlink" href="#v11" title="Permanent link">&para;</a></h1>
 <h2 id="webhook-notifications">Webhook Notifications<a class="headerlink" href="#webhook-notifications" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/argoproj/argo-rollouts/issues/369">Issue #369</a></p>
 <p>When a rollout transitions state, such as an aborted rollout due to failed analysis, there is no mechanism to notify an external system about the failure. Instead, users must currently put in place something to monitor the rollout, and notice the condition to take action. Monitoring a rollout is not always an option, since it requires that the external system have access to the Kubernetes API server.</p>
 <p>A webhook notification feature of Rollouts would allow a push-based model where the Rollout controller itself would push an event to an external system, in the form of a webhook/cloud event.</p>
-<h2 id="rollback-window">Rollback Window<a class="headerlink" href="#rollback-window" title="Permanent link">&para;</a></h2>
+<h2 id="workload-referencing">Workload Referencing<a class="headerlink" href="#workload-referencing" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/argoproj/argo-rollouts/issues/676">Issue #676</a></p>
+<p>Currently, the Rollout spec contains both the deployment strategy (e.g. blueGreen/canary),
+as well as the pod template. This proposal is to support a way to reference the pod template
+definition from another group/kind (e.g. a Deployment, PodTemplate) so that the rollout strategy
+could be separated from the workload definition. This is motivated by the following use cases:</p>
+<ul>
+<li>CRDs (e.g. Rollouts) are not supported well in kustomize, and strategic merge patches simply 
+  don't work as expected with a Rollout because lists will be replaced and not merged. By
+  referencing a native Kubernetes kind, kustomize would work expectedly against the k8s native
+  referenced object, which is the portion of the spec that users typically want to customize
+  overlays against.</li>
+<li>During a migration from a Deployment to a Rollout, it has been inconvenient for users to duplicate
+  the entire Deployment spec to a Rollout, and keeping them always in sync during the transition.
+  By referencing the definition, we would be able to eliminate the possibility of pod template spec
+  duplication.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-canary</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
+  <span class="nt">workloadRef</span><span class="p">:</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">steps</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">1h</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">40</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">1h</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">60</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">1h</span><span class="p p-Indicator">}</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">1h</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<h2 id="rollback-windows">Rollback Windows<a class="headerlink" href="#rollback-windows" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/argoproj/argo-rollouts/issues/574">Issue #574</a></p>
 <p>Currently, when an older Rollout manifest is re-applied, the controller treats it the same as a spec change, and will execute the full list of steps, and perform analysis too. There are two exceptions to this rule:
 1. the controller detects if it is moving back to a blue-green ReplicaSet which exists and is still scaled up (within its scaleDownDelay)
