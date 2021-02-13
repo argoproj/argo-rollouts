@@ -1,11 +1,10 @@
 package istio
 
 import (
+	"context"
 	"fmt"
-	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,32 +13,27 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
-	"k8s.io/client-go/dynamic/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
-func strToUnstructured(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
-	yamlStr = strings.ReplaceAll(yamlStr, "\t", "    ")
-	err := yaml.Unmarshal([]byte(yamlStr), &obj)
-	if err != nil {
-		panic(err)
-	}
-	return &unstructured.Unstructured{Object: obj}
-}
-
-func getVirtualServiceLister(client dynamic.Interface) dynamiclister.Lister {
-	istioGVR := istioutil.GetIstioVirtualServiceGVR()
+func getIstioListers(client dynamic.Interface) (dynamiclister.Lister, dynamiclister.Lister) {
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	druleGVR := istioutil.GetIstioDestinationRuleGVR()
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(client, 0)
-	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioGVR).Informer()
+	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(vsvcGVR).Informer()
+	destinationRuleInformer := dynamicInformerFactory.ForResource(druleGVR).Informer()
 	stopCh := make(chan struct{})
 	dynamicInformerFactory.Start(stopCh)
 	dynamicInformerFactory.WaitForCacheSync(stopCh)
 	close(stopCh)
-	return dynamiclister.New(istioVirtualServiceInformer.GetIndexer(), istioGVR)
+	vsvcLister := dynamiclister.New(istioVirtualServiceInformer.GetIndexer(), vsvcGVR)
+	druleLister := dynamiclister.New(destinationRuleInformer.GetIndexer(), druleGVR)
+	return vsvcLister, druleLister
 }
 
 func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollout {
@@ -99,21 +93,21 @@ spec:
       weight: 100
     - destination:
         host: canary
-	  weight: 0
+      weight: 0
   - name: secondary
-	route:
-	- destination:
-		host: 'stable'
-	  weight: 100
-	- destination:
-	    host: canary
-	  weight: 0`
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
 
 func TestReconcileWeightsBaseCase(t *testing.T) {
 	r := &Reconciler{
 		rollout: rollout("stable", "canary", "vsvc", []string{"primary"}),
 	}
-	obj := strToUnstructured(regularVsvc)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	modifiedObj, _, err := r.reconcileVirtualService(obj, 10)
 	assert.Nil(t, err)
 	assert.NotNil(t, modifiedObj)
@@ -131,12 +125,12 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 }
 
 func TestReconcileUpdateVirtualService(t *testing.T) {
-	obj := strToUnstructured(regularVsvc)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema, obj)
+	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(10)
 	assert.Nil(t, err)
@@ -146,11 +140,11 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 }
 
 func TestReconcileNoChanges(t *testing.T) {
-	obj := strToUnstructured(regularVsvc)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema, obj)
+	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
 	err := r.SetWeight(0)
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
@@ -158,12 +152,12 @@ func TestReconcileNoChanges(t *testing.T) {
 }
 
 func TestReconcileInvalidValidation(t *testing.T) {
-	obj := strToUnstructured(regularVsvc)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema, obj)
+	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
-	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(0)
 	assert.Equal(t, "Route 'route-not-found' is not found", err.Error())
@@ -171,10 +165,10 @@ func TestReconcileInvalidValidation(t *testing.T) {
 
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema)
+	client := dynamicfake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	vsvcLister := getVirtualServiceLister(client)
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(10)
 	assert.NotNil(t, err)
@@ -183,9 +177,9 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 
 func TestType(t *testing.T) {
 	schema := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(schema)
+	client := dynamicfake.NewSimpleDynamicClient(schema)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
-	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
 	assert.Equal(t, Type, r.Type())
 }
 
@@ -302,4 +296,203 @@ func TestValidateHosts(t *testing.T) {
 
 	err = validateVirtualServiceHTTPRouteDestinations(hr, "stable", "not-found-canary", nil)
 	assert.Equal(t, fmt.Errorf("Canary Service 'not-found-canary' not found in route"), err)
+}
+
+func TestValidateHTTPRoutesSubsets(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: v1alpha1.IstioVirtualService{
+								Routes: []string{"primary"},
+							},
+							DestinationRule: &v1alpha1.IstioDestinationRule{
+								Name:             "subset",
+								CanarySubsetName: "canary",
+								StableSubsetName: "stable",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	httpRoutes := []VirtualServiceHTTPRoute{{
+		Name: "primary",
+		Route: []VirtualServiceHTTPRouteDestination{
+			{
+				Destination: VirtualServiceDestination{
+					Host:   "rollout",
+					Subset: "stable",
+				},
+			},
+			{
+				Destination: VirtualServiceDestination{
+					Host:   "rollout",
+					Subset: "canary",
+				},
+			},
+		},
+	}}
+
+	{
+		// the good case
+		err := ValidateHTTPRoutes(rollout, httpRoutes)
+		assert.NoError(t, err)
+	}
+	{
+		// the stable subset doesnt exist
+		rollout = rollout.DeepCopy()
+		rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName = "doesntexist"
+		err := ValidateHTTPRoutes(rollout, httpRoutes)
+		assert.EqualError(t, err, "Stable DestinationRule subset 'doesntexist' not found in route")
+	}
+	{
+		// the canary subset doesnt exist
+		rollout = rollout.DeepCopy()
+		rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName = "doesntexist"
+		err := ValidateHTTPRoutes(rollout, httpRoutes)
+		assert.EqualError(t, err, "Canary DestinationRule subset 'doesntexist' not found in route")
+	}
+}
+
+func rolloutWithDestinationRule() *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rollout",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: v1alpha1.IstioVirtualService{
+								Routes: []string{"primary"},
+							},
+							DestinationRule: &v1alpha1.IstioDestinationRule{
+								Name:             "istio-destrule",
+								CanarySubsetName: "canary",
+								StableSubsetName: "stable",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// TestUpdateHashWithListers verifies behavior of UpdateHash when using informers/listers
+func TestUpdateHashWithListers(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
+	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
+	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+}
+
+// TestUpdateHashNoChange verifies we don't make any API calls when there are no changes necessary to the destinationRule
+func TestUpdateHashNoChange(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: def456
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: abc123
+`)
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 0)
+}
+
+// TestUpdateHashWithListers verifies behavior of UpdateHash when we do not yet have a lister/informer
+func TestUpdateHashWithoutListers(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 2)
+	assert.Equal(t, "get", actions[0].GetVerb())
+	assert.Equal(t, "update", actions[1].GetVerb())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
+	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
+	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+}
+
+func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	actions := client.Actions()
+	assert.Len(t, actions, 0)
+	assert.EqualError(t, err, "destinationrules.networking.istio.io \"istio-destrule\" not found")
 }

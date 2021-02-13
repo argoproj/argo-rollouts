@@ -135,14 +135,14 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 		log.Info("Istio detected")
 	}
 
-	if ok := cache.WaitForCacheSync(stopCh, c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced); !ok {
-		panic("failed to wait for istio caches to sync")
-	}
+	cache.WaitForCacheSync(stopCh, c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced)
+
 	for i := 0; i < destinationRuleWorkers; i++ {
 		go wait.Until(func() {
 			controllerutil.RunWorker(c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
 		}, time.Second, stopCh)
 	}
+	log.Infof("Istio workers (%d) started", destinationRuleWorkers)
 
 	<-stopCh
 	log.Info("Istio controller stopped")

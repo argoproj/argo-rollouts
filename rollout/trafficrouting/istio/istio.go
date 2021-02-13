@@ -23,24 +23,26 @@ import (
 const Type = "Istio"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, istioVirtualServiceLister dynamiclister.Lister) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister) *Reconciler {
 	return &Reconciler{
 		rollout: r,
 		log:     logutil.WithRollout(r),
 
-		client:                    client,
-		recorder:                  recorder,
-		istioVirtualServiceLister: istioVirtualServiceLister,
+		client:                client,
+		recorder:              recorder,
+		virtualServiceLister:  virtualServiceLister,
+		destinationRuleLister: destinationRuleLister,
 	}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
-	rollout                   *v1alpha1.Rollout
-	log                       *log.Entry
-	client                    dynamic.Interface
-	recorder                  record.EventRecorder
-	istioVirtualServiceLister dynamiclister.Lister
+	rollout               *v1alpha1.Rollout
+	log                   *log.Entry
+	client                dynamic.Interface
+	recorder              record.EventRecorder
+	virtualServiceLister  dynamiclister.Lister
+	destinationRuleLister dynamiclister.Lister
 }
 
 type virtualServicePatch struct {
@@ -156,7 +158,15 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 	}
 	ctx := context.TODO()
 	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
-	dRuleUn, err := client.Get(ctx, dRuleSpec.Name, metav1.GetOptions{})
+
+	var dRuleUn *unstructured.Unstructured
+	var err error
+	if r.destinationRuleLister != nil {
+		dRuleUn, err = r.destinationRuleLister.Namespace(r.rollout.Namespace).Get(dRuleSpec.Name)
+	} else {
+		dRuleUn, err = client.Get(ctx, dRuleSpec.Name, metav1.GetOptions{})
+	}
+
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			msg := fmt.Sprintf("DestinationRule `%s` not found", dRuleSpec.Name)
@@ -264,10 +274,6 @@ func jsonBytesToDestinationRule(dRuleBytes []byte) (*DestinationRule, error) {
 	return &dRule, nil
 }
 
-func (r *Reconciler) reconcileDestinationRule(obj *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
-	return nil, false, nil
-}
-
 func GetHttpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	httpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", "http")
 	if !notFound {
@@ -306,8 +312,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	var err error
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
 	client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace)
-	if r.istioVirtualServiceLister != nil {
-		vsvc, err = r.istioVirtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
+	if r.virtualServiceLister != nil {
+		vsvc, err = r.virtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
 	} else {
 		vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
 	}

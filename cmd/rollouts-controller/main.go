@@ -27,6 +27,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/istio"
@@ -76,6 +77,7 @@ func newCommand() *cobra.Command {
 
 			alb.SetDefaultVerifyWeight(albVerifyWeight)
 			istio.SetIstioAPIVersion(istioVersion)
+			smi.SetSMIAPIVersion(trafficSplitVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)

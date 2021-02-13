@@ -58,3 +58,31 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	assert.Len(t, keys, 1)
 	assert.Equal(t, keys[0], "default/test")
 }
+
+func TestGetRolloutDesinationRuleKeys(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	// rollout doesn't reference any dest rule
+	assert.Len(t, GetRolloutDesinationRuleKeys(ro), 0)
+
+	// rollout references a destination rule
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name: "foo",
+			},
+		},
+	}
+	keys := GetRolloutDesinationRuleKeys(ro)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, "default/foo", keys[0])
+}
