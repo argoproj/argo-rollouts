@@ -38,6 +38,14 @@ func newService(name string, port int, selector map[string]string) *corev1.Servi
 
 func TestGenerateRemovePatch(t *testing.T) {
 	svc := &corev1.Service{}
+	assert.Equal(t, "", generateRemovePatch(svc))
+	svc = &corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: "abc123",
+			},
+		},
+	}
 	assert.Equal(t, removeSelectorPatch, generateRemovePatch(svc))
 	svc.Annotations = map[string]string{
 		v1alpha1.ManagedByRolloutsKey: "test",

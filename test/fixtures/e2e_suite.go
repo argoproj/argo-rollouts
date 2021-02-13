@@ -48,6 +48,8 @@ var (
 	E2EWaitTimeout time.Duration = time.Second * 60
 	E2EPodDelay                  = 0
 
+	E2EALBIngressAnnotations map[string]string
+
 	// All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
 	// All e2e tests will be labeled with their test name
@@ -67,8 +69,11 @@ var (
 		Version:  "v1beta1",
 		Resource: "poddisruptionbudgets",
 	}
-
-	E2EALBIngressAnnotations map[string]string
+	jobGVR = schema.GroupVersionResource{
+		Group:    "batch",
+		Version:  "v1",
+		Resource: "jobs",
+	}
 )
 
 func init() {
@@ -101,6 +106,8 @@ func init() {
 type E2ESuite struct {
 	suite.Suite
 	Common
+
+	IstioEnabled bool
 }
 
 func (s *E2ESuite) SetupSuite() {
@@ -129,6 +136,10 @@ func (s *E2ESuite) SetupSuite() {
 		_ = flag.Set("logtostderr", "true")
 		_ = flag.Set("v", strconv.Itoa(7))
 		flag.Parse()
+	}
+
+	if istioutil.DoesIstioExist(s.dynamicClient, s.namespace) {
+		s.IstioEnabled = true
 	}
 }
 
@@ -177,7 +188,9 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		serviceGVR,
 		ingressGVR,
 		pdbGVR,
-		istioutil.GetIstioGVR("v1alpha3"),
+		istioutil.GetIstioVirtualServiceGVR(),
+		istioutil.GetIstioDestinationRuleGVR(),
+		jobGVR,
 	}
 	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	listOpts := metav1.ListOptions{LabelSelector: req.String()}

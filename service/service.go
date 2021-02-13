@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -31,8 +32,7 @@ import (
 const (
 	// serviceIndexName is the index by which Service resources are cached
 	serviceIndexName    = "byService"
-	removeSelectorPatch = `{
-	"metadata": {
+	removeSelectorPatch = `{"metadata": {
 		"annotations": {
 			"` + v1alpha1.ManagedByRolloutsKey + `": null
 		}
@@ -144,6 +144,9 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
+// syncService detects a change to a Service which is managed by a Rollout, and enqueues the
+// related rollout for reconciliation. If no rollout is referencing the Service, then removes
+// any injected fields in the service (e.g. rollouts-pod-template-hash and managed-by annotation)
 func (c *Controller) syncService(key string) error {
 	ctx := context.TODO()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -152,20 +155,25 @@ func (c *Controller) syncService(key string) error {
 	}
 	svc, err := c.servicesLister.Services(namespace).Get(name)
 	if errors.IsNotFound(err) {
-		log.WithField(logutil.ServiceKey, key).Infof("Service %v has been deleted", key)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-
 	// Return early if the svc does not have a hash selector
 	if _, hasHashSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !hasHashSelector {
 		return nil
 	}
+
 	// Handles case where the controller is not watching all Rollouts in the cluster due to instance-ids by making an
 	// API call to get Rollout and confirm it references the service.
 	rolloutName, hasManagedBy := serviceutil.HasManagedByAnnotation(svc)
+	logCtx := log.WithField(logutil.ServiceKey, svc.Name).WithField(logutil.NamespaceKey, svc.Namespace)
+	if rolloutName != "" {
+		logCtx = logCtx.WithField(logutil.RolloutKey, rolloutName)
+	}
+	logCtx.Infof("syncing service")
+
 	if hasManagedBy {
 		rollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(svc.Namespace).Get(ctx, rolloutName, metav1.GetOptions{})
 		if err == nil {
@@ -189,20 +197,30 @@ func (c *Controller) syncService(key string) error {
 		}
 	}
 
-	updatedSvc := svc.DeepCopy()
-	patch := generateRemovePatch(updatedSvc)
-	_, err = c.kubeclientset.CoreV1().Services(updatedSvc.Namespace).Patch(ctx, updatedSvc.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
-	if errors.IsNotFound(err) {
-		return nil
+	patch := generateRemovePatch(svc)
+	if patch != "" {
+		_, err = c.kubeclientset.CoreV1().Services(svc.Namespace).Patch(ctx, svc.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		logCtx.Infof("cleaned service")
 	}
-	return err
+	return nil
 }
 
+// generateRemovePatch generates a patch which clears injected fields the controller may have injected
+// against the Service
 func generateRemovePatch(svc *corev1.Service) string {
 	if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; ok {
 		return removeSelectorAndManagedByPatch
 	}
-	return removeSelectorPatch
+	if _, ok := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+		return removeSelectorPatch
+	}
+	return ""
 }
 
 // getRolloutsByService returns all rollouts which are referencing specified service

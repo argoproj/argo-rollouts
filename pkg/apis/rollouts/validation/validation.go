@@ -174,6 +174,16 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	return allErrs
 }
 
+// requireCanaryStableServices returns true if the rollout requires canary.stableService and
+// canary.canaryService to be defined
+func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
+	canary := rollout.Spec.Strategy.Canary
+	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) {
+		return false
+	}
+	return true
+}
+
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	canary := rollout.Spec.Strategy.Canary
 	allErrs := field.ErrorList{}
@@ -181,7 +191,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
-	if canary.TrafficRouting != nil {
+	if requireCanaryStableServices(rollout) {
 		if canary.StableService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, InvalidTrafficRoutingMessage))
 		}

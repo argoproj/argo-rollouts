@@ -3,6 +3,8 @@ package fixtures
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 type When struct {
@@ -221,6 +224,11 @@ func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *Wh
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
 
+func (w *When) Wait(duration time.Duration) *When {
+	time.Sleep(duration)
+	return w
+}
+
 func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
 		if ro.Status.CurrentStepIndex == nil || *ro.Status.CurrentStepIndex != index {
@@ -368,6 +376,26 @@ func (w *When) WaitForPrePromotionAnalysisRunPhase(phase string) *When {
 func (w *When) WaitForPostPromotionAnalysisRunPhase(phase string) *When {
 	arun := w.GetPostPromotionAnalysisRun()
 	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) StartLoad() *When {
+	yamlBytes := w.yamlBytes("@istio/load-test-job.yaml")
+	objs, err := unstructuredutil.SplitYAML(string(yamlBytes))
+	w.CheckError(err)
+	w.applyObject(objs[0])
+	return w
+}
+
+func (w *When) StopLoad() *When {
+	cmd := exec.Command("kubectl", "exec", "job/load-test", "--", "killall", "-s", "SIGINT", "wrk")
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		w.log.Errorf("kubectl exec failed: %s", out)
+		w.t.FailNow()
+	}
+	w.log.Info(string(out))
+	return w
 }
 
 func (w *When) Then() *Then {

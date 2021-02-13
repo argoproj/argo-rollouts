@@ -14,14 +14,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamiclister"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
@@ -32,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -54,10 +51,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
-)
-
-const (
-	virtualServiceIndexName = "byVirtualService"
 )
 
 // Controller is the controller implementation for Rollout resources
@@ -97,14 +90,13 @@ type ControllerConfig struct {
 	IngressInformer                 extensionsinformers.IngressInformer
 	RolloutsInformer                informers.RolloutInformer
 	IstioVirtualServiceInformer     cache.SharedIndexInformer
+	IstioDestinationRuleInformer    cache.SharedIndexInformer
 	ResyncPeriod                    time.Duration
 	RolloutWorkQueue                workqueue.RateLimitingInterface
 	ServiceWorkQueue                workqueue.RateLimitingInterface
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
-	DefaultIstioVersion             string
-	DefaultTrafficSplitVersion      string
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -116,10 +108,8 @@ type reconcilerBase struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
-	dynamicclientset           dynamic.Interface
-	smiclientset               smiclientset.Interface
-	defaultIstioVersion        string
-	defaultTrafficSplitVersion string
+	dynamicclientset dynamic.Interface
+	smiclientset     smiclientset.Interface
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
@@ -133,10 +123,7 @@ type reconcilerBase struct {
 	analysisRunLister             listers.AnalysisRunLister
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is
-	// later added, then controller will auto-detect change and start istioVirtualServiceInformer
-	istioVirtualServiceInformer cache.SharedIndexInformer
-	istioVirtualServiceLister   dynamiclister.Lister
+	IstioController               *istio.IstioController
 
 	podRestarter RolloutPodRestarter
 
@@ -171,8 +158,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
 		smiclientset:                  cfg.SmiClientSet,
-		defaultIstioVersion:           cfg.DefaultIstioVersion,
-		defaultTrafficSplitVersion:    cfg.DefaultTrafficSplitVersion,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
 		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
@@ -185,8 +170,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
-		istioVirtualServiceLister:     dynamiclister.New(cfg.IstioVirtualServiceInformer.GetIndexer(), istioutil.GetIstioGVR(cfg.DefaultIstioVersion)),
-		istioVirtualServiceInformer:   cfg.IstioVirtualServiceInformer,
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
@@ -208,6 +191,15 @@ func NewController(cfg ControllerConfig) *Controller {
 		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
 
+	controller.IstioController = istio.NewIstioController(istio.IstioControllerConfig{
+		ArgoprojClientSet:       cfg.ArgoProjClientset,
+		DynamicClientSet:        cfg.DynamicClientSet,
+		EnqueueRollout:          controller.enqueueRollout,
+		RolloutsInformer:        cfg.RolloutsInformer,
+		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,
+		DestinationRuleInformer: cfg.IstioDestinationRuleInformer,
+	})
+
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
@@ -217,32 +209,34 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateFunc: func(old, new interface{}) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
 			newRollout := unstructuredutil.ObjectToRollout(new)
-			if old == nil || new == nil {
-				return
-			}
-			for _, s := range serviceutil.GetRolloutServiceKeys(oldRollout) {
-				controller.serviceWorkqueue.AddRateLimited(s)
+			if oldRollout != nil && newRollout != nil {
+				// Check if rollout services/destinationrules were modified, if so we enqueue the
+				// referenced Service and/or DestinationRules so that the rollouts-pod-template-hash
+				// can be cleared from each
+				if modifiedKeys("Service", oldRollout, newRollout, serviceutil.GetRolloutServiceKeys) {
+					for _, s := range serviceutil.GetRolloutServiceKeys(oldRollout) {
+						controller.serviceWorkqueue.AddRateLimited(s)
+					}
+				}
+				if modifiedKeys("DestinationRule", oldRollout, newRollout, istioutil.GetRolloutDesinationRuleKeys) {
+					controller.IstioController.EnqueueDestinationRuleFromRollout(oldRollout)
+				}
 			}
 			controller.enqueueRollout(newRollout)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout deleted")
+				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
+				// that the rollouts-pod-template-hash can be cleared from each
 				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
 					controller.serviceWorkqueue.AddRateLimited(s)
 				}
+				controller.IstioController.EnqueueDestinationRuleFromRollout(ro)
 			}
 		},
 	})
-
-	// Indexer to frequently check/enqueue Rollouts that reference virtualServices
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
-			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
-				return istio.GetRolloutVirtualServiceKeys(ro), nil
-			}
-			return
-		},
-	}))
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -284,20 +278,29 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	})
 
-	cfg.IstioVirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			controller.EnqueueIstioVsvc(obj)
-		},
-		// TODO: DeepEquals on httpRoutes
-		UpdateFunc: func(old, new interface{}) {
-			controller.EnqueueIstioVsvc(new)
-		},
-		DeleteFunc: func(obj interface{}) {
-			controller.EnqueueIstioVsvc(obj)
-		},
-	})
-
 	return controller
+}
+
+// modifiedKeys returns true if the indexer keys have been modified in the given rollout
+func modifiedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alpha1.Rollout) []string) bool {
+	oldKeys := keyFunc(old)
+	newKeys := keyFunc(new)
+	modified := false
+	if len(oldKeys) != len(newKeys) {
+		modified = true
+	} else {
+		for i := 0; i < len(oldKeys); i++ {
+			if oldKeys[i] != newKeys[i] {
+				modified = true
+				break
+			}
+		}
+	}
+	if modified {
+		logCtx := logutil.WithRollout(old)
+		logCtx.Infof("%s index keys modified. before: %v, after: %v", name, oldKeys, newKeys)
+	}
+	return modified
 }
 
 // Run will set up the event handlers for types we are interested in, as well
@@ -313,48 +316,12 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 	log.Info("Started Rollout workers")
 
-	// Auto-detect whether user adds Istio Virtual Service to cluster
-	// If it is added, then run the istioVirtualServiceInformer so that we can use istioVirtualServiceLister
-	go c.runVirtualServiceInformer(stopCh)
+	go c.IstioController.Run(stopCh)
 
 	<-stopCh
 	log.Info("Shutting down workers")
 
 	return nil
-}
-
-func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
-	ticker := time.NewTicker(10 * time.Minute)
-	for !istioutil.DoesIstioExist(c.dynamicclientset, c.namespace, c.defaultIstioVersion) {
-		// Should only execute if Istio is not installed on cluster
-		select {
-		case <-stopCh:
-			ticker.Stop()
-			return
-		case <-ticker.C:
-		}
-	}
-	ticker.Stop()
-	if !c.istioVirtualServiceInformer.HasSynced() {
-		// Should only execute if Istio was installed after Rollout Controller was started
-		c.istioVirtualServiceInformer.Run(stopCh)
-	}
-}
-
-func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
-	acc, err := meta.Accessor(vsvc)
-	if err != nil {
-		log.Errorf("Error processing istio vsvc from watch: %v: %v", err, vsvc)
-		return
-	}
-	rolloutToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
-	if err != nil {
-		log.Errorf("Cannot process indexer: %s", err.Error())
-		return
-	}
-	for i := range rolloutToEnqueue {
-		c.enqueueRollout(rolloutToEnqueue[i])
-	}
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
@@ -374,7 +341,7 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing rollout at (%v)", startTime)
+	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Info("Started syncing rollout")
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
@@ -539,7 +506,7 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.Ingresses = *ingresses
 
-	virtualServices, err := c.getReferencedVirtualServices()
+	virtualServices, err := c.IstioController.GetReferencedVirtualServices(c.rollout)
 	if err != nil {
 		return nil, err
 	}
@@ -726,34 +693,6 @@ func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 		}
 	}
 	return &ingresses, nil
-}
-
-func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstructured, error) {
-	ctx := context.TODO()
-	virtualServices := []unstructured.Unstructured{}
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
-	if c.rollout.Spec.Strategy.Canary != nil {
-		canary := c.rollout.Spec.Strategy.Canary
-		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
-			var vsvc *unstructured.Unstructured
-			var err error
-			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
-			if c.istioVirtualServiceInformer.HasSynced() {
-				vsvc, err = c.istioVirtualServiceLister.Namespace(c.rollout.Namespace).Get(vsvcName)
-			} else {
-				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(c.rollout.Namespace).Get(ctx, vsvcName, metav1.GetOptions{})
-			}
-
-			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath, vsvcName, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			virtualServices = append(virtualServices, *vsvc)
-		}
-	}
-	return &virtualServices, nil
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {

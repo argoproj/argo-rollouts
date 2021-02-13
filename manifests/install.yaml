@@ -12038,6 +12038,19 @@ spec:
                           type: object
                         istio:
                           properties:
+                            destinationRule:
+                              properties:
+                                canarySubsetName:
+                                  type: string
+                                name:
+                                  type: string
+                                stableSubsetName:
+                                  type: string
+                              required:
+                              - canarySubsetName
+                              - name
+                              - stableSubsetName
+                              type: object
                             virtualService:
                               properties:
                                 name:
@@ -15037,10 +15050,12 @@ rules:
   - networking.istio.io
   resources:
   - virtualservices
+  - destinationrules
   verbs:
   - watch
   - get
   - update
+  - patch
   - list
 - apiGroups:
   - split.smi-spec.io

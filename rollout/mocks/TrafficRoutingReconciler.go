@@ -37,6 +37,20 @@ func (_m *TrafficRoutingReconciler) Type() string {
 	return r0
 }
 
+// UpdateHash provides a mock function with given fields: canaryHash, stableHash
+func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string) error {
+	ret := _m.Called(canaryHash, stableHash)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(canaryHash, stableHash)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // VerifyWeight provides a mock function with given fields: desiredWeight
 func (_m *TrafficRoutingReconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 	ret := _m.Called(desiredWeight)

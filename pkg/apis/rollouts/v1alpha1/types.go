@@ -264,8 +264,10 @@ type NginxTrafficRouting struct {
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
 type IstioTrafficRouting struct {
-	// VirtualService reference to a Virtual Service that modified to shape traffic
+	// VirtualService references an Istio VirtualService to modify to shape traffic
 	VirtualService IstioVirtualService `json:"virtualService"`
+	// DestinationRule references an Istio DestinationRule to modify to shape traffic
+	DestinationRule *IstioDestinationRule `json:"destinationRule,omitempty"`
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify
@@ -274,6 +276,16 @@ type IstioVirtualService struct {
 	Name string `json:"name"`
 	// Routes list of routes within VirtualService to edit
 	Routes []string `json:"routes"`
+}
+
+// IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
+type IstioDestinationRule struct {
+	// Name holds the name of the DestinationRule
+	Name string `json:"name"`
+	// CanarySubsetName is the subset name to modify labels with canary ReplicaSet pod template hash value
+	CanarySubsetName string `json:"canarySubsetName"`
+	// StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
+	StableSubsetName string `json:"stableSubsetName"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step

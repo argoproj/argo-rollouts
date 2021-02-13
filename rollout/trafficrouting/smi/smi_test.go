@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) *v1alpha1.Rollout {
@@ -55,7 +56,6 @@ func TestType(t *testing.T) {
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "v1alpha1",
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, Type, r.Type())
@@ -64,12 +64,13 @@ func TestType(t *testing.T) {
 func TestUnsupportedTrafficSplitApiVersionError(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 	client := fake.NewSimpleClientset()
+	SetSMIAPIVersion("does-not-exist")
+	defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 	_, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "does-not-exist",
 	})
 	assert.EqualError(t, err, "Unsupported TrafficSplit API version `does-not-exist`")
 }
@@ -85,7 +86,6 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
@@ -113,12 +113,13 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
+		SetSMIAPIVersion("v1alpha2")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
@@ -143,12 +144,13 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
+		SetSMIAPIVersion("v1alpha3")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
@@ -183,7 +185,6 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
@@ -213,12 +214,13 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
+		SetSMIAPIVersion("v1alpha2")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
@@ -244,12 +246,13 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
+		SetSMIAPIVersion("v1alpha3")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
@@ -285,7 +288,6 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
@@ -305,12 +307,13 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha2", ro, schema.GroupVersionKind{})
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
+		SetSMIAPIVersion("v1alpha2")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
@@ -329,12 +332,13 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha3", ro, schema.GroupVersionKind{})
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
+		SetSMIAPIVersion("v1alpha3")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
@@ -357,7 +361,6 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 		Client:         client,
 		Recorder:       &record.FakeRecorder{},
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "v1alpha1",
 	})
 	assert.Nil(t, err)
 	//Throw error when client tries to get TrafficSplit
@@ -384,7 +387,6 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
@@ -395,6 +397,8 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		ts2.OwnerReferences = nil
+		SetSMIAPIVersion("v1alpha2")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts2)
 		r, err := NewReconciler(ReconcilerConfig{
@@ -402,7 +406,6 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
@@ -413,6 +416,8 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		ts3.OwnerReferences = nil
+		SetSMIAPIVersion("v1alpha3")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts3)
 		r, err := NewReconciler(ReconcilerConfig{
@@ -420,7 +425,6 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 			Client:         client,
 			Recorder:       &record.FakeRecorder{},
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 

@@ -31,7 +31,9 @@ jobs:
       - name: Download cache
         run: go mod download
       - name: Install CRDs
-        run: kubectl apply -k  manifests/crds
+        run: |
+          kubectl apply -k  manifests/crds
+          kubectl apply -f  test/e2e/crds
       - name: Start controller
         run: make start-e2e &
       - name: Run e2e tests

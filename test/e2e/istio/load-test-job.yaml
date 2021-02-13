@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-test
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: load-tester
+        image: argoproj/load-tester:latest
+        command: [sh, -c, -x, -e]
+        args:
+        - |
+          wrk -t11 -c40 -d300s -s report.lua -H "Host: istio-rollout.local" http://istio-ingressgateway.istio-system/color
+          jq -e '.errors_ratio == 0' report.json
+    

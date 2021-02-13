@@ -74,7 +74,7 @@ minikube service grafana -n istio-system
 
 In order for traffic to enter the Istio mesh, the request needs to go through an Istio ingress
 gateway, which is simply a normal Kubernetes Deployment and Service. One convenient way to reach
-the gateway using minikube, is using the `minikube tunnel` command which assigns Services a 
+the gateway using minikube, is using the `minikube tunnel` command, which assigns Services a 
 LoadBalancer. This command should be run in the background, usually in a separate terminal window:
 
 ```shell

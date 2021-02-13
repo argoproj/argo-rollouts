@@ -124,15 +124,17 @@ rules:
   - update
   - patch
   - delete
-# virtualservice access needed for using the Istio provider
+# virtualservice/destinationrule access needed for using the Istio provider
 - apiGroups:
   - networking.istio.io
   resources:
   - virtualservices
+  - destinationrules
   verbs:
   - watch
   - get
   - update
+  - patch
   - list
 # trafficsplit access needed for using the SMI provider
 - apiGroups:

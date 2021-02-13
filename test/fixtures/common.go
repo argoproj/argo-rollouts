@@ -30,7 +30,9 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
@@ -409,4 +411,58 @@ func (c *Common) deleteObject(kind, name string) {
 		c.t.FailNow()
 	}
 	c.log.Info(string(out))
+}
+
+func (c *Common) SetLabels(obj *unstructured.Unstructured) {
+	labels := obj.GetLabels()
+	labels[E2ELabelKeyTestName] = c.t.Name()
+	obj.SetLabels(labels)
+}
+
+// GetServices() returns the desired (aka preview/canary) and stable (aka active) services
+func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
+	var desiredName, stableName string
+	ro := c.Rollout()
+	if ro.Spec.Strategy.BlueGreen != nil {
+		desiredName = ro.Spec.Strategy.BlueGreen.PreviewService
+		stableName = ro.Spec.Strategy.BlueGreen.ActiveService
+	} else {
+		desiredName = ro.Spec.Strategy.Canary.CanaryService
+		stableName = ro.Spec.Strategy.Canary.StableService
+	}
+	var desiredSvc, stableSvc *corev1.Service
+	var err error
+	if desiredName != "" {
+		desiredSvc, err = c.kubeClient.CoreV1().Services(c.namespace).Get(c.Context, desiredName, metav1.GetOptions{})
+		c.CheckError(err)
+	}
+	if stableName != "" {
+		stableSvc, err = c.kubeClient.CoreV1().Services(c.namespace).Get(c.Context, stableName, metav1.GetOptions{})
+		c.CheckError(err)
+	}
+	return desiredSvc, stableSvc
+}
+
+func (c *Common) GetVirtualService() *istio.VirtualService {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
+	vsvcClient := c.dynamicClient.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(c.namespace)
+	vsvcUn, err := vsvcClient.Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	var vsvc istio.VirtualService
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
+	c.CheckError(err)
+	return &vsvc
+}
+
+func (c *Common) GetDestinationRule() *istio.DestinationRule {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.Name
+	destRuleClient := c.dynamicClient.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(c.namespace)
+	destRuleUn, err := destRuleClient.Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	var destRule istio.DestinationRule
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(destRuleUn.Object, &destRule)
+	c.CheckError(err)
+	return &destRule
 }
