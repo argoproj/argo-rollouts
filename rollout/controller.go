@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -211,15 +212,13 @@ func NewController(cfg ControllerConfig) *Controller {
 			newRollout := unstructuredutil.ObjectToRollout(new)
 			if oldRollout != nil && newRollout != nil {
 				// Check if rollout services/destinationrules were modified, if so we enqueue the
-				// referenced Service and/or DestinationRules so that the rollouts-pod-template-hash
+				// removed Service and/or DestinationRules so that the rollouts-pod-template-hash
 				// can be cleared from each
-				if modifiedKeys("Service", oldRollout, newRollout, serviceutil.GetRolloutServiceKeys) {
-					for _, s := range serviceutil.GetRolloutServiceKeys(oldRollout) {
-						controller.serviceWorkqueue.AddRateLimited(s)
-					}
+				for _, key := range removedKeys("Service", oldRollout, newRollout, serviceutil.GetRolloutServiceKeys) {
+					controller.serviceWorkqueue.AddRateLimited(key)
 				}
-				if modifiedKeys("DestinationRule", oldRollout, newRollout, istioutil.GetRolloutDesinationRuleKeys) {
-					controller.IstioController.EnqueueDestinationRuleFromRollout(oldRollout)
+				for _, key := range removedKeys("DestinationRule", oldRollout, newRollout, istioutil.GetRolloutDesinationRuleKeys) {
+					controller.IstioController.EnqueueDestinationRule(key)
 				}
 			}
 			controller.enqueueRollout(newRollout)
@@ -233,7 +232,9 @@ func NewController(cfg ControllerConfig) *Controller {
 				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
 					controller.serviceWorkqueue.AddRateLimited(s)
 				}
-				controller.IstioController.EnqueueDestinationRuleFromRollout(ro)
+				for _, key := range istioutil.GetRolloutDesinationRuleKeys(ro) {
+					controller.IstioController.EnqueueDestinationRule(key)
+				}
 			}
 		},
 	})
@@ -281,26 +282,21 @@ func NewController(cfg ControllerConfig) *Controller {
 	return controller
 }
 
-// modifiedKeys returns true if the indexer keys have been modified in the given rollout
-func modifiedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alpha1.Rollout) []string) bool {
+// removedKeys returns list of indexer keys which have been removed from the old rollout
+func removedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alpha1.Rollout) []string) []string {
 	oldKeys := keyFunc(old)
 	newKeys := keyFunc(new)
-	modified := false
-	if len(oldKeys) != len(newKeys) {
-		modified = true
-	} else {
-		for i := 0; i < len(oldKeys); i++ {
-			if oldKeys[i] != newKeys[i] {
-				modified = true
-				break
-			}
+	var removedKeys []string
+	for _, oldKey := range oldKeys {
+		if !slice.ContainsString(newKeys, oldKey, nil) {
+			removedKeys = append(removedKeys, oldKey)
 		}
 	}
-	if modified {
+	if len(removedKeys) > 0 {
 		logCtx := logutil.WithRollout(old)
-		logCtx.Infof("%s index keys modified. before: %v, after: %v", name, oldKeys, newKeys)
+		logCtx.Infof("%s index keys removed: %v", name, removedKeys)
 	}
-	return modified
+	return removedKeys
 }
 
 // Run will set up the event handlers for types we are interested in, as well
@@ -341,13 +337,14 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Info("Started syncing rollout")
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
+	logCtx = logutil.WithVersionFields(logCtx, r)
+	logCtx.Info("Started syncing rollout")
 
 	if r.ObjectMeta.DeletionTimestamp != nil {
 		logCtx.Info("No reconciliation as rollout marked for deletion")
@@ -357,7 +354,7 @@ func (c *Controller) syncHandler(key string) error {
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
-		logCtx.Info("Setting .Spec.Replica to 1 from nil")
+		logCtx.Info("Defaulting .spec.replica to 1")
 		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
 		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		return err
@@ -383,6 +380,7 @@ func (c *Controller) syncHandler(key string) error {
 // This prevents the situation where the controller operates on a stale rollout and repeats work
 func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 	logCtx := logutil.WithRollout(ro)
+	logCtx = logutil.WithVersionFields(logCtx, ro)
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
 	if err != nil {
 		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
@@ -394,6 +392,7 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 		logCtx.Errorf("failed to update informer store: %v", err)
 		return
 	}
+	logCtx.Info("persisted to informer")
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {

@@ -3013,8 +3013,6 @@ spec:
                                       type: object
                                   type: object
                                 type: array
-                            required:
-                            - sources
                             type: object
                           quobyte:
                             properties:

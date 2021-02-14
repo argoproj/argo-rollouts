@@ -4,8 +4,14 @@ import (
 	"io/ioutil"
 
 	"github.com/ghodss/yaml"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 )
 
 // ObjectFromYAML returns a runtime.Object from a yaml string
@@ -26,4 +32,23 @@ func ObjectFromPath(path string) *unstructured.Unstructured {
 		panic(err)
 	}
 	return ObjectFromYAML(string(body))
+}
+
+// NewFakeDynamicClient is a convenience that returns a FakeDynamicClient with all the list objects
+// we use during testing already registered
+func NewFakeDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
+	scheme := runtime.NewScheme()
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	druleGVR := istioutil.GetIstioDestinationRuleGVR()
+
+	listMapping := map[schema.GroupVersionResource]string{
+		vsvcGVR:                             vsvcGVR.Resource + "List",
+		druleGVR:                            druleGVR.Resource + "List",
+		v1alpha1.RolloutGVR:                 rollouts.RolloutKind + "List",
+		v1alpha1.AnalysisTemplateGVR:        rollouts.AnalysisTemplateKind + "List",
+		v1alpha1.AnalysisRunGVR:             rollouts.AnalysisRunKind + "List",
+		v1alpha1.ExperimentGVR:              rollouts.ExperimentKind + "List",
+		v1alpha1.ClusterAnalysisTemplateGVR: rollouts.ClusterAnalysisTemplateKind + "List",
+	}
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, objects...)
 }

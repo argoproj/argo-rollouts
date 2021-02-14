@@ -17,6 +17,8 @@ kind: VirtualService
 metadata:
   name: istio-subset-split-vsvc
 spec:
+  hosts:
+  - istio-subset-split
   http:
   - name: primary
     route:
@@ -35,6 +37,7 @@ kind: DestinationRule
 metadata:
   name: istio-subset-split-destrule
 spec:
+  host: istio-subset-split
   subsets:
   - name: stable
     labels:

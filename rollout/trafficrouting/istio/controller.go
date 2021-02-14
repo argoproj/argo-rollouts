@@ -154,14 +154,6 @@ func (c *IstioController) EnqueueDestinationRule(obj interface{}) {
 	controllerutil.EnqueueRateLimited(obj, c.destinationRuleWorkqueue)
 }
 
-// EnqueueDestinationRuleFromRollout examines a VirtualService, finds the Rollout referencing
-// that VirtualService, and enqueues the corresponding Rollout for reconciliation
-func (c *IstioController) EnqueueDestinationRuleFromRollout(ro *v1alpha1.Rollout) {
-	for _, dRuleKey := range istioutil.GetRolloutDesinationRuleKeys(ro) {
-		controllerutil.EnqueueRateLimited(dRuleKey, c.destinationRuleWorkqueue)
-	}
-}
-
 // EnqueueRolloutFromIstioVirtualService examines a VirtualService, finds the Rollout referencing
 // that VirtualService, and enqueues the corresponding Rollout for reconciliation
 func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}) {

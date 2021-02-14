@@ -9,14 +9,13 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
@@ -126,8 +125,7 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 
 func TestReconcileUpdateVirtualService(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
-	schema := runtime.NewScheme()
-	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
@@ -141,8 +139,7 @@ func TestReconcileUpdateVirtualService(t *testing.T) {
 
 func TestReconcileNoChanges(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
-	schema := runtime.NewScheme()
-	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
 	err := r.SetWeight(0)
@@ -153,8 +150,7 @@ func TestReconcileNoChanges(t *testing.T) {
 
 func TestReconcileInvalidValidation(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
-	schema := runtime.NewScheme()
-	client := dynamicfake.NewSimpleDynamicClient(schema, obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
@@ -164,8 +160,7 @@ func TestReconcileInvalidValidation(t *testing.T) {
 }
 
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
-	schema := runtime.NewScheme()
-	client := dynamicfake.NewSimpleDynamicClient(schema)
+	client := testutil.NewFakeDynamicClient()
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
@@ -176,8 +171,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 }
 
 func TestType(t *testing.T) {
-	schema := runtime.NewScheme()
-	client := dynamicfake.NewSimpleDynamicClient(schema)
+	client := testutil.NewFakeDynamicClient()
 	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
 	assert.Equal(t, Type, r.Type())
@@ -399,7 +393,7 @@ spec:
   - name: stable
   - name: canary
 `)
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()
@@ -439,7 +433,7 @@ spec:
     labels:
       rollouts-pod-template-hash: abc123
 `)
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()
@@ -464,7 +458,7 @@ spec:
   - name: stable
   - name: canary
 `)
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	client := testutil.NewFakeDynamicClient(obj)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, nil, nil)
 	client.ClearActions()
 
@@ -486,7 +480,7 @@ spec:
 
 func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
 	ro := rolloutWithDestinationRule()
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	client := testutil.NewFakeDynamicClient()
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, &record.FakeRecorder{}, vsvcLister, druleLister)
 	client.ClearActions()

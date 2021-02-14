@@ -133,3 +133,23 @@ func TestWithRedactorWithEmptySecret(t *testing.T) {
 	logMessage := buf.String()
 	assert.False(t, strings.Contains(logMessage, "*****"))
 }
+
+func TestWithVersionFields(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	logger := log.New()
+	logger.SetOutput(buf)
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-name",
+			Namespace:       "test-ns",
+			ResourceVersion: "123",
+			Generation:      2,
+		},
+	}
+	logCtx := WithVersionFields(&log.Entry{}, &ro)
+	logCtx.Logger = logger
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "generation=2"))
+	assert.True(t, strings.Contains(logMessage, "resourceVersion=123"))
+}

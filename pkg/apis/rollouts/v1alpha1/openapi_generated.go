@@ -113,6 +113,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 					"ingress": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -120,6 +121,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 					"servicePort": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ServicePort refers to the port that the Ingress action should route traffic to",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -168,17 +170,20 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref common.ReferenceCallback)
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus"),
 						},
 					},
 				},
@@ -200,6 +205,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref common.ReferenceC
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name argument name",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -249,7 +255,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref common.ReferenceCallb
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
 					"items": {
@@ -258,7 +265,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun"),
 									},
 								},
 							},
@@ -293,7 +301,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
 									},
 								},
 							},
@@ -312,7 +321,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
 									},
 								},
 							},
@@ -344,6 +354,7 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the status of the analysis run",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -362,7 +373,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult"),
 									},
 								},
 							},
@@ -406,12 +418,14 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplate(ref common.ReferenceCall
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
 						},
 					},
 				},
@@ -446,7 +460,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref common.Reference
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
 					"items": {
@@ -455,7 +470,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplate"),
 									},
 								},
 							},
@@ -490,7 +506,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"),
 									},
 								},
 							},
@@ -509,7 +526,8 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
 									},
 								},
 							},
@@ -559,6 +577,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Argument(ref common.ReferenceCallback) co
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the argument",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -698,6 +717,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 					"activeService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the service that the rollout modifies as the active service.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -911,7 +931,8 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep"),
 									},
 								},
 							},
@@ -990,12 +1011,14 @@ func schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplate(ref common.Refere
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec"),
 						},
 					},
 				},
@@ -1030,7 +1053,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplateList(ref common.Re
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
 					"items": {
@@ -1039,7 +1063,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplateList(ref common.Re
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ClusterAnalysisTemplate"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ClusterAnalysisTemplate"),
 									},
 								},
 							},
@@ -1068,8 +1093,9 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 					},
 					"query": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},
@@ -1102,17 +1128,20 @@ func schema_pkg_apis_rollouts_v1alpha1_Experiment(ref common.ReferenceCallback) 
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus"),
 						},
 					},
 				},
@@ -1133,6 +1162,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the analysis",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1140,6 +1170,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 					"analysisRun": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRun is the name of the AnalysisRun",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1147,6 +1178,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref common.Re
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the status of the AnalysisRun",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1174,6 +1206,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the analysis",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1181,6 +1214,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1205,7 +1239,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref common.
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument"),
 									},
 								},
 							},
@@ -1237,6 +1272,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of deployment condition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1244,6 +1280,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase of the condition, one of True, False, Unknown.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1251,18 +1288,21 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The last time this condition was updated.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The reason for the condition's last transition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1270,6 +1310,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentCondition(ref common.ReferenceC
 					"message": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A human readable message indicating details about the transition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1306,7 +1347,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref common.ReferenceCallba
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
 					"items": {
@@ -1315,7 +1357,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentList(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment"),
 									},
 								},
 							},
@@ -1350,7 +1393,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec"),
 									},
 								},
 							},
@@ -1390,7 +1434,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef"),
 									},
 								},
 							},
@@ -1433,7 +1478,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus"),
 									},
 								},
 							},
@@ -1452,7 +1498,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentCondition"),
 									},
 								},
 							},
@@ -1465,7 +1512,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus"),
 									},
 								},
 							},
@@ -1488,6 +1536,7 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 					"fieldPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Required: Path of the field to select in the specified API version",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1509,6 +1558,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name holds the name of the DestinationRule",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1516,6 +1566,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 					"canarySubsetName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CanarySubsetName is the subset name to modify labels with canary ReplicaSet pod template hash value",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1523,6 +1574,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 					"stableSubsetName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1544,6 +1596,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "VirtualService references an Istio VirtualService to modify to shape traffic",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"),
 						},
 					},
@@ -1572,6 +1625,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name holds the name of the VirtualService",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1583,8 +1637,9 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1606,12 +1661,14 @@ func schema_pkg_apis_rollouts_v1alpha1_JobMetric(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/api/batch/v1.JobSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/api/batch/v1.JobSpec"),
 						},
 					},
 				},
@@ -1631,43 +1688,50 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"address": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"application": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"canaryConfigName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"metricsAccountName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"configurationAccountName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"storageAccountName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"threshold": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold"),
 						},
 					},
 					"scopes": {
@@ -1676,7 +1740,8 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope"),
 									},
 								},
 							},
@@ -1699,18 +1764,21 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"controlScope": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
 						},
 					},
 					"experimentScope": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail"),
 						},
 					},
 				},
@@ -1730,14 +1798,16 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"pass": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"marginal": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 				},
@@ -1757,6 +1827,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the status of this single measurement",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1795,8 +1866,9 @@ func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback)
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1827,6 +1899,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the metric",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1886,6 +1959,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider configuration to the external system to use to verify the analysis",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"),
 						},
 					},
@@ -1965,6 +2039,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the metric",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1972,6 +2047,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the overall aggregate status of the metric",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1983,7 +2059,8 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement"),
 									},
 								},
 							},
@@ -2064,6 +2141,7 @@ func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallba
 					"query": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Query is a raw newrelic NRQL query to perform",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2092,6 +2170,7 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 					"stableIngress": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2103,8 +2182,9 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2126,13 +2206,15 @@ func schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"reason": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"startTime": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 				},
@@ -2159,8 +2241,9 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2174,8 +2257,9 @@ func schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2197,6 +2281,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExe
 					"weight": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Weight associated with matching the corresponding podAffinityTerm, in the range 1-100.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2269,17 +2354,20 @@ func schema_pkg_apis_rollouts_v1alpha1_Rollout(ref common.ReferenceCallback) com
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus"),
 						},
 					},
 				},
@@ -2319,7 +2407,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"),
 									},
 								},
 							},
@@ -2338,7 +2427,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
 									},
 								},
 							},
@@ -2380,7 +2470,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"),
 									},
 								},
 							},
@@ -2399,7 +2490,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
 									},
 								},
 							},
@@ -2428,14 +2520,16 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref common.Refer
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"message": {
@@ -2460,6 +2554,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisTemplate(ref common.Refere
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName name of template to use in AnalysisRun",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2487,6 +2582,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of deployment condition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2494,6 +2590,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase of the condition, one of True, False, Unknown.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2501,18 +2598,21 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The last time this condition was updated.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The reason for the condition's last transition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2520,6 +2620,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					"message": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A human readable message indicating details about the transition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2553,7 +2654,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate"),
 									},
 								},
 							},
@@ -2579,7 +2681,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef"),
 									},
 								},
 							},
@@ -2603,6 +2706,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is a name for this analysis template invocation",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2610,6 +2714,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 					"templateName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TemplateName reference of the AnalysisTemplate name used by the Experiment to create the run",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2634,7 +2739,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument"),
 									},
 								},
 							},
@@ -2666,6 +2772,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name description of template that passed to the template",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2673,6 +2780,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					"specRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SpecRef indicates where the rollout should get the RS template from",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2687,6 +2795,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Metadata sets labels and annotations to use for the RS created from the template",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"),
 						},
 					},
@@ -2728,7 +2837,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref common.ReferenceCallback)
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
 					"items": {
@@ -2737,7 +2847,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref common.ReferenceCallback)
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout"),
 									},
 								},
 							},
@@ -2796,6 +2907,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Template describes the pods that will be created.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/core/v1.PodTemplateSpec"),
 						},
 					},
@@ -2809,6 +2921,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 					"strategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The deployment strategy to use to replace existing pods with new ones.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy"),
 						},
 					},
@@ -2869,7 +2982,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition"),
 									},
 								},
 							},
@@ -2958,7 +3072,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition"),
 									},
 								},
 							},
@@ -2967,12 +3082,14 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"canary": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Canary describes the state of the canary rollout",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
 						},
 					},
 					"blueGreen": {
 						SchemaProps: spec.SchemaProps{
 							Description: "BlueGreen describes the state of the bluegreen rollout",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus"),
 						},
 					},
@@ -3117,32 +3234,37 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"scope": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"region": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"step": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"start": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"end": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},
@@ -3161,6 +3283,7 @@ func schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref common.ReferenceCallback
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the secret",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3168,6 +3291,7 @@ func schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref common.ReferenceCallback
 					"key": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Key is the key of the secret to select from.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3222,6 +3346,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the template used to identity replicaset running for this experiment",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3249,6 +3374,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref common.ReferenceCallback
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Template describes the pods that will be created.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/core/v1.PodTemplateSpec"),
 						},
 					},
@@ -3271,6 +3397,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the template used to identity which hash to compare to the hash",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3278,6 +3405,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Total number of non-terminated pods targeted by this experiment (their labels match the selector).",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -3285,6 +3413,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"updatedReplicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Total number of non-terminated pods targeted by this experiment that have the desired template spec.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -3292,6 +3421,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"readyReplicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Total number of ready pods targeted by this experiment.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -3299,6 +3429,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 					"availableReplicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this experiment.",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -3401,6 +3532,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 					"url": {
 						SchemaProps: spec.SchemaProps{
 							Description: "URL is the address of the web metric",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3418,7 +3550,8 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"),
 									},
 								},
 							},
@@ -3462,14 +3595,16 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"key": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},

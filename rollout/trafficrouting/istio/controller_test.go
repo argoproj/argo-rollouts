@@ -17,13 +17,12 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 func NewFakeIstioController(objs ...runtime.Object) *IstioController {
-	schema := runtime.NewScheme()
-
 	var argoprojObjs []runtime.Object
 	var istioObjs []runtime.Object
 
@@ -38,7 +37,7 @@ func NewFakeIstioController(objs ...runtime.Object) *IstioController {
 
 	rolloutClient := rolloutfake.NewSimpleClientset(argoprojObjs...)
 	rolloutInformerFactory := rolloutinformers.NewSharedInformerFactory(rolloutClient, 0)
-	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(schema, istioObjs...)
+	dynamicClientSet := testutil.NewFakeDynamicClient(istioObjs...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClientSet, 0)
 	virtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	destinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()

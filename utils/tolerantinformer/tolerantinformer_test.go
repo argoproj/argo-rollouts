@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
@@ -19,7 +18,7 @@ const (
 )
 
 func newFakeDynamicInformer(objs ...runtime.Object) dynamicinformer.DynamicSharedInformerFactory {
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objs...)
+	dynamicClient := testutil.NewFakeDynamicClient(objs...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 
 	// The dynamic informer factory relies on calling ForResource on any GVR which wish to be
