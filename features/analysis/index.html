@@ -734,6 +734,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#handling-metric-results-nan-and-infinity" class="md-nav__link">
+    Handling Metric Results - NaN and Infinity
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1477,6 +1484,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#handling-metric-results-nan-and-infinity" class="md-nav__link">
+    Handling Metric Results - NaN and Infinity
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2092,6 +2106,102 @@ with background analysis can delay creating an analysis run until a certain step
         <span class="nt">headers</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
           <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span> 
+</code></pre></div>
+<h2 id="handling-metric-results-nan-and-infinity">Handling Metric Results - NaN and Infinity<a class="headerlink" href="#handling-metric-results-nan-and-infinity" title="Permanent link">&para;</a></h2>
+<p>Metric providers can sometimes return values of NaN (not a number) and infinity. Users can edit the <code>successCondition</code> and <code>failureCondition</code> fields
+to handle these cases accordingly.</p>
+<p>Here are three examples where a metric result of NaN is considered successful, inconclusive and failed respectively.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">isNaN(result) || result &gt;= 0.95</span>
+<span class="nt">status</span><span class="p">:</span>
+  <span class="nt">metricResults</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+    <span class="nt">measurements</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">finishedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+      <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NaN</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+    <span class="nt">successful</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+  <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+    <span class="l l-Scalar l-Scalar-Plain">failureCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">result &lt; 0.95</span>
+<span class="nt">status</span><span class="p">:</span>
+  <span class="nt">metricResults</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+    <span class="nt">measurements</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">finishedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Inconclusive</span>
+      <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NaN</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Inconclusive</span>
+    <span class="nt">successful</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Inconclusive</span>
+  <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+<span class="nt">status</span><span class="p">:</span>
+  <span class="nt">metricResults</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+    <span class="nt">measurements</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">finishedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+      <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NaN</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+    <span class="nt">successful</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+  <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+</code></pre></div>
+<p>Here are two examples where a metric result of infinity is considered successful and failed respectively.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">result &gt;= 0.95</span>
+<span class="nt">status</span><span class="p">:</span>
+  <span class="nt">metricResults</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+    <span class="nt">measurements</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">finishedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+      <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">+Inf</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+    <span class="nt">successful</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Successful</span>
+  <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+    <span class="l l-Scalar l-Scalar-Plain">failureCondition</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">isInf(result)</span>
+<span class="nt">status</span><span class="p">:</span>
+  <span class="nt">metricResults</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">count</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+    <span class="nt">measurements</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">finishedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+      <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">+Inf</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+    <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+    <span class="nt">successful</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">phase</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Failed</span>
+  <span class="nt">startedAt</span><span class="p">:</span> <span class="s">&quot;2021-02-10T00:15:26Z&quot;</span>
 </code></pre></div>
                 
               
