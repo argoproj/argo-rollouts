@@ -643,3 +643,112 @@ spec:
           value: "Bearer {{ args.api-token }}" 
 ```
 
+## Handling Metric Results - NaN and Infinity
+Metric providers can sometimes return values of NaN (not a number) and infinity. Users can edit the `successCondition` and `failureCondition` fields
+to handle these cases accordingly.
+
+Here are three examples where a metric result of NaN is considered successful, inconclusive and failed respectively.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: isNaN(result) || result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Successful
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Successful
+    successful: 1
+  phase: Successful
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+    failureCondition: result < 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Inconclusive
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Inconclusive
+    successful: 1
+  phase: Inconclusive
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Failed
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Failed
+    successful: 1
+  phase: Failed
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+Here are two examples where a metric result of infinity is considered successful and failed respectively.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Successful
+      startedAt: "2021-02-10T00:15:26Z"
+      value: +Inf
+    name: success-rate
+    phase: Successful
+    successful: 1
+  phase: Successful
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    failureCondition: isInf(result)
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Failed
+      startedAt: "2021-02-10T00:15:26Z"
+      value: +Inf
+    name: success-rate
+    phase: Failed
+    successful: 1
+  phase: Failed
+  startedAt: "2021-02-10T00:15:26Z"
+```
+

@@ -3,6 +3,7 @@ package evaluate
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 
@@ -65,6 +66,8 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 		"result":  resultValue,
 		"asInt":   asInt,
 		"asFloat": asFloat,
+		"isNaN":   math.IsNaN,
+		"isInf":   isInf,
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -90,6 +93,10 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	default:
 		return false, fmt.Errorf("expected bool, but got %T", val)
 	}
+}
+
+func isInf(f float64) bool {
+	return math.IsInf(f, 0)
 }
 
 func asInt(in interface{}) int64 {

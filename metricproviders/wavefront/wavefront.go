@@ -142,10 +142,6 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 		value, time := p.findDataPointValue(series.DataPoints, startTime) // Wavefront DataPoint struct is of type []float{<timestamp>, <value>}
 		wavefrontResponse.newValue = fmt.Sprintf("%.2f", value)
 		wavefrontResponse.epochsUsed = time
-		if math.IsNaN(value) {
-			wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
-			return wavefrontResponse, nil
-		}
 		wavefrontResponse.newStatus = evaluate.EvaluateResult(value, metric, p.logCtx)
 		return wavefrontResponse, nil
 
@@ -169,12 +165,6 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 		epochsStr = epochsStr + "]"
 		wavefrontResponse.newValue = valueStr
 		wavefrontResponse.epochsUsed = epochsStr
-		for _, result := range results {
-			if math.IsNaN(result) {
-				wavefrontResponse.newStatus = v1alpha1.AnalysisPhaseInconclusive
-				return wavefrontResponse, nil
-			}
-		}
 		wavefrontResponse.newStatus = evaluate.EvaluateResult(results, metric, p.logCtx)
 		return wavefrontResponse, nil
 
