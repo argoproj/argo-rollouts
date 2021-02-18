@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -11,8 +12,20 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
+func NewFakeDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
+	scheme := runtime.NewScheme()
+	vsvcGVR := GetIstioVirtualServiceGVR()
+	druleGVR := GetIstioDestinationRuleGVR()
+
+	listMapping := map[schema.GroupVersionResource]string{
+		vsvcGVR:  vsvcGVR.Resource + "List",
+		druleGVR: druleGVR.Resource + "List",
+	}
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, objects...)
+}
+
 func TestDoesIstioExist(t *testing.T) {
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	dynamicClient := NewFakeDynamicClient()
 	assert.True(t, DoesIstioExist(dynamicClient, metav1.NamespaceAll))
 	assert.Len(t, dynamicClient.Actions(), 1)
 	assert.Equal(t, "list", dynamicClient.Actions()[0].GetVerb())

@@ -31,6 +31,8 @@ kind: VirtualService
 metadata:
   name: istio-host-split-vsvc
 spec:
+  hosts:
+  - istio-host-split
   http:
   - name: primary
     route:

@@ -60,7 +60,7 @@ func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
 			},
 		},
 	})
-	assert.ElementsMatch(t, keys, []string{"default/canary-service", "default/stable-service"})
+	assert.Equal(t, keys, []string{"default/canary-service", "default/stable-service"})
 }
 
 func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
@@ -77,7 +77,7 @@ func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 			},
 		},
 	})
-	assert.ElementsMatch(t, keys, []string{"default/preview-service", "default/active-service"})
+	assert.Equal(t, keys, []string{"default/active-service", "default/preview-service"})
 }
 
 func TestHasManagedByAnnotation(t *testing.T) {

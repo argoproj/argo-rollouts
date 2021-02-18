@@ -61,3 +61,10 @@ func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
 	entry.Logger.SetFormatter(&newFormatter)
 	return &entry
 }
+
+func WithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
+	return entry.WithFields(map[string]interface{}{
+		"resourceVersion": r.ResourceVersion,
+		"generation":      r.Generation,
+	})
+}
