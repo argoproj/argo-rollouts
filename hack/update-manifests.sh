@@ -19,7 +19,11 @@ fi
 kustomize version
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-kustomize build --load_restrictor none "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+KUSTOMIZE_TMP_OVERLAY="${SRCROOT}/manifests/tmp"
+mkdir -p "$KUSTOMIZE_TMP_OVERLAY"
+(cd "$KUSTOMIZE_TMP_OVERLAY"; kustomize create --resources "../cluster-install" --namespace argo-rollouts)
+kustomize build --load_restrictor none "$KUSTOMIZE_TMP_OVERLAY" >> "${SRCROOT}/manifests/install.yaml"
+rm -r "$KUSTOMIZE_TMP_OVERLAY"
 update_image "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
