@@ -484,10 +484,6 @@ func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
 // that were paused for longer than progressDeadlineSeconds.
 func (c *rolloutContext) checkPausedConditions() error {
 	cond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
-	if cond != nil && cond.Reason == conditions.TimedOutReason {
-		// If we have reported lack of progress, do not overwrite it with a paused condition.
-		return nil
-	}
 	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
 
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
