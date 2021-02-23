@@ -12,13 +12,21 @@ import (
 )
 
 const (
-	statusExample     = ``
-	statusUsage       = ``
-	statusUsageCommon = ``
+	statusLong = `Watch the progress of a rollout until it is done. The return will be success if
+the Rollout ends as Healthy and error if the Rollout ends degraded or if the
+timeout is hit before the progress finishes.`
+	statusExample = `
+	# Watch the rollout until it succeeds
+	%[1]s status gestbook
+
+	# Watch the rollout until it succeeds, fail if it takes more than 60 seconds
+	%[1]s status --timeout 60 guestbook
+	`
 )
 
 type StatusOptions struct {
-	Watch bool
+	Watch   bool
+	Timeout int64
 
 	options.ArgoRolloutsOptions
 }
@@ -31,9 +39,9 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:          "status ROLLOUT_NAME",
-		Short:        "",
-		Long:         "",
-		Example:      "",
+		Short:        "Show the status of a rollout.",
+		Long:         statusLong,
+		Example:      o.Example(statusExample),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 1 {
@@ -51,14 +59,14 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 
 			if !statusOptions.Watch {
-				fmt.Println(ri.Status)
+				fmt.Fprintln(o.Out, ri.Status)
 			} else {
 				rolloutUpdates := make(chan *info.RolloutInfo)
 				defer close(rolloutUpdates)
 				controller.RegisterCallback(func(roInfo *info.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
-				go statusOptions.WatchStatus(ctx.Done(), cancel, rolloutUpdates)
+				go statusOptions.WatchStatus(ctx.Done(), cancel, statusOptions.Timeout, rolloutUpdates)
 				controller.Run(ctx)
 
 				finalRi, err := controller.GetRolloutInfo()
@@ -68,35 +76,47 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 				if finalRi.Status == "Degraded" {
 					return fmt.Errorf("The rollout is in degraded state with message: %s", finalRi.Message)
+				} else if finalRi.Status != "Healthy" {
+					return fmt.Errorf("The rollout progress did not finish within the specified timeout")
 				}
 			}
 
 			return nil
 		},
 	}
-	cmd.Flags().BoolVarP(&statusOptions.Watch, "watch", "w", false, "Watch the status of the rollout until it's done")
+	cmd.Flags().BoolVarP(&statusOptions.Watch, "watch", "w", true, "Watch the status of the rollout until it's done")
+	cmd.Flags().Int64VarP(&statusOptions.Timeout, "timeout", "t", 300, "The length of time in seconds to wait before ending watch, zero means never.")
 	return cmd
 }
 
-func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.CancelFunc, rolloutUpdates chan *info.RolloutInfo) {
-	ticker := time.NewTicker(time.Second)
+func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.CancelFunc, timeoutSeconds int64, rolloutUpdates chan *info.RolloutInfo) {
+	timeout := make(chan bool)
 	var roInfo *info.RolloutInfo
 	var preventFlicker time.Time
+
+	if timeoutSeconds != 0 {
+		go func() {
+			time.Sleep(time.Duration(timeoutSeconds) * time.Second)
+			timeout <- true
+		}()
+	}
 
 	for {
 		select {
 		case roInfo = <-rolloutUpdates:
 			if roInfo != nil && roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
-				fmt.Println(roInfo.Status)
+				fmt.Fprintln(o.Out, roInfo.Status)
 				cancelFunc()
 				return
 			}
 			if roInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
-				fmt.Printf("%s - %s\n", roInfo.Status, roInfo.Message)
+				fmt.Fprintf(o.Out, "%s - %s\n", roInfo.Status, roInfo.Message)
 				preventFlicker = time.Now()
 			}
-		case <-ticker.C:
 		case <-stopCh:
+			return
+		case <-timeout:
+			cancelFunc()
 			return
 		}
 	}
