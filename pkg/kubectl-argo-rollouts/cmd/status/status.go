@@ -60,6 +60,15 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				})
 				go statusOptions.WatchStatus(ctx.Done(), cancel, rolloutUpdates)
 				controller.Run(ctx)
+
+				finalRi, err := controller.GetRolloutInfo()
+				if err != nil {
+					return err
+				}
+
+				if finalRi.Status == "Degraded" {
+					return fmt.Errorf("The rollout is in degraded state with message: %s", finalRi.Message)
+				}
 			}
 
 			return nil
@@ -77,19 +86,18 @@ func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.C
 	for {
 		select {
 		case roInfo = <-rolloutUpdates:
-		case <-ticker.C:
-		case <-stopCh:
-			return
-		}
-		if roInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
-			fmt.Printf("%s - %s\n", roInfo.Status, roInfo.Message)
-
-			if roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
+			if roInfo != nil && roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
+				fmt.Println(roInfo.Status)
 				cancelFunc()
 				return
 			}
-
-			preventFlicker = time.Now()
+			if roInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
+				fmt.Printf("%s - %s\n", roInfo.Status, roInfo.Message)
+				preventFlicker = time.Now()
+			}
+		case <-ticker.C:
+		case <-stopCh:
+			return
 		}
 	}
 }
