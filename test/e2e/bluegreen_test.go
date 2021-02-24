@@ -158,3 +158,121 @@ spec:
 		Then().
 		ExpectRevisionPods("revision 2 has active metadata2", "2", podsHaveActiveMetadata2)
 }
+
+func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 10 # note this is less than initialDelaySeconds
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          initialDelaySeconds: 20
+          httpGet:
+            path: /color
+            port: 8080
+          periodSeconds: 30
+  strategy:
+    blueGreen: 
+      autoPromotionEnabled: false
+      activeService: rollout-bluegreen-active
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(2).
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectActiveRevision("2")
+}
+
+func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithoutPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 10 # note this is less than initialDelaySeconds
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          initialDelaySeconds: 20
+          httpGet:
+            path: /color
+            port: 8080
+          periodSeconds: 30
+  strategy:
+    blueGreen: 
+      autoPromotionEnabled: true
+      activeService: rollout-bluegreen-active
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(2).
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectActiveRevision("2")
+}
