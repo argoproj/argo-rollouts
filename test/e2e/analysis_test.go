@@ -99,6 +99,9 @@ spec:
       prePromotionAnalysis:
         templates:
         - templateName: sleep-job
+        args:
+        - name: duration
+          value: "5"
       postPromotionAnalysis:
         templates:
         - templateName: sleep-job
@@ -149,6 +152,7 @@ spec:
 		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Paused").
 		Then().
+		ExpectAnalysisRunCount(1).
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("2").
 		When().
@@ -431,7 +435,7 @@ spec:
       activeService: bluegreen-kitchensink-active
       previewService: bluegreen-kitchensink-preview
       previewReplicaCount: 1
-      autoPromotionSeconds: 5
+      autoPromotionSeconds: 10
       scaleDownDelaySeconds: 5
       prePromotionAnalysis:
         templates:
@@ -476,6 +480,14 @@ spec:
 		ExpectRevisionPodCount("2", 1).
 		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
 		ExpectAnalysisRunCount(1).
+		When().
+		Sleep(5*time.Second). // sleep 5 seconds, verify we did not autopromote too early
+		Then().
+		ExpectActiveRevision("1").
+		ExpectStableRevision("1").
+		ExpectRevisionPodCount("1", 2).
+		ExpectRevisionPodCount("2", 1).
+		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
 		When().
 		WaitForActiveRevision("2"). // no need to manually promote since autoPromotionSeconds will do it
 		Then().

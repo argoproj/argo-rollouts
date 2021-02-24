@@ -51,7 +51,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 
 	c.reconcileBlueGreenPause(activeSvc, previewSvc)
 
-	err = c.reconcileActiveService(previewSvc, activeSvc)
+	err = c.reconcileActiveService(activeSvc)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,8 @@ func (c *rolloutContext) reconcileBlueGreenTemplateChange() bool {
 	return c.rollout.Status.CurrentPodHash != c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 }
 
-func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
+// isBlueGreenFastTracked returns true if we should skip the pause step because update has been fast tracked
+func (c *rolloutContext) isBlueGreenFastTracked(activeSvc *corev1.Service) bool {
 	if replicasetutil.HasScaleDownDeadline(c.newRS) {
 		c.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", c.newRS.Name)
 		return true
@@ -129,12 +130,6 @@ func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
 	if c.rollout.Status.PromoteFull {
 		return true
 	}
-
-	// If a rollout has a PrePromotionAnalysis, the controller only skips the pause after the analysis passes
-	if defaults.GetAutoPromotionEnabledOrDefault(c.rollout) && c.completedPrePromotionAnalysis() {
-		return true
-	}
-
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return true
 	}
@@ -145,7 +140,6 @@ func (c *rolloutContext) skipPause(activeSvc *corev1.Service) bool {
 }
 
 func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service) {
-	c.log.Info("Reconciling pause")
 	if c.rollout.Status.Abort {
 		return
 	}
@@ -155,31 +149,64 @@ func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.S
 		return
 	}
 	if c.rollout.Spec.Paused {
+		c.log.Info("rollout has been paused by user")
 		return
 	}
-
-	if c.skipPause(activeSvc) {
+	if c.isBlueGreenFastTracked(activeSvc) {
+		c.log.Debug("skipping pause: fast-tracked update")
+		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		return
+	}
+	newRSPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == newRSPodHash {
+		c.log.Debug("skipping pause: desired ReplicaSet already active")
+		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		return
+	}
+	if c.rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+		c.log.Debug("skipping pause: scaleUpPreviewCheckPoint passed")
+		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		return
+	}
+	if !needsBlueGreenControllerPause(c.rollout) {
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		return
 	}
 
-	newRSPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
-	// If the rollout is not paused and the active service is not point at the newRS, we should pause the rollout.
-	if cond == nil && !c.rollout.Status.ControllerPause && !c.rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint && activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != newRSPodHash {
+	// if we get here, the controller should manage the pause/resume
+	c.log.Infof("reconciling pause (autoPromotionSeconds: %d)", c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+	if !c.completedPrePromotionAnalysis() {
+		c.log.Infof("not ready for pause: prePromotionAnalysis incomplete")
+		return
+	}
+	pauseCond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
+	if pauseCond == nil && !c.rollout.Status.ControllerPause {
+		if pauseCond == nil {
+			c.log.Info("pausing")
+		}
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		return
 	}
 
-	autoPromoteActiveServiceDelaySeconds := c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
-		c.checkEnqueueRolloutDuringWait(cond.StartTime, *autoPromoteActiveServiceDelaySeconds)
-		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
-		now := metav1.Now()
-		if now.After(switchDeadline) {
-			c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+	if !c.pauseContext.CompletedBlueGreenPause() {
+		c.log.Info("pause incomplete")
+		if c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0 {
+			c.checkEnqueueRolloutDuringWait(pauseCond.StartTime, c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+		}
+	} else {
+		c.log.Infof("pause completed")
+		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+	}
+}
+
+// needsBlueGreenControllerPause indicates if the controller should manage the pause status of the blue-green rollout
+func needsBlueGreenControllerPause(ro *v1alpha1.Rollout) bool {
+	if ro.Spec.Strategy.BlueGreen.AutoPromotionEnabled != nil {
+		if !*ro.Spec.Strategy.BlueGreen.AutoPromotionEnabled {
+			return true
 		}
 	}
+	return ro.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
@@ -374,8 +401,8 @@ func (c *rolloutContext) calculateScaleUpPreviewCheckPoint(stableRSHash string) 
 	if c.rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
 		return c.rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint
 	}
-	if !c.completedPrePromotionAnalysis() {
-		// do not set the checkpoint unless prePromotion was successful
+	if !c.completedPrePromotionAnalysis() || !c.pauseContext.CompletedBlueGreenPause() {
+		// do not set the checkpoint unless prePromotionAnalysis was successful and we completed our pause
 		return false
 	}
 	previewCountAvailable := *c.rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount == replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{c.newRS})

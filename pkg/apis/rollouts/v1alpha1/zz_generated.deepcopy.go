@@ -388,11 +388,6 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.AutoPromotionSeconds != nil {
-		in, out := &in.AutoPromotionSeconds, &out.AutoPromotionSeconds
-		*out = new(int32)
-		**out = **in
-	}
 	if in.MaxUnavailable != nil {
 		in, out := &in.MaxUnavailable, &out.MaxUnavailable
 		*out = new(intstr.IntOrString)

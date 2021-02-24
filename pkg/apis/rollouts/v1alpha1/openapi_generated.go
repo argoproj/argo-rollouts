@@ -704,7 +704,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 					},
 					"previewReplicaCount": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is resumed the new replicaset will be full scaled up before the switch occurs",
+							Description: "PreviewReplicaCount is the number of replicas to run for the preview stack before the switchover. Once the rollout is resumed the desired replicaset will be full scaled up before the switch occurs",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -718,14 +718,14 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 					},
 					"autoPromotionSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the specified pause delay in seconds after the ReplicaSet becomes ready. If omitted, the Rollout enters and remains in a paused state until manually resumed by removing the pause condition.",
+							Description: "AutoPromotionSeconds is a duration in seconds in which to delay auto-promotion (default: 0). The countdown begins after the preview ReplicaSet have reached full availability. This option is ignored if autoPromotionEnabled is set to false.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"maxUnavailable": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxUnavailable The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old RC can be scaled down by 30% immediately when the rolling update starts. Once new pods are ready, old RC can be scaled down further, followed by scaling up the new RC, ensuring that at least 70% of original number of pods are available at all times during the update.",
+							Description: "MaxUnavailable The maximum number of pods that can be unavailable during a restart operation. Defaults to 25% of total replicas.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
@@ -2922,7 +2922,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					},
 					"controllerPause": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ControllerPause indicates the controller has paused the rollout",
+							Description: "ControllerPause indicates the controller has paused the rollout. It is set to true when the controller adds a pause condition. This field helps to discern the scenario where a rollout was resumed after being paused by the controller (e.g. via the plugin). In that situation, the pauseConditions would have been cleared , but controllerPause would still be set to true.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
