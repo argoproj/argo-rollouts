@@ -390,6 +390,7 @@ spec:
 `).
 		When().
 		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy").
 		WaitForRolloutReplicas(2).
 		UpdateSpec().
@@ -399,5 +400,6 @@ spec:
 		ExpectCanaryStablePodCount(1, 1).
 		When().
 		PromoteRollout().
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy")
 }

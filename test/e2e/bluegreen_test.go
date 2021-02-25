@@ -179,7 +179,7 @@ kind: Rollout
 metadata:
   name: rollout-bluegreen
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 2
   progressDeadlineSeconds: 1
   selector:
@@ -204,9 +204,11 @@ spec:
 `).
 		When().
 		ApplyManifests().
-		WaitForRolloutReplicas(2).
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
@@ -234,7 +236,7 @@ kind: Rollout
 metadata:
   name: rollout-bluegreen-progress-deadline-exceeded-without-pause
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 2
   progressDeadlineSeconds: 1
   selector:
@@ -259,9 +261,11 @@ spec:
 `).
 		When().
 		ApplyManifests().
-		WaitForRolloutReplicas(2).
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectActiveRevision("2")
