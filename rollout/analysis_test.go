@@ -1830,7 +1830,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = pointer.Int32Ptr(10)
+	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = 10
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,

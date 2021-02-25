@@ -106,7 +106,7 @@ test-kustomize:
 
 .PHONY: start-e2e
 start-e2e:
-	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID}
+	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug
 
 .PHONY: test-e2e
 test-e2e:

@@ -125,53 +125,63 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 	return nil
 }
 
-// completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully or the rollout passed
-// the auto promote seconds.
+// completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully
 func (c *rolloutContext) completedPrePromotionAnalysis() bool {
 	if c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
 		return true
 	}
-
-	cond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
-	autoPromoteActiveServiceDelaySeconds := c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
-		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
-		now := metav1.Now()
-		if now.After(switchDeadline) {
-			return true
-		}
-		return false
-	}
-
 	currentAr := c.currentArs.BlueGreenPrePromotion
 	if currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 		return true
 	}
-
 	return false
 }
 
+// CompletedBlueGreenPause returns true if we have already completed our automated pause, either
+// because a human has resumed the rollout, or we surpassed autoPromotionSeconds.
 func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
 	rollout := pCtx.rollout
 	if pCtx.HasAddPause() {
+		// return false if we just added a pause condition as part of this reconciliation
 		return false
 	}
-	cond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
-
-	autoPromoteActiveServiceDelaySeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
-	if autoPromoteActiveServiceDelaySeconds != nil && cond != nil {
-		switchDeadline := cond.StartTime.Add(time.Duration(*autoPromoteActiveServiceDelaySeconds) * time.Second)
-		now := metav1.Now()
-		if now.After(switchDeadline) {
-			pCtx.log.Info("Rollout has waited the duration of the autoPromoteActiveServiceDelaySeconds")
+	if rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+		return true
+	}
+	if !needsBlueGreenControllerPause(rollout) {
+		return true
+	}
+	pauseCond := getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause)
+	if rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled == nil || *rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled {
+		// autoPromotion is enabled. check if we surpassed the delay
+		autoPromotionSeconds := rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds
+		if autoPromotionSeconds == 0 {
 			return true
 		}
+		if rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
+			return true
+		}
+		if pauseCond != nil {
+			switchDeadline := pauseCond.StartTime.Add(time.Duration(autoPromotionSeconds) * time.Second)
+			now := metav1.Now()
+			if now.After(switchDeadline) {
+				return true
+			}
+			return false
+		}
+		// we never paused the rollout
+		return false
+	} else {
+		// autoPromotion is disabled. the presence of a pause condition means human has not resumed it
+		if rollout.Status.ControllerPause {
+			return pauseCond == nil
+		}
+		// status.controllerPause has not yet been set
 		return false
 	}
-	return cond == nil && (rollout.Status.ControllerPause || rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint)
 }
 
-func (pCtx *pauseContext) CompletedPauseStep(pause v1alpha1.RolloutPause) bool {
+func (pCtx *pauseContext) CompletedCanaryPauseStep(pause v1alpha1.RolloutPause) bool {
 	rollout := pCtx.rollout
 	pauseCondition := getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep)
 
