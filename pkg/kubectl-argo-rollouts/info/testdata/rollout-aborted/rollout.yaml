@@ -50,7 +50,6 @@ status:
   availableReplicas: 1
   blueGreen: {}
   canary:
-    currentBackgroundAnalysisRun: rollout-background-analysis-db976bc44-2
     currentBackgroundAnalysisRunStatus:
       message: metric "web" assessed Failed due to failed (1) > failureLimit (0)
       name: rollout-background-analysis-db976bc44-2

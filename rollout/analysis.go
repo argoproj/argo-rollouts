@@ -418,56 +418,36 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	if infix != "" {
 		nameParts = append(nameParts, infix)
 	}
-	if rolloutAnalysis.TemplateName != "" {
-		//TODO(dthomson) remove this code block in v0.9.0
-		nameParts = append(nameParts, rolloutAnalysis.TemplateName)
-	}
 	name := strings.Join(nameParts, "-")
 	var run *v1alpha1.AnalysisRun
 	var err error
-	if rolloutAnalysis.TemplateName != "" {
-		//TODO(dthomson) remove this code block in v0.9.0
-		template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(rolloutAnalysis.TemplateName)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-			}
-			return nil, err
-		}
-		run, err = analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", c.rollout.Namespace)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		templates := make([]*v1alpha1.AnalysisTemplate, 0)
-		clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
-		for _, templateRef := range rolloutAnalysis.Templates {
-
-			if templateRef.ClusterScope {
-				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
-				if err != nil {
-					if k8serrors.IsNotFound(err) {
-						c.log.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-					}
-					return nil, err
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range rolloutAnalysis.Templates {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					c.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				clusterTemplates = append(clusterTemplates, template)
-			} else {
-				template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
-				if err != nil {
-					if k8serrors.IsNotFound(err) {
-						c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-					}
-					return nil, err
-				}
-				templates = append(templates, template)
+				return nil, err
 			}
+			clusterTemplates = append(clusterTemplates, template)
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					c.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, err
+			}
+			templates = append(templates, template)
+		}
 
-		}
-		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", c.rollout.Namespace)
-		if err != nil {
-			return nil, err
-		}
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
 	}
 	run.Labels = labels
 	run.Annotations = map[string]string{

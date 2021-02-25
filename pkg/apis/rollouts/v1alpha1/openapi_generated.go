@@ -653,19 +653,6 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"previousActiveSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset to avoid scaling down for the scale down delay Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"scaleDownDelayStartTime": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ScaleDownDelayStartTime indicates the start of the scaleDownDelay Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
 					"scaleUpPreviewCheckPoint": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused",
@@ -673,24 +660,10 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"prePromotionAnalysisRun": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PrePromotionAnalysisRun is the current analysis run running before the active service promotion",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"prePromotionAnalysisRunStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PrePromotionAnalysisRunStatus indicates the status of the current prepromotion analysis run",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
-						},
-					},
-					"postPromotionAnalysisRun": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PostPromotionAnalysisRun is the current analysis run running after the active service promotion",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 					"postPromotionAnalysisRunStatus": {
@@ -703,7 +676,7 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"},
 	}
 }
 
@@ -816,24 +789,10 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 				Description: "CanaryStatus status fields that only pertain to the canary rollout",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"currentStepAnalysisRun": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CurrentStepAnalysisRun indicates the analysisRun for the current step index",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"currentStepAnalysisRunStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentStepAnalysisRunStatus indicates the status of the current step analysis run",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"),
-						},
-					},
-					"currentBackgroundAnalysisRun": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 					"currentBackgroundAnalysisRunStatus": {
@@ -2386,20 +2345,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 				Description: "RolloutAnalysis defines a template that is used to create a analysisRun",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"clusterScope": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Whether to look for the templateName at cluster scope or namespace scope Deprecated and will be removed in v0.9",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"templateName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templates": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Templates reference to a list of analysis templates to combine for an AnalysisRun",
@@ -2449,20 +2394,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 				Description: "RolloutAnalysisBackground defines a template that is used to create a background analysisRun",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"clusterScope": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Whether to look for the templateName at cluster scope or namespace scope Deprecated and will be removed in v0.9",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"templateName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run Deprecated and will be removed in v0.9",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"templates": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Templates reference to a list of analysis templates to combine for an AnalysisRun",
