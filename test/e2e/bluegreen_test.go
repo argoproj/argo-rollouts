@@ -162,6 +162,18 @@ spec:
 func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithPause() {
 	s.Given().
 		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen-progress-deadline-exceeded-with-pause
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -169,43 +181,26 @@ metadata:
 spec:
   replicas: 2
   revisionHistoryLimit: 2
-  progressDeadlineSeconds: 10 # note this is less than initialDelaySeconds
+  progressDeadlineSeconds: 1
   selector:
     matchLabels:
-      app: rollout-bluegreen
+      app: rollout-bluegreen-progress-deadline-exceeded-with-pause
   template:
     metadata:
       labels:
-        app: rollout-bluegreen
+        app: rollout-bluegreen-progress-deadline-exceeded-with-pause
     spec:
       containers:
-      - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-        readinessProbe:
-          initialDelaySeconds: 20
-          httpGet:
-            path: /color
-            port: 8080
-          periodSeconds: 30
+      - name: rollout-bluegreen-progress-deadline-exceeded-with-pause
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
   strategy:
     blueGreen: 
       autoPromotionEnabled: false
       activeService: rollout-bluegreen-active
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: rollout-bluegreen-active
-spec:
-  selector:
-    app: rollout-bluegreen
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8080
 `).
 		When().
 		ApplyManifests().
@@ -222,50 +217,45 @@ spec:
 func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithoutPause() {
 	s.Given().
 		RolloutObjects(`
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: rollout-bluegreen
-spec:
-  replicas: 2
-  revisionHistoryLimit: 2
-  progressDeadlineSeconds: 10 # note this is less than initialDelaySeconds
-  selector:
-    matchLabels:
-      app: rollout-bluegreen
-  template:
-    metadata:
-      labels:
-        app: rollout-bluegreen
-    spec:
-      containers:
-      - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-        readinessProbe:
-          initialDelaySeconds: 20
-          httpGet:
-            path: /color
-            port: 8080
-          periodSeconds: 30
-  strategy:
-    blueGreen: 
-      autoPromotionEnabled: true
-      activeService: rollout-bluegreen-active
----
 kind: Service
 apiVersion: v1
 metadata:
   name: rollout-bluegreen-active
 spec:
   selector:
-    app: rollout-bluegreen
+    app: rollout-bluegreen-progress-deadline-exceeded-without-pause
   ports:
   - protocol: TCP
     port: 80
     targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen-progress-deadline-exceeded-without-pause
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 1
+  selector:
+    matchLabels:
+      app: rollout-bluegreen-progress-deadline-exceeded-without-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen-progress-deadline-exceeded-without-pause
+    spec:
+      containers:
+      - name: rollout-bluegreen-progress-deadline-exceeded-without-pause
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+  strategy:
+    blueGreen: 
+      autoPromotionEnabled: true
+      activeService: rollout-bluegreen-active
 `).
 		When().
 		ApplyManifests().
