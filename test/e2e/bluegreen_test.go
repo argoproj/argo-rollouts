@@ -177,7 +177,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-bluegreen
+  name: rollout-bluegreen-progress-deadline-exceeded-with-pause
 spec:
   replicas: 1
   revisionHistoryLimit: 2
