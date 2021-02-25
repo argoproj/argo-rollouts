@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -x
 set -e
 
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
@@ -16,12 +17,19 @@ if [ ! -z "${IMAGE_TAG}" ]; then
   (cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argo-rollouts:${IMAGE_TAG})
 fi
 
-kustomize version
+kust_version=$(kustomize version --short | awk '{print $1}' | awk -Fv '{print $2}')
+kust_major_version=$(echo $kust_version | cut -c1)
+if [ $kust_major_version -ge 4 ]; then
+  kust_cmd="kustomize build --load-restrictor LoadRestrictionsNone"
+else
+  kust_cmd="kustomize build --load_restrictor none"
+fi
+
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-kustomize build --load_restrictor none "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+${kust_cmd} "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 update_image "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-kustomize build --load_restrictor none "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+${kust_cmd} "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
 update_image "${SRCROOT}/manifests/namespace-install.yaml"

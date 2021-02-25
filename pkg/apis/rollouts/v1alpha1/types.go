@@ -397,13 +397,6 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	// Whether to look for the templateName at cluster scope or namespace scope
-	// Deprecated and will be removed in v0.9
-	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty"`
-	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
-	// Deprecated and will be removed in v0.9
-	TemplateName string `json:"templateName,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplate `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
@@ -607,40 +600,19 @@ type BlueGreenStatus struct {
 	// ActiveSelector indicates which replicas set the active service is serving traffic to
 	// +optional
 	ActiveSelector string `json:"activeSelector,omitempty"`
-	// PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset
-	// to avoid scaling down for the scale down delay
-	// Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6
-	// +optional
-	PreviousActiveSelector string `json:"previousActiveSelector,omitempty"`
-	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
-	// Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6
-	// +optional
-	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
 	// +optional
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
-	// PrePromotionAnalysisRun is the current analysis run running before the active service promotion
-	// TODO(Deprecated): Remove in v0.10
-	PrePromotionAnalysisRun string `json:"prePromotionAnalysisRun,omitempty"`
 	// PrePromotionAnalysisRunStatus indicates the status of the current prepromotion analysis run
 	PrePromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"prePromotionAnalysisRunStatus,omitempty"`
-	// PostPromotionAnalysisRun is the current analysis run running after the active service promotion
-	// TODO(Deprecated): Remove in v0.10
-	PostPromotionAnalysisRun string `json:"postPromotionAnalysisRun,omitempty"`
 	// PostPromotionAnalysisRunStatus indicates the status of the current post promotion analysis run
 	PostPromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"postPromotionAnalysisRunStatus,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
-	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
-	// TODO(Deprecated): Remove in v0.10
-	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
 	// CurrentStepAnalysisRunStatus indicates the status of the current step analysis run
 	CurrentStepAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentStepAnalysisRunStatus,omitempty"`
-	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
-	// TODO(Deprecated): Remove in v0.10
-	CurrentBackgroundAnalysisRun string `json:"currentBackgroundAnalysisRun,omitempty"`
 	// CurrentBackgroundAnalysisRunStatus indicates the status of the current background analysis run
 	CurrentBackgroundAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentBackgroundAnalysisRunStatus,omitempty"`
 	// CurrentExperiment indicates the running experiment
