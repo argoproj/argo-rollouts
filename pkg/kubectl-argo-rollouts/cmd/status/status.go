@@ -31,7 +31,7 @@ type StatusOptions struct {
 	options.ArgoRolloutsOptions
 }
 
-// NewCmdStatus returns a new instance of an `rollouts status` command
+// NewCmdStatus returns a new instance of a `rollouts status` command
 func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 	statusOptions := StatusOptions{
 		ArgoRolloutsOptions: *o,
@@ -75,9 +75,9 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				}
 
 				if finalRi.Status == "Degraded" {
-					return fmt.Errorf("The rollout is in degraded state with message: %s", finalRi.Message)
+					return fmt.Errorf("The rollout is in a degraded state with message: %s", finalRi.Message)
 				} else if finalRi.Status != "Healthy" {
-					return fmt.Errorf("The rollout progress did not finish within the specified timeout")
+					return fmt.Errorf("Timeout reached before rollout completed")
 				}
 			}
 
@@ -85,7 +85,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&statusOptions.Watch, "watch", "w", true, "Watch the status of the rollout until it's done")
-	cmd.Flags().Int64VarP(&statusOptions.Timeout, "timeout", "t", 300, "The length of time in seconds to wait before ending watch, zero means never.")
+	cmd.Flags().Int64VarP(&statusOptions.Timeout, "timeout", "t", 300, "The length of time in seconds to watch before giving up, zero means wait forever")
 	return cmd
 }
 

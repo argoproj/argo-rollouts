@@ -121,7 +121,7 @@ func TestWatchAbortedRollout(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Degraded\n", stdout)
-	assert.Equal(t, "Error: The rollout is in degraded state with message: RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stderr)
+	assert.Equal(t, "Error: The rollout is in a degraded state with message: RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stderr)
 }
 
 func TestWatchTimeoutRollout(t *testing.T) {
@@ -139,5 +139,5 @@ func TestWatchTimeoutRollout(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Paused - BlueGreenPause\n", stdout)
-	assert.Equal(t, "Error: The rollout progress did not finish within the specified timeout\n", stderr)
+	assert.Equal(t, "Error: Timeout reached before rollout completed\n", stderr)
 }
