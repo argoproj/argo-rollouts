@@ -12,9 +12,8 @@ import (
 )
 
 const (
-	statusLong = `Watch the progress of a rollout until it is done. The return will be success if
-the Rollout ends as Healthy and error if the Rollout ends degraded or if the
-timeout is hit before the progress finishes.`
+	statusLong = `Watch rollout until it finishes or the specified timeout is exceeded. Returns
+success if the rollout is healthy upon completion and an error otherwise.`
 	statusExample = `
 	# Watch the rollout until it succeeds
 	%[1]s status gestbook
