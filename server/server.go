@@ -2,10 +2,14 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
@@ -13,7 +17,46 @@ import (
 )
 
 type ArgoRolloutsServer struct {
-	viewController viewcontroller.RolloutViewController
+}
+
+// Run starts the server
+func (s *ArgoRolloutsServer) Run(ctx context.Context, port int) {
+	var httpS *http.Server
+	httpS = &http.Server{
+		Addr: addr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			target := "https://" + req.Host
+			target += req.URL.Path
+			if len(req.URL.RawQuery) > 0 {
+				target += "?" + req.URL.RawQuery
+			}
+			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
+		}),
+	}
+
+	// Start listener
+	var conn net.Listener
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		conn, realErr = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if realErr != nil {
+			a.log.Warnf("failed listen: %v", realErr)
+			return false, nil
+		}
+		return true, nil
+	})
+	errors.CheckError(realErr)
+
+	log.Infof("argo-rollouts %s serving on port %d (url: %s, tls: false, namespace: %s)",
+		common.GetVersion(), port, s.settings.URL, s.Namespace)
+
+	go func () {
+		httpS.Serve(httpL)
+	}
+
+	s.stopCh = make(chan struct{})
+	<-s.stopCh
+	errors.CheckError(conn.Close())
 }
 
 // RolloutInfo returns info stream for requested rollout
