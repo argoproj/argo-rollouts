@@ -168,7 +168,7 @@ metadata:
   name: rollout-bluegreen-active
 spec:
   selector:
-    app: rollout-bluegreen-progress-deadline-exceeded-with-pause
+    app: rollout-bluegreen-with-pause
   ports:
   - protocol: TCP
     port: 80
@@ -177,26 +177,30 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-bluegreen-progress-deadline-exceeded-with-pause
+  name: rollout-bluegreen-with-pause
 spec:
   replicas: 1
   revisionHistoryLimit: 2
-  progressDeadlineSeconds: 1
+  progressDeadlineSeconds: 5 # note this is less than initialDelaySeconds
   selector:
     matchLabels:
-      app: rollout-bluegreen-progress-deadline-exceeded-with-pause
+      app: rollout-bluegreen-with-pause
   template:
     metadata:
       labels:
-        app: rollout-bluegreen-progress-deadline-exceeded-with-pause
+        app: rollout-bluegreen-with-pause
     spec:
       containers:
-      - name: rollout-bluegreen-progress-deadline-exceeded-with-pause
+      - name: rollouts-demo
         image: nginx:1.19-alpine
-        resources:
-          requests:
-            memory: 16Mi
-            cpu: 1m
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
   strategy:
     blueGreen: 
       autoPromotionEnabled: false
@@ -225,7 +229,7 @@ metadata:
   name: rollout-bluegreen-active
 spec:
   selector:
-    app: rollout-bluegreen-progress-deadline-exceeded-without-pause
+    app: rollout-bluegreen-without-pause
   ports:
   - protocol: TCP
     port: 80
@@ -234,26 +238,30 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-bluegreen-progress-deadline-exceeded-without-pause
+  name: rollout-bluegreen-without-pause
 spec:
   replicas: 1
   revisionHistoryLimit: 2
-  progressDeadlineSeconds: 1
+  progressDeadlineSeconds: 5 # note this is less than initialDelaySeconds
   selector:
     matchLabels:
-      app: rollout-bluegreen-progress-deadline-exceeded-without-pause
+      app: rollout-bluegreen-without-pause
   template:
     metadata:
       labels:
-        app: rollout-bluegreen-progress-deadline-exceeded-without-pause
+        app: rollout-bluegreen-without-pause
     spec:
       containers:
-      - name: rollout-bluegreen-progress-deadline-exceeded-without-pause
+      - name: rollouts-demo
         image: nginx:1.19-alpine
-        resources:
-          requests:
-            memory: 16Mi
-            cpu: 1m
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
   strategy:
     blueGreen: 
       autoPromotionEnabled: true

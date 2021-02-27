@@ -362,42 +362,46 @@ func (s *CanarySuite) TestCanaryProgressDeadlineExceededWithPause() {
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-canary-progress-deadline-exceeded-with-pause
+  name: rollout-canary-with-pause
 spec:
-  replicas: 2
+  replicas: 3
   revisionHistoryLimit: 2
-  progressDeadlineSeconds: 1
+  progressDeadlineSeconds: 5
   selector:
     matchLabels:
-      app: rollout-canary-progress-deadline-exceeded-with-pause
+      app: rollout-canary-with-pause
   template:
     metadata:
       labels:
-        app: rollout-canary-progress-deadline-exceeded-with-pause
+        app: rollout-canary-with-pause
     spec:
       containers:
-      - name: rollout-canary-progress-deadline-exceeded-with-pause
+      - name: rollouts-demo
         image: nginx:1.19-alpine
-        resources:
-          requests:
-            memory: 16Mi
-            cpu: 1m
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
   strategy:
     canary: 
       steps:
-      - setWeight: 50
+      - setWeight: 20
       - pause: {}
 `).
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy").
-		WaitForRolloutReplicas(2).
+		WaitForRolloutReplicas(3).
 		UpdateSpec().
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectCanaryStablePodCount(1, 1).
+		ExpectCanaryStablePodCount(1, 3).
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
