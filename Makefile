@@ -48,6 +48,23 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+# protoc,my.proto
+define protoc
+	# protoc $(1)
+    [ -e vendor ] || go mod vendor
+    protoc \
+      -I /usr/local/include \
+      -I . \
+      -I ./vendor \
+      -I ${GOPATH}/src \
+      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.1/gogoproto \
+      -I ${GOPATH}/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.16.0/third_party/googleapis \
+      --gogofast_out=plugins=grpc:${GOPATH}/src \
+      --grpc-gateway_out=logtostderr=true:${GOPATH}/src \
+      --swagger_out=logtostderr=true,fqn_for_swagger_name=true:. \
+      $(1)
+endef
+
 .PHONY: all
 all: controller image
 
@@ -56,6 +73,76 @@ codegen: mocks
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
+
+LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-rollouts
+
+.PHONY: ensure-gopath
+ensure-gopath:
+ifneq ("$(PWD)","$(LEGACY_PATH)")
+	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
+	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
+	@exit 1
+endif
+
+.PHONY: protogen
+protogen: \
+	pkg/apis/rollouts/v1alpha1/generated.proto \
+	pkg/apiclient/rollout/rollout.swagger.json \
+	$(GOPATH)/bin/mockery
+	go generate ./pkg/apiclient/rollout
+	rm -Rf vendor
+	go mod tidy
+
+PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
+TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
+
+$(GOPATH)/bin/mockery:
+	./hack/recurl.sh dist/mockery.tar.gz https://github.com/vektra/mockery/releases/download/v1.1.1/mockery_1.1.1_$(shell uname -s)_$(shell uname -m).tar.gz
+	tar zxvf dist/mockery.tar.gz mockery
+	chmod +x mockery
+	mkdir -p $(GOPATH)/bin
+	mv mockery $(GOPATH)/bin/mockery
+	mockery -version
+
+$(GOPATH)/bin/controller-gen:
+	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen)
+
+$(GOPATH)/bin/go-to-protobuf:
+	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf)
+
+$(GOPATH)/bin/protoc-gen-gogo:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo)
+
+$(GOPATH)/bin/protoc-gen-gogofast:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast)
+
+$(GOPATH)/bin/protoc-gen-grpc-gateway:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
+
+$(GOPATH)/bin/protoc-gen-swagger:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger)
+
+$(GOPATH)/bin/openapi-gen:
+	$(call go_install,k8s.io/kube-openapi/cmd/openapi-gen)
+
+$(GOPATH)/bin/swagger:
+	$(call go_install,github.com/go-swagger/go-swagger/cmd/swagger)
+
+$(GOPATH)/bin/goimports:
+	$(call go_install,golang.org/x/tools/cmd/goimports)
+
+pkg/apis/rollouts/v1alpha1/generated.proto: $(GOPATH)/bin/go-to-protobuf $(PROTO_BINARIES) $(TYPES)
+	[ -e vendor ] || go mod vendor
+	go mod download
+	${GOPATH}/bin/go-to-protobuf \
+		--go-header-file=./hack/custom-boilerplate.go.txt \
+		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--apimachinery-packages=+k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/policy/v1beta1 \
+		--proto-import ./vendor
+	touch pkg/apis/rollouts/v1alpha1/generated.proto
+
+pkg/apiclient/rollout/rollout.swagger.json: $(PROTO_BINARIES) $(TYPES) pkg/apiclient/rollout/rollout.proto
+	$(call protoc,pkg/apiclient/rollout/rollout.proto)
 
 .PHONY: controller
 controller: clean-debug

@@ -10,7 +10,10 @@ require (
 	github.com/evanphx/json-patch/v5 v5.2.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.3
+	github.com/gogo/protobuf v1.3.1
+	github.com/golang/protobuf v1.4.3
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.9.5
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
@@ -28,6 +31,8 @@ require (
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery/v2 v2.6.0
+	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
+	google.golang.org/grpc v1.29.1
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	k8s.io/api v0.20.4
