@@ -16,7 +16,7 @@ const (
 the rollout is healthy upon completion and an error otherwise.`
 	statusExample = `
 	# Watch the rollout until it succeeds
-	%[1]s status gestbook
+	%[1]s status guestbook
 
 	# Watch the rollout until it succeeds, fail if it takes more than 60 seconds
 	%[1]s status --timeout 60 guestbook
@@ -38,7 +38,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:          "status ROLLOUT_NAME",
-		Short:        "Show the status of a rollout.",
+		Short:        "Show the status of a rollout",
 		Long:         statusLong,
 		Example:      o.Example(statusExample),
 		SilenceUsage: true,
