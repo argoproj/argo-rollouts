@@ -76,7 +76,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				if finalRi.Status == "Degraded" {
 					return fmt.Errorf("The rollout is in a degraded state with message: %s", finalRi.Message)
 				} else if finalRi.Status != "Healthy" {
-					return fmt.Errorf("Timeout reached before rollout completed")
+					return fmt.Errorf("Rollout progress exceeded timeout")
 				}
 			}
 

@@ -139,5 +139,5 @@ func TestWatchTimeoutRollout(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Paused - BlueGreenPause\n", stdout)
-	assert.Equal(t, "Error: Timeout reached before rollout completed\n", stderr)
+	assert.Equal(t, "Error: Rollout progress exceeded timeout\n", stderr)
 }
