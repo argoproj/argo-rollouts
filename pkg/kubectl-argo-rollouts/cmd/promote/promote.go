@@ -33,11 +33,12 @@ To skip analysis, pauses and steps entirely, use '--full' to fully promote the r
 )
 
 const (
-	setCurrentStepIndex                 = `{"status":{"currentStepIndex":%d}}`
-	unpausePatch                        = `{"spec":{"paused":false}}`
-	clearPauseConditionsPatch           = `{"status":{"pauseConditions":null}}`
-	unpauseAndClearPauseConditionsPatch = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
-	promoteFullPatch                    = `{"status":{"promoteFull":true}}`
+	setCurrentStepIndex                             = `{"status":{"currentStepIndex":%d}}`
+	unpausePatch                                    = `{"spec":{"paused":false}}`
+	clearPauseConditionsPatch                       = `{"status":{"pauseConditions":null}}`
+	unpauseAndClearPauseConditionsPatch             = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
+	promoteFullPatch                                = `{"status":{"promoteFull":true}}`
+	setCurrentStepIndexAndClearPauseConditionsPatch = `{"status":{"currentStepIndex":%d,"pauseConditions":null}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
@@ -141,6 +142,9 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			*index++
 		}
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+		if len(rollout.Status.PauseConditions) > 0 && *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) && rollout.Spec.Strategy.Canary.Steps[*index].Pause == nil {
+			statusPatch = []byte(fmt.Sprintf(setCurrentStepIndexAndClearPauseConditionsPatch, *index))
+		}
 		unifiedPatch = statusPatch
 	case skipAllStep:
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
