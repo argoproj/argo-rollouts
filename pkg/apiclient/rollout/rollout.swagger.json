@@ -11,6 +11,23 @@
     "application/json"
   ],
   "paths": {
+    "/api/v1/hello": {
+      "get": {
+        "summary": "Hello says hello",
+        "operationId": "Hello",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rollout.Greeting"
+            }
+          }
+        },
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/stream/rollout": {
       "get": {
         "summary": "WatchInfo return stream of rollout info",
@@ -295,6 +312,14 @@
         }
       },
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "rollout.Greeting": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      }
     }
   }
 }

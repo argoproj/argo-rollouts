@@ -2,9 +2,8 @@ syntax = "proto3";
 option go_package = "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout";
 
 import "google/api/annotations.proto";
-import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1/generated.proto";
-import "k8s.io/api/core/v1/generated.proto";
+import "google/protobuf/empty.proto";
 
 package rollout;
 
@@ -13,9 +12,18 @@ message RolloutInfoRequest {
     string name = 2;
 }
 
+message Greeting {
+    string text = 1;
+}
+
 service RolloutService {
     // WatchInfo return stream of rollout info
     rpc WatchInfo(RolloutInfoRequest) returns (stream github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
         option (google.api.http).get = "/api/v1/stream/rollout";
+    }
+
+    // Hello says hello
+    rpc Hello(google.protobuf.Empty) returns (Greeting) {
+        option (google.api.http).get = "/api/v1/hello";
     }
 }

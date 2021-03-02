@@ -332,8 +332,8 @@ type KayentaMetric struct {
 }
 
 type KayentaThreshold struct {
-	Pass     int `json:"pass" protobuf:"varint,1,opt,name=pass"`
-	Marginal int `json:"marginal" protobuf:"varint,2,opt,name=marginal"`
+	Pass     int64 `json:"pass" protobuf:"varint,1,opt,name=pass"`
+	Marginal int64 `json:"marginal" protobuf:"varint,2,opt,name=marginal"`
 }
 
 type KayentaScope struct {
@@ -345,7 +345,7 @@ type KayentaScope struct {
 type ScopeDetail struct {
 	Scope  string `json:"scope" protobuf:"bytes,1,opt,name=scope"`
 	Region string `json:"region" protobuf:"bytes,2,opt,name=region"`
-	Step   int    `json:"step" protobuf:"varint,3,opt,name=step"`
+	Step   int64  `json:"step" protobuf:"varint,3,opt,name=step"`
 	Start  string `json:"start" protobuf:"bytes,4,opt,name=start"`
 	End    string `json:"end" protobuf:"bytes,5,opt,name=end"`
 }
@@ -358,7 +358,7 @@ type WebMetric struct {
 	// Headers are optional HTTP headers to use in the request
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,2,rep,name=headers"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
-	TimeoutSeconds int `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
 	// JSONPath is a JSON Path to use as the result variable (default: "{$}")
 	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,4,opt,name=jsonPath"`
 	// Insecure skips host TLS verification
