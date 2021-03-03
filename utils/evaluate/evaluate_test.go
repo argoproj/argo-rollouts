@@ -17,8 +17,9 @@ func TestEvaluateResultWithSuccess(t *testing.T) {
 		FailureCondition: "false",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.NoError(t, err)
 }
 
 func TestEvaluateResultWithFailure(t *testing.T) {
@@ -27,8 +28,9 @@ func TestEvaluateResultWithFailure(t *testing.T) {
 		FailureCondition: "true",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.NoError(t, err)
 
 }
 
@@ -38,8 +40,9 @@ func TestEvaluateResultInconclusive(t *testing.T) {
 		FailureCondition: "false",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, status)
+	assert.NoError(t, err)
 }
 
 func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
@@ -48,8 +51,9 @@ func TestEvaluateResultNoSuccessConditionAndNotFailing(t *testing.T) {
 		FailureCondition: "false",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.NoError(t, err)
 }
 
 func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
@@ -58,8 +62,9 @@ func TestEvaluateResultNoFailureConditionAndNotSuccessful(t *testing.T) {
 		FailureCondition: "",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.NoError(t, err)
 }
 
 func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
@@ -68,8 +73,9 @@ func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
 		FailureCondition: "",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.NoError(t, err)
 }
 
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
@@ -78,8 +84,9 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 		FailureCondition: "true",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Error(t, err)
 }
 
 func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
@@ -88,8 +95,9 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 		FailureCondition: "a == true",
 	}
 	logCtx := logrus.WithField("test", "test")
-	status := EvaluateResult(true, metric, *logCtx)
+	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Error(t, err)
 }
 
 func TestEvaluateConditionWithSuccess(t *testing.T) {

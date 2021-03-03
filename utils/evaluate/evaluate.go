@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.Entry) v1alpha1.AnalysisPhase {
+func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.Entry) (v1alpha1.AnalysisPhase, error) {
 	successCondition := false
 	failCondition := false
 	var err error
@@ -22,22 +22,20 @@ func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.En
 	if metric.SuccessCondition != "" {
 		successCondition, err = EvalCondition(result, metric.SuccessCondition)
 		if err != nil {
-			logCtx.Warning(err.Error())
-			return v1alpha1.AnalysisPhaseError
+			return v1alpha1.AnalysisPhaseError, err
 		}
 	}
 	if metric.FailureCondition != "" {
 		failCondition, err = EvalCondition(result, metric.FailureCondition)
 		if err != nil {
-			logCtx.Warning(err.Error())
-			return v1alpha1.AnalysisPhaseError
+			return v1alpha1.AnalysisPhaseError, err
 		}
 	}
 
 	switch {
 	case metric.SuccessCondition == "" && metric.FailureCondition == "":
 		//Always return success unless there is an error
-		return v1alpha1.AnalysisPhaseSuccessful
+		return v1alpha1.AnalysisPhaseSuccessful, nil
 	case metric.SuccessCondition != "" && metric.FailureCondition == "":
 		// Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true
 		failCondition = !successCondition
@@ -47,15 +45,15 @@ func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.En
 	}
 
 	if failCondition {
-		return v1alpha1.AnalysisPhaseFailed
+		return v1alpha1.AnalysisPhaseFailed, nil
 	}
 
 	if !failCondition && !successCondition {
-		return v1alpha1.AnalysisPhaseInconclusive
+		return v1alpha1.AnalysisPhaseInconclusive, nil
 	}
 
 	// If we reach this code path, failCondition is false and successCondition is true
-	return v1alpha1.AnalysisPhaseSuccessful
+	return v1alpha1.AnalysisPhaseSuccessful, nil
 }
 
 // EvalCondition evaluates the condition with the resultValue as an input
