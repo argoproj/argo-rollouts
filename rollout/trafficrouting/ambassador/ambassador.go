@@ -75,6 +75,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings
 	doneChan := make(chan struct{})
 	errChan := make(chan error)
+	defer close(errChan)
 	var wg sync.WaitGroup
 	wg.Add(len(baseMappingNameList))
 	for _, baseMappingName := range baseMappingNameList {
@@ -136,11 +137,6 @@ func (r *Reconciler) handleCanaryMapping(ctx context.Context, baseMappingName st
 
 	if desiredWeight == 0 {
 		r.Log.Infof("deleting canary mapping %q", canaryMapping.GetName())
-		// This is necessary to make sure Ambassador(Envoy) releases all its connections
-		// as we are setting the canary mapping with connection lifetime at 5s. The way
-		// all traffic is correctly routed to the new Pods at the end of the rollout.
-		//time.Sleep(time.Second * 6)
-
 		return r.deleteCanaryMapping(ctx, canaryMapping, desiredWeight, r.Client)
 	}
 
