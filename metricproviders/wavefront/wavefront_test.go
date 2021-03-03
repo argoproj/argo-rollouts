@@ -233,9 +233,10 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
 		assert.Equal(t, float64(1), value)
-		assert.Equal(t, "0", epoch)
+		assert.Equal(t, int64(0), epoch)
+		assert.Equal(t, int64(-1), drift)
 	})
 
 	t.Run("Choose later but closer point", func(t *testing.T) {
@@ -243,9 +244,10 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
 		assert.Equal(t, float64(2), value)
-		assert.Equal(t, "5", epoch)
+		assert.Equal(t, int64(5), epoch)
+		assert.Equal(t, int64(1), drift)
 	})
 
 	t.Run("Choose exact point", func(t *testing.T) {
@@ -253,8 +255,9 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
 		assert.Equal(t, float64(1), value)
-		assert.Equal(t, "0", epoch)
+		assert.Equal(t, int64(0), epoch)
+		assert.Equal(t, int64(0), drift)
 	})
 }

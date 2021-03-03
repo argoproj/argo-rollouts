@@ -144,8 +144,8 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
 	}
 
-	status := evaluate.EvaluateResult(datapoint[1], metric, p.logCtx)
-	return strconv.FormatFloat(datapoint[1], 'f', -1, 64), status, nil
+	status, err := evaluate.EvaluateResult(datapoint[1], metric, p.logCtx)
+	return strconv.FormatFloat(datapoint[1], 'f', -1, 64), status, err
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method

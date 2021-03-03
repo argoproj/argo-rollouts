@@ -107,8 +107,8 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, err
 	}
 
-	status := evaluate.EvaluateResult(val, metric, p.logCtx)
-	return valString, status, nil
+	status, err := evaluate.EvaluateResult(val, metric, p.logCtx)
+	return valString, status, err
 }
 
 func getValue(fullResults [][]reflect.Value) (interface{}, string, error) {
