@@ -2,8 +2,10 @@ package ambassador
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
+	"strings"
+	"sync"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -68,12 +70,58 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
 func (r *Reconciler) SetWeight(desiredWeight int32) error {
-
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
-	baseMappingName := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mapping
-	canaryMappingName := buildCanaryMappingName(baseMappingName)
+	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings
+	doneChan := make(chan struct{})
+	errChan := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(len(baseMappingNameList))
+	for _, baseMappingName := range baseMappingNameList {
+		go func(baseMappingName string) {
+			defer wg.Done()
+			err := r.handleCanaryMapping(ctx, baseMappingName, desiredWeight)
+			if err != nil {
+				errChan <- err
+			}
+		}(baseMappingName)
+	}
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
 
+	errs := []error{}
+	done := false
+	for !done {
+		select {
+		case <-doneChan:
+			done = true
+		case err := <-errChan:
+			errs = append(errs, err)
+		}
+	}
+	return formatErrors(errs)
+}
+
+func formatErrors(errs []error) error {
+	errorsCount := len(errs)
+	if errorsCount == 0 {
+		return nil
+	} else if errorsCount == 1 {
+		return errs[0]
+	}
+	var errMsg strings.Builder
+	errMsg.WriteString(fmt.Sprintf("%d errors found: ", errorsCount))
+	for _, err := range errs {
+		errMsg.WriteString(fmt.Sprintf("[%s]", err))
+	}
+	return errors.New(errMsg.String())
+}
+
+// handleCanaryMapping has the logic to create, update or delete canary mappings
+func (r *Reconciler) handleCanaryMapping(ctx context.Context, baseMappingName string, desiredWeight int32) error {
+	canaryMappingName := buildCanaryMappingName(baseMappingName)
 	canaryMapping, err := r.Client.Get(ctx, canaryMappingName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -91,7 +139,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 		// This is necessary to make sure Ambassador(Envoy) releases all its connections
 		// as we are setting the canary mapping with connection lifetime at 5s. The way
 		// all traffic is correctly routed to the new Pods at the end of the rollout.
-		time.Sleep(time.Second * 6)
+		//time.Sleep(time.Second * 6)
+
 		return r.deleteCanaryMapping(ctx, canaryMapping, desiredWeight, r.Client)
 	}
 

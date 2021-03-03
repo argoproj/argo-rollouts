@@ -247,8 +247,8 @@ type RolloutTrafficRouting struct {
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic router
 type AmbassadorTrafficRouting struct {
-	// Mapping refers to the name of the Ambassador Mapping used to route traffic to the service.
-	Mapping string `json:"mapping"`
+	// Mappings refer to the name of the Ambassador Mappings used to route traffic to the service.
+	Mappings []string `json:"mappings"`
 }
 
 // SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing

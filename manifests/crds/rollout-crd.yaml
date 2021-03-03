@@ -488,10 +488,12 @@ spec:
                           type: object
                         ambassador:
                           properties:
-                            mapping:
-                              type: string
+                            mappings:
+                              items:
+                                type: string
+                              type: array
                           required:
-                          - mapping
+                          - mappings
                           type: object
                         istio:
                           properties:

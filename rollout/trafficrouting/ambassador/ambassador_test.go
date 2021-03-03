@@ -2,6 +2,9 @@ package ambassador_test
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -74,6 +77,7 @@ type fakeClient struct {
 	updateReturns     []error
 	deleteInvokations []*deleteInvokation
 	deleteReturns     []error
+	mu                sync.Mutex
 }
 
 type deleteInvokation struct {
@@ -106,7 +110,9 @@ type getReturn struct {
 
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	invokation := &getInvokation{name: name}
+	f.mu.Lock()
 	f.getInvokations = append(f.getInvokations, invokation)
+	f.mu.Unlock()
 	if len(f.getReturns) == 0 {
 		return nil, nil
 	}
@@ -123,7 +129,9 @@ func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured,
 		options:      options,
 		subresources: subresources,
 	}
+	f.mu.Lock()
 	f.createInvokations = append(f.createInvokations, invokation)
+	f.mu.Unlock()
 	if len(f.createReturns) == 0 {
 		return nil, nil
 	}
@@ -136,7 +144,9 @@ func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured,
 
 func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	invokation := &updateInvokation{obj: obj}
+	f.mu.Lock()
 	f.updateInvokations = append(f.updateInvokations, invokation)
+	f.mu.Unlock()
 	if len(f.updateReturns) == 0 {
 		return nil, nil
 	}
@@ -149,7 +159,9 @@ func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured,
 
 func (f *fakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
 	invokation := &deleteInvokation{name: name}
+	f.mu.Lock()
 	f.deleteInvokations = append(f.deleteInvokations, invokation)
+	f.mu.Unlock()
 	if len(f.deleteReturns) == 0 {
 		return nil
 	}
@@ -169,7 +181,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 	}
 
 	setup := func() *fixture {
-		r := rollout("main-service", "canary-service", "myapp-mapping")
+		r := rollout("main-service", "canary-service", []string{"myapp-mapping"})
 		fakeClient := &fakeClient{}
 		rec := &record.FakeRecorder{}
 		l, _ := test.NewNullLogger()
@@ -310,7 +322,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 		f := setup()
 		providedMappingName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-"
 		expectedName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mappin-canary"
-		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mapping = providedMappingName
+		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = []string{providedMappingName}
 
 		getReturns := []*getReturn{
 			{obj: toUnstructured(t, canaryMapping)},
@@ -324,6 +336,62 @@ func TestReconciler_SetWeight(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(f.fakeClient.getInvokations))
 		assert.Equal(t, expectedName, f.fakeClient.getInvokations[0].name)
+	})
+	t.Run("will create multiple canary mappings when provided multiple base mappings", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
+		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
+		getReturns := []*getReturn{
+			{obj: toUnstructured(t, baseMapping)},
+		}
+		createReturns := []*createReturn{
+			{nil, nil},
+		}
+		f.fakeClient.getReturns = getReturns
+		f.fakeClient.createReturns = createReturns
+
+		// when
+		err := f.reconciler.SetWeight(13)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(f.fakeClient.getInvokations))
+		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+		assert.Equal(t, 3, len(f.fakeClient.updateInvokations))
+		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[0].obj))
+		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[1].obj))
+		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[2].obj))
+		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+	})
+	t.Run("will return errors from all mapping creations", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
+		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
+		getReturns := []*getReturn{
+			{err: errors.New("error getting mapping 1")},
+			{err: errors.New("error getting mapping 2")},
+			{err: errors.New("error getting mapping 3")},
+		}
+		createReturns := []*createReturn{
+			{nil, nil},
+		}
+		f.fakeClient.getReturns = getReturns
+		f.fakeClient.createReturns = createReturns
+
+		// when
+		err := f.reconciler.SetWeight(13)
+
+		// then
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "3 errors found"))
+		assert.Equal(t, 3, len(f.fakeClient.getInvokations))
+		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
 	})
 }
 
@@ -339,7 +407,7 @@ func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	return obj
 }
 
-func rollout(stableSvc, canarySvc, mapping string) *v1alpha1.Rollout {
+func rollout(stableSvc, canarySvc string, mappings []string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -352,7 +420,7 @@ func rollout(stableSvc, canarySvc, mapping string) *v1alpha1.Rollout {
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Ambassador: &v1alpha1.AmbassadorTrafficRouting{
-							Mapping: mapping,
+							Mappings: mappings,
 						},
 					},
 				},
