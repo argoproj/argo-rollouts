@@ -11,27 +11,9 @@
     "application/json"
   ],
   "paths": {
-    "/api/v1/hello": {
+    "/api/v1/rollout/watch/{name}": {
       "get": {
-        "summary": "Hello says hello",
-        "operationId": "Hello",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/rollout.Greeting"
-            }
-          }
-        },
-        "tags": [
-          "RolloutService"
-        ]
-      }
-    },
-    "/api/v1/stream/rollout": {
-      "get": {
-        "summary": "WatchInfo return stream of rollout info",
-        "operationId": "WatchInfo",
+        "operationId": "Watch",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -51,15 +33,34 @@
         },
         "parameters": [
           {
-            "name": "namespace",
-            "in": "query",
-            "required": false,
+            "name": "name",
+            "in": "path",
+            "required": true,
             "type": "string"
-          },
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
+    "/api/v1/rollout/{name}": {
+      "get": {
+        "summary": "Get returns a rollout",
+        "operationId": "Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+            }
+          }
+        },
+        "parameters": [
           {
             "name": "name",
-            "in": "query",
-            "required": false,
+            "in": "path",
+            "required": true,
             "type": "string"
           }
         ],
@@ -312,14 +313,6 @@
         }
       },
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
-    },
-    "rollout.Greeting": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "type": "string"
-        }
-      }
     }
   }
 }

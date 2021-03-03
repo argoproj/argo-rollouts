@@ -69,7 +69,7 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo) {
+func Watch(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo, callback func(*info.RolloutInfo)) {
 	ticker := time.NewTicker(time.Second)
 	var currRolloutInfo *info.RolloutInfo
 	// preventFlicker is used to rate-limit the updates we print to the terminal when updates occur
@@ -85,11 +85,18 @@ func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *i
 			return
 		}
 		if currRolloutInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
-			o.Clear()
-			o.PrintRollout(currRolloutInfo)
+			callback(currRolloutInfo)
 			preventFlicker = time.Now()
 		}
 	}
+}
+
+func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo) {
+	Watch(stopCh, rolloutUpdates, 
+	func (i *info.RolloutInfo) {
+		o.Clear()
+		o.PrintRollout(i)
+	})
 }
 
 // formatImage formats an ImageInfo with colorized imageinfo tags (e.g. canary, stable)

@@ -8,7 +8,6 @@ import (
 	fmt "fmt"
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	proto "github.com/gogo/protobuf/proto"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -29,26 +28,25 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type RolloutInfoRequest struct {
-	Namespace            string   `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+type RolloutQuery struct {
+	Name                 *string  `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RolloutInfoRequest) Reset()         { *m = RolloutInfoRequest{} }
-func (m *RolloutInfoRequest) String() string { return proto.CompactTextString(m) }
-func (*RolloutInfoRequest) ProtoMessage()    {}
-func (*RolloutInfoRequest) Descriptor() ([]byte, []int) {
+func (m *RolloutQuery) Reset()         { *m = RolloutQuery{} }
+func (m *RolloutQuery) String() string { return proto.CompactTextString(m) }
+func (*RolloutQuery) ProtoMessage()    {}
+func (*RolloutQuery) Descriptor() ([]byte, []int) {
 	return fileDescriptor_99101d942e8912a7, []int{0}
 }
-func (m *RolloutInfoRequest) XXX_Unmarshal(b []byte) error {
+func (m *RolloutQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *RolloutInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *RolloutQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_RolloutInfoRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_RolloutQuery.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -58,82 +56,27 @@ func (m *RolloutInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *RolloutInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RolloutInfoRequest.Merge(m, src)
+func (m *RolloutQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RolloutQuery.Merge(m, src)
 }
-func (m *RolloutInfoRequest) XXX_Size() int {
+func (m *RolloutQuery) XXX_Size() int {
 	return m.Size()
 }
-func (m *RolloutInfoRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_RolloutInfoRequest.DiscardUnknown(m)
+func (m *RolloutQuery) XXX_DiscardUnknown() {
+	xxx_messageInfo_RolloutQuery.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_RolloutInfoRequest proto.InternalMessageInfo
+var xxx_messageInfo_RolloutQuery proto.InternalMessageInfo
 
-func (m *RolloutInfoRequest) GetNamespace() string {
-	if m != nil {
-		return m.Namespace
-	}
-	return ""
-}
-
-func (m *RolloutInfoRequest) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-type Greeting struct {
-	Text                 string   `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Greeting) Reset()         { *m = Greeting{} }
-func (m *Greeting) String() string { return proto.CompactTextString(m) }
-func (*Greeting) ProtoMessage()    {}
-func (*Greeting) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{1}
-}
-func (m *Greeting) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Greeting) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_Greeting.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *Greeting) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Greeting.Merge(m, src)
-}
-func (m *Greeting) XXX_Size() int {
-	return m.Size()
-}
-func (m *Greeting) XXX_DiscardUnknown() {
-	xxx_messageInfo_Greeting.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Greeting proto.InternalMessageInfo
-
-func (m *Greeting) GetText() string {
-	if m != nil {
-		return m.Text
+func (m *RolloutQuery) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
 func init() {
-	proto.RegisterType((*RolloutInfoRequest)(nil), "rollout.RolloutInfoRequest")
-	proto.RegisterType((*Greeting)(nil), "rollout.Greeting")
+	proto.RegisterType((*RolloutQuery)(nil), "rollout.RolloutQuery")
 }
 
 func init() {
@@ -141,31 +84,26 @@ func init() {
 }
 
 var fileDescriptor_99101d942e8912a7 = []byte{
-	// 370 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xcd, 0x4a, 0xeb, 0x40,
-	0x14, 0xc7, 0x99, 0x72, 0xbf, 0x3a, 0x70, 0xef, 0xe5, 0x0e, 0xdc, 0x52, 0xd2, 0x12, 0x2e, 0xb9,
-	0x1b, 0x37, 0xce, 0x58, 0x5d, 0xb8, 0x17, 0xaa, 0x16, 0x5c, 0xd5, 0x85, 0xe0, 0x46, 0xa6, 0xf1,
-	0x74, 0x12, 0x9b, 0xcc, 0x8c, 0x93, 0x49, 0xd1, 0xad, 0xaf, 0x20, 0xbe, 0x93, 0x4b, 0xc1, 0x17,
-	0x90, 0xe2, 0x1b, 0xf8, 0x02, 0x92, 0x49, 0x26, 0x55, 0xdc, 0xb8, 0xca, 0xf9, 0xc8, 0xf9, 0xff,
-	0xcf, 0xf9, 0x25, 0xf8, 0xbf, 0x5e, 0x08, 0xc6, 0x75, 0x1a, 0x67, 0x29, 0x48, 0xcb, 0x8c, 0xca,
-	0x32, 0x55, 0xb6, 0x4f, 0xaa, 0x8d, 0xb2, 0x8a, 0x7c, 0x6f, 0xd2, 0x60, 0x28, 0x94, 0x12, 0x19,
-	0x54, 0x03, 0x8c, 0x4b, 0xa9, 0x2c, 0xb7, 0xa9, 0x92, 0x45, 0xfd, 0x5a, 0x70, 0x24, 0x52, 0x9b,
-	0x94, 0x33, 0x1a, 0xab, 0x9c, 0x71, 0x23, 0x94, 0x36, 0xea, 0xc2, 0x05, 0x9b, 0xcd, 0x7c, 0xc1,
-	0x1a, 0xb7, 0x82, 0xb5, 0x95, 0xe5, 0x88, 0x67, 0x3a, 0xe1, 0x23, 0x26, 0x40, 0x82, 0xe1, 0x16,
-	0xce, 0x1b, 0xb5, 0x41, 0xe3, 0xe5, 0xb2, 0x59, 0x39, 0x67, 0x90, 0x6b, 0x7b, 0x5d, 0x37, 0xa3,
-	0x7d, 0x4c, 0xa6, 0xb5, 0xc2, 0x44, 0xce, 0xd5, 0x14, 0x2e, 0x4b, 0x28, 0x2c, 0x19, 0xe2, 0xae,
-	0xe4, 0x39, 0x14, 0x9a, 0xc7, 0xd0, 0x47, 0xff, 0xd0, 0x46, 0x77, 0xba, 0x2e, 0x10, 0x82, 0xbf,
-	0x54, 0x49, 0xbf, 0xe3, 0x1a, 0x2e, 0x8e, 0x42, 0xfc, 0xe3, 0xc0, 0x00, 0xd8, 0x54, 0x8a, 0xaa,
-	0x6f, 0xe1, 0xca, 0x36, 0x83, 0x2e, 0xde, 0x7e, 0x41, 0xf8, 0x57, 0x63, 0x74, 0x0c, 0x66, 0x99,
-	0xc6, 0x40, 0xee, 0x10, 0xee, 0x9e, 0x70, 0x1b, 0x27, 0x95, 0x33, 0x19, 0x50, 0x8f, 0xea, 0xe3,
-	0x3e, 0xc1, 0x84, 0xae, 0x89, 0x50, 0x4f, 0xc4, 0x05, 0x67, 0xfe, 0x7e, 0xaa, 0x17, 0x82, 0x56,
-	0x44, 0x68, 0x5b, 0xf1, 0x44, 0xde, 0x2a, 0x46, 0xe1, 0xcd, 0xe3, 0xf3, 0x6d, 0xa7, 0x4f, 0x7a,
-	0x8e, 0xfd, 0x72, 0xc4, 0x0a, 0x6b, 0x80, 0xe7, 0x9e, 0xe3, 0x16, 0x22, 0x13, 0xfc, 0xf5, 0x10,
-	0xb2, 0x4c, 0x91, 0x1e, 0xad, 0xc9, 0x51, 0x4f, 0x8e, 0x8e, 0x2b, 0x72, 0xc1, 0x9f, 0x76, 0x55,
-	0x7f, 0x72, 0xf4, 0xd7, 0xa9, 0xfe, 0x26, 0x3f, 0xbd, 0x6a, 0x52, 0x29, 0xec, 0x8d, 0xef, 0x57,
-	0x21, 0x7a, 0x58, 0x85, 0xe8, 0x69, 0x15, 0xa2, 0xd3, 0xdd, 0x4f, 0x7f, 0xd6, 0xf7, 0x3f, 0xd1,
-	0xec, 0x9b, 0x5b, 0x60, 0xe7, 0x35, 0x00, 0x00, 0xff, 0xff, 0x86, 0xed, 0x97, 0x4a, 0x64, 0x02,
-	0x00, 0x00,
+	// 298 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x2e, 0xc8, 0x4e, 0xd7,
+	0x4f, 0x2c, 0xc8, 0x4c, 0xce, 0xc9, 0x4c, 0xcd, 0x2b, 0xd1, 0x2f, 0xca, 0xcf, 0xc9, 0xc9, 0x2f,
+	0x85, 0xd3, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x42, 0xec, 0x50, 0xae, 0x94, 0x4c, 0x7a, 0x7e,
+	0x7e, 0x7a, 0x4e, 0x2a, 0x48, 0x83, 0x7e, 0x62, 0x5e, 0x5e, 0x7e, 0x49, 0x62, 0x49, 0x66, 0x7e,
+	0x5e, 0x31, 0x44, 0x99, 0x94, 0x4f, 0x7a, 0x66, 0x49, 0x46, 0x69, 0x92, 0x5e, 0x72, 0x7e, 0xae,
+	0x7e, 0x62, 0x51, 0x7a, 0x7e, 0x41, 0x51, 0x7e, 0x16, 0x98, 0xa1, 0x0b, 0xd5, 0x5f, 0xac, 0x0f,
+	0xb5, 0xad, 0x58, 0x1f, 0x2e, 0x52, 0x66, 0x98, 0x98, 0x53, 0x90, 0x91, 0x68, 0xa8, 0x9f, 0x9e,
+	0x9a, 0x97, 0x5a, 0x94, 0x58, 0x92, 0x9a, 0x02, 0x31, 0x4d, 0x49, 0x89, 0x8b, 0x27, 0x08, 0xa2,
+	0x28, 0xb0, 0x34, 0xb5, 0xa8, 0x52, 0x48, 0x88, 0x8b, 0x25, 0x2f, 0x31, 0x37, 0x55, 0x82, 0x51,
+	0x81, 0x51, 0x83, 0x33, 0x08, 0xcc, 0x36, 0x5a, 0xc7, 0xc4, 0xc5, 0x07, 0x55, 0x14, 0x9c, 0x5a,
+	0x54, 0x96, 0x99, 0x9c, 0x2a, 0xd4, 0xce, 0xc8, 0xc5, 0xec, 0x9e, 0x5a, 0x22, 0x24, 0xaa, 0x07,
+	0xf3, 0x03, 0xb2, 0x29, 0x52, 0x9e, 0x7a, 0x08, 0x47, 0xea, 0xc1, 0x1c, 0x09, 0x66, 0xc4, 0xc3,
+	0x9c, 0xa4, 0x57, 0x90, 0x9d, 0xae, 0x07, 0x72, 0xa4, 0x1e, 0x5c, 0x04, 0xe6, 0x48, 0x98, 0x59,
+	0x9e, 0x79, 0x69, 0xf9, 0x4a, 0x72, 0x4d, 0x97, 0x9f, 0x4c, 0x66, 0x92, 0x10, 0x12, 0x03, 0x07,
+	0x47, 0x99, 0x21, 0x3c, 0xf0, 0xaa, 0x41, 0x6e, 0xab, 0x15, 0x9a, 0xc8, 0xc8, 0xc5, 0x1a, 0x9e,
+	0x58, 0x92, 0x9c, 0x41, 0x07, 0xb7, 0xa8, 0x80, 0xdd, 0x22, 0x27, 0x24, 0x83, 0xee, 0x96, 0x72,
+	0x90, 0x03, 0xa0, 0x2e, 0x32, 0x60, 0x74, 0x72, 0x3d, 0xf1, 0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39,
+	0xc6, 0x07, 0x8f, 0xe4, 0x18, 0xa3, 0xcc, 0x89, 0x8e, 0x30, 0xd4, 0xe4, 0x01, 0x08, 0x00, 0x00,
+	0xff, 0xff, 0x86, 0xc3, 0xb5, 0x1b, 0x36, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -180,10 +118,9 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RolloutServiceClient interface {
-	// WatchInfo return stream of rollout info
-	WatchInfo(ctx context.Context, in *RolloutInfoRequest, opts ...grpc.CallOption) (RolloutService_WatchInfoClient, error)
-	// Hello says hello
-	Hello(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Greeting, error)
+	// Get returns a rollout
+	Get(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error)
+	Watch(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchClient, error)
 }
 
 type rolloutServiceClient struct {
@@ -194,12 +131,21 @@ func NewRolloutServiceClient(cc *grpc.ClientConn) RolloutServiceClient {
 	return &rolloutServiceClient{cc}
 }
 
-func (c *rolloutServiceClient) WatchInfo(ctx context.Context, in *RolloutInfoRequest, opts ...grpc.CallOption) (RolloutService_WatchInfoClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_RolloutService_serviceDesc.Streams[0], "/rollout.RolloutService/WatchInfo", opts...)
+func (c *rolloutServiceClient) Get(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error) {
+	out := new(v1alpha1.RolloutInfo)
+	err := c.cc.Invoke(ctx, "/rollout.RolloutService/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &rolloutServiceWatchInfoClient{stream}
+	return out, nil
+}
+
+func (c *rolloutServiceClient) Watch(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_RolloutService_serviceDesc.Streams[0], "/rollout.RolloutService/Watch", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &rolloutServiceWatchClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -209,16 +155,16 @@ func (c *rolloutServiceClient) WatchInfo(ctx context.Context, in *RolloutInfoReq
 	return x, nil
 }
 
-type RolloutService_WatchInfoClient interface {
+type RolloutService_WatchClient interface {
 	Recv() (*v1alpha1.RolloutInfo, error)
 	grpc.ClientStream
 }
 
-type rolloutServiceWatchInfoClient struct {
+type rolloutServiceWatchClient struct {
 	grpc.ClientStream
 }
 
-func (x *rolloutServiceWatchInfoClient) Recv() (*v1alpha1.RolloutInfo, error) {
+func (x *rolloutServiceWatchClient) Recv() (*v1alpha1.RolloutInfo, error) {
 	m := new(v1alpha1.RolloutInfo)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -226,75 +172,65 @@ func (x *rolloutServiceWatchInfoClient) Recv() (*v1alpha1.RolloutInfo, error) {
 	return m, nil
 }
 
-func (c *rolloutServiceClient) Hello(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Greeting, error) {
-	out := new(Greeting)
-	err := c.cc.Invoke(ctx, "/rollout.RolloutService/Hello", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // RolloutServiceServer is the server API for RolloutService service.
 type RolloutServiceServer interface {
-	// WatchInfo return stream of rollout info
-	WatchInfo(*RolloutInfoRequest, RolloutService_WatchInfoServer) error
-	// Hello says hello
-	Hello(context.Context, *empty.Empty) (*Greeting, error)
+	// Get returns a rollout
+	Get(context.Context, *RolloutQuery) (*v1alpha1.RolloutInfo, error)
+	Watch(*RolloutQuery, RolloutService_WatchServer) error
 }
 
 // UnimplementedRolloutServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedRolloutServiceServer struct {
 }
 
-func (*UnimplementedRolloutServiceServer) WatchInfo(req *RolloutInfoRequest, srv RolloutService_WatchInfoServer) error {
-	return status.Errorf(codes.Unimplemented, "method WatchInfo not implemented")
+func (*UnimplementedRolloutServiceServer) Get(ctx context.Context, req *RolloutQuery) (*v1alpha1.RolloutInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (*UnimplementedRolloutServiceServer) Hello(ctx context.Context, req *empty.Empty) (*Greeting, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Hello not implemented")
+func (*UnimplementedRolloutServiceServer) Watch(req *RolloutQuery, srv RolloutService_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
 func RegisterRolloutServiceServer(s *grpc.Server, srv RolloutServiceServer) {
 	s.RegisterService(&_RolloutService_serviceDesc, srv)
 }
 
-func _RolloutService_WatchInfo_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(RolloutInfoRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(RolloutServiceServer).WatchInfo(m, &rolloutServiceWatchInfoServer{stream})
-}
-
-type RolloutService_WatchInfoServer interface {
-	Send(*v1alpha1.RolloutInfo) error
-	grpc.ServerStream
-}
-
-type rolloutServiceWatchInfoServer struct {
-	grpc.ServerStream
-}
-
-func (x *rolloutServiceWatchInfoServer) Send(m *v1alpha1.RolloutInfo) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _RolloutService_Hello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+func _RolloutService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RolloutQuery)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RolloutServiceServer).Hello(ctx, in)
+		return srv.(RolloutServiceServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rollout.RolloutService/Hello",
+		FullMethod: "/rollout.RolloutService/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).Hello(ctx, req.(*empty.Empty))
+		return srv.(RolloutServiceServer).Get(ctx, req.(*RolloutQuery))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _RolloutService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RolloutQuery)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RolloutServiceServer).Watch(m, &rolloutServiceWatchServer{stream})
+}
+
+type RolloutService_WatchServer interface {
+	Send(*v1alpha1.RolloutInfo) error
+	grpc.ServerStream
+}
+
+type rolloutServiceWatchServer struct {
+	grpc.ServerStream
+}
+
+func (x *rolloutServiceWatchServer) Send(m *v1alpha1.RolloutInfo) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 var _RolloutService_serviceDesc = grpc.ServiceDesc{
@@ -302,21 +238,21 @@ var _RolloutService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RolloutServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Hello",
-			Handler:    _RolloutService_Hello_Handler,
+			MethodName: "Get",
+			Handler:    _RolloutService_Get_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "WatchInfo",
-			Handler:       _RolloutService_WatchInfo_Handler,
+			StreamName:    "Watch",
+			Handler:       _RolloutService_Watch_Handler,
 			ServerStreams: true,
 		},
 	},
 	Metadata: "pkg/apiclient/rollout/rollout.proto",
 }
 
-func (m *RolloutInfoRequest) Marshal() (dAtA []byte, err error) {
+func (m *RolloutQuery) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -326,12 +262,12 @@ func (m *RolloutInfoRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *RolloutInfoRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *RolloutQuery) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *RolloutInfoRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *RolloutQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -340,51 +276,10 @@ func (m *RolloutInfoRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.Namespace) > 0 {
-		i -= len(m.Namespace)
-		copy(dAtA[i:], m.Namespace)
-		i = encodeVarintRollout(dAtA, i, uint64(len(m.Namespace)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *Greeting) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *Greeting) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *Greeting) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if len(m.Text) > 0 {
-		i -= len(m.Text)
-		copy(dAtA[i:], m.Text)
-		i = encodeVarintRollout(dAtA, i, uint64(len(m.Text)))
+	if m.Name != nil {
+		i -= len(*m.Name)
+		copy(dAtA[i:], *m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(*m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -402,34 +297,14 @@ func encodeVarintRollout(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *RolloutInfoRequest) Size() (n int) {
+func (m *RolloutQuery) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Namespace)
-	if l > 0 {
-		n += 1 + l + sovRollout(uint64(l))
-	}
-	l = len(m.Name)
-	if l > 0 {
-		n += 1 + l + sovRollout(uint64(l))
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *Greeting) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Text)
-	if l > 0 {
+	if m.Name != nil {
+		l = len(*m.Name)
 		n += 1 + l + sovRollout(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -444,7 +319,7 @@ func sovRollout(x uint64) (n int) {
 func sozRollout(x uint64) (n int) {
 	return sovRollout(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *RolloutInfoRequest) Unmarshal(dAtA []byte) error {
+func (m *RolloutQuery) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -467,45 +342,13 @@ func (m *RolloutInfoRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: RolloutInfoRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: RolloutQuery: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: RolloutInfoRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: RolloutQuery: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRollout
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthRollout
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRollout
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Namespace = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
@@ -535,93 +378,8 @@ func (m *RolloutInfoRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRollout(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthRollout
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthRollout
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *Greeting) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRollout
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Greeting: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Greeting: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Text", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRollout
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthRollout
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRollout
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Text = string(dAtA[iNdEx:postIndex])
+			s := string(dAtA[iNdEx:postIndex])
+			m.Name = &s
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

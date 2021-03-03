@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-rollouts/server"
@@ -37,12 +39,28 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "argo-rollouts-server is an API server that provides UI assets and Rollout data",
 		Run: func(c *cobra.Command, args []string) {
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+
+			kubeclientset := kubernetes.NewForConfigOrDie(config)
+
+			rolloutclientsetConfig, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+
+			rolloutclientset := rolloutclientset.NewForConfigOrDie(rolloutclientsetConfig)
+
+			opts := server.ServerOptions{
+				Namespace: namespace,
+				KubeClientset: kubeclientset,
+				RolloutsClientset: rolloutclientset,
+			}
 			for {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
-				argorollouts := server.NewServer(namespace)
+				argorollouts := server.NewServer(opts)
 				argorollouts.Run(ctx, listenPort)
 				cancel()
 			}
