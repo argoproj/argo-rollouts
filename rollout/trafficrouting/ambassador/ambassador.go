@@ -23,6 +23,7 @@ import (
 // Type defines the ambassador traffic routing type.
 const (
 	Type                         = "Ambassador"
+	APIVersionDefault            = "getambassador.io/v2"
 	AmbassadorMappingNotFound    = "AmbassadorMappingNotFound"
 	AmbassadorMappingConfigError = "AmbassadorMappingConfigError"
 	CanaryMappingCleanupError    = "CanaryMappingCleanupError"
@@ -50,8 +51,8 @@ type ClientInterface interface {
 
 // NewDynamicClient will initialize a real kubernetes dynamic client to interact
 // with Ambassador CRDs
-func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceInterface {
-	return di.Resource(GetMappingGVR()).Namespace(namespace)
+func NewDynamicClient(di dynamic.Interface, namespace, apiVersion string) dynamic.ResourceInterface {
+	return di.Resource(GetMappingGVR(apiVersion)).Namespace(namespace)
 }
 
 // NewReconciler will build and return an ambassador Reconciler
@@ -241,10 +242,28 @@ func buildCanaryMappingName(name string) string {
 	return fmt.Sprintf("%s-canary", n)
 }
 
-func GetMappingGVR() schema.GroupVersionResource {
-	return schema.GroupVersionResource{
-		Group: "getambassador.io",
-		//Version:  "v2",
+// GetMappingGVR will parse the provided apiVersion string into a GroupVersionResource.
+// If the provided apiVersion is empty or malformated it will use the default value defined
+// in APIVersionDefault.
+func GetMappingGVR(apiVersion string) schema.GroupVersionResource {
+	gvr := toMappingGVR(apiVersion)
+	if gvr == nil {
+		gvr = toMappingGVR(APIVersionDefault)
+	}
+	return *gvr
+}
+
+func toMappingGVR(apiVersion string) *schema.GroupVersionResource {
+	if apiVersion == "" {
+		return nil
+	}
+	parts := strings.Split(apiVersion, "/")
+	if len(parts) != 2 {
+		return nil
+	}
+	return &schema.GroupVersionResource{
+		Group:    parts[0],
+		Version:  parts[1],
 		Resource: "mappings",
 	}
 }

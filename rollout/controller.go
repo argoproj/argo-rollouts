@@ -526,13 +526,13 @@ func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, e
 	if c.rollout.Spec.Strategy.Canary != nil {
 		canary := c.rollout.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Ambassador != nil {
+			a := canary.TrafficRouting.Ambassador
 			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "ambassador", "mappings")
-			mappingsNames := canary.TrafficRouting.Ambassador.Mappings
-			if len(mappingsNames) == 0 {
+			if len(a.Mappings) == 0 {
 				return nil, field.Invalid(fldPath, nil, "must provide at least one mapping")
 			}
-			for _, mappingName := range mappingsNames {
-				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR()).
+			for _, mappingName := range a.Mappings {
+				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR(a.APIVersion)).
 					Namespace(c.rollout.Namespace).
 					Get(context.Background(), mappingName, metav1.GetOptions{})
 				if err != nil {

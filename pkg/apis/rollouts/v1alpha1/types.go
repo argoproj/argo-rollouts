@@ -245,9 +245,15 @@ type RolloutTrafficRouting struct {
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty"`
 }
 
-// AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic router
+// AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
+// router
 type AmbassadorTrafficRouting struct {
-	// Mappings refer to the name of the Ambassador Mappings used to route traffic to the service.
+	// APIVersion defines the Ambassador API version to be used. Optional: Will default to
+	// 'getambassador.io/v2' if not provided
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+	// Mappings refer to the name of the Ambassador Mappings used to route traffic to the
+	// service
 	Mappings []string `json:"mappings"`
 }
 
