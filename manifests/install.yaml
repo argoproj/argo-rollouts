@@ -12014,10 +12014,14 @@ spec:
                           type: object
                         ambassador:
                           properties:
-                            mapping:
+                            apiVersion:
                               type: string
+                            mappings:
+                              items:
+                                type: string
+                              type: array
                           required:
-                          - mapping
+                          - mappings
                           type: object
                         istio:
                           properties:
@@ -15045,6 +15049,7 @@ rules:
   - get
   - update
   - list
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
