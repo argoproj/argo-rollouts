@@ -279,3 +279,8 @@ func (r *Reconciler) sendWarningEvent(id, msg string) {
 func (r *Reconciler) sendEvent(eventType, id, msg string) {
 	r.Recorder.Event(r.Rollout, eventType, id, msg)
 }
+
+// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+	return nil
+}
