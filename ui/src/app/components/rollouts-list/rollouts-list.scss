@@ -1,0 +1,37 @@
+@import '../../shared/styles/colors.scss';
+
+.rollouts-list {
+    display: flex;
+    padding: 20px;
+    &__widget {
+        border: 1px solid $silver-lining;
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 1px 0px 3px 0px $space;
+        color: $shine;
+        font-size: 14px;
+        margin-right: 20px;
+
+        header {
+            font-weight: 500;
+            font-size: 18px;
+            border-bottom: 1px solid $silver-lining;
+            padding-bottom: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        &__item {
+            width: 300px;
+            display: flex;
+            margin: 0.25em 0;
+            align-items: center;
+            &__content {
+                background-color: $fog;
+                border-radius: 3px;
+                border: 1px solid $silver-lining;
+                padding: 3px 5px;
+                margin-left: auto;
+            }
+        }
+    }
+}

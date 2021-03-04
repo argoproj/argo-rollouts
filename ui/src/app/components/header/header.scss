@@ -1,0 +1,22 @@
+@import '../../shared/styles/colors.scss';
+
+.rollouts-header {
+    display: flex;
+    background: $slate;
+    color: white;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 1em;
+
+    h1 {
+        font-size: 20px;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    &__version {
+        margin-left: auto;
+        color: $shine;
+        margin-right: 15px;
+    }
+}

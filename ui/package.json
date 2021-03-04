@@ -1,53 +1,60 @@
 {
-  "name": "ui",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@fortawesome/fontawesome-free": "^5.15.2",
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
-    "@types/jest": "^26.0.15",
-    "@types/node": "^12.0.0",
-    "@types/react": "^17.0.0",
-    "@types/react-dom": "^17.0.0",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1",
-    "react-hot-loader": "^3.1.3",
-    "react-scripts": "4.0.3",
-    "typescript": "^4.1.2",
-    "web-vitals": "^1.0.1",
-    "webpack-dev-server": "^3.11.2"
-  },
-  "scripts": {
-    "start": "webpack serve --config ./src/app/webpack.config.js",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "copy-webpack-plugin": "^6.3.2",
-    "raw-loader": "^4.0.2",
-    "sass": "^1.32.8",
-    "ts-loader": "^8.0.17",
-    "webpack-cli": "^4.5.0"
-  }
+    "name": "ui",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+        "@fortawesome/fontawesome-free": "^5.15.2",
+        "@fortawesome/fontawesome-svg-core": "^1.2.34",
+        "@fortawesome/free-regular-svg-icons": "^5.15.2",
+        "@fortawesome/free-solid-svg-icons": "^5.15.2",
+        "@fortawesome/react-fontawesome": "^0.1.14",
+        "@testing-library/jest-dom": "^5.11.4",
+        "@testing-library/react": "^11.1.0",
+        "@testing-library/user-event": "^12.1.10",
+        "@types/jest": "^26.0.15",
+        "@types/node": "^12.0.0",
+        "@types/react": "^17.0.0",
+        "@types/react-dom": "^17.0.0",
+        "portable-fetch": "^3.0.0",
+        "react": "^17.0.1",
+        "react-dom": "^17.0.1",
+        "react-hot-loader": "^3.1.3",
+        "react-scripts": "4.0.3",
+        "rxjs": "^6.6.6",
+        "typescript": "^4.1.2",
+        "web-vitals": "^1.0.1",
+        "webpack-dev-server": "^3.11.2"
+    },
+    "scripts": {
+        "start": "webpack serve --config ./src/app/webpack.config.js",
+        "build": "react-scripts build",
+        "test": "react-scripts test",
+        "eject": "react-scripts eject",
+        "protogen": "swagger-codegen generate -i ../pkg/apiclient/rollout/rollout.swagger.json -l typescript-fetch -o src/models/rollout/generated"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app",
+            "react-app/jest"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "copy-webpack-plugin": "^6.3.2",
+        "raw-loader": "^4.0.2",
+        "sass": "^1.32.8",
+        "ts-loader": "^8.0.17",
+        "webpack-cli": "^4.5.0"
+    }
 }

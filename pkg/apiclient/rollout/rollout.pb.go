@@ -8,6 +8,7 @@ import (
 	fmt "fmt"
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	proto "github.com/gogo/protobuf/proto"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -29,7 +30,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type RolloutQuery struct {
-	Name                 *string  `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -69,14 +70,70 @@ func (m *RolloutQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_RolloutQuery proto.InternalMessageInfo
 
 func (m *RolloutQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
+type RolloutWatchEvent struct {
+	Type                 string            `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Rollout              *v1alpha1.Rollout `protobuf:"bytes,2,opt,name=rollout,proto3" json:"rollout,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *RolloutWatchEvent) Reset()         { *m = RolloutWatchEvent{} }
+func (m *RolloutWatchEvent) String() string { return proto.CompactTextString(m) }
+func (*RolloutWatchEvent) ProtoMessage()    {}
+func (*RolloutWatchEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{1}
+}
+func (m *RolloutWatchEvent) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RolloutWatchEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RolloutWatchEvent.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RolloutWatchEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RolloutWatchEvent.Merge(m, src)
+}
+func (m *RolloutWatchEvent) XXX_Size() int {
+	return m.Size()
+}
+func (m *RolloutWatchEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_RolloutWatchEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RolloutWatchEvent proto.InternalMessageInfo
+
+func (m *RolloutWatchEvent) GetType() string {
+	if m != nil {
+		return m.Type
+	}
+	return ""
+}
+
+func (m *RolloutWatchEvent) GetRollout() *v1alpha1.Rollout {
+	if m != nil {
+		return m.Rollout
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*RolloutQuery)(nil), "rollout.RolloutQuery")
+	proto.RegisterType((*RolloutWatchEvent)(nil), "rollout.RolloutWatchEvent")
 }
 
 func init() {
@@ -84,26 +141,34 @@ func init() {
 }
 
 var fileDescriptor_99101d942e8912a7 = []byte{
-	// 298 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x2e, 0xc8, 0x4e, 0xd7,
-	0x4f, 0x2c, 0xc8, 0x4c, 0xce, 0xc9, 0x4c, 0xcd, 0x2b, 0xd1, 0x2f, 0xca, 0xcf, 0xc9, 0xc9, 0x2f,
-	0x85, 0xd3, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x42, 0xec, 0x50, 0xae, 0x94, 0x4c, 0x7a, 0x7e,
-	0x7e, 0x7a, 0x4e, 0x2a, 0x48, 0x83, 0x7e, 0x62, 0x5e, 0x5e, 0x7e, 0x49, 0x62, 0x49, 0x66, 0x7e,
-	0x5e, 0x31, 0x44, 0x99, 0x94, 0x4f, 0x7a, 0x66, 0x49, 0x46, 0x69, 0x92, 0x5e, 0x72, 0x7e, 0xae,
-	0x7e, 0x62, 0x51, 0x7a, 0x7e, 0x41, 0x51, 0x7e, 0x16, 0x98, 0xa1, 0x0b, 0xd5, 0x5f, 0xac, 0x0f,
-	0xb5, 0xad, 0x58, 0x1f, 0x2e, 0x52, 0x66, 0x98, 0x98, 0x53, 0x90, 0x91, 0x68, 0xa8, 0x9f, 0x9e,
-	0x9a, 0x97, 0x5a, 0x94, 0x58, 0x92, 0x9a, 0x02, 0x31, 0x4d, 0x49, 0x89, 0x8b, 0x27, 0x08, 0xa2,
-	0x28, 0xb0, 0x34, 0xb5, 0xa8, 0x52, 0x48, 0x88, 0x8b, 0x25, 0x2f, 0x31, 0x37, 0x55, 0x82, 0x51,
-	0x81, 0x51, 0x83, 0x33, 0x08, 0xcc, 0x36, 0x5a, 0xc7, 0xc4, 0xc5, 0x07, 0x55, 0x14, 0x9c, 0x5a,
-	0x54, 0x96, 0x99, 0x9c, 0x2a, 0xd4, 0xce, 0xc8, 0xc5, 0xec, 0x9e, 0x5a, 0x22, 0x24, 0xaa, 0x07,
-	0xf3, 0x03, 0xb2, 0x29, 0x52, 0x9e, 0x7a, 0x08, 0x47, 0xea, 0xc1, 0x1c, 0x09, 0x66, 0xc4, 0xc3,
-	0x9c, 0xa4, 0x57, 0x90, 0x9d, 0xae, 0x07, 0x72, 0xa4, 0x1e, 0x5c, 0x04, 0xe6, 0x48, 0x98, 0x59,
-	0x9e, 0x79, 0x69, 0xf9, 0x4a, 0x72, 0x4d, 0x97, 0x9f, 0x4c, 0x66, 0x92, 0x10, 0x12, 0x03, 0x07,
-	0x47, 0x99, 0x21, 0x3c, 0xf0, 0xaa, 0x41, 0x6e, 0xab, 0x15, 0x9a, 0xc8, 0xc8, 0xc5, 0x1a, 0x9e,
-	0x58, 0x92, 0x9c, 0x41, 0x07, 0xb7, 0xa8, 0x80, 0xdd, 0x22, 0x27, 0x24, 0x83, 0xee, 0x96, 0x72,
-	0x90, 0x03, 0xa0, 0x2e, 0x32, 0x60, 0x74, 0x72, 0x3d, 0xf1, 0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39,
-	0xc6, 0x07, 0x8f, 0xe4, 0x18, 0xa3, 0xcc, 0x89, 0x8e, 0x30, 0xd4, 0xe4, 0x01, 0x08, 0x00, 0x00,
-	0xff, 0xff, 0x86, 0xc3, 0xb5, 0x1b, 0x36, 0x02, 0x00, 0x00,
+	// 424 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x93, 0x41, 0xab, 0x13, 0x31,
+	0x10, 0xc7, 0x49, 0x29, 0x8a, 0xb1, 0x8a, 0x06, 0x2c, 0xcb, 0x5a, 0x96, 0xb2, 0x7a, 0xe8, 0xc5,
+	0xa4, 0xad, 0x07, 0xef, 0xc2, 0x22, 0x85, 0x5e, 0xac, 0x07, 0xc1, 0x4b, 0x49, 0xd7, 0x74, 0xbb,
+	0x76, 0x9b, 0x84, 0xdd, 0xec, 0x4a, 0x11, 0x2f, 0x9e, 0x04, 0xc1, 0x8b, 0x17, 0xbf, 0x86, 0xdf,
+	0xc2, 0xa3, 0xe0, 0x17, 0x78, 0x94, 0xf7, 0x41, 0x1e, 0xc9, 0x26, 0xdb, 0xbe, 0x42, 0xe1, 0x1d,
+	0xca, 0x3b, 0xed, 0x64, 0x76, 0x32, 0xf3, 0xfb, 0xcf, 0x4c, 0xe0, 0x33, 0xb9, 0x4e, 0x08, 0x95,
+	0x69, 0x9c, 0xa5, 0x8c, 0x2b, 0x92, 0x8b, 0x2c, 0x13, 0x65, 0xf3, 0xc5, 0x32, 0x17, 0x4a, 0xa0,
+	0xbb, 0xf6, 0xe8, 0xf7, 0x12, 0x21, 0x92, 0x8c, 0xe9, 0x0b, 0x84, 0x72, 0x2e, 0x14, 0x55, 0xa9,
+	0xe0, 0x45, 0x1d, 0xe6, 0x4f, 0x93, 0x54, 0xad, 0xca, 0x05, 0x8e, 0xc5, 0x86, 0xd0, 0x3c, 0x11,
+	0x32, 0x17, 0x9f, 0x8c, 0xf1, 0xc2, 0xde, 0x2f, 0x88, 0xad, 0x56, 0x90, 0xc6, 0x53, 0x8d, 0x68,
+	0x26, 0x57, 0x74, 0x44, 0x12, 0xc6, 0x59, 0x4e, 0x15, 0xfb, 0x68, 0xb3, 0x3d, 0xb5, 0xb5, 0xcc,
+	0x69, 0x51, 0x2e, 0x09, 0xdb, 0x48, 0xb5, 0xad, 0x7f, 0x86, 0x21, 0xec, 0xcc, 0xea, 0x0c, 0x6f,
+	0x4b, 0x96, 0x6f, 0x11, 0x82, 0x6d, 0x4e, 0x37, 0xcc, 0x03, 0x7d, 0x30, 0xb8, 0x37, 0x33, 0x76,
+	0xf8, 0x1d, 0xc0, 0xc7, 0x36, 0xe8, 0x3d, 0x55, 0xf1, 0x2a, 0xaa, 0x18, 0x57, 0x3a, 0x52, 0x6d,
+	0x65, 0x13, 0xa9, 0x6d, 0x34, 0x87, 0x4e, 0xa1, 0xd7, 0xea, 0x83, 0xc1, 0xfd, 0x71, 0x84, 0xf7,
+	0x52, 0xb0, 0x93, 0x62, 0x8c, 0xb9, 0x03, 0xc7, 0x72, 0x9d, 0x60, 0x2d, 0x05, 0x37, 0x1e, 0x27,
+	0x05, 0xdb, 0xaa, 0x33, 0x97, 0x75, 0xfc, 0xa7, 0x0d, 0x1f, 0x5a, 0xe7, 0x3b, 0x96, 0x57, 0x69,
+	0xcc, 0xd0, 0x4f, 0x00, 0xe1, 0x1b, 0xa6, 0xac, 0x17, 0x3d, 0x71, 0x69, 0xf0, 0xa1, 0x2e, 0x7f,
+	0x72, 0x16, 0x90, 0x09, 0x5f, 0x8a, 0x30, 0xf8, 0xf6, 0xff, 0xf2, 0x57, 0xcb, 0x43, 0x5d, 0x33,
+	0xbd, 0x6a, 0xd4, 0xcc, 0xfa, 0x8b, 0xee, 0xd6, 0x57, 0xf4, 0x1b, 0xc0, 0x8e, 0xe9, 0xd3, 0xed,
+	0x21, 0x3d, 0x37, 0x48, 0x01, 0xea, 0x1d, 0x23, 0x7d, 0xd6, 0x1c, 0x16, 0x6c, 0x08, 0xd0, 0x0f,
+	0x00, 0x3b, 0xd3, 0xb4, 0x70, 0xcd, 0x2a, 0x50, 0x17, 0xd7, 0xcb, 0x81, 0xdd, 0x72, 0xe0, 0x48,
+	0x2f, 0xc7, 0x99, 0xd8, 0x74, 0xa9, 0xd0, 0x33, 0x6c, 0x08, 0x3d, 0x3a, 0x62, 0x2b, 0x10, 0x83,
+	0x0f, 0x0e, 0xfb, 0x74, 0x9a, 0xc6, 0x3f, 0x6e, 0xe0, 0x7e, 0x0d, 0x4f, 0x4e, 0xa3, 0xa8, 0xb5,
+	0x0f, 0xc1, 0xeb, 0xe8, 0xef, 0x2e, 0x00, 0xff, 0x76, 0x01, 0xb8, 0xd8, 0x05, 0xe0, 0xc3, 0xab,
+	0x1b, 0xbf, 0xad, 0xeb, 0x2f, 0x79, 0x71, 0xc7, 0x40, 0xbd, 0xbc, 0x0a, 0x00, 0x00, 0xff, 0xff,
+	0xa3, 0x62, 0x27, 0x72, 0xe9, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -119,8 +184,10 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RolloutServiceClient interface {
 	// Get returns a rollout
-	Get(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error)
-	Watch(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchClient, error)
+	GetRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error)
+	WatchRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchRolloutClient, error)
+	ListRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*v1alpha1.RolloutList, error)
+	WatchRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (RolloutService_WatchRolloutsClient, error)
 }
 
 type rolloutServiceClient struct {
@@ -131,21 +198,21 @@ func NewRolloutServiceClient(cc *grpc.ClientConn) RolloutServiceClient {
 	return &rolloutServiceClient{cc}
 }
 
-func (c *rolloutServiceClient) Get(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error) {
+func (c *rolloutServiceClient) GetRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*v1alpha1.RolloutInfo, error) {
 	out := new(v1alpha1.RolloutInfo)
-	err := c.cc.Invoke(ctx, "/rollout.RolloutService/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/rollout.RolloutService/GetRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *rolloutServiceClient) Watch(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_RolloutService_serviceDesc.Streams[0], "/rollout.RolloutService/Watch", opts...)
+func (c *rolloutServiceClient) WatchRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchRolloutClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_RolloutService_serviceDesc.Streams[0], "/rollout.RolloutService/WatchRollout", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &rolloutServiceWatchClient{stream}
+	x := &rolloutServiceWatchRolloutClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -155,17 +222,58 @@ func (c *rolloutServiceClient) Watch(ctx context.Context, in *RolloutQuery, opts
 	return x, nil
 }
 
-type RolloutService_WatchClient interface {
+type RolloutService_WatchRolloutClient interface {
 	Recv() (*v1alpha1.RolloutInfo, error)
 	grpc.ClientStream
 }
 
-type rolloutServiceWatchClient struct {
+type rolloutServiceWatchRolloutClient struct {
 	grpc.ClientStream
 }
 
-func (x *rolloutServiceWatchClient) Recv() (*v1alpha1.RolloutInfo, error) {
+func (x *rolloutServiceWatchRolloutClient) Recv() (*v1alpha1.RolloutInfo, error) {
 	m := new(v1alpha1.RolloutInfo)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *rolloutServiceClient) ListRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*v1alpha1.RolloutList, error) {
+	out := new(v1alpha1.RolloutList)
+	err := c.cc.Invoke(ctx, "/rollout.RolloutService/ListRollouts", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rolloutServiceClient) WatchRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (RolloutService_WatchRolloutsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_RolloutService_serviceDesc.Streams[1], "/rollout.RolloutService/WatchRollouts", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &rolloutServiceWatchRolloutsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RolloutService_WatchRolloutsClient interface {
+	Recv() (*RolloutWatchEvent, error)
+	grpc.ClientStream
+}
+
+type rolloutServiceWatchRolloutsClient struct {
+	grpc.ClientStream
+}
+
+func (x *rolloutServiceWatchRolloutsClient) Recv() (*RolloutWatchEvent, error) {
+	m := new(RolloutWatchEvent)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -175,61 +283,108 @@ func (x *rolloutServiceWatchClient) Recv() (*v1alpha1.RolloutInfo, error) {
 // RolloutServiceServer is the server API for RolloutService service.
 type RolloutServiceServer interface {
 	// Get returns a rollout
-	Get(context.Context, *RolloutQuery) (*v1alpha1.RolloutInfo, error)
-	Watch(*RolloutQuery, RolloutService_WatchServer) error
+	GetRollout(context.Context, *RolloutQuery) (*v1alpha1.RolloutInfo, error)
+	WatchRollout(*RolloutQuery, RolloutService_WatchRolloutServer) error
+	ListRollouts(context.Context, *empty.Empty) (*v1alpha1.RolloutList, error)
+	WatchRollouts(*empty.Empty, RolloutService_WatchRolloutsServer) error
 }
 
 // UnimplementedRolloutServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedRolloutServiceServer struct {
 }
 
-func (*UnimplementedRolloutServiceServer) Get(ctx context.Context, req *RolloutQuery) (*v1alpha1.RolloutInfo, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+func (*UnimplementedRolloutServiceServer) GetRollout(ctx context.Context, req *RolloutQuery) (*v1alpha1.RolloutInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) Watch(req *RolloutQuery, srv RolloutService_WatchServer) error {
-	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
+func (*UnimplementedRolloutServiceServer) WatchRollout(req *RolloutQuery, srv RolloutService_WatchRolloutServer) error {
+	return status.Errorf(codes.Unimplemented, "method WatchRollout not implemented")
+}
+func (*UnimplementedRolloutServiceServer) ListRollouts(ctx context.Context, req *empty.Empty) (*v1alpha1.RolloutList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRollouts not implemented")
+}
+func (*UnimplementedRolloutServiceServer) WatchRollouts(req *empty.Empty, srv RolloutService_WatchRolloutsServer) error {
+	return status.Errorf(codes.Unimplemented, "method WatchRollouts not implemented")
 }
 
 func RegisterRolloutServiceServer(s *grpc.Server, srv RolloutServiceServer) {
 	s.RegisterService(&_RolloutService_serviceDesc, srv)
 }
 
-func _RolloutService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_GetRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RolloutQuery)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RolloutServiceServer).Get(ctx, in)
+		return srv.(RolloutServiceServer).GetRollout(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rollout.RolloutService/Get",
+		FullMethod: "/rollout.RolloutService/GetRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).Get(ctx, req.(*RolloutQuery))
+		return srv.(RolloutServiceServer).GetRollout(ctx, req.(*RolloutQuery))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _RolloutService_WatchRollout_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(RolloutQuery)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(RolloutServiceServer).Watch(m, &rolloutServiceWatchServer{stream})
+	return srv.(RolloutServiceServer).WatchRollout(m, &rolloutServiceWatchRolloutServer{stream})
 }
 
-type RolloutService_WatchServer interface {
+type RolloutService_WatchRolloutServer interface {
 	Send(*v1alpha1.RolloutInfo) error
 	grpc.ServerStream
 }
 
-type rolloutServiceWatchServer struct {
+type rolloutServiceWatchRolloutServer struct {
 	grpc.ServerStream
 }
 
-func (x *rolloutServiceWatchServer) Send(m *v1alpha1.RolloutInfo) error {
+func (x *rolloutServiceWatchRolloutServer) Send(m *v1alpha1.RolloutInfo) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _RolloutService_ListRollouts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RolloutServiceServer).ListRollouts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rollout.RolloutService/ListRollouts",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RolloutServiceServer).ListRollouts(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RolloutService_WatchRollouts_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(empty.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RolloutServiceServer).WatchRollouts(m, &rolloutServiceWatchRolloutsServer{stream})
+}
+
+type RolloutService_WatchRolloutsServer interface {
+	Send(*RolloutWatchEvent) error
+	grpc.ServerStream
+}
+
+type rolloutServiceWatchRolloutsServer struct {
+	grpc.ServerStream
+}
+
+func (x *rolloutServiceWatchRolloutsServer) Send(m *RolloutWatchEvent) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -238,14 +393,23 @@ var _RolloutService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RolloutServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Get",
-			Handler:    _RolloutService_Get_Handler,
+			MethodName: "GetRollout",
+			Handler:    _RolloutService_GetRollout_Handler,
+		},
+		{
+			MethodName: "ListRollouts",
+			Handler:    _RolloutService_ListRollouts_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Watch",
-			Handler:       _RolloutService_Watch_Handler,
+			StreamName:    "WatchRollout",
+			Handler:       _RolloutService_WatchRollout_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchRollouts",
+			Handler:       _RolloutService_WatchRollouts_Handler,
 			ServerStreams: true,
 		},
 	},
@@ -276,10 +440,56 @@ func (m *RolloutQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Name != nil {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintRollout(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *RolloutWatchEvent) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RolloutWatchEvent) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RolloutWatchEvent) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Rollout != nil {
+		{
+			size, err := m.Rollout.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRollout(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Type) > 0 {
+		i -= len(m.Type)
+		copy(dAtA[i:], m.Type)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Type)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -303,8 +513,28 @@ func (m *RolloutQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RolloutWatchEvent) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Type)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.Rollout != nil {
+		l = m.Rollout.Size()
 		n += 1 + l + sovRollout(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -378,8 +608,129 @@ func (m *RolloutQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RolloutWatchEvent) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RolloutWatchEvent: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RolloutWatchEvent: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Type = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rollout", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Rollout == nil {
+				m.Rollout = &v1alpha1.Rollout{}
+			}
+			if err := m.Rollout.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

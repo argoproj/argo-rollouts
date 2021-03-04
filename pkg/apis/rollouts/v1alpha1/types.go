@@ -679,11 +679,11 @@ type RolloutInfo struct {
 	SetWeight    string `json:"setWeight,omitempty" protobuf:"bytes,7,opt,name=setWeight"`
 	ActualWeight string `json:"actualWeight,omitempty" protobuf:"bytes,8,opt,name=actualWeight"`
 
-	// Ready int32
-	// Current int32
-	// Desired int32
-	// Updated int32
-	// Available int32
+	Ready     int32 `json:"ready,omitempty" protobuf:"bytes,9,opt,name=ready"`
+	Current   int32 `json:"current,omitempty" protobuf:"bytes,10,opt,name=current"`
+	Desired   int32 `json:"desired,omitempty" protobuf:"bytes,11,opt,name=desired"`
+	Updated   int32 `json:"updated,omitempty" protobuf:"bytes,12,opt,name=updated"`
+	Available int32 `json:"available,omitempty" protobuf:"bytes,13,opt,name=available"`
 
 	// ReplicaSets []ReplicaSetInfo
 	// Experiments []ExperimentInfo

@@ -917,6 +917,16 @@ message RolloutInfo {
   optional string setWeight = 7;
 
   optional string actualWeight = 8;
+
+  optional int32 ready = 9;
+
+  optional int32 current = 10;
+
+  optional int32 desired = 11;
+
+  optional int32 updated = 12;
+
+  optional int32 available = 13;
 }
 
 // RolloutList is a list of Rollout resources

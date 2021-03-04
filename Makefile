@@ -84,6 +84,7 @@ ifneq ("$(PWD)","$(LEGACY_PATH)")
 	@exit 1
 endif
 
+UI_PROTOGEN_CMD=yarn run protogen
 .PHONY: protogen
 protogen: \
 	pkg/apis/rollouts/v1alpha1/generated.proto \
@@ -92,6 +93,7 @@ protogen: \
 	go generate ./pkg/apiclient/rollout
 	rm -Rf vendor
 	go mod tidy
+	cd ui && ${UI_PROTOGEN_CMD} && cd ..
 
 PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
 TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')

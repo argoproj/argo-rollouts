@@ -1,22 +1,36 @@
-syntax = "proto2";
+syntax = "proto3";
 option go_package = "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout";
 
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1/generated.proto";
+import "google/protobuf/empty.proto";
 
 package rollout;
 
 message RolloutQuery {
-    optional string name = 1;
+    string name = 1;
+}
+
+message RolloutWatchEvent {
+    string type = 1;
+    github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout rollout = 2;
 }
 
 service RolloutService {
     // Get returns a rollout
-    rpc Get(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
+    rpc GetRollout(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
         option (google.api.http).get = "/api/v1/rollout/{name}";
     }
 
-    rpc Watch(RolloutQuery) returns (stream github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
+    rpc WatchRollout(RolloutQuery) returns (stream github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
         option (google.api.http).get = "/api/v1/rollout/watch/{name}";
+    }
+
+    rpc ListRollouts(google.protobuf.Empty) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutList) {
+        option (google.api.http).get = "/api/v1/rollouts";
+    }
+
+    rpc WatchRollouts(google.protobuf.Empty) returns (stream RolloutWatchEvent) {
+        option (google.api.http).get = "/api/v1/rollouts/watch";
     }
 }

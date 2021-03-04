@@ -1,4 +1,12 @@
-.App {
-    font-family: 'Heebo';
-    text-align: center;
+@import './shared/styles/colors.scss';
+
+body,
+html {
+    padding: 0;
+    margin: 0;
+    background-color: $midnight-sky;
+}
+
+.rollouts {
+    font-family: 'Heebo', sans-serif;
 }

@@ -12,10 +12,12 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	"github.com/argoproj/pkg/errors"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -23,6 +25,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+)
+
+var (
+	watchAPIBufferSize = 1000
 )
 
 var backoff = wait.Backoff{
@@ -154,8 +160,8 @@ func infoToResponse(ri *info.RolloutInfo) *v1alpha1.RolloutInfo {
 	}
 }
 
-// Get returns a rollout
-func (s* ArgoRolloutsServer) Get(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
+// GetRollout returns a rollout
+func (s* ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
 	controller := s.initRolloutViewController(q.GetName(), context.Background())
 	ri, err := controller.GetRolloutInfo()
 	if (err != nil) {
@@ -164,8 +170,8 @@ func (s* ArgoRolloutsServer) Get(c context.Context, q *rollout.RolloutQuery) (*v
 	return infoToResponse(ri), nil
 }
 
-// Watch returns a rollout
-func (s* ArgoRolloutsServer) Watch(q *rollout.RolloutQuery, ws rollout.RolloutService_WatchServer) error {
+// WatchRollout returns a rollout stream
+func (s* ArgoRolloutsServer) WatchRollout(q *rollout.RolloutQuery, ws rollout.RolloutService_WatchRolloutServer) error {
 	ctx := context.Background()
 	controller := s.initRolloutViewController(q.GetName(), ctx)
 
@@ -179,5 +185,57 @@ func (s* ArgoRolloutsServer) Watch(q *rollout.RolloutQuery, ws rollout.RolloutSe
 	})
 	controller.Run(ctx)
 	close(rolloutUpdates)
+	return nil
+}
+
+// ListRollouts returns a list of all rollouts
+func (s* ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (*v1alpha1.RolloutList, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
+	if (err != nil) {
+		return nil, err
+	}
+	return rolloutList, nil
+}
+
+// WatchRollouts returns a stream of all rollouts
+func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutService_WatchRolloutsServer) error {
+	send := func(r* v1alpha1.Rollout) {
+		log.Info("sent! A");
+		err := ws.Send(&rollout.RolloutWatchEvent{
+			Type:        "Updated",
+			Rollout:     r,
+		})
+		if err != nil {
+			return
+		}
+	}
+	
+	ctx := context.Background()
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for i := range(rolloutList.Items) {
+		log.Info("sent! B");
+		err := ws.Send(&rollout.RolloutWatchEvent{
+			Type:        "Added",
+			Rollout:     &rolloutList.Items[i],
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	flush := func() error {
+		return nil
+	}
+
+	err = list.SubscribeRolloutUpdates(ctx, rolloutIf, rolloutList, v1.ListOptions{}, flush, send)
+	if err != nil {
+		return err
+	}
 	return nil
 }
