@@ -51,7 +51,7 @@ type ClientInterface interface {
 // NewDynamicClient will initialize a real kubernetes dynamic client to interact
 // with Ambassador CRDs
 func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceInterface {
-	return di.Resource(GetAmbassadorGVR()).Namespace(namespace)
+	return di.Resource(GetMappingGVR()).Namespace(namespace)
 }
 
 // NewReconciler will build and return an ambassador Reconciler
@@ -241,10 +241,10 @@ func buildCanaryMappingName(name string) string {
 	return fmt.Sprintf("%s-canary", n)
 }
 
-func GetAmbassadorGVR() schema.GroupVersionResource {
+func GetMappingGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
-		Group:    "getambassador.io",
-		Version:  "v2",
+		Group: "getambassador.io",
+		//Version:  "v2",
 		Resource: "mappings",
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 )
 
@@ -75,7 +76,7 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 		allErrs = append(allErrs, ValidateVirtualService(rollout, vsvc)...)
 	}
 	for _, mapping := range referencedResources.AmbassadorMappings {
-		allErrs = append(allErrs, ValidateAmbassadorMapping(rollout, mapping)...)
+		allErrs = append(allErrs, ValidateAmbassadorMapping(mapping)...)
 	}
 	return allErrs
 }
@@ -219,9 +220,15 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	return allErrs
 }
 
-// TODO: implement this validation
-func ValidateAmbassadorMapping(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
-	return field.ErrorList{}
+func ValidateAmbassadorMapping(obj unstructured.Unstructured) field.ErrorList {
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "weight")
+	weight := ambassador.GetMappingWeight(&obj)
+	if weight != 0 {
+		msg := fmt.Sprintf("Ambassador mapping %q can not define weight", obj.GetName())
+		allErrs = append(allErrs, field.Invalid(fldPath, obj.GetName(), msg))
+	}
+	return allErrs
 }
 
 func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {

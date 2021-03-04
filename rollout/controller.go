@@ -41,6 +41,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -511,7 +512,40 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.VirtualServices = *virtualServices
 
+	ambassadorMappings, err := c.getAmbassadorMappings()
+	if err != nil {
+		return nil, err
+	}
+	refResources.AmbassadorMappings = ambassadorMappings
+
 	return &refResources, nil
+}
+
+func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, error) {
+	mappings := []unstructured.Unstructured{}
+	if c.rollout.Spec.Strategy.Canary != nil {
+		canary := c.rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Ambassador != nil {
+			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "ambassador", "mappings")
+			mappingsNames := canary.TrafficRouting.Ambassador.Mappings
+			if len(mappingsNames) == 0 {
+				return nil, field.Invalid(fldPath, nil, "must provide at least one mapping")
+			}
+			for _, mappingName := range mappingsNames {
+				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR()).
+					Namespace(c.rollout.Namespace).
+					Get(context.Background(), mappingName, metav1.GetOptions{})
+				if err != nil {
+					if k8serrors.IsNotFound(err) {
+						return nil, field.Invalid(fldPath, mappingName, err.Error())
+					}
+					return nil, err
+				}
+				mappings = append(mappings, *mapping)
+			}
+		}
+	}
+	return mappings, nil
 }
 
 func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType, error) {

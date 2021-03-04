@@ -10,11 +10,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/unstructured"
+	k8sunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const successCaseVsvc = `apiVersion: networking.istio.io/v1alpha3
@@ -416,4 +418,64 @@ func TestGetServiceWithTypeFieldPath(t *testing.T) {
 		fldPath := GetServiceWithTypeFieldPath("DoesNotExist")
 		assert.Nil(t, fldPath)
 	})
+}
+
+func TestValidateAmbassadorMapping(t *testing.T) {
+	t.Run("will return no error if mapping is valid", func(t *testing.T) {
+		// given
+		t.Parallel()
+		baseMapping := `
+apiVersion: getambassador.io/v2
+kind:  Mapping
+metadata:
+  name: myapp-mapping
+  namespace: default
+spec:
+  prefix: /myapp/
+  rewrite: /myapp/
+  service: myapp:8080`
+		obj := unstructured.StrToUnstructuredUnsafe(baseMapping)
+
+		// when
+		errList := ValidateAmbassadorMapping(*obj)
+
+		// then
+		assert.NotNil(t, errList)
+		assert.Equal(t, 0, len(errList))
+	})
+	t.Run("will return error if base mapping defines weight", func(t *testing.T) {
+		// given
+		t.Parallel()
+		baseMapping := `
+apiVersion: getambassador.io/v2
+kind:  Mapping
+metadata:
+  name: myapp-mapping
+  namespace: default
+spec:
+  weight: 20
+  prefix: /myapp/
+  rewrite: /myapp/
+  service: myapp:8080`
+		obj := toUnstructured(t, baseMapping)
+
+		// when
+		errList := ValidateAmbassadorMapping(*obj)
+
+		// then
+		assert.NotNil(t, errList)
+		assert.Equal(t, 1, len(errList))
+	})
+}
+
+func toUnstructured(t *testing.T, manifest string) *k8sunstructured.Unstructured {
+	t.Helper()
+	obj := &k8sunstructured.Unstructured{}
+
+	dec := yaml.NewDecodingSerializer(k8sunstructured.UnstructuredJSONScheme)
+	_, _, err := dec.Decode([]byte(manifest), nil, obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return obj
 }

@@ -1495,6 +1495,34 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	})
 }
 
+func TestGetAmbassadorMappings(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	schema := runtime.NewScheme()
+	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
+
+	t.Run("will get mappings successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Ambassador: &v1alpha1.AmbassadorTrafficRouting{
+				Mappings: []string{"some-mapping"},
+			},
+		}
+		r.Namespace = metav1.NamespaceDefault
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+
+		// when
+		_, err = roCtx.getAmbassadorMappings()
+
+		// then
+		assert.Error(t, err)
+	})
+}
+
 func TestRolloutStrategyNotSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
