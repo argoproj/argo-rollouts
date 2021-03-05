@@ -1,10 +1,14 @@
-import * as React from 'react';
-import {Rollout} from '../../../models/rollout/rollout';
+import {faCheck, faClock, faDove, faHistory, faPalette, faPlayCircle, faSync, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faDove, faPalette} from '@fortawesome/free-solid-svg-icons';
-
-import './rollouts-list.scss';
+import * as React from 'react';
+import {Link} from 'react-router-dom';
+import {Rollout} from '../../../models/rollout/rollout';
 import {useWatchRollouts} from '../../shared/services/rollout';
+import {formatTimestamp, latestCondition} from '../../shared/utils/utils';
+import {ActionButton} from '../action-button/action-button';
+import {InfoItemRow} from '../info-item/info-item';
+import {conditionIcon} from '../status-icon/status-icon';
+import './rollouts-list.scss';
 
 export const RolloutsList = () => {
     const rollouts = useWatchRollouts();
@@ -21,25 +25,50 @@ export const RolloutWidget = (props: {rollout: Rollout}) => {
     const {rollout} = props;
     const strategy = rollout.spec?.strategy?.blueGreen ? 'BlueGreen' : 'Canary';
     return (
-        <div className='rollouts-list__widget'>
-            <header>{rollout.metadata?.name}</header>
+        <Link className='rollouts-list__widget' to={`/rollout/${rollout.metadata?.name}`}>
+            <WidgetHeader rollout={rollout} />
             <div className='rollouts-list__widget__body'>
-                <WidgetItem label={'Namespace'} content={rollout.metadata?.namespace} />
-                <WidgetItem label={'Strategy'} content={strategy} icon={<FontAwesomeIcon icon={strategy === 'BlueGreen' ? faPalette : faDove} />} />
+                <InfoItemRow label={'Strategy'} content={strategy} icon={<FontAwesomeIcon icon={strategy === 'BlueGreen' ? faPalette : faDove} />} />
+                <InfoItemRow label={'Generation'} content={rollout.status?.observedGeneration} icon={<FontAwesomeIcon icon={faHistory} />} />
+                <InfoItemRow label={'Restarted At'} content={formatTimestamp(rollout.status?.restartedAt as string) || 'Never'} icon={<FontAwesomeIcon icon={faClock} />} />
             </div>
+            <div className='rollouts-list__widget__pods'>
+                <Pods />
+            </div>
+            <div className='rollouts-list__widget__actions'>
+                <ActionButton label={'RESTART'} action={() => null} icon={<FontAwesomeIcon icon={faSync} />} />
+                <ActionButton label={'RESUME'} action={() => null} icon={<FontAwesomeIcon icon={faPlayCircle} />} />
+            </div>
+        </Link>
+    );
+};
+
+const Pods = () => {
+    const pods = Array(3);
+    pods.fill({status: true});
+    pods.push({status: false});
+    pods.push({status: false});
+    return (
+        <div className='pods'>
+            {pods.map((pod, i) => (
+                <Pod status={pod.status} key={i} />
+            ))}
         </div>
     );
 };
 
-const WidgetItem = (props: {label: string; content: string; icon?: JSX.Element}) => {
-    const {label, content, icon} = props;
+const Pod = (props: {status: boolean}) => (
+    <div className={`pod pod--${props.status ? 'available' : 'errored'}`}>
+        <FontAwesomeIcon icon={props.status ? faCheck : faTimes} />
+    </div>
+);
+
+const WidgetHeader = (props: {rollout: Rollout}) => {
+    const {rollout} = props;
     return (
-        <div className='rollouts-list__widget__item'>
-            <label>{label}</label>
-            <div className='rollouts-list__widget__item__content'>
-                {icon && <span style={{marginRight: '5px'}}>{icon}</span>}
-                {content}
-            </div>
-        </div>
+        <header>
+            {rollout.metadata?.name}
+            <span style={{marginLeft: 'auto'}}>{conditionIcon(latestCondition(rollout.status?.conditions || []))}</span>
+        </header>
     );
 };

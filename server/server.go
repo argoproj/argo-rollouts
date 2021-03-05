@@ -201,7 +201,6 @@ func (s* ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (
 // WatchRollouts returns a stream of all rollouts
 func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutService_WatchRolloutsServer) error {
 	send := func(r* v1alpha1.Rollout) {
-		log.Info("sent! A");
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",
 			Rollout:     r,
@@ -219,7 +218,6 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 	}
 
 	for i := range(rolloutList.Items) {
-		log.Info("sent! B");
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Added",
 			Rollout:     &rolloutList.Items[i],
@@ -233,9 +231,22 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 		return nil
 	}
 
-	err = list.SubscribeRolloutUpdates(ctx, rolloutIf, rolloutList, v1.ListOptions{}, flush, send)
+	stream := make(chan *v1alpha1.Rollout, 1000)
+	err = list.SubscribeRolloutUpdates(ctx, rolloutIf, rolloutList, v1.ListOptions{}, flush, stream)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	for {
+		select {
+		case r := <-stream:
+			send(r)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
+}
+
+func (s* ArgoRolloutsServer) GetNamespace(ctx context.Context, e* empty.Empty) (*rollout.NamespaceInfo, error) {
+	return &rollout.NamespaceInfo{ Namespace: s.Options.Namespace }, nil
 }

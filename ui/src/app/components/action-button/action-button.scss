@@ -1,0 +1,17 @@
+@import '../../shared/styles/colors.scss';
+
+.action-button {
+    border-radius: 20px;
+    border: 1px solid $silver-lining;
+    padding: 10px 14px;
+    background-color: $fog;
+    color: $shine;
+    cursor: pointer;
+    margin-right: 5px;
+
+    &:hover {
+        background-color: $spray-tan;
+        color: white;
+        border-color: $sherbert;
+    }
+}

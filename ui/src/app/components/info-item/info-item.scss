@@ -1,0 +1,19 @@
+@import '../../shared/styles/colors.scss';
+
+.info-item {
+    background-color: $fog;
+    border-radius: 3px;
+    border: 1px solid $silver-lining;
+    padding: 3px 5px;
+    margin-left: auto;
+
+    &--row {
+        display: flex;
+        align-items: center;
+        margin: 0.25em 0;
+        label {
+            margin-right: auto;
+            padding-right: 5px;
+        }
+    }
+}

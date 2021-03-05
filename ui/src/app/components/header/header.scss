@@ -8,15 +8,33 @@
     padding: 10px 0;
     margin-bottom: 1em;
 
+    &__brand {
+        color: $shine;
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
     h1 {
         font-size: 20px;
         font-weight: 400;
         margin: 0;
     }
 
-    &__version {
+    h2 {
+        font-size: 18px;
+        color: $sherbert;
+        margin: 0;
+        margin-left: 10px;
+    }
+
+    &__info {
         margin-left: auto;
+        display: flex;
+        align-items: center;
+    }
+    &__version {
         color: $shine;
-        margin-right: 15px;
+        margin: 0 15px;
     }
 }

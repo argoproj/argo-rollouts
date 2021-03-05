@@ -11,6 +11,22 @@
     "application/json"
   ],
   "paths": {
+    "/api/v1/namespace": {
+      "get": {
+        "operationId": "GetNamespace",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rollout.NamespaceInfo"
+            }
+          }
+        },
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/watch/{name}": {
       "get": {
         "operationId": "WatchRollout",
@@ -3702,6 +3718,14 @@
       },
       "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true",
       "title": "IntOrString is a type that can hold an int32 or a string.  When used in\nJSON or YAML marshalling and unmarshalling, it produces or consumes the\ninner type.  This allows you to have, for example, a JSON field that can\naccept a name or number.\nTODO: Rename to Int32OrString"
+    },
+    "rollout.NamespaceInfo": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string"
+        }
+      }
     },
     "rollout.RolloutWatchEvent": {
       "type": "object",

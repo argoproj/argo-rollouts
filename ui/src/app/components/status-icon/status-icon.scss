@@ -1,0 +1,17 @@
+@import '../../shared/styles/colors.scss';
+
+.status-icon,
+.condition-icon {
+    &--progressing {
+        color: $sky;
+    }
+    &--healthy {
+        color: $lime;
+    }
+    &--degraded {
+        color: $coral;
+    }
+    &--degraded {
+        color: $peach;
+    }
+}

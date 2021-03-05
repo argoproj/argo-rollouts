@@ -21,6 +21,9 @@ describe("RolloutServiceApi", () => {
     instance = new api.RolloutServiceApi(config)
   });
 
+  test("getNamespace", () => {
+    return expect(instance.getNamespace({})).resolves.toBe(null)
+  })
   test("getRollout", () => {
     const name: string = "name_example"
     return expect(instance.getRollout(name, {})).resolves.toBe(null)

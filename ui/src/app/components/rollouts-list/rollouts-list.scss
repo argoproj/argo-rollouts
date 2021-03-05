@@ -1,18 +1,67 @@
 @import '../../shared/styles/colors.scss';
 
+.pods {
+    margin-top: 10px;
+    border: 1px solid $silver-lining;
+    display: flex;
+    align-items: center;
+    border-radius: 3px;
+    background-color: $space;
+    padding: 7px;
+    .pod {
+        margin: 3px;
+    }
+}
+
+.pod {
+    $size: 25px;
+    width: $size;
+    height: $size;
+    line-height: $size;
+    text-align: center;
+    border: 1px solid $silver-lining;
+    background-color: $fog;
+    color: $shine;
+    border-radius: 3px;
+    cursor: pointer;
+    &--available {
+        background-color: $forest;
+        color: $lime;
+        border: 1px solid $leaf;
+        &:hover {
+            border-color: $lime;
+        }
+    }
+    &--errored {
+        background-color: $dirt;
+        color: $coral;
+        border: 1px solid $clay;
+        &:hover {
+            border-color: $coral;
+        }
+    }
+}
+
 .rollouts-list {
     display: flex;
     padding: 20px;
     &__widget {
+        text-decoration: none;
         border: 1px solid $silver-lining;
         border-radius: 5px;
         padding: 10px;
-        box-shadow: 1px 0px 3px 0px $space;
-        color: $shine;
+        box-shadow: 1px 0px 4px 1px $space;
+        color: $dull-shine;
         font-size: 14px;
         margin-right: 20px;
+        &:hover {
+            border-color: $spray-tan;
+        }
 
         header {
+            color: $shine;
+            display: flex;
+            align-items: center;
             font-weight: 500;
             font-size: 18px;
             border-bottom: 1px solid $silver-lining;
@@ -20,18 +69,14 @@
             margin-bottom: 0.5em;
         }
 
-        &__item {
+        &__body {
             width: 300px;
+        }
+
+        &__actions {
             display: flex;
-            margin: 0.25em 0;
             align-items: center;
-            &__content {
-                background-color: $fog;
-                border-radius: 3px;
-                border: 1px solid $silver-lining;
-                padding: 3px 5px;
-                margin-left: auto;
-            }
+            margin-top: 1em;
         }
     }
 }

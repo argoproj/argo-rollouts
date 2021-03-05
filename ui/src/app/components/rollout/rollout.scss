@@ -1,0 +1,21 @@
+@import '../../shared/styles/colors.scss';
+
+.rollout {
+    header {
+        color: $shine;
+        font-size: 22px;
+    }
+    &__toolbar {
+        box-sizing: border-box;
+        font-size: 14px;
+        width: 100%;
+        border-bottom: 1px solid $silver-lining;
+        padding: 0 10px;
+        padding-bottom: 1em;
+        margin-bottom: 1em;
+    }
+
+    &__body {
+        padding: 0 20px;
+    }
+}

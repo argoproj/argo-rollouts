@@ -79,6 +79,7 @@ const config = {
         headers: {
             'X-Frame-Options': 'SAMEORIGIN',
         },
+        host: 'localhost',
         port: 3101,
         proxy: {
             '/api/v1': {

@@ -5,6 +5,16 @@ html {
     padding: 0;
     margin: 0;
     background-color: $midnight-sky;
+    button,
+    form,
+    input,
+    textarea {
+        appearance: none;
+        -webkit-appearance: none;
+        color: inherit;
+        font: inherit;
+        margin: 0;
+    }
 }
 
 .rollouts {

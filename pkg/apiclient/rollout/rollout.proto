@@ -16,6 +16,10 @@ message RolloutWatchEvent {
     github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout rollout = 2;
 }
 
+message NamespaceInfo {
+    string namespace = 1;
+}
+
 service RolloutService {
     // Get returns a rollout
     rpc GetRollout(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
@@ -32,5 +36,9 @@ service RolloutService {
 
     rpc WatchRollouts(google.protobuf.Empty) returns (stream RolloutWatchEvent) {
         option (google.api.http).get = "/api/v1/rollouts/watch";
+    }
+
+    rpc GetNamespace(google.protobuf.Empty) returns (NamespaceInfo) {
+        option (google.api.http).get = "/api/v1/namespace";
     }
 }

@@ -100,7 +100,7 @@ func (o *ListOptions) PrintRolloutTable(roList *v1alpha1.RolloutList) error {
 	return nil
 }
 
-func SubscribeRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList, opts metav1.ListOptions, flush func() error, callback func(r *v1alpha1.Rollout)) error {
+func SubscribeRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList, opts metav1.ListOptions, flush func() error, c chan *v1alpha1.Rollout) error {
 	watchIf, err := rolloutIf.Watch(ctx, opts)
 	if err != nil {
 		return err
@@ -131,8 +131,8 @@ L:
 			break L
 		}
 		if ro == nil {
+			log.Warn("error on rollout watch. Attempting to re-establish")
 			// if we get here, it means an error on the watch. try to re-establish the watch
-			log.Info("Error on rollout watch")
 			watchIf.Stop()
 			newWatchIf, err := rolloutIf.Watch(ctx, opts)
 			if err != nil {
@@ -152,7 +152,7 @@ L:
 		opts.ResourceVersion = ro.ObjectMeta.ResourceVersion
 		roLine := newRolloutInfo(*ro)
 		if prevLine, ok := prevLines[roLine.key()]; !ok || prevLine != roLine {
-			callback(ro)
+			c <- ro
 			prevLines[roLine.key()] = roLine
 		}
 	}
@@ -167,8 +167,20 @@ func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argopro
 
 	w := tabwriter.NewWriter(o.Out, 0, 0, 2, ' ', 0)
 
-	return SubscribeRolloutUpdates(ctx, rolloutIf, roList, opts, w.Flush, func(r *v1alpha1.Rollout) {
-		roLine := newRolloutInfo(*r)
-		fmt.Fprintln(w, roLine.String(o.timestamps, o.allNamespaces))
-	})
+	stream := make(chan *v1alpha1.Rollout, 1000)
+	err := SubscribeRolloutUpdates(ctx, rolloutIf, roList, opts, w.Flush, stream)
+	if (err != nil) {
+		return err
+	}
+
+	for {
+		select {
+		case r := <-stream:
+			roLine := newRolloutInfo(*r)
+			fmt.Fprintln(w, roLine.String(o.timestamps, o.allNamespaces))
+		case <-ctx.Done():
+			return nil
+		}
+	}
+	
 }
