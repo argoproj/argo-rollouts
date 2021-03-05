@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -126,36 +127,42 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
-	if c.newRS == nil || c.newRS.Status.ReadyReplicas == 0 {
-		return nil
+	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS)
+	if err != nil {
+		return err
 	}
-	if c.newRS.Spec.Replicas == nil || *c.newRS.Spec.Replicas > c.newRS.Status.ReadyReplicas {
-		return nil
-	}
-	if c.rollout.Spec.Strategy.Canary.StableService != "" && c.stableRS != nil {
-		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
-		if err != nil {
-			return err
-		}
-		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-			err = c.switchServiceSelector(svc, c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
-			if err != nil {
-				return err
-			}
-		}
 
-	}
-	if c.rollout.Spec.Strategy.Canary.CanaryService != "" && c.newRS != nil {
-		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
+	if c.newRSReady() {
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
 		if err != nil {
 			return err
-		}
-		if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-			err = c.switchServiceSelector(svc, c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil
+}
+
+func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet) error {
+	if rs == nil || svcName == "" {
+		return nil
+	}
+	svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+	if err != nil {
+		return err
+	}
+	if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
+		err = c.switchServiceSelector(svc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *rolloutContext) newRSReady() bool {
+	if c.newRS == nil {
+		return false
+	}
+	replicas := c.newRS.Spec.Replicas
+	readyReplicas := c.newRS.Status.ReadyReplicas
+	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
 }
