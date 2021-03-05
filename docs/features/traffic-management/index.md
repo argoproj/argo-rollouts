@@ -18,9 +18,10 @@ Service Meshes fill this missing functionality in Kubernetes. They introduce new
 
 Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following service meshes:
 
+- [AWS ALB Ingress Controller](alb.md)
+- [Ambassador Edge Stack](ambassador.md)
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
-- [AWS ALB Ingress Controller](alb.md)
 - [Service Mesh Interface (SMI)](smi.md)
 - File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
 

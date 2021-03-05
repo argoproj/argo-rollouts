@@ -2,6 +2,7 @@
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [ADP](https://www.adp.com)
+1. [Ambassador Labs](https://www.getambassador.io)
 1. [Intuit](https://www.intuit.com/)
 1. [Nozzle](https://nozzle.io)
 1. [PayPay](https://paypay.ne.jp/)

@@ -175,9 +175,8 @@ finer grained canaries, an ingress controller or service mesh is necessary.
 Follow one of the traffic routing guides to see how Argo Rollouts can leverage a networking
 provider to achieve more advanced traffic shaping.
 
-* [NGINX Guide](getting-started/nginx/index.md)
 * [ALB Guide](getting-started/alb/index.md)
+* [Ambassador Guide](getting-started/ambassador/index.md)
 * [Istio Guide](getting-started/istio/index.md)
+* [NGINX Guide](getting-started/nginx/index.md)
 * [SMI Guide](getting-started/smi/index.md)
-
-
