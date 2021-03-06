@@ -1,5 +1,4 @@
 import * as React from 'react';
-import {RolloutCondition} from '../../../models/rollout/rollout';
 import * as moment from 'moment';
 
 export function useServerData<T>(getData: () => Promise<T>) {
@@ -14,21 +13,8 @@ export function useServerData<T>(getData: () => Promise<T>) {
     return data as T;
 }
 
-export function latestCondition(conditions: RolloutCondition[]): RolloutCondition {
-    if (conditions.length === 0) return {} as RolloutCondition;
-    let latest = conditions[0];
-    conditions.forEach((condition) => {
-        const curTimestamp = moment(condition.lastUpdateTime as string);
-        const latestTimestamp = moment(latest.lastUpdateTime as string);
-        if (latestTimestamp.isSameOrBefore(curTimestamp)) {
-            latest = condition;
-        }
-    });
-    return latest;
-}
-
 export function formatTimestamp(ts: string): string {
-    const inputFormat = 'YYYY-MM-DDTHH:mm:ss[Z]';
+    const inputFormat = 'YYYY-MM-DD HH:mm:ss Z z';
     const m = moment(ts, inputFormat);
     if (!ts || !m.isValid()) {
         return 'Never';

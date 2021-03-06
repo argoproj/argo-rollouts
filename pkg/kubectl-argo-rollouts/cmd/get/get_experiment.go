@@ -10,6 +10,7 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -86,20 +87,21 @@ func (o *GetOptions) WatchExperiment(stopCh <-chan struct{}, expUpdates chan *in
 		}
 		if currExpInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
 			o.Clear()
-			o.PrintExperiment(currExpInfo)
+			e := v1alpha1.ExperimentInfo(*currExpInfo)
+			o.PrintExperiment(&e)
 			preventFlicker = time.Now()
 		}
 	}
 }
 
-func (o *GetOptions) PrintExperiment(exInfo *info.ExperimentInfo) {
+func (o *GetOptions) PrintExperiment(exInfo *v1alpha1.ExperimentInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "Name:", exInfo.Name)
 	fmt.Fprintf(o.Out, tableFormat, "Namespace:", exInfo.Namespace)
 	fmt.Fprintf(o.Out, tableFormat, "Status:", o.colorize(exInfo.Icon)+" "+exInfo.Status)
 	if exInfo.Message != "" {
 		fmt.Fprintf(o.Out, tableFormat, "Message:", exInfo.Message)
 	}
-	images := exInfo.Images()
+	images := info.ExperimentImages(exInfo)
 	if len(images) > 0 {
 		fmt.Fprintf(o.Out, tableFormat, "Images:", o.formatImage(images[0]))
 		for i := 1; i < len(images); i++ {
@@ -111,19 +113,19 @@ func (o *GetOptions) PrintExperiment(exInfo *info.ExperimentInfo) {
 	o.PrintExperimentTree(exInfo)
 }
 
-func (o *GetOptions) PrintExperimentTree(exInfo *info.ExperimentInfo) {
+func (o *GetOptions) PrintExperimentTree(exInfo *v1alpha1.ExperimentInfo) {
 	w := ansiterm.NewTabWriter(o.Out, 0, 0, 2, ' ', 0)
 	o.PrintHeader(w)
 	o.PrintExperimentInfo(w, *exInfo, "", "")
 	_ = w.Flush()
 }
 
-func (o *GetOptions) PrintExperimentInfo(w io.Writer, expInfo info.ExperimentInfo, prefix string, subpfx string) {
+func (o *GetOptions) PrintExperimentInfo(w io.Writer, expInfo v1alpha1.ExperimentInfo, prefix string, subpfx string) {
 	name := o.colorizeStatus(expInfo.Name, expInfo.Status)
 	infoCols := []string{}
 	total := len(expInfo.ReplicaSets) + len(expInfo.AnalysisRuns)
 	curr := 0
-	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconExperiment, name, "Experiment", o.colorize(expInfo.Icon), expInfo.Status, expInfo.Age(), strings.Join(infoCols, ","))
+	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconExperiment, name, "Experiment", o.colorize(expInfo.Icon), expInfo.Status, info.Age(expInfo.ObjectMeta), strings.Join(infoCols, ","))
 
 	for _, rsInfo := range expInfo.ReplicaSets {
 		childPrefix, childSubpfx := getPrefixes(curr == total-1, subpfx)

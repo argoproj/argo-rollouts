@@ -3,6 +3,7 @@ package info
 import (
 	"sort"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/job"
@@ -10,32 +11,17 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
-type AnalysisRunInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Successful   int32
-	Failed       int32
-	Inconclusive int32
-	Error        int32
-	Jobs         []JobInfo
-}
+type AnalysisRunInfo v1alpha1.AnalysisRunInfo
+type JobInfo v1alpha1.JobInfo
 
-type JobInfo struct {
-	Metadata
-	Status string
-	Icon   string
-}
-
-func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []AnalysisRunInfo {
-	var arInfos []AnalysisRunInfo
+func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []v1alpha1.AnalysisRunInfo {
+	var arInfos []v1alpha1.AnalysisRunInfo
 	for _, run := range allAnalysisRuns {
 		if ownerRef(run.OwnerReferences, []types.UID{ownerUID}) == nil {
 			continue
 		}
-		arInfo := AnalysisRunInfo{
-			Metadata: Metadata{
+		arInfo := v1alpha1.AnalysisRunInfo{
+			ObjectMeta: v1.ObjectMeta{
 				Name:              run.Name,
 				Namespace:         run.Namespace,
 				CreationTimestamp: run.CreationTimestamp,
@@ -51,8 +37,8 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
 			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
 				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
-					jobInfo := JobInfo{
-						Metadata: Metadata{
+					jobInfo := v1alpha1.JobInfo{
+						ObjectMeta: v1.ObjectMeta{
 							Name: jobName,
 						},
 						Icon:   analysisIcon(lastMeasurement.Phase),
@@ -66,7 +52,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)
+		arInfo.Revision = int32(parseRevision(run.ObjectMeta.Annotations))
 
 		arInfos = append(arInfos, arInfo)
 	}

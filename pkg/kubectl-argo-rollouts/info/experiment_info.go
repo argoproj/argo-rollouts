@@ -6,30 +6,23 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-type ExperimentInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Message      string
-	ReplicaSets  []ReplicaSetInfo
-	AnalysisRuns []AnalysisRunInfo
-}
+type ExperimentInfo v1alpha1.ExperimentInfo
 
 func NewExperimentInfo(
 	exp *v1alpha1.Experiment,
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) *ExperimentInfo {
+) *v1alpha1.ExperimentInfo {
 
-	expInfo := ExperimentInfo{
-		Metadata: Metadata{
+	expInfo := v1alpha1.ExperimentInfo{
+		ObjectMeta: v1.ObjectMeta{
 			Name:              exp.Name,
 			Namespace:         exp.Namespace,
 			CreationTimestamp: exp.CreationTimestamp,
@@ -39,7 +32,7 @@ func NewExperimentInfo(
 		Message: exp.Status.Message,
 	}
 	expInfo.Icon = analysisIcon(exp.Status.Phase)
-	expInfo.Revision = parseRevision(exp.ObjectMeta.Annotations)
+	expInfo.Revision = int32(parseRevision(exp.ObjectMeta.Annotations))
 	expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
 	expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
 	return &expInfo
@@ -51,9 +44,9 @@ func getExperimentInfo(
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) []ExperimentInfo {
+) []v1alpha1.ExperimentInfo {
 
-	var expInfos []ExperimentInfo
+	var expInfos []v1alpha1.ExperimentInfo
 	for _, exp := range allExperiments {
 		if ownerRef(exp.OwnerReferences, []types.UID{ro.UID}) == nil {
 			continue
@@ -71,7 +64,7 @@ func getExperimentInfo(
 }
 
 // Images returns a list of images that are currently running along with tags on which stack they belong to
-func (r *ExperimentInfo) Images() []ImageInfo {
+func ExperimentImages(r *v1alpha1.ExperimentInfo) []ImageInfo {
 	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {

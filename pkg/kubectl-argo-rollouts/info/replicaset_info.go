@@ -5,6 +5,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -15,32 +16,18 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-type ReplicaSetInfo struct {
-	Metadata
-	Status            string
-	Icon              string
-	Revision          int
-	Stable            bool
-	Canary            bool
-	Active            bool
-	Preview           bool
-	Replicas          int32
-	Available         int32
-	Template          string
-	ScaleDownDeadline string
-	Images            []string
-	Pods              []PodInfo
-}
+type ReplicaSetInfo v1alpha1.ReplicaSetInfo
+type PodInfo v1alpha1.PodInfo
 
-func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []ReplicaSetInfo {
-	var rsInfos []ReplicaSetInfo
+func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []v1alpha1.ReplicaSetInfo {
+	var rsInfos []v1alpha1.ReplicaSetInfo
 	for _, rs := range allReplicaSets {
 		// if owned by replicaset
 		if ownerRef(rs.OwnerReferences, []types.UID{ownerUID}) == nil {
 			continue
 		}
-		rsInfo := ReplicaSetInfo{
-			Metadata: Metadata{
+		rsInfo := v1alpha1.ReplicaSetInfo{
+			ObjectMeta: v1.ObjectMeta{
 				Name:              rs.Name,
 				Namespace:         rs.Namespace,
 				CreationTimestamp: rs.CreationTimestamp,
@@ -51,7 +38,7 @@ func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 			Available: rs.Status.AvailableReplicas,
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
-		rsInfo.Revision = parseRevision(rs.ObjectMeta.Annotations)
+		rsInfo.Revision = int32(parseRevision(rs.ObjectMeta.Annotations))
 		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
 		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
@@ -134,7 +121,7 @@ func getReplicaSetCondition(status appsv1.ReplicaSetStatus, condType appsv1.Repl
 	return nil
 }
 
-func (rs ReplicaSetInfo) ScaleDownDelay() string {
+func ScaleDownDelay(rs v1alpha1.ReplicaSetInfo)  string {
 	if deadline, err := time.Parse(time.RFC3339, rs.ScaleDownDeadline); err == nil {
 		now := metav1.Now().Time
 		if deadline.Before(now) {

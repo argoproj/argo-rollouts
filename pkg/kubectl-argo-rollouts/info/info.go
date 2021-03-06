@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 
@@ -29,19 +30,14 @@ const (
 	InfoTagPreview = "preview"
 )
 
-type Metadata struct {
-	Name              string
-	Namespace         string
-	UID               types.UID
-	CreationTimestamp metav1.Time
-}
+type Metadata v1.ObjectMeta
 
 type ImageInfo struct {
 	Image string
 	Tags  []string
 }
 
-func (m Metadata) Age() string {
+func Age(m v1.ObjectMeta) string {
 	return duration.HumanDuration(metav1.Now().Sub(m.CreationTimestamp.Time))
 }
 

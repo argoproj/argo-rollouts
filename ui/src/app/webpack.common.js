@@ -2,15 +2,11 @@
 
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+
 const webpack = require('webpack');
 const path = require('path');
 
-const isProd = process.env.NODE_ENV === 'production';
-
-console.log(`Starting webpack in ${process.env.NODE_ENV || 'development'} mode`);
-
 const config = {
-    mode: isProd ? 'production' : 'development',
     entry: {
         main: './src/app/index.tsx',
     },
@@ -29,10 +25,7 @@ const config = {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [
-                    ...(isProd ? [] : ['react-hot-loader/webpack']),
-                    `ts-loader?transpileOnly=${!isProd}&allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
-                ],
+                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`],
             },
             {
                 test: /\.scss$/,
@@ -53,8 +46,7 @@ const config = {
     },
     plugins: [
         new webpack.DefinePlugin({
-            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-            'SYSTEM_INFO': JSON.stringify({
+            SYSTEM_INFO: JSON.stringify({
                 version: process.env.VERSION || 'latest',
             }),
         }),
@@ -69,25 +61,6 @@ const config = {
             ],
         }),
     ],
-    devServer: {
-        historyApiFallback: {
-            disableDotRule: true,
-        },
-        watchOptions: {
-            ignored: [/dist/, /node_modules/],
-        },
-        headers: {
-            'X-Frame-Options': 'SAMEORIGIN',
-        },
-        host: 'localhost',
-        port: 3101,
-        proxy: {
-            '/api/v1': {
-                target: isProd ? '' : 'http://localhost:3100',
-                secure: false,
-            },
-        },
-    },
 };
 
 module.exports = config;

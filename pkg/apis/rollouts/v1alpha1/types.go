@@ -669,7 +669,7 @@ type RolloutList struct {
 
 // RolloutInfo is information about a rollout
 type RolloutInfo struct {
-	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
 
 	Status       string `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
 	Message      string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
@@ -685,7 +685,63 @@ type RolloutInfo struct {
 	Updated   int32 `json:"updated,omitempty" protobuf:"bytes,12,opt,name=updated"`
 	Available int32 `json:"available,omitempty" protobuf:"bytes,13,opt,name=available"`
 
-	// ReplicaSets []ReplicaSetInfo
-	// Experiments []ExperimentInfo
-	// AnalysisRuns []AnalysisRunInfo
+	RestartedAt string `json:"restartedAt,omitempty" protobuf:"bytes,14,opt,name=restartedAt"`
+	Generation  string `json:"generation,omitempty" protobuf:"bytes,15,opt,name=generation"`
+
+	ReplicaSets  []ReplicaSetInfo  `json:"replicaSets,omitempty" protobuf:"bytes,16,rep,name=replicaSets"`
+	Experiments  []ExperimentInfo  `json:"experiments,omitempty" protobuf:"bytes,17,rep,name=experiments"`
+	AnalysisRuns []AnalysisRunInfo `json:"analysisRuns,omitempty" protobuf:"bytes,18,rep,name=analysisRuns"`
+}
+
+type ReplicaSetInfo struct {
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
+	Status            string    `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
+	Icon              string    `json:"icon,omitempty" protobuf:"bytes,3,opt,name=icon"`
+	Revision          int32     `json:"revision,omitempty" protobuf:"varint,4,opt,name=revision"`
+	Stable            bool      `json:"stable,omitempty" protobuf:"varint,5,opt,name=stable"`
+	Canary            bool      `json:"canary,omitempty" protobuf:"varint,6,opt,name=canary"`
+	Active            bool      `json:"active,omitempty" protobuf:"varint,7,opt,name=active"`
+	Preview           bool      `json:"preview,omitempty" protobuf:"varint,8,opt,name=preview"`
+	Replicas          int32     `json:"replicas,omitempty" protobuf:"varint,9,opt,name=replicas"`
+	Available         int32     `json:"available,omitempty" protobuf:"varint,10,opt,name=available"`
+	Template          string    `json:"template,omitempty" protobuf:"bytes,11,opt,name=template"`
+	ScaleDownDeadline string    `json:"scaleDownDeadline,omitempty" protobuf:"bytes,12,opt,name=scaleDownDeadline"`
+	Images            []string  `json:"images,omitempty" protobuf:"bytes,13,rep,name=images"`
+	Pods              []PodInfo `json:"pods,omitempty" protobuf:"bytes,14,rep,name=pods"`
+}
+
+type PodInfo struct {
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
+	Status            string `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
+	Icon              string `json:"icon,omitempty" protobuf:"bytes,3,opt,name=icon"`
+	Ready             string `json:"ready,omitempty" protobuf:"bytes,4,opt,name=ready"`
+	Restarts          int32  `json:"restarts,omitempty" protobuf:"varint,5,opt,name=restarts"`
+}
+
+type ExperimentInfo struct {
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
+	Icon              string            `json:"icon,omitempty" protobuf:"bytes,2,opt,name=icon"`
+	Revision          int32             `json:"revision,omitempty" protobuf:"varint,3,opt,name=revision"`
+	Status            string            `json:"status,omitempty" protobuf:"bytes,4,opt,name=status"`
+	Message           string            `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	ReplicaSets       []ReplicaSetInfo  `json:"replicaSets,omitempty" protobuf:"bytes,6,rep,name=replicaSets"`
+	AnalysisRuns      []AnalysisRunInfo `json:"analysisRuns,omitempty" protobuf:"bytes,7,rep,name=analysisRuns"`
+}
+
+type AnalysisRunInfo struct {
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
+	Icon              string    `json:"icon,omitempty" protobuf:"bytes,2,opt,name=icon"`
+	Revision          int32     `json:"revision,omitempty" protobuf:"varint,3,opt,name=revision"`
+	Status            string    `json:"status,omitempty" protobuf:"bytes,4,opt,name=status"`
+	Successful        int32     `json:"successful,omitempty" protobuf:"varint,5,opt,name=successful"`
+	Failed            int32     `json:"failed,omitempty" protobuf:"varint,6,opt,name=failed"`
+	Inconclusive      int32     `json:"inconclusive,omitempty" protobuf:"varint,7,opt,name=inconclusive"`
+	Error             int32     `json:"error,omitempty" protobuf:"varint,8,opt,name=error"`
+	Jobs              []JobInfo `json:"jobs,omitempty" protobuf:"bytes,9,rep,name=jobs"`
+}
+
+type JobInfo struct {
+	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
+	Status            string `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
+	Icon              string `json:"icon,omitempty" protobuf:"bytes,3,opt,name=icon"`
 }

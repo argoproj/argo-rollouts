@@ -13,7 +13,7 @@ import (
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	"github.com/argoproj/pkg/errors"
@@ -153,21 +153,18 @@ func (s* ArgoRolloutsServer) initRolloutViewController(name string, ctx context.
 	return controller
 }
 
-func infoToResponse(ri *info.RolloutInfo) *v1alpha1.RolloutInfo {
-	return &v1alpha1.RolloutInfo{
-		ObjectMeta: v1.ObjectMeta{ Name: ri.Metadata.Name, Namespace: ri.Metadata.Namespace},
-		Status: ri.Status,
-	}
-}
-
-// GetRollout returns a rollout
-func (s* ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
-	controller := s.initRolloutViewController(q.GetName(), context.Background())
+func (s* ArgoRolloutsServer) getRollout(name string) (*v1alpha1.RolloutInfo, error) {
+	controller := s.initRolloutViewController(name, context.Background())
 	ri, err := controller.GetRolloutInfo()
 	if (err != nil) {
 		return nil, err
 	}
-	return infoToResponse(ri), nil
+	return ri, nil
+}
+
+// GetRollout returns a rollout
+func (s* ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
+	return s.getRollout(q.GetName());
 }
 
 // WatchRollout returns a rollout stream
@@ -175,13 +172,13 @@ func (s* ArgoRolloutsServer) WatchRollout(q *rollout.RolloutQuery, ws rollout.Ro
 	ctx := context.Background()
 	controller := s.initRolloutViewController(q.GetName(), ctx)
 
-	rolloutUpdates := make(chan *info.RolloutInfo)
-	controller.RegisterCallback(func(roInfo *info.RolloutInfo) {
+	rolloutUpdates := make(chan *v1alpha1.RolloutInfo)
+	controller.RegisterCallback(func(roInfo *v1alpha1.RolloutInfo) {
 		rolloutUpdates <- roInfo
 	})
 	
-	go get.Watch(ctx.Done(), rolloutUpdates, func(i *info.RolloutInfo) {
-		ws.Send(infoToResponse(i))
+	go get.Watch(ctx.Done(), rolloutUpdates, func(i *v1alpha1.RolloutInfo) {
+		ws.Send(i)
 	})
 	controller.Run(ctx)
 	close(rolloutUpdates)
@@ -198,18 +195,24 @@ func (s* ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (
 	return rolloutList, nil
 }
 
+func (s* ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	restartAt := time.Now().UTC()
+	restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
+	return nil, nil
+}
+
 // WatchRollouts returns a stream of all rollouts
 func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutService_WatchRolloutsServer) error {
-	send := func(r* v1alpha1.Rollout) {
+	send := func(r* v1alpha1.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",
-			Rollout:     r,
+			RolloutInfo:     r,
 		})
 		if err != nil {
 			return
 		}
 	}
-	
 	ctx := context.Background()
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
@@ -218,14 +221,19 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 	}
 
 	for i := range(rolloutList.Items) {
-		err := ws.Send(&rollout.RolloutWatchEvent{
+		ri, err := s.getRollout(rolloutList.Items[i].ObjectMeta.Name)
+		if (err != nil) {
+			return nil
+		}
+		err = ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Added",
-			Rollout:     &rolloutList.Items[i],
+			RolloutInfo:     ri,
 		})
 		if err != nil {
 			return err
 		}
 	}
+
 
 	flush := func() error {
 		return nil
@@ -240,7 +248,11 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 	for {
 		select {
 		case r := <-stream:
-			send(r)
+			ri, err := s.getRollout(r.ObjectMeta.Name);
+			if (err != nil) {
+				return err
+			}
+			send(ri)
 		case <-ws.Context().Done():
 			return nil
 		}

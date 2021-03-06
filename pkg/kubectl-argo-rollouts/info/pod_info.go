@@ -5,20 +5,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
-type PodInfo struct {
-	Metadata
-	Status   string
-	Icon     string
-	Ready    string
-	Restarts int
-}
-
-func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetInfo {
+func addPodInfos(rsInfos []v1alpha1.ReplicaSetInfo, allPods []*corev1.Pod) []v1alpha1.ReplicaSetInfo {
 	var uids []types.UID
 	uidToRSInfoIdx := make(map[types.UID]int)
 	for i, rsInfo := range rsInfos {
@@ -32,7 +26,7 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 			continue
 		}
 
-		podInfo := newPodInfo(pod)
+		podInfo := v1alpha1.PodInfo(newPodInfo(pod))
 		idx := uidToRSInfoIdx[owner.UID]
 		rsInfos[idx].Pods = append(rsInfos[idx].Pods, podInfo)
 	}
@@ -51,7 +45,7 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 
 func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo := PodInfo{
-		Metadata: Metadata{
+		ObjectMeta: v1.ObjectMeta{
 			Name:              pod.Name,
 			Namespace:         pod.Namespace,
 			CreationTimestamp: pod.CreationTimestamp,
@@ -131,7 +125,7 @@ func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo.Status = reason
 	podInfo.Icon = podIcon(podInfo.Status)
 	podInfo.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
-	podInfo.Restarts = restarts
+	podInfo.Restarts = int32(restarts)
 	return podInfo
 }
 

@@ -18,6 +18,7 @@
         "@types/react-helmet": "^6.1.0",
         "@types/react-router-dom": "^5.1.7",
         "moment": "^2.29.1",
+        "moment-timezone": "^0.5.33",
         "portable-fetch": "^3.0.0",
         "react": "^17.0.1",
         "react-dom": "^17.0.1",
@@ -31,8 +32,8 @@
         "webpack-dev-server": "^3.11.2"
     },
     "scripts": {
-        "start": "webpack serve --config ./src/app/webpack.config.js",
-        "build": "react-scripts build",
+        "start": "webpack serve --config ./src/app/webpack.dev.js",
+        "build": "rm -rf dist && webpack --config ./src/app/webpack.prod.js",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
         "protogen": "swagger-codegen generate -i ../pkg/apiclient/rollout/rollout.swagger.json -l typescript-fetch -o src/models/rollout/generated"
@@ -57,9 +58,12 @@
     },
     "devDependencies": {
         "copy-webpack-plugin": "^6.3.2",
+        "mini-css-extract-plugin": "^1.3.9",
         "raw-loader": "^4.0.2",
         "sass": "^1.32.8",
         "ts-loader": "^8.0.17",
-        "webpack-cli": "^4.5.0"
+        "webpack-bundle-analyzer": "^4.4.0",
+        "webpack-cli": "^4.5.0",
+        "webpack-merge": "^5.7.3"
     }
 }

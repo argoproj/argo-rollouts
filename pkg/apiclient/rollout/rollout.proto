@@ -13,7 +13,7 @@ message RolloutQuery {
 
 message RolloutWatchEvent {
     string type = 1;
-    github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout rollout = 2;
+    github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rolloutInfo = 2;
 }
 
 message NamespaceInfo {
@@ -40,5 +40,9 @@ service RolloutService {
 
     rpc GetNamespace(google.protobuf.Empty) returns (NamespaceInfo) {
         option (google.api.http).get = "/api/v1/namespace";
+    }
+
+    rpc RestartRollout(RolloutQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/restart/{name}";
     }
 }

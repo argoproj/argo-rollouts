@@ -10,7 +10,12 @@ export interface ButtonAction extends InfoLabelProps {
 export const ActionButton = (props: {action: () => any} & InfoLabelProps) => {
     const {label, action, icon} = props;
     return (
-        <button className='action-button' onClick={action}>
+        <button
+            className='action-button'
+            onClick={(e) => {
+                action();
+                e.preventDefault();
+            }}>
             {icon && <span style={{marginRight: '5px'}}>{icon}</span>}
             {label}
         </button>

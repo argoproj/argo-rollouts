@@ -1,74 +1,79 @@
-import {faCheck, faClock, faDove, faHistory, faPalette, faPlayCircle, faSync, faTimes} from '@fortawesome/free-solid-svg-icons';
+import {faClock, faDove, faHistory, faPalette, faPlayCircle, faSync} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Link} from 'react-router-dom';
-import {Rollout} from '../../../models/rollout/rollout';
+import {RolloutServiceApi} from '../../../models/rollout/generated';
+import {Pod, RolloutInfo} from '../../../models/rollout/rollout';
 import {useWatchRollouts} from '../../shared/services/rollout';
-import {formatTimestamp, latestCondition} from '../../shared/utils/utils';
+import {formatTimestamp} from '../../shared/utils/utils';
 import {ActionButton} from '../action-button/action-button';
 import {InfoItemRow} from '../info-item/info-item';
-import {conditionIcon} from '../status-icon/status-icon';
+import {PodIcon, RolloutStatus, StatusIcon} from '../status-icon/status-icon';
+import {WaitFor} from '../wait-for/wait-for';
 import './rollouts-list.scss';
 
 export const RolloutsList = () => {
-    const rollouts = useWatchRollouts();
+    const [rollouts, loading] = useWatchRollouts();
+    console.log(rollouts);
     return (
         <div className='rollouts-list'>
-            {(rollouts || []).map((rollout) => (
-                <RolloutWidget key={rollout.metadata?.uid} rollout={rollout} />
-            ))}
+            <WaitFor loading={loading}>
+                {(rollouts || []).map((rollout) => (
+                    <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} />
+                ))}
+            </WaitFor>
         </div>
     );
 };
 
-export const RolloutWidget = (props: {rollout: Rollout}) => {
+export const RolloutWidget = (props: {rollout: RolloutInfo}) => {
     const {rollout} = props;
-    const strategy = rollout.spec?.strategy?.blueGreen ? 'BlueGreen' : 'Canary';
+    const api = new RolloutServiceApi();
     return (
-        <Link className='rollouts-list__widget' to={`/rollout/${rollout.metadata?.name}`}>
+        <Link className='rollouts-list__widget' to={`/rollout/${rollout.objectMeta?.name}`}>
             <WidgetHeader rollout={rollout} />
             <div className='rollouts-list__widget__body'>
-                <InfoItemRow label={'Strategy'} content={strategy} icon={<FontAwesomeIcon icon={strategy === 'BlueGreen' ? faPalette : faDove} />} />
-                <InfoItemRow label={'Generation'} content={rollout.status?.observedGeneration} icon={<FontAwesomeIcon icon={faHistory} />} />
-                <InfoItemRow label={'Restarted At'} content={formatTimestamp(rollout.status?.restartedAt as string) || 'Never'} icon={<FontAwesomeIcon icon={faClock} />} />
+                <InfoItemRow label={'Strategy'} content={rollout.strategy} icon={<FontAwesomeIcon icon={rollout.strategy === 'BlueGreen' ? faPalette : faDove} />} />
+                <InfoItemRow label={'Generation'} content={`${rollout.updated}`} icon={<FontAwesomeIcon icon={faHistory} />} />
+                <InfoItemRow label={'Restarted At'} content={formatTimestamp(rollout.restartedAt as string) || 'Never'} icon={<FontAwesomeIcon icon={faClock} />} />
             </div>
-            <div className='rollouts-list__widget__pods'>
-                <Pods />
-            </div>
+            {rollout.replicaSets?.map(
+                (rsInfo) =>
+                    rsInfo.pods &&
+                    rsInfo.pods.length > 0 && (
+                        <div className='rollouts-list__widget__pods' key={rsInfo.objectMeta.uid}>
+                            <Pods pods={rsInfo.pods || []} />
+                        </div>
+                    )
+            )}
             <div className='rollouts-list__widget__actions'>
-                <ActionButton label={'RESTART'} action={() => null} icon={<FontAwesomeIcon icon={faSync} />} />
+                <ActionButton label={'RESTART'} action={() => api.restartRollout(rollout.objectMeta.name)} icon={<FontAwesomeIcon icon={faSync} />} />
                 <ActionButton label={'RESUME'} action={() => null} icon={<FontAwesomeIcon icon={faPlayCircle} />} />
             </div>
         </Link>
     );
 };
 
-const Pods = () => {
-    const pods = Array(3);
-    pods.fill({status: true});
-    pods.push({status: false});
-    pods.push({status: false});
+const Pods = (props: {pods: Pod[]}) => {
     return (
         <div className='pods'>
-            {pods.map((pod, i) => (
-                <Pod status={pod.status} key={i} />
+            {props.pods.map((pod, i) => (
+                <PodWidget key={pod.objectMeta.uid} status={pod.status} />
             ))}
         </div>
     );
 };
 
-const Pod = (props: {status: boolean}) => (
-    <div className={`pod pod--${props.status ? 'available' : 'errored'}`}>
-        <FontAwesomeIcon icon={props.status ? faCheck : faTimes} />
-    </div>
-);
+const PodWidget = (props: {status: string}) => <PodIcon status={props.status} />;
 
-const WidgetHeader = (props: {rollout: Rollout}) => {
+const WidgetHeader = (props: {rollout: RolloutInfo}) => {
     const {rollout} = props;
     return (
         <header>
-            {rollout.metadata?.name}
-            <span style={{marginLeft: 'auto'}}>{conditionIcon(latestCondition(rollout.status?.conditions || []))}</span>
+            {rollout.objectMeta?.name}
+            <span style={{marginLeft: 'auto'}}>
+                <StatusIcon status={rollout.status as RolloutStatus} />
+            </span>
         </header>
     );
 };

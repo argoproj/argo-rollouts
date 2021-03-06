@@ -6,7 +6,7 @@ import './rollout.scss';
 import {RolloutActions} from '../rollout-actions/rollout-actions';
 import {useServerData} from '../../shared/utils/utils';
 import {RolloutServiceApi} from '../../../models/rollout/generated';
-import {RolloutStatus, statusIcon} from '../status-icon/status-icon';
+import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 
 export const Rollout = () => {
     const {name} = useParams<{name: string}>();
@@ -22,7 +22,7 @@ export const Rollout = () => {
             </div>
             <div className='rollout__body'>
                 <header>
-                    {name} {statusIcon(rollout.status as RolloutStatus)}
+                    {name} <StatusIcon status={rollout.status as RolloutStatus} />
                 </header>
             </div>
         </div>

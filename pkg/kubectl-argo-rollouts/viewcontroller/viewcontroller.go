@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -53,7 +54,7 @@ type ExperimentViewController struct {
 	*viewController
 }
 
-type RolloutInfoCallback func(*info.RolloutInfo)
+type RolloutInfoCallback func(*v1alpha1.RolloutInfo)
 
 type ExperimentInfoCallback func(*info.ExperimentInfo)
 
@@ -165,7 +166,7 @@ func (c *viewController) processNextWorkItem() bool {
 	return true
 }
 
-func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
+func (c *RolloutViewController) GetRolloutInfo() (*v1alpha1.RolloutInfo, error) {
 	ro, err := c.rolloutLister.Get(c.name)
 	if err != nil {
 		return nil, err
@@ -197,12 +198,12 @@ func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*info.RolloutInfo))
+		callback(i.(*v1alpha1.RolloutInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }
 
-func (c *ExperimentViewController) GetExperimentInfo() (*info.ExperimentInfo, error) {
+func (c *ExperimentViewController) GetExperimentInfo() (*v1alpha1.ExperimentInfo, error) {
 	exp, err := c.experimentLister.Get(c.name)
 	if err != nil {
 		return nil, err

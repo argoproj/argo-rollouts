@@ -1,6 +1,6 @@
 import * as React from 'react';
-import {fromEvent, Observable, Observer, Subscription} from 'rxjs';
-import {debounceTime, delay, map, repeat, retryWhen, scan} from 'rxjs/operators';
+import {fromEvent, interval, Observable, Observer, Subscription} from 'rxjs';
+import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, takeUntil} from 'rxjs/operators';
 
 function fromEventSource(url: string): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
@@ -15,6 +15,9 @@ function fromEventSource(url: string): Observable<MessageEvent> {
         };
     });
 }
+
+const INITIAL_LOAD_TIME = 500;
+const BUFFER_TIME = 500;
 
 export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T> {
     return new Observable<T>((observer: Observer<T>) => {
@@ -60,43 +63,67 @@ interface WatchEvent {
 }
 
 // NOTE: findItem and getItem must be React.useCallback functions
-export function useWatch<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): T[] {
+export function useWatch<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): [T[], boolean, boolean] {
     const [items, setItems] = React.useState([] as T[]);
-
+    const [error, setError] = React.useState(false);
+    const [loading, setLoading] = React.useState(true);
     React.useEffect(() => {
         const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res.data).result as E));
-        let watch = handlePageVisibility(() =>
-            stream.pipe(
-                repeat(),
-                retryWhen((errors) => errors.pipe(delay(500))),
-                scan((items, change) => {
-                    const index = items.findIndex((i) => findItem(i, change));
-                    switch (change.type) {
-                        case 'DELETED':
-                            if (index > -1) {
-                                items.splice(index, 1);
-                            }
-                            break;
-                        default:
-                            if (index > -1) {
-                                items[index] = getItem(change);
-                            } else {
-                                items.unshift(getItem(change));
-                            }
-                            break;
-                    }
-                    return items;
-                }, init || [])
-            )
+        let watch = stream.pipe(
+            repeat(),
+            retryWhen((errors) => errors.pipe(delay(500))),
+            scan((items, change) => {
+                const index = items.findIndex((i) => findItem(i, change));
+                switch (change.type) {
+                    case 'DELETED':
+                        if (index > -1) {
+                            items.splice(index, 1);
+                        }
+                        break;
+                    default:
+                        if (index > -1) {
+                            items[index] = getItem(change) as T;
+                        } else {
+                            items.unshift(getItem(change) as T);
+                        }
+                        break;
+                }
+                return items;
+            }, init || [])
         );
 
-        watch.subscribe((list) => {
+        const subscribeList = (list: T[]) => {
             setItems([...list]);
-        });
+        };
+
+        const initialLoad = watch.pipe(
+            takeUntil(interval(INITIAL_LOAD_TIME)),
+            bufferTime(INITIAL_LOAD_TIME),
+            mergeMap((r) => r)
+        );
+
+        initialLoad.subscribe(
+            subscribeList,
+            () => {
+                setLoading(false);
+                setError(true);
+            },
+            () => {
+                setLoading(false);
+            }
+        );
+
+        const liveStream = handlePageVisibility(() =>
+            watch.pipe(
+                bufferTime(BUFFER_TIME),
+                mergeMap((r) => r)
+            )
+        );
+        liveStream.subscribe(subscribeList);
 
         return () => {
             watch = null;
         };
     }, [init, url, findItem, getItem]);
-    return items;
+    return [items, loading, error];
 }

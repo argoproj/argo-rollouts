@@ -1,34 +1,11 @@
 import * as React from 'react';
 
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
+import {faCheck, faCircleNotch, faExclamationTriangle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
-import {RolloutCondition} from '../../../models/rollout/rollout';
 
 import './status-icon.scss';
-
-export const conditionIcon = (condition: RolloutCondition): JSX.Element => {
-    let icon, className;
-    let spin = false;
-    switch (condition.type) {
-        case 'Progressing': {
-            icon = faCircleNotch;
-            className = 'progressing';
-            spin = true;
-            break;
-        }
-        case 'Available': {
-            icon = faCheckCircle;
-            className = 'healthy';
-            break;
-        }
-        default: {
-            icon = faQuestionCircle;
-            className = 'unknown';
-        }
-    }
-    return <FontAwesomeIcon icon={icon} className={`condition-icon--${className}`} spin={spin} />;
-};
+import './pod-icon.scss';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
@@ -37,9 +14,10 @@ export enum RolloutStatus {
     Healthy = 'Healthy',
 }
 
-export const statusIcon = (status: RolloutStatus): JSX.Element => {
+export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
     let icon, className;
     let spin = false;
+    const {status} = props;
     switch (status) {
         case 'Progressing': {
             icon = faCircleNotch;
@@ -68,4 +46,55 @@ export const statusIcon = (status: RolloutStatus): JSX.Element => {
         }
     }
     return <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />;
+};
+
+export const PodIcon = (props: {status: string}) => {
+    const {status} = props;
+    let icon, className;
+    let spin = false;
+    if (status.startsWith('Init:')) {
+        icon = faCircleNotch;
+        spin = true;
+    }
+    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
+        icon = faTimes;
+    }
+    if (status.endsWith('Error') || status.startsWith('Err')) {
+        icon = faExclamationTriangle;
+    }
+
+    switch (status) {
+        case 'Pending':
+        case 'Terminating':
+        case 'ContainerCreating':
+            icon = faCircleNotch;
+            className = 'pending';
+            spin = true;
+            break;
+        case 'Running':
+        case 'Completed':
+            icon = faCheck;
+            className = 'success';
+            break;
+        case 'Failed':
+        case 'InvalidImageName':
+        case 'CrashLoopBackOff':
+            className = 'failure';
+            icon = faTimes;
+            break;
+        case 'ImagePullBackOff':
+        case 'RegistryUnavailable':
+            className = 'warning';
+            icon = faExclamationTriangle;
+            break;
+        default:
+            className = 'unknown';
+            icon = faQuestionCircle;
+    }
+
+    return (
+        <div className={`pod-icon pod-icon--${className}`}>
+            <FontAwesomeIcon icon={icon} spin={spin} />
+        </div>
+    );
 };

@@ -8,37 +8,8 @@
     border-radius: 3px;
     background-color: $space;
     padding: 7px;
-    .pod {
+    .pod-icon {
         margin: 3px;
-    }
-}
-
-.pod {
-    $size: 25px;
-    width: $size;
-    height: $size;
-    line-height: $size;
-    text-align: center;
-    border: 1px solid $silver-lining;
-    background-color: $fog;
-    color: $shine;
-    border-radius: 3px;
-    cursor: pointer;
-    &--available {
-        background-color: $forest;
-        color: $lime;
-        border: 1px solid $leaf;
-        &:hover {
-            border-color: $lime;
-        }
-    }
-    &--errored {
-        background-color: $dirt;
-        color: $coral;
-        border: 1px solid $clay;
-        &:hover {
-            border-color: $coral;
-        }
     }
 }
 

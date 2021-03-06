@@ -31,6 +31,10 @@ describe("RolloutServiceApi", () => {
   test("listRollouts", () => {
     return expect(instance.listRollouts({})).resolves.toBe(null)
   })
+  test("restartRollout", () => {
+    const name: string = "name_example"
+    return expect(instance.restartRollout(name, {})).resolves.toBe(null)
+  })
   test("watchRollout", () => {
     const name: string = "name_example"
     return expect(instance.watchRollout(name, {})).resolves.toBe(null)

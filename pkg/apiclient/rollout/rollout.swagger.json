@@ -27,6 +27,30 @@
         ]
       }
     },
+    "/api/v1/rollout/restart/{name}": {
+      "get": {
+        "operationId": "RestartRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/watch/{name}": {
       "get": {
         "operationId": "WatchRollout",
@@ -168,6 +192,46 @@
         }
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "successful": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusive": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "error": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobInfo"
+          }
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AntiAffinity": {
       "type": "object",
@@ -381,6 +445,39 @@
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ExperimentInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "replicaSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo"
+          }
+        },
+        "analysisRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo"
+          }
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef": {
       "type": "object",
       "properties": {
@@ -439,6 +536,20 @@
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NginxTrafficRouting": {
       "type": "object",
       "properties": {
@@ -472,6 +583,27 @@
       },
       "title": "PauseCondition the reason for a pause and when it started"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "string"
+        },
+        "restarts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",
       "properties": {
@@ -502,6 +634,66 @@
         }
       },
       "title": "PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stable": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "canary": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "active": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "preview": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "replicas": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "available": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "template": {
+          "type": "string"
+        },
+        "scaleDownDeadline": {
+          "type": "string"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodInfo"
+          }
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution": {
       "type": "object",
@@ -698,7 +890,7 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo": {
       "type": "object",
       "properties": {
-        "metadata": {
+        "objectMeta": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
         },
         "status": {
@@ -741,6 +933,30 @@
         "available": {
           "type": "integer",
           "format": "int32"
+        },
+        "restartedAt": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "replicaSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo"
+          }
+        },
+        "experiments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ExperimentInfo"
+          }
+        },
+        "analysisRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo"
+          }
         }
       },
       "title": "RolloutInfo is information about a rollout"
@@ -3733,8 +3949,8 @@
         "type": {
           "type": "string"
         },
-        "rollout": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
+        "rolloutInfo": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
         }
       }
     }

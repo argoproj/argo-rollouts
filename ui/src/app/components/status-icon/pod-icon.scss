@@ -1,0 +1,38 @@
+@import '../../shared/styles/colors.scss';
+
+.pod-icon {
+    $size: 25px;
+    width: $size;
+    height: $size;
+    line-height: $size;
+    text-align: center;
+    border: 1px solid $silver-lining;
+    background-color: $fog;
+    color: $shine;
+    border-radius: 3px;
+    cursor: pointer;
+    &--success {
+        background-color: $forest;
+        color: $lime;
+        border: 1px solid $leaf;
+        &:hover {
+            border-color: $lime;
+        }
+    }
+    &--failure {
+        background-color: $dirt;
+        color: $coral;
+        border: 1px solid $clay;
+        &:hover {
+            border-color: $coral;
+        }
+    }
+    &--pending {
+        background-color: $deep-sea;
+        color: $sky;
+        border: 1px solid $sea;
+        &:hover {
+            border-color: $sky;
+        }
+    }
+}

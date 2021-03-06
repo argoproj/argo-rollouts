@@ -10,6 +10,7 @@ import (
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -53,8 +54,8 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if !getOptions.Watch {
 				getOptions.PrintRollout(ri)
 			} else {
-				rolloutUpdates := make(chan *info.RolloutInfo)
-				controller.RegisterCallback(func(roInfo *info.RolloutInfo) {
+				rolloutUpdates := make(chan *v1alpha1.RolloutInfo)
+				controller.RegisterCallback(func(roInfo *v1alpha1.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
 				go getOptions.WatchRollout(ctx.Done(), rolloutUpdates)
@@ -69,9 +70,9 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func Watch(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo, callback func(*info.RolloutInfo)) {
+func Watch(stopCh <-chan struct{}, rolloutUpdates chan *v1alpha1.RolloutInfo, callback func(*v1alpha1.RolloutInfo)) {
 	ticker := time.NewTicker(time.Second)
-	var currRolloutInfo *info.RolloutInfo
+	var currRolloutInfo *v1alpha1.RolloutInfo
 	// preventFlicker is used to rate-limit the updates we print to the terminal when updates occur
 	// so rapidly that it causes the terminal to flicker
 	var preventFlicker time.Time
@@ -91,11 +92,12 @@ func Watch(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo, callba
 	}
 }
 
-func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *info.RolloutInfo) {
+func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *v1alpha1.RolloutInfo) {
 	Watch(stopCh, rolloutUpdates, 
-	func (i *info.RolloutInfo) {
+	func (i *v1alpha1.RolloutInfo) {
 		o.Clear()
-		o.PrintRollout(i)
+		ri := v1alpha1.RolloutInfo(*i)
+		o.PrintRollout(&ri)
 	})
 }
 
@@ -112,7 +114,7 @@ func (o *GetOptions) formatImage(image info.ImageInfo) string {
 	return imageStr
 }
 
-func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
+func (o *GetOptions) PrintRollout(roInfo *v1alpha1.RolloutInfo) {
 	fmt.Fprintf(o.Out, tableFormat, "Name:", roInfo.Name)
 	fmt.Fprintf(o.Out, tableFormat, "Namespace:", roInfo.Namespace)
 	fmt.Fprintf(o.Out, tableFormat, "Status:", o.colorize(roInfo.Icon)+" "+roInfo.Status)
@@ -125,7 +127,7 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 		fmt.Fprintf(o.Out, tableFormat, "  SetWeight:", roInfo.SetWeight)
 		fmt.Fprintf(o.Out, tableFormat, "  ActualWeight:", roInfo.ActualWeight)
 	}
-	images := roInfo.Images()
+	images := info.Images(roInfo)
 	if len(images) > 0 {
 		fmt.Fprintf(o.Out, tableFormat, "Images:", o.formatImage(images[0]))
 		for i := 1; i < len(images); i++ {
@@ -143,11 +145,11 @@ func (o *GetOptions) PrintRollout(roInfo *info.RolloutInfo) {
 	o.PrintRolloutTree(roInfo)
 }
 
-func (o *GetOptions) PrintRolloutTree(roInfo *info.RolloutInfo) {
+func (o *GetOptions) PrintRolloutTree(roInfo *v1alpha1.RolloutInfo) {
 	w := ansiterm.NewTabWriter(o.Out, 0, 0, 2, ' ', 0)
 	o.PrintHeader(w)
-	fmt.Fprintf(w, "%s %s\t%s\t%s %s\t%s\t%v\n", IconRollout, roInfo.Name, "Rollout", o.colorize(roInfo.Icon), roInfo.Status, roInfo.Age(), "")
-	revisions := roInfo.Revisions()
+	fmt.Fprintf(w, "%s %s\t%s\t%s %s\t%s\t%v\n", IconRollout, roInfo.Name, "Rollout", o.colorize(roInfo.Icon), roInfo.Status, info.Age(roInfo.ObjectMeta), "")
+	revisions := info.Revisions(roInfo)
 	for i, rev := range revisions {
 		isLast := i == len(revisions)-1
 		prefix, subpfx := getPrefixes(isLast, "")
@@ -156,12 +158,12 @@ func (o *GetOptions) PrintRolloutTree(roInfo *info.RolloutInfo) {
 	_ = w.Flush()
 }
 
-func (o *GetOptions) PrintRevision(w io.Writer, roInfo *info.RolloutInfo, revision int, prefix string, subpfx string) {
+func (o *GetOptions) PrintRevision(w io.Writer, roInfo *v1alpha1.RolloutInfo, revision int, prefix string, subpfx string) {
 	name := fmt.Sprintf("revision:%d", revision)
 	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconRevision, name, "", "", "", "", "")
-	replicaSets := roInfo.ReplicaSetsByRevision(revision)
-	experiments := roInfo.ExperimentsByRevision(revision)
-	analysisRuns := roInfo.AnalysisRunsByRevision(revision)
+	replicaSets := info.ReplicaSetsByRevision(roInfo, revision)
+	experiments := info.ExperimentsByRevision(roInfo, revision)
+	analysisRuns := info.AnalysisRunsByRevision(roInfo, revision)
 	total := len(replicaSets) + len(experiments) + len(analysisRuns)
 	curr := 0
 
@@ -182,7 +184,7 @@ func (o *GetOptions) PrintRevision(w io.Writer, roInfo *info.RolloutInfo, revisi
 	}
 }
 
-func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo, prefix string, subpfx string) {
+func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo v1alpha1.ReplicaSetInfo, prefix string, subpfx string) {
 	infoCols := []string{}
 	name := rsInfo.Name
 	if rsInfo.Stable {
@@ -200,10 +202,10 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 		name = o.colorizeStatus(name, info.InfoTagPreview)
 	}
 	if rsInfo.ScaleDownDeadline != "" {
-		infoCols = append(infoCols, fmt.Sprintf("delay:%s", rsInfo.ScaleDownDelay()))
+		infoCols = append(infoCols, fmt.Sprintf("delay:%s", info.ScaleDownDelay(rsInfo)))
 	}
 
-	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, rsInfo.Age(), strings.Join(infoCols, ","))
+	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconReplicaSet, name, "ReplicaSet", o.colorize(rsInfo.Icon), rsInfo.Status, info.Age(rsInfo.ObjectMeta), strings.Join(infoCols, ","))
 	for i, podInfo := range rsInfo.Pods {
 		isLast := i == len(rsInfo.Pods)-1
 		podPrefix, _ := getPrefixes(isLast, subpfx)
@@ -211,11 +213,11 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo info.ReplicaSetInfo
 		if podInfo.Restarts > 0 {
 			podInfoCol = append(podInfoCol, fmt.Sprintf("restarts:%d", podInfo.Restarts))
 		}
-		fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", podPrefix, IconPod, podInfo.Name, "Pod", o.colorize(podInfo.Icon), podInfo.Status, podInfo.Age(), strings.Join(podInfoCol, ","))
+		fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", podPrefix, IconPod, podInfo.Name, "Pod", o.colorize(podInfo.Icon), podInfo.Status, info.Age(podInfo.ObjectMeta), strings.Join(podInfoCol, ","))
 	}
 }
 
-func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunInfo, prefix string, subpfx string) {
+func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo v1alpha1.AnalysisRunInfo, prefix string, subpfx string) {
 	name := o.colorizeStatus(arInfo.Name, arInfo.Status)
 	infoCols := []string{}
 	if arInfo.Successful > 0 {
@@ -230,7 +232,7 @@ func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunIn
 	if arInfo.Error > 0 {
 		infoCols = append(infoCols, fmt.Sprintf("%s %d", o.colorize(info.IconWarning), arInfo.Error))
 	}
-	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconAnalysis, name, "AnalysisRun", o.colorize(arInfo.Icon), arInfo.Status, arInfo.Age(), strings.Join(infoCols, ","))
+	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconAnalysis, name, "AnalysisRun", o.colorize(arInfo.Icon), arInfo.Status, info.Age(arInfo.ObjectMeta), strings.Join(infoCols, ","))
 	for i, jobInfo := range arInfo.Jobs {
 		isLast := i == len(arInfo.Jobs)-1
 		jobPrefix, jobChildPrefix := getPrefixes(isLast, subpfx)
@@ -238,7 +240,7 @@ func (o *GetOptions) PrintAnalysisRunInfo(w io.Writer, arInfo info.AnalysisRunIn
 	}
 }
 
-func (o *GetOptions) PrintJob(w io.Writer, jobInfo info.JobInfo, prefix string, subpfx string) {
+func (o *GetOptions) PrintJob(w io.Writer, jobInfo v1alpha1.JobInfo, prefix string, subpfx string) {
 	name := o.colorizeStatus(jobInfo.Name, jobInfo.Status)
-	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconJob, name, "Job", o.colorize(jobInfo.Icon), jobInfo.Status, jobInfo.Age(), "")
+	fmt.Fprintf(w, "%s%s %s\t%s\t%s %s\t%s\t%v\n", prefix, IconJob, name, "Job", o.colorize(jobInfo.Icon), jobInfo.Status, info.Age(jobInfo.ObjectMeta), "")
 }
