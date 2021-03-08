@@ -1052,7 +1052,7 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 }
 
 func TestCanarySVCSelectors(t *testing.T) {
-	testTables := []struct {
+	for _, tc := range []struct {
 		canaryReplicas      int32
 		canaryReadyReplicas int32
 
@@ -1062,9 +1062,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 		{2, 0, false},
 		{2, 1, false},
 		{2, 2, true},
-	}
-
-	for _, tt := range testTables {
+	} {
 		namespace := "namespace"
 		selectorNewRSVal := "new-rs-xxx"
 		stableService := &corev1.Service{
@@ -1109,13 +1107,15 @@ func TestCanarySVCSelectors(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "canary",
 					Namespace: namespace,
-					Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: selectorNewRSVal},
+					Labels: map[string]string{
+						v1alpha1.DefaultRolloutUniqueLabelKey: selectorNewRSVal,
+					},
 				},
 				Spec: v1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(tt.canaryReplicas),
+					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
 				},
 				Status: v1.ReplicaSetStatus{
-					ReadyReplicas: tt.canaryReadyReplicas,
+					ReadyReplicas: tc.canaryReadyReplicas,
 				},
 			},
 			stableRS: &v1.ReplicaSet{
@@ -1133,10 +1133,14 @@ func TestCanarySVCSelectors(t *testing.T) {
 		assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
 		updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
 		assert.NoError(t, err, "unable to get updated canary service")
-		if tt.shouldTargetNewRS {
-			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey], "canary SVC is missing newRS selector label")
+		if tc.shouldTargetNewRS {
+			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
+				"canary SVC should have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
+				tc.canaryReplicas, tc.canaryReadyReplicas)
 		} else {
-			assert.Equal(t, "", updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey], "canary SVC should not have newRS selector label")
+			assert.Empty(t, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
+				"canary SVC should not have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
+				tc.canaryReplicas, tc.canaryReadyReplicas)
 		}
 	}
 }
