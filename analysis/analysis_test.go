@@ -372,6 +372,8 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 	}
 }
 
+// TestGenerateMetricTasksError ensures we generate a task when have a measurement which was errored
+
 func TestGenerateMetricTasksError(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
@@ -393,9 +395,17 @@ func TestGenerateMetricTasksError(t *testing.T) {
 			}},
 		},
 	}
-	// ensure we generate a task when have a measurement which was errored
-	tasks := generateMetricTasks(run)
-	assert.Equal(t, 1, len(tasks))
+	{
+		run := run.DeepCopy()
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 1, len(tasks))
+	}
+	{
+		run := run.DeepCopy()
+		run.Spec.Metrics[0].Interval = "5m"
+		tasks := generateMetricTasks(run)
+		assert.Equal(t, 1, len(tasks))
+	}
 }
 
 func TestAssessRunStatus(t *testing.T) {
@@ -823,6 +833,8 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
 }
 
+// TestCalculateNextReconcileUponError ensure we requeue at error interval when we error
+
 func TestCalculateNextReconcileUponError(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
@@ -846,8 +858,15 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 			}},
 		},
 	}
-	// ensure we requeue at correct interval
-	assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
+	{
+		run := run.DeepCopy()
+		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
+	}
+	{
+		run := run.DeepCopy()
+		run.Spec.Metrics[0].Interval = "5m"
+		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
+	}
 }
 
 func TestReconcileAnalysisRunInitial(t *testing.T) {

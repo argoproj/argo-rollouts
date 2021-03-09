@@ -177,7 +177,9 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		// to decide if it should be taken now. metric.Interval can be null because we may be
 		// retrying a metric due to error.
 		interval := DefaultErrorRetryInterval
-		if metric.Interval != "" {
+		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
+			interval = DefaultErrorRetryInterval
+		} else if metric.Interval != "" {
 			metricInterval, err := metric.Interval.Duration()
 			if err != nil {
 				logCtx.Warnf("failed to parse interval: %v", err)
@@ -547,15 +549,15 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
 			continue
 		}
 		var interval time.Duration
-		if metric.Interval != "" {
+		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
+			interval = DefaultErrorRetryInterval
+		} else if metric.Interval != "" {
 			metricInterval, err := metric.Interval.Duration()
 			if err != nil {
 				logCtx.Warnf("failed to parse interval: %v", err)
 				continue
 			}
 			interval = metricInterval
-		} else if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
-			interval = DefaultErrorRetryInterval
 		} else {
 			// if we get here, an interval was not set (meaning reoccurrence was not desired), and
 			// there was no error (meaning we don't need to retry). no need to requeue this metric.
