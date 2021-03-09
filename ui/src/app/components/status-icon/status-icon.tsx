@@ -6,6 +6,7 @@ import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fo
 
 import './status-icon.scss';
 import './pod-icon.scss';
+import {ThemeDiv} from '../theme-div/theme-div';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
@@ -93,8 +94,8 @@ export const PodIcon = (props: {status: string}) => {
     }
 
     return (
-        <div className={`pod-icon pod-icon--${className}`}>
+        <ThemeDiv className={`pod-icon pod-icon--${className}`}>
             <FontAwesomeIcon icon={icon} spin={spin} />
-        </div>
+        </ThemeDiv>
     );
 };

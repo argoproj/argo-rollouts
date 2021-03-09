@@ -1,24 +1,39 @@
+import {IconDefinition} from '@fortawesome/fontawesome-svg-core';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
+import {ThemeDiv} from '../theme-div/theme-div';
 import './info-item.scss';
 
-export interface InfoLabelProps {
-    label: string;
-    icon?: JSX.Element;
+export interface InfoItemProps {
+    content?: string;
+    icon?: IconDefinition;
+    style?: React.CSSProperties;
 }
 
-export const InfoItem = (props: InfoLabelProps) => (
-    <div className='info-item'>
-        {props.icon && <span style={{marginRight: '5px'}}>{props.icon}</span>}
-        {props.label}
-    </div>
+export const InfoItem = (props: InfoItemProps) => (
+    <ThemeDiv className='info-item' style={props.style}>
+        {props.icon && (
+            <span style={{marginRight: '5px'}}>
+                <FontAwesomeIcon icon={props.icon} />
+            </span>
+        )}
+        {props.content && props.content}
+    </ThemeDiv>
 );
 
-export const InfoItemRow = (props: {content: string} & InfoLabelProps) => {
-    const {label, content, icon} = props;
+export const InfoItemRow = (props: {label: string; content: InfoItemProps | InfoItemProps[]}) => {
+    let {label, content} = props;
+    if (!Array.isArray(content)) {
+        content = [content];
+    }
     return (
         <div className='info-item--row'>
-            <label>{label}</label>
-            <InfoItem label={content} icon={icon} />
+            {props.label && <label>{label}</label>}
+            <div style={{marginLeft: 'auto', display: 'flex'}}>
+                {content.map((c) => (
+                    <InfoItem {...c} style={{marginRight: '5px'}} />
+                ))}
+            </div>
         </div>
     );
 };

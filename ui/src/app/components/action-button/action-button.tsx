@@ -1,23 +1,36 @@
+import {faCircleNotch, IconDefinition} from '@fortawesome/free-solid-svg-icons';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 
-import {InfoLabelProps} from '../info-item/info-item';
+import {ThemeDiv} from '../theme-div/theme-div';
 import './action-button.scss';
 
-export interface ButtonAction extends InfoLabelProps {
-    action: () => any;
+export interface ActionButtonProps {
+    action?: Function;
+    label?: string;
+    icon?: IconDefinition;
+    indicateLoading?: boolean;
+    dark?: boolean;
 }
 
-export const ActionButton = (props: {action: () => any} & InfoLabelProps) => {
-    const {label, action, icon} = props;
+export const ActionButton = (props: ActionButtonProps) => {
+    const {label, action, icon, indicateLoading} = props;
+    const [loading, setLoading] = React.useState(false);
+    React.useEffect(() => {
+        setTimeout(() => setLoading(false), 1000);
+    }, [loading]);
     return (
-        <button
-            className='action-button'
+        <ThemeDiv
+            className={`action-button ${props.dark ? 'action-button--dark' : ''}`}
             onClick={(e) => {
-                action();
+                if (action) {
+                    action();
+                    setLoading(true);
+                }
                 e.preventDefault();
             }}>
-            {icon && <span style={{marginRight: '5px'}}>{icon}</span>}
-            {label}
-        </button>
+            {icon && <FontAwesomeIcon icon={loading && indicateLoading ? faCircleNotch : icon} spin={loading && indicateLoading} />}
+            {label && <span style={{marginLeft: '5px'}}>{label}</span>}
+        </ThemeDiv>
     );
 };

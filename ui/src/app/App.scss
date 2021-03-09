@@ -4,7 +4,7 @@ body,
 html {
     padding: 0;
     margin: 0;
-    background-color: $midnight-sky;
+    height: 100%;
     button,
     form,
     input,
@@ -17,6 +17,21 @@ html {
     }
 }
 
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+#root {
+    height: 100%;
+}
+
 .rollouts {
+    height: 100%;
     font-family: 'Heebo', sans-serif;
+    background-color: $argo-color-gray-3;
+
+    &--dark {
+        background-color: $midnight-sky;
+    }
 }

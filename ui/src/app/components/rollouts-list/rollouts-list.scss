@@ -2,14 +2,18 @@
 
 .pods {
     margin-top: 10px;
-    border: 1px solid $silver-lining;
+    border: 1px solid $argo-color-gray-5;
     display: flex;
     align-items: center;
     border-radius: 3px;
-    background-color: $space;
+    background-color: $argo-color-gray-3;
     padding: 7px;
     .pod-icon {
         margin: 3px;
+    }
+    &--dark {
+        border-color: $silver-lining;
+        background-color: $space;
     }
 }
 
@@ -17,27 +21,52 @@
     display: flex;
     padding: 20px;
     &__widget {
-        text-decoration: none;
-        border: 1px solid $silver-lining;
         border-radius: 5px;
         padding: 10px;
-        box-shadow: 1px 0px 4px 1px $space;
-        color: $dull-shine;
+        border: 1px solid $argo-color-gray-4;
         font-size: 14px;
         margin-right: 20px;
-        &:hover {
+        box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
+        color: $argo-color-gray-7;
+        background-color: white;
+
+        &--dark {
+            border-color: $silver-lining;
+            box-shadow: 1px 2px 3px 1px $space;
+            color: $dull-shine;
+            background: none;
+        }
+
+        &:hover,
+        &--selected {
+            border-color: $sherbert;
+        }
+
+        &--dark:hover,
+        &--dark#{&}--selected {
             border-color: $spray-tan;
         }
 
+        &__refresh {
+            &:hover {
+                color: $sherbert;
+            }
+        }
+
         header {
-            color: $shine;
+            color: $argo-color-gray-8;
             display: flex;
             align-items: center;
             font-weight: 500;
             font-size: 18px;
-            border-bottom: 1px solid $silver-lining;
+            border-bottom: 1px solid $argo-color-gray-4;
             padding-bottom: 0.5em;
             margin-bottom: 0.5em;
+        }
+
+        &--dark header {
+            color: $shine;
+            border-bottom: 1px solid $silver-lining;
         }
 
         &__body {

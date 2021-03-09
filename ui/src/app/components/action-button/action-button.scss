@@ -2,16 +2,25 @@
 
 .action-button {
     border-radius: 20px;
-    border: 1px solid $silver-lining;
+    border: 1px solid $argo-color-gray-6;
     padding: 10px 14px;
-    background-color: $fog;
-    color: $shine;
+    background-color: $argo-color-gray-6;
+    color: white;
     cursor: pointer;
     margin-right: 5px;
-
     &:hover {
-        background-color: $spray-tan;
-        color: white;
+        background-color: $sherbert;
         border-color: $sherbert;
+    }
+
+    &--dark {
+        border: 1px solid $silver-lining;
+        background-color: $fog;
+        color: $shine;
+        &:hover {
+            background-color: $spray-tan;
+            color: white;
+            border-color: $sherbert;
+        }
     }
 }

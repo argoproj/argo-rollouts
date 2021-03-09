@@ -12,8 +12,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	"github.com/argoproj/pkg/errors"
@@ -153,7 +153,7 @@ func (s* ArgoRolloutsServer) initRolloutViewController(name string, ctx context.
 	return controller
 }
 
-func (s* ArgoRolloutsServer) getRollout(name string) (*v1alpha1.RolloutInfo, error) {
+func (s* ArgoRolloutsServer) getRolloutInfo(name string) (*v1alpha1.RolloutInfo, error) {
 	controller := s.initRolloutViewController(name, context.Background())
 	ri, err := controller.GetRolloutInfo()
 	if (err != nil) {
@@ -164,7 +164,7 @@ func (s* ArgoRolloutsServer) getRollout(name string) (*v1alpha1.RolloutInfo, err
 
 // GetRollout returns a rollout
 func (s* ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
-	return s.getRollout(q.GetName());
+	return s.getRolloutInfo(q.GetName());
 }
 
 // WatchRollout returns a rollout stream
@@ -199,7 +199,7 @@ func (s* ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Roll
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
 	restartAt := time.Now().UTC()
 	restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
-	return nil, nil
+	return &empty.Empty{}, nil
 }
 
 // WatchRollouts returns a stream of all rollouts
@@ -221,7 +221,8 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 	}
 
 	for i := range(rolloutList.Items) {
-		ri, err := s.getRollout(rolloutList.Items[i].ObjectMeta.Name)
+		// only do intensive get for initial list
+		ri, err := s.getRolloutInfo(rolloutList.Items[i].ObjectMeta.Name)
 		if (err != nil) {
 			return nil
 		}
@@ -234,29 +235,45 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 		}
 	}
 
-
-	flush := func() error {
-		return nil
-	}
-
-	stream := make(chan *v1alpha1.Rollout, 1000)
-	err = list.SubscribeRolloutUpdates(ctx, rolloutIf, rolloutList, v1.ListOptions{}, flush, stream)
+	watchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
+	var ro *v1alpha1.Rollout
+	retries := 0
+L:
 	for {
 		select {
-		case r := <-stream:
-			ri, err := s.getRollout(r.ObjectMeta.Name);
-			if (err != nil) {
-				return err
-			}
-			send(ri)
-		case <-ws.Context().Done():
-			return nil
+		case next := <-watchIf.ResultChan():
+			ro, _ = next.Object.(*v1alpha1.Rollout)
+		case <-ctx.Done():
+			break L
 		}
+		if ro == nil {
+			log.Warn("error on rollout watch. Attempting to re-establish")
+			watchIf.Stop()
+			newWatchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
+			if err != nil {
+				if retries > 5 {
+					return err
+				}
+				log.Warn(err)
+				// this sleep prevents a hot-loop in the event there is a persistent error
+				time.Sleep(time.Second)
+				retries++
+			} else {
+				watchIf = newWatchIf
+				retries = 0
+			}
+			continue
+		}
+		// get shallow rollout info
+		ri := info.NewRolloutInfo(ro, nil, nil, nil, nil)
+		send(ri)
 	}
+	watchIf.Stop()
+	return nil
 }
 
 func (s* ArgoRolloutsServer) GetNamespace(ctx context.Context, e* empty.Empty) (*rollout.NamespaceInfo, error) {

@@ -6,13 +6,16 @@
     color: white;
     align-items: center;
     padding: 10px 0;
-    margin-bottom: 1em;
 
     &__brand {
         color: $shine;
         display: flex;
         align-items: center;
         text-decoration: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
     }
 
     h1 {

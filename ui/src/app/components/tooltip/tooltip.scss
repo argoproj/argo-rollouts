@@ -1,0 +1,15 @@
+@import '../../shared/styles/colors.scss';
+
+.tooltip {
+    position: absolute;
+    padding: 5px 10px;
+    border-radius: 3px;
+    bottom: 100%;
+    z-index: 2;
+    background-color: $slate;
+    color: white;
+    width: 200px;
+    &--dark {
+        border: 1px solid $dull-shine;
+    }
+}

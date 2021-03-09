@@ -1,11 +1,20 @@
 @import '../../shared/styles/colors.scss';
 
 .info-item {
-    background-color: $fog;
+    background-color: $argo-color-gray-4;
     border-radius: 3px;
-    border: 1px solid $silver-lining;
+    border: 1px solid $argo-color-gray-5;
     padding: 3px 5px;
     margin-left: auto;
+    color: $argo-color-gray-8;
+    display: flex;
+    align-items: center;
+
+    &--dark {
+        background-color: $fog;
+        border: 1px solid $silver-lining;
+        color: $dull-shine;
+    }
 
     &--row {
         display: flex;

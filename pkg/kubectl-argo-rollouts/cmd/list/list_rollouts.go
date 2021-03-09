@@ -6,7 +6,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -100,7 +99,12 @@ func (o *ListOptions) PrintRolloutTable(roList *v1alpha1.RolloutList) error {
 	return nil
 }
 
-func SubscribeRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList, opts metav1.ListOptions, flush func() error, c chan *v1alpha1.Rollout) error {
+// PrintRolloutUpdates watches for changes to rollouts and prints the updates
+func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList) error {
+	w := tabwriter.NewWriter(o.Out, 0, 0, 2, ' ', 0)
+
+	opts := o.ListOptions()
+	opts.ResourceVersion = roList.ListMeta.ResourceVersion
 	watchIf, err := rolloutIf.Watch(ctx, opts)
 	if err != nil {
 		return err
@@ -125,13 +129,12 @@ L:
 		case next := <-watchIf.ResultChan():
 			ro, _ = next.Object.(*v1alpha1.Rollout)
 		case <-ticker.C:
-			_ = flush()
+			_ = w.Flush()
 			continue
 		case <-ctx.Done():
 			break L
 		}
 		if ro == nil {
-			log.Warn("error on rollout watch. Attempting to re-establish")
 			// if we get here, it means an error on the watch. try to re-establish the watch
 			watchIf.Stop()
 			newWatchIf, err := rolloutIf.Watch(ctx, opts)
@@ -139,7 +142,7 @@ L:
 				if retries > 5 {
 					return err
 				}
-				log.Warn(err)
+				o.Log.Warn(err)
 				// this sleep prevents a hot-loop in the event there is a persistent error
 				time.Sleep(time.Second)
 				retries++
@@ -152,35 +155,10 @@ L:
 		opts.ResourceVersion = ro.ObjectMeta.ResourceVersion
 		roLine := newRolloutInfo(*ro)
 		if prevLine, ok := prevLines[roLine.key()]; !ok || prevLine != roLine {
-			c <- ro
+			fmt.Fprintln(w, roLine.String(o.timestamps, o.allNamespaces))
 			prevLines[roLine.key()] = roLine
 		}
 	}
 	watchIf.Stop()
 	return nil
-}
-
-// PrintRolloutUpdates watches for changes to rollouts and prints the updates
-func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList) error {
-	opts := o.ListOptions()
-	opts.ResourceVersion = roList.ListMeta.ResourceVersion
-
-	w := tabwriter.NewWriter(o.Out, 0, 0, 2, ' ', 0)
-
-	stream := make(chan *v1alpha1.Rollout, 1000)
-	err := SubscribeRolloutUpdates(ctx, rolloutIf, roList, opts, w.Flush, stream)
-	if (err != nil) {
-		return err
-	}
-
-	for {
-		select {
-		case r := <-stream:
-			roLine := newRolloutInfo(*r)
-			fmt.Fprintln(w, roLine.String(o.timestamps, o.allNamespaces))
-		case <-ctx.Done():
-			return nil
-		}
-	}
-	
 }

@@ -3,6 +3,7 @@ import {Link, useParams} from 'react-router-dom';
 import {RolloutNamespaceInfo, RolloutServiceApi} from '../../../models/rollout/generated';
 import {useServerData} from '../../shared/utils/utils';
 import {InfoItemRow} from '../info-item/info-item';
+import {ThemeToggle} from '../theme-toggle/theme-toggle';
 
 import './header.scss';
 
@@ -24,7 +25,10 @@ export const Header = () => {
         <header className='rollouts-header'>
             <Brand path={name} />
             <div className='rollouts-header__info'>
-                <InfoItemRow label={'NS:'} content={nsData.namespace} />
+                <span style={{marginRight: '7px'}}>
+                    <ThemeToggle />
+                </span>
+                <InfoItemRow label={'NS:'} content={{content: nsData.namespace}} />
                 <div className='rollouts-header__version'>v0.1.0</div>
             </div>
         </header>

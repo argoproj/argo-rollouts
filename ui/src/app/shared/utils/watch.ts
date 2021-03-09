@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {fromEvent, interval, Observable, Observer, Subscription} from 'rxjs';
-import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, takeUntil} from 'rxjs/operators';
+import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, takeUntil, timeout} from 'rxjs/operators';
 
 function fromEventSource(url: string): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
@@ -63,7 +63,7 @@ interface WatchEvent {
 }
 
 // NOTE: findItem and getItem must be React.useCallback functions
-export function useWatch<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): [T[], boolean, boolean] {
+export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): [T[], boolean, boolean] {
     const [items, setItems] = React.useState([] as T[]);
     const [error, setError] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
@@ -75,9 +75,15 @@ export function useWatch<T, E extends WatchEvent>(url: string, findItem: (item: 
             scan((items, change) => {
                 const index = items.findIndex((i) => findItem(i, change));
                 switch (change.type) {
-                    case 'DELETED':
+                    case 'Deleted':
                         if (index > -1) {
                             items.splice(index, 1);
+                        }
+                        break;
+                    case 'Updated':
+                        if (index > -1) {
+                            const updated = {...items[index], ...getItem(change)};
+                            items[index] = updated as T;
                         }
                         break;
                     default:
@@ -113,17 +119,54 @@ export function useWatch<T, E extends WatchEvent>(url: string, findItem: (item: 
             }
         );
 
-        const liveStream = handlePageVisibility(() =>
+        let liveStream = handlePageVisibility(() =>
             watch.pipe(
                 bufferTime(BUFFER_TIME),
                 mergeMap((r) => r)
             )
         );
-        liveStream.subscribe(subscribeList);
+        const sub = liveStream.subscribe(subscribeList);
 
         return () => {
             watch = null;
+            liveStream = null;
+            sub.unsubscribe();
         };
     }, [init, url, findItem, getItem]);
     return [items, loading, error];
+}
+
+export function useWatch<T>(url: string, subscribe: boolean, timeoutAfter?: number) {
+    const [item, setItem] = React.useState({} as T);
+    React.useEffect(() => {
+        if (!subscribe) {
+            return;
+        }
+        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res.data).result as T));
+        let watch = stream.pipe(
+            repeat(),
+            retryWhen((errors) => errors.pipe(delay(500))),
+            scan((item, update) => {
+                return update;
+            }, {} as T)
+        );
+
+        let liveStream = handlePageVisibility(() =>
+            watch.pipe(
+                bufferTime(BUFFER_TIME),
+                mergeMap((r) => r)
+            )
+        );
+
+        if (timeoutAfter > 0) {
+            liveStream = liveStream.pipe(timeout(timeoutAfter));
+        }
+
+        const sub = liveStream.subscribe((i) => setItem(i));
+        return () => {
+            liveStream = null;
+            sub.unsubscribe();
+        };
+    }, [url, subscribe, timeoutAfter]);
+    return item;
 }

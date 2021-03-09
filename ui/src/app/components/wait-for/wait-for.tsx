@@ -1,11 +1,13 @@
 import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
+import {ThemeDiv} from '../theme-div/theme-div';
+import './spinner.scss';
 
 export const Spinner = () => (
-    <div style={{color: 'white', fontSize: '25px'}}>
+    <ThemeDiv className='spinner'>
         <FontAwesomeIcon icon={faCircleNotch} spin />
-    </div>
+    </ThemeDiv>
 );
 
 export const WaitFor = (props: {loading: boolean; loader?: React.ReactNode} & React.ComponentProps<React.FunctionComponent>): JSX.Element => (

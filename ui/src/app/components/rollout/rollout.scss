@@ -1,21 +1,60 @@
 @import '../../shared/styles/colors.scss';
 
 .rollout {
-    header {
-        color: $shine;
+    &__info {
+        width: 450px;
+        border: 1px solid $argo-color-gray-4;
+        border-radius: 3px;
+        padding: 10px;
+        background-color: white;
+
+        &--dark {
+            background-color: $space;
+            border-color: $silver-lining;
+        }
+    }
+
+    &__header {
+        color: $argo-color-gray-8;
         font-size: 22px;
+        margin-bottom: 1em;
+        &--dark {
+            color: $shine;
+        }
     }
     &__toolbar {
         box-sizing: border-box;
         font-size: 14px;
         width: 100%;
-        border-bottom: 1px solid $silver-lining;
         padding: 0 10px;
         padding-bottom: 1em;
-        margin-bottom: 1em;
+        margin-bottom: 1.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
+        background-color: white;
+        padding-top: 1em;
+
+        &--dark {
+            background-color: $space;
+            border-bottom: 1px solid $silver-lining;
+        }
     }
 
     &__body {
         padding: 0 20px;
+        color: $argo-color-gray-8;
+
+        h3 {
+            margin-bottom: 0px;
+            font-size: 12px;
+            font-weight: 500;
+            color: $argo-color-gray-6;
+        }
+
+        &--dark {
+            color: $shine;
+            h3 {
+                color: $dull-shine;
+            }
+        }
     }
 }

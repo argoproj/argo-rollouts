@@ -1485,6 +1485,14 @@
   resolved "https://registry.yarnpkg.com/@polka/url/-/url-1.0.0-next.11.tgz#aeb16f50649a91af79dbe36574b66d0f9e4d9f71"
   integrity sha512-3NsZsJIA/22P3QUyrEDNA2D133H4j224twJrdipXN38dpnIOzAbUDtOwkcJ5pXmn75w7LSQDjA4tO9dm1XlqlA==
 
+"@rbreeze/react-keypress@^0.1.0":
+  version "0.1.1"
+  resolved "https://npm.pkg.github.com/download/@rbreeze/react-keypress/0.1.1/c22084694bbbb2f4e3c9ae14200ac24e85c4d5d55fe07fa1ee38c6d4c918fbab#08779fe877f52c6fc52c2b021577291d0e572daa"
+  integrity sha512-Lsu8OaOjMfVBnODUBQwTL7PwQdIRiVbyX9udHbwu9JD088+SKPjdgyVtiARES69z5Gmja5LV4qh/gPShjqqKkg==
+  dependencies:
+    "@types/react" "^17.0.2"
+    react "^17.0.1"
+
 "@rollup/plugin-node-resolve@^7.1.1":
   version "7.1.3"
   resolved "https://registry.yarnpkg.com/@rollup/plugin-node-resolve/-/plugin-node-resolve-7.1.3.tgz#80de384edfbd7bfc9101164910f86078151a3eca"
@@ -1875,7 +1883,7 @@
     "@types/history" "*"
     "@types/react" "*"
 
-"@types/react@*", "@types/react@^17.0.0":
+"@types/react@*", "@types/react@^17.0.0", "@types/react@^17.0.2":
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/@types/react/-/react-17.0.2.tgz#3de24c4efef902dd9795a49c75f760cbe4f7a5a8"
   integrity sha512-Xt40xQsrkdvjn1EyWe1Bc0dJLcil/9x2vAuW7ya+PuQip4UYUaXyhzWmAbwRsdMgwOFHpfp7/FFZebDU6Y8VHA==
