@@ -30,8 +30,8 @@ export const InfoItemRow = (props: {label: string; content: InfoItemProps | Info
         <div className='info-item--row'>
             {props.label && <label>{label}</label>}
             <div style={{marginLeft: 'auto', display: 'flex'}}>
-                {content.map((c) => (
-                    <InfoItem {...c} style={{marginRight: '5px'}} />
+                {content.map((c, i) => (
+                    <InfoItem key={`${c} ${i}`} {...c} />
                 ))}
             </div>
         </div>

@@ -1,10 +1,44 @@
 @import '../../shared/styles/colors.scss';
 
+$POD_SIZE: 30px;
+
+.pods {
+    margin-bottom: 1em;
+    &__header {
+        font-size: 16px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        &__tags {
+            margin-left: auto;
+            display: flex;
+        }
+    }
+    &__container {
+        margin-top: 10px;
+        border: 1px solid $argo-color-gray-5;
+        display: flex;
+        align-items: center;
+        border-radius: 3px;
+        background-color: $argo-color-gray-3;
+        padding: 7px;
+        flex-wrap: wrap;
+
+        .pod-icon {
+            margin: 3px;
+        }
+        &--dark {
+            border-color: $silver-lining;
+            background-color: $space;
+        }
+    }
+}
+
 .pod-icon {
-    $size: 25px;
-    width: $size;
-    height: $size;
-    line-height: $size;
+    width: $POD_SIZE;
+    height: $POD_SIZE;
+    line-height: $POD_SIZE;
+    font-size: 18px;
     text-align: center;
     border: 1px solid $silver-lining;
     background-color: $fog;

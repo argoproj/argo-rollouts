@@ -1,22 +1,35 @@
 import * as React from 'react';
-import {fromEvent, interval, Observable, Observer, Subscription} from 'rxjs';
-import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, takeUntil, timeout} from 'rxjs/operators';
+import {fromEvent, Observable, Observer, Subscription} from 'rxjs';
+import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
 
-function fromEventSource(url: string): Observable<MessageEvent> {
-    return new Observable<MessageEvent>((subscriber) => {
-        let sse = new EventSource(url);
-        sse.onmessage = (e) => subscriber.next(e);
-        sse.onerror = (e) => subscriber.error(e);
-        return () => {
-            if (sse.readyState === 1) {
-                sse.close();
-                sse = null;
+enum ReadyState {
+    CONNECTING = 0,
+    OPEN = 1,
+    CLOSED = 2,
+    DONE = 4,
+}
+
+function fromEventSource(url: string): Observable<string> {
+    return Observable.create((observer: Observer<any>) => {
+        let eventSource = new EventSource(url);
+        eventSource.onmessage = (msg) => observer.next(msg.data);
+        eventSource.onerror = (e) => () => {
+            observer.error(e);
+        };
+
+        const interval = setInterval(() => {
+            if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
+                observer.error('connection got closed unexpectedly');
             }
+        }, 500);
+        return () => {
+            clearInterval(interval);
+            eventSource.close();
+            eventSource = null;
         };
     });
 }
 
-const INITIAL_LOAD_TIME = 500;
 const BUFFER_TIME = 500;
 
 export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T> {
@@ -68,7 +81,7 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
     const [error, setError] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
     React.useEffect(() => {
-        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res.data).result as E));
+        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as E));
         let watch = stream.pipe(
             repeat(),
             retryWhen((errors) => errors.pipe(delay(500))),
@@ -95,42 +108,22 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
                         break;
                 }
                 return items;
-            }, init || [])
+            }, init || []),
+            bufferTime(BUFFER_TIME),
+            mergeMap((l) => l)
         );
 
-        const subscribeList = (list: T[]) => {
-            setItems([...list]);
-        };
-
-        const initialLoad = watch.pipe(
-            takeUntil(interval(INITIAL_LOAD_TIME)),
-            bufferTime(INITIAL_LOAD_TIME),
-            mergeMap((r) => r)
+        const sub = handlePageVisibility(() => watch).subscribe(
+            (l) => setItems([...l]),
+            () => setError(true)
         );
 
-        initialLoad.subscribe(
-            subscribeList,
-            () => {
-                setLoading(false);
-                setError(true);
-            },
-            () => {
-                setLoading(false);
-            }
-        );
-
-        let liveStream = handlePageVisibility(() =>
-            watch.pipe(
-                bufferTime(BUFFER_TIME),
-                mergeMap((r) => r)
-            )
-        );
-        const sub = liveStream.subscribe(subscribeList);
+        const loader = setTimeout(() => setLoading(false), BUFFER_TIME + 10);
 
         return () => {
-            watch = null;
-            liveStream = null;
             sub.unsubscribe();
+            watch = null;
+            clearInterval(loader);
         };
     }, [init, url, findItem, getItem]);
     return [items, loading, error];
@@ -142,7 +135,7 @@ export function useWatch<T>(url: string, subscribe: boolean, timeoutAfter?: numb
         if (!subscribe) {
             return;
         }
-        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res.data).result as T));
+        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as T));
         let watch = stream.pipe(
             repeat(),
             retryWhen((errors) => errors.pipe(delay(500))),

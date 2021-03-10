@@ -1,12 +1,10 @@
 import * as React from 'react';
 
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCheck, faCircleNotch, faExclamationTriangle, faTimes} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
 
 import './status-icon.scss';
-import './pod-icon.scss';
-import {ThemeDiv} from '../theme-div/theme-div';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
@@ -47,55 +45,4 @@ export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
         }
     }
     return <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />;
-};
-
-export const PodIcon = (props: {status: string}) => {
-    const {status} = props;
-    let icon, className;
-    let spin = false;
-    if (status.startsWith('Init:')) {
-        icon = faCircleNotch;
-        spin = true;
-    }
-    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
-        icon = faTimes;
-    }
-    if (status.endsWith('Error') || status.startsWith('Err')) {
-        icon = faExclamationTriangle;
-    }
-
-    switch (status) {
-        case 'Pending':
-        case 'Terminating':
-        case 'ContainerCreating':
-            icon = faCircleNotch;
-            className = 'pending';
-            spin = true;
-            break;
-        case 'Running':
-        case 'Completed':
-            icon = faCheck;
-            className = 'success';
-            break;
-        case 'Failed':
-        case 'InvalidImageName':
-        case 'CrashLoopBackOff':
-            className = 'failure';
-            icon = faTimes;
-            break;
-        case 'ImagePullBackOff':
-        case 'RegistryUnavailable':
-            className = 'warning';
-            icon = faExclamationTriangle;
-            break;
-        default:
-            className = 'unknown';
-            icon = faQuestionCircle;
-    }
-
-    return (
-        <ThemeDiv className={`pod-icon pod-icon--${className}`}>
-            <FontAwesomeIcon icon={icon} spin={spin} />
-        </ThemeDiv>
-    );
 };

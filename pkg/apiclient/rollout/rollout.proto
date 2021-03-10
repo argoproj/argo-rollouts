@@ -45,4 +45,8 @@ service RolloutService {
     rpc RestartRollout(RolloutQuery) returns (google.protobuf.Empty) {
         option (google.api.http).get = "/api/v1/rollout/restart/{name}";
     }
+
+    rpc PromoteRollout(RolloutQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/promote/{name}";
+    }
 }

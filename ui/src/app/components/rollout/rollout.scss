@@ -5,8 +5,16 @@
         width: 450px;
         border: 1px solid $argo-color-gray-4;
         border-radius: 3px;
-        padding: 10px;
+        padding: 17px;
         background-color: white;
+        margin-right: 10px;
+        height: max-content;
+
+        &__title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 0.5em;
+        }
 
         &--dark {
             background-color: $space;
@@ -16,8 +24,10 @@
 
     &__header {
         color: $argo-color-gray-8;
+        width: 100%;
         font-size: 22px;
         margin-bottom: 1em;
+        flex-shrink: 0;
         &--dark {
             color: $shine;
         }
@@ -42,6 +52,8 @@
     &__body {
         padding: 0 20px;
         color: $argo-color-gray-8;
+        display: flex;
+        flex-wrap: wrap;
 
         h3 {
             margin-bottom: 0px;

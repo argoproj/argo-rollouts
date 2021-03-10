@@ -27,6 +27,30 @@
         ]
       }
     },
+    "/api/v1/rollout/promote/{name}": {
+      "get": {
+        "operationId": "PromoteRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/restart/{name}": {
       "get": {
         "operationId": "RestartRollout",

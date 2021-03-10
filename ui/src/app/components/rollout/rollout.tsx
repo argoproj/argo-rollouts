@@ -9,18 +9,13 @@ import {ThemeDiv} from '../theme-div/theme-div';
 import {useWatchRollout} from '../../shared/services/rollout';
 import {InfoItemRow} from '../info-item/info-item';
 import {RolloutInfo} from '../../../models/rollout/rollout';
-import {faBalanceScale, faBalanceScaleRight, faDove, faPalette, faRunning, faSearch, faShoePrints, faThumbsUp} from '@fortawesome/free-solid-svg-icons';
+import {faBalanceScale, faBalanceScaleRight, faDove, faPalette, faShoePrints} from '@fortawesome/free-solid-svg-icons';
+import {ReplicaSet} from '../pods/pods';
+import {IconForTag, ImageTag} from '../../shared/utils/utils';
 
 interface ImageInfo {
     image: string;
     tags: ImageTag[];
-}
-
-enum ImageTag {
-    Canary = 'canary',
-    Stable = 'stable',
-    Active = 'active',
-    Preview = 'preview',
 }
 
 enum Strategy {
@@ -69,13 +64,15 @@ export const Rollout = () => {
                 <title>{name} / Argo Rollouts</title>
             </Helmet>
             <ThemeDiv className='rollout__toolbar'>
-                <RolloutActions />
+                <RolloutActions name={name} />
             </ThemeDiv>
             <ThemeDiv className='rollout__body'>
                 <ThemeDiv className='rollout__header'>
                     {name} <StatusIcon status={rollout.status as RolloutStatus} />
                 </ThemeDiv>
                 <ThemeDiv className='rollout__info'>
+                    <div className='rollout__info__title'>Summary</div>
+
                     <InfoItemRow content={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy)}} label='Strategy' />
 
                     {rollout.strategy === Strategy.Canary && (
@@ -89,6 +86,14 @@ export const Rollout = () => {
                     <h3>IMAGES</h3>
                     <ImageItems images={parseImages(rollout)} />
                 </ThemeDiv>
+                {rollout.replicaSets && rollout.replicaSets.length > 0 && (
+                    <ThemeDiv className='rollout__info'>
+                        <div className='rollout__info__title'>Replica Sets</div>
+                        {(rollout.replicaSets || []).map((rs) => (
+                            <div key={rs.objectMeta.uid}>{(rs.pods || []).length > 0 && <ReplicaSet rs={rs} />}</div>
+                        ))}
+                    </ThemeDiv>
+                )}
             </ThemeDiv>
         </div>
     );
@@ -103,27 +108,14 @@ const iconForStrategy = (s: Strategy) => {
     }
 };
 
-const iconForTag = (t: ImageTag) => {
-    switch (t) {
-        case ImageTag.Canary:
-            return faDove;
-        case ImageTag.Stable:
-            return faThumbsUp;
-        case ImageTag.Preview:
-            return faSearch;
-        case ImageTag.Active:
-            return faRunning;
-    }
-};
-
 const ImageItems = (props: {images: ImageInfo[]}) => {
     return (
         <div>
             {props.images.map((img) => {
                 const imageItems = img.tags.map((t) => {
-                    return {content: t, icon: iconForTag(t)};
+                    return {content: t, icon: IconForTag(t)};
                 });
-                return <InfoItemRow label={img.image} content={imageItems} />;
+                return <InfoItemRow key={img.image} label={img.image} content={imageItems} />;
             })}
         </div>
     );

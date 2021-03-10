@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -278,4 +279,13 @@ L:
 
 func (s* ArgoRolloutsServer) GetNamespace(ctx context.Context, e* empty.Empty) (*rollout.NamespaceInfo, error) {
 	return &rollout.NamespaceInfo{ Namespace: s.Options.Namespace }, nil
+}
+
+func (s* ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	_, err := promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
+	if (err != nil) {
+		return nil, err
+	}
+	return &empty.Empty{}, nil
 }
