@@ -21,6 +21,10 @@ describe("RolloutServiceApi", () => {
     instance = new api.RolloutServiceApi(config)
   });
 
+  test("abortRollout", () => {
+    const name: string = "name_example"
+    return expect(instance.abortRollout(name, {})).resolves.toBe(null)
+  })
   test("getNamespace", () => {
     return expect(instance.getNamespace({})).resolves.toBe(null)
   })
@@ -38,6 +42,13 @@ describe("RolloutServiceApi", () => {
   test("restartRollout", () => {
     const name: string = "name_example"
     return expect(instance.restartRollout(name, {})).resolves.toBe(null)
+  })
+  test("setRolloutImage", () => {
+    const rollout: string = "rollout_example"
+    const container: string = "container_example"
+    const image: string = "image_example"
+    const tag: string = "tag_example"
+    return expect(instance.setRolloutImage(rollout, container, image, tag, {})).resolves.toBe(null)
   })
   test("watchRollout", () => {
     const name: string = "name_example"

@@ -6,6 +6,8 @@ import (
 	"os"
 
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -29,7 +31,7 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
-func newCommand() *cobra.Command {
+func NewCommand(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var (
 		listenPort int
 		clientConfig clientcmd.ClientConfig
@@ -56,12 +58,13 @@ func newCommand() *cobra.Command {
 				Namespace: namespace,
 				KubeClientset: kubeclientset,
 				RolloutsClientset: rolloutclientset,
+				DynamicClientset: o.DynamicClientset(),
 			}
 			for {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				argorollouts := server.NewServer(opts)
-				argorollouts.Run(ctx, listenPort)
+				argorollouts.Run(ctx, listenPort, false)
 				cancel()
 			}
 		},
@@ -73,7 +76,10 @@ func newCommand() *cobra.Command {
 }
 
 func main() {
-	if err := newCommand().Execute(); err != nil {
+	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	o := options.NewArgoRolloutsOptions(streams)
+
+	if err := NewCommand(o).Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

@@ -22,3 +22,5 @@ export const ThemeDiv = (props: {children: React.ReactNode; disabled?: boolean} 
         </div>
     );
 };
+
+export default ThemeDiv;

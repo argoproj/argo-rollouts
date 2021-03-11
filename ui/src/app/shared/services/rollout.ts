@@ -10,12 +10,27 @@ export const useWatchRollouts = (init?: RolloutInfo[]): [RolloutInfo[], boolean,
     return useWatchList<RolloutInfo, RolloutRolloutWatchEvent>(streamUrl, findRollout, getRollout, init);
 };
 
-export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): RolloutInfo => {
+export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {
     name = name || '';
     const streamUrl = RolloutServiceApiFetchParamCreator().watchRollout(name).url;
-    const ri = useWatch<RolloutInfo>(streamUrl, subscribe, timeoutAfter);
+    const ri = useWatch<RolloutInfo>(
+        streamUrl,
+        subscribe,
+        (a, b) => {
+            if (!a.objectMeta || !b.objectMeta) {
+                return false;
+            }
+
+            return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
+        },
+        timeoutAfter
+    );
     if (callback && ri.objectMeta) {
         callback(ri);
     }
-    return ri;
+    const [loading, setLoading] = React.useState(true);
+    if (ri.objectMeta && loading) {
+        setLoading(false);
+    }
+    return [ri, loading];
 };

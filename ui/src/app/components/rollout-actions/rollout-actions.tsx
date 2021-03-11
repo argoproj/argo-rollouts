@@ -44,7 +44,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; name: string;
             {
                 label: 'ABORT',
                 icon: faExclamationCircle,
-                action: (): any => null,
+                action: api.abortRollout,
             },
         ],
         [

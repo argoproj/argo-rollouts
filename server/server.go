@@ -2,18 +2,23 @@ package server
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rolloutspkg "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/json"
@@ -25,8 +30,12 @@ import (
 	"google.golang.org/grpc"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
+
+//go:embed static/*
+var static embed.FS
 
 var (
 	watchAPIBufferSize = 1000
@@ -41,6 +50,7 @@ var backoff = wait.Backoff{
 type ServerOptions struct {
 	KubeClientset kubernetes.Interface
 	RolloutsClientset rolloutclientset.Interface
+	DynamicClientset dynamic.Interface
 	Namespace string
 }
 
@@ -58,6 +68,18 @@ type ArgoRolloutsServer struct {
 // NewServer creates an ArgoRolloutsServer
 func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o};
+}
+
+type spaFileSystem struct {
+	root http.FileSystem
+}
+
+func (fs *spaFileSystem) Open(name string) (http.File, error) {
+	f, err := fs.root.Open(name)
+	if os.IsNotExist(err) {
+		return fs.root.Open("index.html")
+	}
+	return f, err
 }
 
 func (s* ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -86,7 +108,15 @@ func (s* ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 
 	var handler http.Handler = gwmux
-	mux.Handle("/api/", handler)	
+
+	ui, err := fs.Sub(static, "static")
+	if err != nil {
+		log.Error("Could not load UI static files")
+		panic(err)
+	}
+
+	mux.Handle("/api/", handler)
+	mux.Handle("/", http.FileServer(&spaFileSystem{http.FS(ui)}))
 
 	return &httpS
 }
@@ -111,7 +141,7 @@ func (s *ArgoRolloutsServer) checkServeErr(name string, err error) {
 }
 
 // Run starts the server
-func (s *ArgoRolloutsServer) Run(ctx context.Context, port int) {
+func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) {
 	httpServer := s.newHTTPServer(ctx, port)
 	grpcServer := s.newGRPCServer()
 
@@ -128,7 +158,12 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int) {
 	})
 	errors.CheckError(realErr)
 
-	log.Infof("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
+	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
+	if (dashboard == true) {
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+	}
+
+	log.Info(startupMessage)
 
 	tcpm := cmux.New(conn)
 
@@ -287,5 +322,20 @@ func (s* ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.Roll
 	if (err != nil) {
 		return nil, err
 	}
+	return &empty.Empty{}, nil
+}
+
+func (s* ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	_, err := abort.AbortRollout(rolloutIf, q.GetName())
+	if (err != nil) {
+		return nil, err
+	}
+	return &empty.Empty{}, nil
+}
+
+func (s* ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageQuery) (*empty.Empty, error) {
+	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
+	set.SetImage(s.Options.DynamicClientset, s.Options.Namespace, q.GetRollout(), q.GetContainer(), imageString)	
 	return &empty.Empty{}, nil
 }

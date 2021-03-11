@@ -17,10 +17,23 @@
         color: $dull-shine;
     }
 
+    &--colored {
+        background-color: $sherbert;
+        border: 1px solid $sherbert;
+        color: white;
+    }
+
+    &--dark#{&}--colored {
+        background-color: $spray-tan;
+        border: 1px solid $sherbert;
+        color: white;
+    }
+
     &--row {
         display: flex;
         align-items: center;
         margin: 0.5em 0;
+        flex-grow: 1;
         label {
             margin-right: auto;
             padding-right: 5px;

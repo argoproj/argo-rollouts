@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {fromEvent, Observable, Observer, Subscription} from 'rxjs';
-import {bufferTime, debounceTime, delay, map, mergeMap, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
+import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
 
 enum ReadyState {
     CONNECTING = 0,
@@ -129,7 +129,7 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
     return [items, loading, error];
 }
 
-export function useWatch<T>(url: string, subscribe: boolean, timeoutAfter?: number) {
+export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: T) => boolean, timeoutAfter?: number) {
     const [item, setItem] = React.useState({} as T);
     React.useEffect(() => {
         if (!subscribe) {
@@ -139,9 +139,14 @@ export function useWatch<T>(url: string, subscribe: boolean, timeoutAfter?: numb
         let watch = stream.pipe(
             repeat(),
             retryWhen((errors) => errors.pipe(delay(500))),
-            scan((item, update) => {
-                return update;
-            }, {} as T)
+            scan(
+                (acc, update) => {
+                    return {data: update, updated: !isEqual(update, acc.data)};
+                },
+                {data: {} as T, updated: true}
+            ),
+            filter((i) => i.updated),
+            map((i) => i.data)
         );
 
         let liveStream = handlePageVisibility(() =>

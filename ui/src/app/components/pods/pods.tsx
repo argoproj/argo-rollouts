@@ -89,7 +89,13 @@ export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRollo
 
 export const PodWidget = (props: {pod: Pod}) => (
     <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(props.pod.objectMeta?.name), icon: faClipboard}]}>
-        <Tooltip content={props.pod.objectMeta?.name}>
+        <Tooltip
+            content={
+                <div>
+                    <div>Status: {props.pod.status}</div>
+                    <div>{props.pod.objectMeta?.name}</div>
+                </div>
+            }>
             <PodIcon status={props.pod.status} />
         </Tooltip>
     </Menu>

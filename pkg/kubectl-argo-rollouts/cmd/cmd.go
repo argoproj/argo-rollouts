@@ -5,6 +5,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/create"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/dashboard"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/lint"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
@@ -64,5 +65,6 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(terminate.NewCmdTerminate(o))
 	cmd.AddCommand(set.NewCmdSet(o))
 	cmd.AddCommand(undo.NewCmdUndo(o))
+	cmd.AddCommand(dashboard.NewCmdDashboard(o))
 	return cmd
 }

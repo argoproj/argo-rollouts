@@ -4,11 +4,21 @@
     &__info {
         width: 450px;
         border: 1px solid $argo-color-gray-4;
-        border-radius: 3px;
-        padding: 17px;
+        border-radius: 5px;
+        padding: 20px;
         background-color: white;
-        margin-right: 10px;
+        margin-right: 15px;
         height: max-content;
+
+        &__section {
+            margin-bottom: 0.5em;
+            padding-bottom: 0.5em;
+            border-bottom: 1px solid $argo-color-gray-4;
+
+            &--dark {
+                border-bottom: 1px solid $silver-lining;
+            }
+        }
 
         &__title {
             font-size: 18px;

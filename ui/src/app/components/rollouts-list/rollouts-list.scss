@@ -5,6 +5,8 @@ $WIDGET_WIDTH: 400px;
 .rollouts-list {
     display: flex;
     padding: 20px;
+    flex-wrap: wrap;
+
     &__widget {
         border-radius: 5px;
         padding: 17px;
@@ -16,6 +18,8 @@ $WIDGET_WIDTH: 400px;
         background-color: white;
         width: $WIDGET_WIDTH;
         height: max-content;
+        flex-shrink: 0;
+        margin-bottom: 1.5em;
 
         &--dark {
             border-color: $silver-lining;

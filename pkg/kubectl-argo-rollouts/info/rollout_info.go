@@ -31,6 +31,7 @@ func NewRolloutInfo(
 			Namespace:         ro.Namespace,
 			UID:               ro.UID,
 			CreationTimestamp: ro.CreationTimestamp,
+			ResourceVersion:   ro.ObjectMeta.ResourceVersion,
 		},
 	}
 

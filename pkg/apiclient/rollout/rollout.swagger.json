@@ -27,6 +27,30 @@
         ]
       }
     },
+    "/api/v1/rollout/abort/{name}": {
+      "get": {
+        "operationId": "AbortRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/promote/{name}": {
       "get": {
         "operationId": "PromoteRollout",
@@ -65,6 +89,48 @@
         "parameters": [
           {
             "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
+    "/api/v1/rollout/set/{rollout}/{container}/{image}/{tag}": {
+      "get": {
+        "operationId": "SetRolloutImage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rollout",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "container",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "image",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "tag",
             "in": "path",
             "required": true,
             "type": "string"

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as moment from 'moment';
-import {faDove, faRunning, faSearch, faThumbsUp} from '@fortawesome/free-solid-svg-icons';
+import {faDove, faQuestion, faRunning, faSearch, faThumbsUp} from '@fortawesome/free-solid-svg-icons';
 import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo} from '../../../models/rollout/generated';
 
 export function useServerData<T>(getData: () => Promise<T>) {
@@ -29,9 +29,10 @@ export enum ImageTag {
     Stable = 'stable',
     Active = 'active',
     Preview = 'preview',
+    Unknown = 'unknown',
 }
 
-export const IconForTag = (t: ImageTag) => {
+export const IconForTag = (t?: ImageTag) => {
     switch (t) {
         case ImageTag.Canary:
             return faDove;
@@ -41,6 +42,8 @@ export const IconForTag = (t: ImageTag) => {
             return faSearch;
         case ImageTag.Active:
             return faRunning;
+        default:
+            return faQuestion;
     }
 };
 

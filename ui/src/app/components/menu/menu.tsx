@@ -8,18 +8,25 @@ import './menu.scss';
 export const Menu = (props: {children: React.ReactNode; items: ActionButtonProps[]}) => {
     const [menuVisible, setMenuVisible] = React.useState(false);
     const ref = React.useRef(null);
+
+    const clickHandler = (e: any) => {
+        if (ref.current && !ref.current.contains(e.target)) {
+            setMenuVisible(false);
+        }
+    };
+
     React.useEffect(() => {
-        document.addEventListener('click', (e) => {
-            if (ref.current && !ref.current.contains(e.target)) {
-                setMenuVisible(false);
-            }
-        });
+        document.addEventListener('click', clickHandler);
+        return () => {
+            document.removeEventListener('click', clickHandler);
+        };
     });
     return (
         <div style={{position: 'relative'}}>
             <ThemeDiv className='menu' hidden={!menuVisible}>
                 {props.items.map((i) => (
                     <div
+                        key={i.label}
                         className='menu__item'
                         onClick={(e) => {
                             i.action();

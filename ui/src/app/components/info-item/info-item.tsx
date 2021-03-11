@@ -4,16 +4,22 @@ import * as React from 'react';
 import {ThemeDiv} from '../theme-div/theme-div';
 import './info-item.scss';
 
+export enum InfoItemKind {
+    Default = 'default',
+    Colored = 'colored',
+}
+
 export interface InfoItemProps {
     content?: string;
     icon?: IconDefinition;
     style?: React.CSSProperties;
+    kind?: InfoItemKind;
 }
 
 export const InfoItem = (props: InfoItemProps) => (
-    <ThemeDiv className='info-item' style={props.style}>
+    <ThemeDiv className={`info-item${props.kind ? ` info-item--${props.kind}` : ''}`} style={props.style}>
         {props.icon && (
-            <span style={{marginRight: '5px'}}>
+            <span style={props.content && {marginRight: '5px'}}>
                 <FontAwesomeIcon icon={props.icon} />
             </span>
         )}

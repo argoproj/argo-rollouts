@@ -6,11 +6,32 @@
     padding: 10px 14px;
     background-color: $argo-color-gray-6;
     color: white;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
     cursor: pointer;
     margin-right: 5px;
+    display: flex;
     &:hover {
         background-color: $sherbert;
         border-color: $sherbert;
+    }
+
+    &--disabled {
+        color: $argo-color-gray-4;
+        cursor: not-allowed;
+        &:hover {
+            background-color: $argo-color-gray-6;
+            border-color: $argo-color-gray-6;
+        }
+    }
+
+    &--disabled#{&}--dark {
+        color: $dull-shine;
+        &:hover {
+            border-color: $silver-lining;
+            color: $dull-shine;
+            background-color: $fog;
+        }
     }
 
     &--dark {

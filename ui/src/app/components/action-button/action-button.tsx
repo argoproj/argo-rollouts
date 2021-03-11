@@ -11,6 +11,7 @@ export interface ActionButtonProps {
     icon?: IconDefinition;
     indicateLoading?: boolean;
     dark?: boolean;
+    disabled?: boolean;
 }
 
 export const ActionButton = (props: ActionButtonProps) => {
@@ -21,16 +22,16 @@ export const ActionButton = (props: ActionButtonProps) => {
     }, [loading]);
     return (
         <ThemeDiv
-            className={`action-button ${props.dark ? 'action-button--dark' : ''}`}
+            className={`action-button ${props.dark ? 'action-button--dark' : ''} ${props.disabled ? 'action-button--disabled' : ''}`}
             onClick={(e) => {
-                if (action) {
+                if (action && !props.disabled) {
                     action();
                     setLoading(true);
                 }
                 e.preventDefault();
             }}>
             {icon && <FontAwesomeIcon icon={loading && indicateLoading ? faCircleNotch : icon} spin={loading && indicateLoading} />}
-            {label && <span style={{marginLeft: '5px'}}>{label}</span>}
+            {label && <span style={icon && {marginLeft: '5px'}}>{label}</span>}
         </ThemeDiv>
     );
 };

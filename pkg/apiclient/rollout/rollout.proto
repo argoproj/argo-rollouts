@@ -11,6 +11,13 @@ message RolloutQuery {
     string name = 1;
 }
 
+message SetImageQuery {
+    string rollout = 1;
+    string container = 2;
+    string image = 3;
+    string tag = 4;
+}
+
 message RolloutWatchEvent {
     string type = 1;
     github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rolloutInfo = 2;
@@ -48,5 +55,13 @@ service RolloutService {
 
     rpc PromoteRollout(RolloutQuery) returns (google.protobuf.Empty) {
         option (google.api.http).get = "/api/v1/rollout/promote/{name}";
+    }
+
+    rpc AbortRollout(RolloutQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/abort/{name}";
+    }
+
+    rpc SetRolloutImage(SetImageQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/set/{rollout}/{container}/{image=**}/{tag}";
     }
 }
