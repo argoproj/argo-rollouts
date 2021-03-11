@@ -31,6 +31,17 @@ spec:
   rewrite: /myapp/
   service: myapp:8080`
 
+	baseMappingNoPort = `
+apiVersion: getambassador.io/v2
+kind:  Mapping
+metadata:
+  name: myapp-mapping
+  namespace: default
+spec:
+  prefix: /myapp/
+  rewrite: /myapp/
+  service: myapp`
+
 	baseMappingWithWeight = `
 apiVersion: getambassador.io/v2
 kind:  Mapping
@@ -221,6 +232,35 @@ func TestReconciler_SetWeight(t *testing.T) {
 		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
 		assert.Equal(t, 1, len(f.fakeClient.createInvokations))
 		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
+		assert.Equal(t, "canary-service:8080", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
+		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+	})
+	t.Run("will create canary mapping with no service port", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		getReturns := []*getReturn{
+			{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+			{obj: toUnstructured(t, baseMappingNoPort)},
+		}
+		createReturns := []*createReturn{
+			{nil, nil},
+		}
+		f.fakeClient.getReturns = getReturns
+		f.fakeClient.createReturns = createReturns
+
+		// when
+		err := f.reconciler.SetWeight(13)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+		assert.Equal(t, 1, len(f.fakeClient.createInvokations))
+		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
+		assert.Equal(t, "canary-service", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
 		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
 		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
 	})

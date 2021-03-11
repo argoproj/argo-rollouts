@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -205,13 +206,29 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 
 func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string, desiredWeight int32) *unstructured.Unstructured {
 	canaryMapping := baseMapping.DeepCopy()
+	svc := buildCanaryService(baseMapping, canarySvc)
 	unstructured.RemoveNestedField(canaryMapping.Object, "metadata")
 	cMappingName := buildCanaryMappingName(baseMapping.GetName())
 	canaryMapping.SetName(cMappingName)
 	canaryMapping.SetNamespace(baseMapping.GetNamespace())
-	unstructured.SetNestedField(canaryMapping.Object, canarySvc, "spec", "service")
+	unstructured.SetNestedField(canaryMapping.Object, svc, "spec", "service")
 	setMappingWeight(canaryMapping, desiredWeight)
 	return canaryMapping
+}
+
+func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string) string {
+	curSvc := GetMappingService(baseMapping)
+	parts := strings.Split(curSvc, ":")
+	if len(parts) < 2 {
+		return canarySvc
+	}
+	// Check if the last part is a valid int that can be used as the port
+	port := parts[len(parts)-1]
+	if _, err := strconv.Atoi(port); err != nil {
+		return canarySvc
+
+	}
+	return fmt.Sprintf("%s:%s", canarySvc, port)
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
@@ -232,6 +249,14 @@ func GetMappingWeight(obj *unstructured.Unstructured) int64 {
 		return 0
 	}
 	return weight
+}
+
+func GetMappingService(obj *unstructured.Unstructured) string {
+	svc, found, err := unstructured.NestedString(obj.Object, "spec", "service")
+	if err != nil || !found {
+		return ""
+	}
+	return svc
 }
 
 func buildCanaryMappingName(name string) string {
