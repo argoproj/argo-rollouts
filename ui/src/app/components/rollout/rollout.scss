@@ -1,5 +1,17 @@
 @import '../../shared/styles/colors.scss';
 
+.revision {
+    &__header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5em;
+        padding-bottom: 0.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
+        font-size: 18px;
+        font-weight: 500;
+    }
+}
+
 .rollout {
     &__info {
         width: 450px;

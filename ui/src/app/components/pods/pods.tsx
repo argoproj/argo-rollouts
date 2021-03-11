@@ -7,6 +7,7 @@ import {Pod} from '../../../models/rollout/rollout';
 import {IconForTag, ParseTagsFromReplicaSet} from '../../shared/utils/utils';
 import {InfoItem} from '../info-item/info-item';
 import {Menu} from '../menu/menu';
+import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {Tooltip} from '../tooltip/tooltip';
 
@@ -70,7 +71,7 @@ export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRollo
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
-                    {rsName}
+                    <span style={{marginRight: '5px'}}>{rsName}</span> <StatusIcon status={props.rs.status as RolloutStatus} />
                     <div className='pods__header__tags'>
                         {tags.map((t) => (
                             <InfoItem key={t} icon={IconForTag(t)} content={t} />

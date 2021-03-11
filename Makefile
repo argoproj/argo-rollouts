@@ -69,7 +69,7 @@ endef
 all: controller image
 
 .PHONY: codegen
-codegen: mocks
+codegen: mocks protogen
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
@@ -153,12 +153,18 @@ controller: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
 .PHONY: server
-server: clean-debug
+server: clean-debug ui/dist
+	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-server ./cmd/rollouts-server
 
 .PHONY: plugin
-plugin:
+plugin: ui/dist
+	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
+
+ui/dist:
+	yarn --cwd ui install
+	yarn --cwd ui build
 
 .PHONY: plugin-linux
 plugin-linux:

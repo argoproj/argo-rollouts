@@ -9,7 +9,18 @@ import {ThemeDiv} from '../theme-div/theme-div';
 import {useWatchRollout} from '../../shared/services/rollout';
 import {InfoItemProps, InfoItemRow} from '../info-item/info-item';
 import {RolloutInfo} from '../../../models/rollout/rollout';
-import {faBalanceScale, faBalanceScaleRight, faCheck, faClock, faDove, faHistory, faPalette, faShoePrints} from '@fortawesome/free-solid-svg-icons';
+import {
+    faArrowCircleDown,
+    faArrowCircleUp,
+    faBalanceScale,
+    faBalanceScaleRight,
+    faCheck,
+    faClock,
+    faDove,
+    faHistory,
+    faPalette,
+    faShoePrints,
+} from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSet} from '../pods/pods';
 import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
@@ -21,6 +32,7 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
 } from '../../../models/rollout/generated';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 interface ImageInfo {
     image: string;
     tags: ImageTag[];
@@ -67,8 +79,6 @@ export const Rollout = () => {
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
 
-    ProcessRevisions(rollout);
-
     return (
         <div className='rollout'>
             <Helmet>
@@ -108,12 +118,22 @@ export const Rollout = () => {
                         <SetImageForm setImage={(container, image, tag) => api.setRolloutImage(name, container, image, tag)} />
                     </ThemeDiv>
                     {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                        <ThemeDiv className='rollout__info'>
-                            <div className='rollout__info__title'>Replica Sets</div>
-                            {(rollout.replicaSets || []).map((rs) => (
-                                <div key={rs.objectMeta.uid}>{(rs.pods || []).length > 0 && <ReplicaSet rs={rs} />}</div>
-                            ))}
-                        </ThemeDiv>
+                        <React.Fragment>
+                            {/* <ThemeDiv className='rollout__info'>
+                                <div className='rollout__info__title'>Replica Sets</div>
+                                {(rollout.replicaSets || []).map((rs) => (
+                                    <div key={rs.objectMeta.uid}>{(rs.pods || []).length > 0 && <ReplicaSet rs={rs} />}</div>
+                                ))}
+                            </ThemeDiv> */}
+                            <ThemeDiv className='rollout__info'>
+                                <div className='rollout__info__title'>Revisions</div>
+                                <div style={{marginTop: '1em'}}>
+                                    {ProcessRevisions(rollout).map((r, i) => (
+                                        <RevisionWidget revision={r} initCollapsed={i > 0} />
+                                    ))}
+                                </div>
+                            </ThemeDiv>
+                        </React.Fragment>
                     )}
                 </WaitFor>
             </ThemeDiv>
@@ -220,4 +240,21 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     });
 
     return revisions;
+};
+
+const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) => {
+    const {revision, initCollapsed} = props;
+    const [collapsed, setCollapsed] = React.useState(initCollapsed);
+    const icon = collapsed ? faArrowCircleDown : faArrowCircleUp;
+    return (
+        <div key={revision.number}>
+            <div className='revision__header'>
+                Revision {revision.number}
+                <div style={{marginLeft: 'auto', cursor: 'pointer'}} onClick={() => setCollapsed(!collapsed)}>
+                    <FontAwesomeIcon icon={icon} />
+                </div>
+            </div>
+            {!collapsed && revision.replicaSets.map((rs) => (rs.pods || []).length > 0 && <ReplicaSet rs={rs} />)}
+        </div>
+    );
 };

@@ -23,7 +23,7 @@ export const InfoItem = (props: InfoItemProps) => (
                 <FontAwesomeIcon icon={props.icon} />
             </span>
         )}
-        {props.content && props.content}
+        {props.content}
     </ThemeDiv>
 );
 
