@@ -12,19 +12,15 @@ export const useWatchRollouts = (init?: RolloutInfo[]): [RolloutInfo[], boolean,
 
 export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {
     name = name || '';
-    const streamUrl = RolloutServiceApiFetchParamCreator().watchRollout(name).url;
-    const ri = useWatch<RolloutInfo>(
-        streamUrl,
-        subscribe,
-        (a, b) => {
-            if (!a.objectMeta || !b.objectMeta) {
-                return false;
-            }
+    const isEqual = React.useCallback((a, b) => {
+        if (!a.objectMeta || !b.objectMeta) {
+            return false;
+        }
 
-            return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
-        },
-        timeoutAfter
-    );
+        return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
+    }, []);
+    const streamUrl = RolloutServiceApiFetchParamCreator().watchRollout(name).url;
+    const ri = useWatch<RolloutInfo>(streamUrl, subscribe, isEqual, timeoutAfter);
     if (callback && ri.objectMeta) {
         callback(ri);
     }

@@ -1,10 +1,11 @@
 import * as React from 'react';
 
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch, faSortAmountDownAlt} from '@fortawesome/free-solid-svg-icons';
 import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
 
 import './status-icon.scss';
+import {Tooltip} from '../tooltip/tooltip';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
@@ -45,4 +46,44 @@ export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
         }
     }
     return <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />;
+};
+
+export enum ReplicaSetStatus {
+    Running = 'Running',
+    Degraded = 'Degraded',
+    ScaledDown = 'ScaledDown',
+    Healthy = 'Healthy',
+}
+
+export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
+    let icon, className;
+    let spin = false;
+    const {status} = props;
+    switch (status) {
+        case 'Healthy':
+        case 'Running': {
+            icon = faCheckCircle;
+            className = 'healthy';
+            break;
+        }
+        case 'ScaledDown': {
+            icon = faSortAmountDownAlt;
+            className = 'paused';
+            break;
+        }
+        case 'Degraded': {
+            icon = faTimesCircle;
+            className = 'degraded';
+            break;
+        }
+        default: {
+            icon = faQuestionCircle;
+            className = 'unknown';
+        }
+    }
+    return (
+        <Tooltip content={status}>
+            <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />
+        </Tooltip>
+    );
 };

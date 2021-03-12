@@ -69,7 +69,13 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                 )}
                 <div className='rollouts-list__widget__actions'>
                     <RolloutActionButton action={RolloutAction.Restart} name={rollout.objectMeta?.name} callback={() => subscribe(true)} indicateLoading />
-                    <RolloutActionButton action={RolloutAction.PromoteFull} name={rollout.objectMeta?.name} callback={() => subscribe(true)} indicateLoading />
+                    <RolloutActionButton
+                        action={RolloutAction.PromoteFull}
+                        name={rollout.objectMeta?.name}
+                        callback={() => subscribe(true)}
+                        indicateLoading
+                        disabled={rollout.status !== RolloutStatus.Paused}
+                    />
                 </div>
             </Link>
         </ThemeDiv>

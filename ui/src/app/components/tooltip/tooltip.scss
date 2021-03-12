@@ -7,8 +7,8 @@
     bottom: 100%;
     z-index: 2;
     background-color: $slate;
+    white-space: nowrap;
     color: white;
-    width: 200px;
     &--dark {
         border: 1px solid $dull-shine;
     }

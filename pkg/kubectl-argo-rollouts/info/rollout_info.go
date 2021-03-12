@@ -68,6 +68,11 @@ func NewRolloutInfo(
 	}
 	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
 	roInfo.Icon = rolloutIcon(roInfo.Status)
+	roInfo.Containers = []v1alpha1.ContainerInfo{}
+	for c := range(ro.Spec.Template.Spec.Containers) {
+		curContainer := ro.Spec.Template.Spec.Containers[c]
+		roInfo.Containers = append(roInfo.Containers, v1alpha1.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image,})
+	}
 
 	if (ro.Status.RestartedAt != nil) {
 		roInfo.RestartedAt = ro.Status.RestartedAt.String()

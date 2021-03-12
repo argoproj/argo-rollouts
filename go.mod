@@ -33,7 +33,6 @@ require (
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery/v2 v2.6.0
-	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.29.1

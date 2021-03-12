@@ -1,4 +1,4 @@
-import {faPlayCircle, IconDefinition} from '@fortawesome/free-regular-svg-icons';
+import {IconDefinition} from '@fortawesome/free-regular-svg-icons';
 import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutAPIContext} from '../../shared/context/api';
@@ -6,7 +6,6 @@ import {ActionButton} from '../action-button/action-button';
 
 export enum RolloutAction {
     Restart = 'Restart',
-    Resume = 'Resume',
     Retry = 'Retry',
     Abort = 'Abort',
     PromoteFull = 'PromoteFull',
@@ -18,7 +17,7 @@ interface ActionProps {
     action: Function;
 }
 
-export const RolloutActionButton = (props: {action: RolloutAction; name: string; callback?: Function; indicateLoading: boolean}) => {
+export const RolloutActionButton = (props: {action: RolloutAction; name: string; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
 
     const actionMap = new Map<RolloutAction, ActionProps>([
@@ -30,7 +29,6 @@ export const RolloutActionButton = (props: {action: RolloutAction; name: string;
                 action: api.restartRollout,
             },
         ],
-        [RolloutAction.Resume, {label: 'RESUME', icon: faPlayCircle, action: (): any => null}],
         [
             RolloutAction.Retry,
             {
@@ -69,6 +67,8 @@ export const RolloutActionButton = (props: {action: RolloutAction; name: string;
                 }
             }}
             indicateLoading={props.indicateLoading}
+            disabled={props.disabled}
+            short={props.disabled}
         />
     );
 };

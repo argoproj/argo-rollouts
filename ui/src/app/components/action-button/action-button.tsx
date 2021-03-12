@@ -12,10 +12,11 @@ export interface ActionButtonProps {
     indicateLoading?: boolean;
     dark?: boolean;
     disabled?: boolean;
+    short?: boolean;
 }
 
 export const ActionButton = (props: ActionButtonProps) => {
-    const {label, action, icon, indicateLoading} = props;
+    const {label, action, icon, indicateLoading, short} = props;
     const [loading, setLoading] = React.useState(false);
     React.useEffect(() => {
         setTimeout(() => setLoading(false), 1000);
@@ -31,7 +32,7 @@ export const ActionButton = (props: ActionButtonProps) => {
                 e.preventDefault();
             }}>
             {icon && <FontAwesomeIcon icon={loading && indicateLoading ? faCircleNotch : icon} spin={loading && indicateLoading} />}
-            {label && <span style={icon && {marginLeft: '5px'}}>{label}</span>}
+            {label && !short && <span style={icon && {marginLeft: '5px'}}>{label}</span>}
         </ThemeDiv>
     );
 };

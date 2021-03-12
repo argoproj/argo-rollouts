@@ -389,6 +389,12 @@ message ClusterAnalysisTemplateList {
   repeated ClusterAnalysisTemplate items = 2;
 }
 
+message ContainerInfo {
+  optional string name = 1;
+
+  optional string image = 2;
+}
+
 message DatadogMetric {
   optional string interval = 1;
 
@@ -1023,6 +1029,8 @@ message RolloutInfo {
   repeated ExperimentInfo experiments = 17;
 
   repeated AnalysisRunInfo analysisRuns = 18;
+
+  repeated ContainerInfo containers = 19;
 }
 
 // RolloutList is a list of Rollout resources

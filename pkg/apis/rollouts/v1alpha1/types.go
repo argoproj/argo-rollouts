@@ -691,6 +691,8 @@ type RolloutInfo struct {
 	ReplicaSets  []ReplicaSetInfo  `json:"replicaSets,omitempty" protobuf:"bytes,16,rep,name=replicaSets"`
 	Experiments  []ExperimentInfo  `json:"experiments,omitempty" protobuf:"bytes,17,rep,name=experiments"`
 	AnalysisRuns []AnalysisRunInfo `json:"analysisRuns,omitempty" protobuf:"bytes,18,rep,name=analysisRuns"`
+
+	Containers []ContainerInfo `json:"containers,omitempty" protobuf:"bytes,19,rep,name=containers"`
 }
 
 type ReplicaSetInfo struct {
@@ -744,4 +746,9 @@ type JobInfo struct {
 	metav1.ObjectMeta `json:"objectMeta,omitempty" protobuf:"bytes,1,opt,name=objectMeta"`
 	Status            string `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
 	Icon              string `json:"icon,omitempty" protobuf:"bytes,3,opt,name=icon"`
+}
+
+type ContainerInfo struct {
+	Name  string `json:"name,omitempty" protobuf:"bytes,1,rep,name=name"`
+	Image string `json:"image,omitempty" protobuf:"bytes,2,rep,name=image"`
 }

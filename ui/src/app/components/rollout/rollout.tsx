@@ -7,7 +7,7 @@ import {RolloutActions} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {useWatchRollout} from '../../shared/services/rollout';
-import {InfoItemProps, InfoItemRow} from '../info-item/info-item';
+import {InfoItem, InfoItemProps, InfoItemRow} from '../info-item/info-item';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {
     faArrowCircleDown,
@@ -19,16 +19,19 @@ import {
     faDove,
     faHistory,
     faPalette,
+    faPencilAlt,
     faShoePrints,
+    faTimes,
 } from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSet} from '../pods/pods';
 import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
-import {FormResetFactory, Input, useInput} from '../input/input';
+import {Input, useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
 import {WaitFor} from '../wait-for/wait-for';
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
 } from '../../../models/rollout/generated';
@@ -45,32 +48,46 @@ enum Strategy {
 
 const parseImages = (r: RolloutInfo): ImageInfo[] => {
     const images: {[key: string]: ImageInfo} = {};
+    const unknownImages: {[key: string]: boolean} = {};
+
     (r.replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
-            const newImage: ImageInfo = {
-                image: img,
-                tags: [],
-            };
+            const tags: ImageTag[] = [];
             if (rs.canary) {
-                newImage.tags.push(ImageTag.Canary);
+                tags.push(ImageTag.Canary);
             }
             if (rs.stable) {
-                newImage.tags.push(ImageTag.Stable);
+                tags.push(ImageTag.Stable);
             }
             if (rs.active) {
-                newImage.tags.push(ImageTag.Active);
+                tags.push(ImageTag.Active);
             }
             if (rs.preview) {
-                newImage.tags.push(ImageTag.Preview);
+                tags.push(ImageTag.Preview);
             }
+
             if (images[img]) {
-                images[img].tags = [...newImage.tags, ...images[img].tags];
+                images[img].tags = [...tags, ...images[img].tags];
             } else {
-                images[img] = newImage;
+                images[img] = {
+                    image: img,
+                    tags: tags,
+                };
+            }
+
+            if (images[img].tags.length === 0) {
+                unknownImages[img] = true;
+            } else {
+                unknownImages[img] = false;
             }
         });
     });
-    return Object.values(images);
+
+    const imgArray = Object.values(images);
+    imgArray.sort((a, b) => {
+        return unknownImages[a.image] ? 1 : -1;
+    });
+    return imgArray;
 };
 
 export const Rollout = () => {
@@ -108,32 +125,25 @@ export const Rollout = () => {
                                 </React.Fragment>
                             )}
                         </ThemeDiv>
-
                         <ThemeDiv className='rollout__info__section'>
-                            <h3>IMAGES</h3>
-                            <ImageItems images={parseImages(rollout)} />
+                            <h3>CONTAINERS</h3>
+                            {rollout.containers?.map((c) => (
+                                <ContainerWidget key={c.name} container={c} setImage={(image, tag) => api.setRolloutImage(name, c.name, image, tag)} />
+                            ))}
                         </ThemeDiv>
 
-                        <h3 style={{marginBottom: '1em'}}>SET IMAGE</h3>
-                        <SetImageForm setImage={(container, image, tag) => api.setRolloutImage(name, container, image, tag)} />
+                        <h3>IMAGES</h3>
+                        <ImageItems images={parseImages(rollout)} />
                     </ThemeDiv>
                     {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                        <React.Fragment>
-                            {/* <ThemeDiv className='rollout__info'>
-                                <div className='rollout__info__title'>Replica Sets</div>
-                                {(rollout.replicaSets || []).map((rs) => (
-                                    <div key={rs.objectMeta.uid}>{(rs.pods || []).length > 0 && <ReplicaSet rs={rs} />}</div>
+                        <ThemeDiv className='rollout__info'>
+                            <div className='rollout__info__title'>Revisions</div>
+                            <div style={{marginTop: '1em'}}>
+                                {ProcessRevisions(rollout).map((r, i) => (
+                                    <RevisionWidget key={i} revision={r} initCollapsed={false} />
                                 ))}
-                            </ThemeDiv> */}
-                            <ThemeDiv className='rollout__info'>
-                                <div className='rollout__info__title'>Revisions</div>
-                                <div style={{marginTop: '1em'}}>
-                                    {ProcessRevisions(rollout).map((r, i) => (
-                                        <RevisionWidget revision={r} initCollapsed={i > 0} />
-                                    ))}
-                                </div>
-                            </ThemeDiv>
-                        </React.Fragment>
+                            </div>
+                        </ThemeDiv>
                     )}
                 </WaitFor>
             </ThemeDiv>
@@ -148,45 +158,6 @@ const iconForStrategy = (s: Strategy) => {
         case Strategy.BlueGreen:
             return faPalette;
     }
-};
-
-const SetImageForm = (props: {setImage: (container: string, image: string, tag: string) => void}) => {
-    const [container, setContainer, containerInput] = useInput('');
-    const [image, setImage, imageInput] = useInput('');
-    const [tag, setTag, tagInput] = useInput('');
-
-    const isDisabled = !(container !== '' && image !== '' && tag !== '');
-
-    const resetAll = FormResetFactory([setContainer, setImage, setTag]);
-
-    return (
-        <div>
-            <div style={{display: 'flex', alignItems: 'center', marginBottom: '1em'}}>
-                <Input {...containerInput} placeholder='Container' />
-                <div style={{width: '20px', textAlign: 'center', flexShrink: 0}}>=</div>
-                <Input {...imageInput} placeholder='Image' />
-                <div style={{width: '20px', textAlign: 'center', flexShrink: 0}}>:</div>
-                <Input {...tagInput} placeholder='Tag' />
-                <span style={{marginLeft: '7px'}}>
-                    <ActionButton
-                        label='SET'
-                        action={() => {
-                            props.setImage(container, image, tag);
-                            resetAll();
-                        }}
-                        indicateLoading
-                        disabled={isDisabled}
-                        icon={faCheck}
-                    />
-                </span>
-            </div>
-            {!isDisabled && (
-                <div>
-                    You are setting: <b>{`${container}=${image}:${tag}`}</b>
-                </div>
-            )}
-        </div>
-    );
 };
 
 const ImageItems = (props: {images: ImageInfo[]}) => {
@@ -225,7 +196,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
             map[rs.revision] = {...emptyRevision};
         }
         map[rs.revision].number = rs.revision;
-        map[rs.revision].replicaSets.push(rs);
+        map[rs.revision].replicaSets = [...map[rs.revision].replicaSets, rs];
     }
 
     const revisions: Revision[] = [];
@@ -247,14 +218,59 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? faArrowCircleDown : faArrowCircleUp;
     return (
-        <div key={revision.number}>
-            <div className='revision__header'>
+        <div key={revision.number} style={{marginBottom: '1.5em'}}>
+            <ThemeDiv className='revision__header'>
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', cursor: 'pointer'}} onClick={() => setCollapsed(!collapsed)}>
                     <FontAwesomeIcon icon={icon} />
                 </div>
+            </ThemeDiv>
+            {!collapsed && revision.replicaSets.map((rs) => <ReplicaSet key={rs.objectMeta.uid} rs={rs} />)}
+        </div>
+    );
+};
+
+const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo; setImage: (image: string, tag: string) => void}) => {
+    const {container} = props;
+    const [editing, setEditing] = React.useState(false);
+    const [newImage, setNewImage, newImageInput] = useInput(container.image);
+
+    const switchMode = (editing: boolean) => {
+        setEditing(editing);
+        setNewImage(container.image);
+    };
+
+    return (
+        <div style={{margin: '1em 0', display: 'flex', alignItems: 'center'}}>
+            {container.name}
+            <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+                {!editing ? (
+                    <React.Fragment>
+                        <InfoItem content={container.image} />
+                        <FontAwesomeIcon icon={faPencilAlt} onClick={() => switchMode(true)} style={{cursor: 'pointer', marginLeft: '5px'}} />
+                    </React.Fragment>
+                ) : (
+                    <React.Fragment>
+                        <Input placeholder='New Image' {...newImageInput} />
+                        <span style={{marginLeft: '5px'}}>
+                            <ActionButton icon={faTimes} action={() => switchMode(false)} />
+                        </span>
+                        <ActionButton
+                            disabled={newImage === '' || newImage.split(':').length < 2}
+                            icon={faCheck}
+                            action={() => {
+                                const split = newImage.split(':');
+                                const image = split[0];
+                                const tag = split[1];
+                                props.setImage(image, tag);
+                                setNewImage('');
+                                setEditing(false);
+                            }}
+                            indicateLoading
+                        />
+                    </React.Fragment>
+                )}
             </div>
-            {!collapsed && revision.replicaSets.map((rs) => (rs.pods || []).length > 0 && <ReplicaSet rs={rs} />)}
         </div>
     );
 };

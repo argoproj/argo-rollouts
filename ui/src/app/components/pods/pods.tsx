@@ -7,7 +7,7 @@ import {Pod} from '../../../models/rollout/rollout';
 import {IconForTag, ParseTagsFromReplicaSet} from '../../shared/utils/utils';
 import {InfoItem} from '../info-item/info-item';
 import {Menu} from '../menu/menu';
-import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
+import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {Tooltip} from '../tooltip/tooltip';
 
@@ -71,7 +71,7 @@ export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRollo
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
-                    <span style={{marginRight: '5px'}}>{rsName}</span> <StatusIcon status={props.rs.status as RolloutStatus} />
+                    <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
                     <div className='pods__header__tags'>
                         {tags.map((t) => (
                             <InfoItem key={t} icon={IconForTag(t)} content={t} />
@@ -79,11 +79,13 @@ export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRollo
                     </div>
                 </ThemeDiv>
             )}
-            <ThemeDiv className='pods__container'>
-                {(props.rs.pods || []).map((pod, i) => (
-                    <PodWidget key={pod.objectMeta.uid} pod={pod} />
-                ))}
-            </ThemeDiv>
+            {props.rs.pods && props.rs.pods.length > 0 && (
+                <ThemeDiv className='pods__container'>
+                    {props.rs.pods.map((pod, i) => (
+                        <PodWidget key={pod.objectMeta.uid} pod={pod} />
+                    ))}
+                </ThemeDiv>
+            )}
         </ThemeDiv>
     );
 };

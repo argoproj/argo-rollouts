@@ -535,6 +535,17 @@
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ContainerInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ExperimentInfo": {
       "type": "object",
       "properties": {
@@ -1046,6 +1057,12 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo"
+          }
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ContainerInfo"
           }
         }
       },

@@ -9,6 +9,9 @@
         border-bottom: 1px solid $argo-color-gray-4;
         font-size: 18px;
         font-weight: 500;
+        &--dark {
+            border-bottom: 1px solid $silver-lining;
+        }
     }
 }
 

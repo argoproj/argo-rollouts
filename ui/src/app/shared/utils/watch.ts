@@ -165,6 +165,6 @@ export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: 
             liveStream = null;
             sub.unsubscribe();
         };
-    }, [url, subscribe, timeoutAfter]);
+    }, [url, subscribe, timeoutAfter, isEqual]);
     return item;
 }
