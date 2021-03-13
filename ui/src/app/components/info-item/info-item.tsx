@@ -29,7 +29,7 @@ export const InfoItem = (props: InfoItemProps) => (
     </ThemeDiv>
 );
 
-export const InfoItemRow = (props: {label: string; items: InfoItemProps | InfoItemProps[]}) => {
+export const InfoItemRow = (props: {label: string | React.ReactNode; items: InfoItemProps | InfoItemProps[]}) => {
     let {label, items} = props;
     if (!Array.isArray(items)) {
         items = [items];

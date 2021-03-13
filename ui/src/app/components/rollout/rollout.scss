@@ -12,6 +12,38 @@
         &--dark {
             border-bottom: 1px solid $silver-lining;
         }
+        &__button {
+            cursor: pointer;
+            margin-left: auto;
+            &:hover {
+                color: $sea;
+            }
+            &--dark:hover {
+                color: $sky;
+            }
+        }
+    }
+}
+
+.image {
+    &--red {
+        color: $clay;
+    }
+    &--blue {
+        color: $deep-sea;
+    }
+    &--orange {
+        color: $spray-tan;
+    }
+
+    &--red#{&}--dark {
+        color: $coral;
+    }
+    &--blue#{&}--dark {
+        color: $sky;
+    }
+    &--orange#{&}--dark {
+        color: $sherbert;
     }
 }
 

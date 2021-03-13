@@ -39,6 +39,15 @@ const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actio
 interface ImageInfo {
     image: string;
     tags: ImageTag[];
+    color?: ImageColor;
+}
+
+enum ImageColor {
+    Red = 'red',
+    Blue = 'blue',
+    Green = 'green',
+    Orange = 'orange',
+    Purple = 'purple',
 }
 
 enum Strategy {
@@ -53,6 +62,7 @@ const parseImages = (r: RolloutInfo): ImageInfo[] => {
     (r.replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
             const tags: ImageTag[] = [];
+
             if (rs.canary) {
                 tags.push(ImageTag.Canary);
             }
@@ -80,6 +90,9 @@ const parseImages = (r: RolloutInfo): ImageInfo[] => {
             } else {
                 unknownImages[img] = false;
             }
+            const colors = Object.values(ImageColor);
+            const color = colors[Math.round(Math.random() * colors.length) % colors.length];
+            images[img].color = color as ImageColor;
         });
     });
 
@@ -175,7 +188,7 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
                 if (imageItems.length === 0) {
                     imageItems = [{icon: IconForTag()}];
                 }
-                return <InfoItemRow key={img.image} label={img.image} items={imageItems} />;
+                return <InfoItemRow key={img.image} label={<ThemeDiv className={`image image--${img.color || 'unknown'}`}>{img.image}</ThemeDiv>} items={imageItems} />;
             })}
         </div>
     );
@@ -226,9 +239,9 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
         <div key={revision.number} style={{marginBottom: '1.5em'}}>
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
-                <div style={{marginLeft: 'auto', cursor: 'pointer'}} onClick={() => setCollapsed(!collapsed)}>
+                <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
                     <FontAwesomeIcon icon={icon} />
-                </div>
+                </ThemeDiv>
             </ThemeDiv>
             {!collapsed && revision.replicaSets.map((rs) => <ReplicaSet key={rs.objectMeta.uid} rs={rs} />)}
         </div>
