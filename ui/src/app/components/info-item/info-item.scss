@@ -29,6 +29,18 @@
         color: white;
     }
 
+    &--canary {
+        background-color: $canary;
+        border: 1px solid $canary;
+        color: $space;
+    }
+
+    &--bluegreen {
+        background-color: $sea;
+        border: 1px solid $sea;
+        color: white;
+    }
+
     &--row {
         display: flex;
         align-items: center;

@@ -7,6 +7,8 @@ import './info-item.scss';
 export enum InfoItemKind {
     Default = 'default',
     Colored = 'colored',
+    Canary = 'canary',
+    BlueGreen = 'bluegreen',
 }
 
 export interface InfoItemProps {
@@ -27,16 +29,16 @@ export const InfoItem = (props: InfoItemProps) => (
     </ThemeDiv>
 );
 
-export const InfoItemRow = (props: {label: string; content: InfoItemProps | InfoItemProps[]}) => {
-    let {label, content} = props;
-    if (!Array.isArray(content)) {
-        content = [content];
+export const InfoItemRow = (props: {label: string; items: InfoItemProps | InfoItemProps[]}) => {
+    let {label, items} = props;
+    if (!Array.isArray(items)) {
+        items = [items];
     }
     return (
         <div className='info-item--row'>
             {props.label && <label>{label}</label>}
             <div style={{marginLeft: 'auto', display: 'flex'}}>
-                {content.map((c, i) => (
+                {items.map((c, i) => (
                     <InfoItem key={`${c} ${i}`} {...c} />
                 ))}
             </div>

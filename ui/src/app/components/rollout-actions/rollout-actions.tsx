@@ -80,3 +80,5 @@ export const RolloutActions = (props: {name: string}) => (
         ))}
     </div>
 );
+
+export default RolloutActions;

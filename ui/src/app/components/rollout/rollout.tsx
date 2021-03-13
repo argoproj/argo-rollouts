@@ -3,11 +3,10 @@ import {useParams} from 'react-router-dom';
 import {Helmet} from 'react-helmet';
 
 import './rollout.scss';
-import {RolloutActions} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {useWatchRollout} from '../../shared/services/rollout';
-import {InfoItem, InfoItemProps, InfoItemRow} from '../info-item/info-item';
+import {InfoItem, InfoItemKind, InfoItemProps, InfoItemRow} from '../info-item/info-item';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {
     faArrowCircleDown,
@@ -28,7 +27,7 @@ import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {Input, useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
-import {WaitFor} from '../wait-for/wait-for';
+import {Spinner, WaitFor} from '../wait-for/wait-for';
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
@@ -36,6 +35,7 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
 } from '../../../models/rollout/generated';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;
     tags: ImageTag[];
@@ -102,7 +102,9 @@ export const Rollout = () => {
                 <title>{name} / Argo Rollouts</title>
             </Helmet>
             <ThemeDiv className='rollout__toolbar'>
-                <RolloutActions name={name} />
+                <React.Suspense fallback={<Spinner />}>
+                    <RolloutActions name={name} />
+                </React.Suspense>
             </ThemeDiv>
 
             <ThemeDiv className='rollout__body'>
@@ -113,15 +115,18 @@ export const Rollout = () => {
                     <ThemeDiv className='rollout__info'>
                         <div className='rollout__info__title'>Summary</div>
 
-                        <InfoItemRow content={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy)}} label='Strategy' />
-                        <InfoItemRow content={{content: rollout.generation, icon: faHistory}} label='Generation' />
-                        <InfoItemRow content={{content: formatTimestamp(rollout.restartedAt), icon: faClock}} label='Restarted At' />
+                        <InfoItemRow
+                            items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
+                            label='Strategy'
+                        />
+                        <InfoItemRow items={{content: rollout.generation, icon: faHistory}} label='Generation' />
+                        <InfoItemRow items={{content: formatTimestamp(rollout.restartedAt), icon: faClock}} label='Last Restarted' />
                         <ThemeDiv className='rollout__info__section'>
                             {rollout.strategy === Strategy.Canary && (
                                 <React.Fragment>
-                                    <InfoItemRow content={{content: rollout.step, icon: faShoePrints}} label='Step' />
-                                    <InfoItemRow content={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
-                                    <InfoItemRow content={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
+                                    <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
+                                    <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
+                                    <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
                                 </React.Fragment>
                             )}
                         </ThemeDiv>
@@ -170,7 +175,7 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
                 if (imageItems.length === 0) {
                     imageItems = [{icon: IconForTag()}];
                 }
-                return <InfoItemRow key={img.image} label={img.image} content={imageItems} />;
+                return <InfoItemRow key={img.image} label={img.image} items={imageItems} />;
             })}
         </div>
     );
@@ -243,7 +248,7 @@ const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApis
     return (
         <div style={{margin: '1em 0', display: 'flex', alignItems: 'center'}}>
             {container.name}
-            <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+            <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '2em'}}>
                 {!editing ? (
                     <React.Fragment>
                         <InfoItem content={container.image} />
@@ -251,7 +256,7 @@ const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApis
                     </React.Fragment>
                 ) : (
                     <React.Fragment>
-                        <Input placeholder='New Image' {...newImageInput} />
+                        <Input placeholder='New Image' {...newImageInput} style={{transition: 'width 1s ease'}} />
                         <span style={{marginLeft: '5px'}}>
                             <ActionButton icon={faTimes} action={() => switchMode(false)} />
                         </span>

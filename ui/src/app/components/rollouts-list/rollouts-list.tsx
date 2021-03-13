@@ -5,7 +5,7 @@ import {Link} from 'react-router-dom';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {formatTimestamp} from '../../shared/utils/utils';
-import {InfoItemRow} from '../info-item/info-item';
+import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {WaitFor} from '../wait-for/wait-for';
 import {Key, useKeyListener, useNav} from '@rbreeze/react-keypress';
@@ -51,12 +51,17 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
 
     return (
         <ThemeDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}>
-            <Link to={`/rollout/${rollout.objectMeta?.name}`}>
+            <ThemeDiv className='rollouts-list__widget__background' />
+
+            <Link to={`/rollout/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
                 <WidgetHeader rollout={rollout} refresh={() => subscribe(true)} />
                 <ThemeDiv className='rollouts-list__widget__body'>
-                    <InfoItemRow label={'Strategy'} content={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? faPalette : faDove}} />
-                    <InfoItemRow label={'Generation'} content={{content: `${rollout.generation || 0}`, icon: faHistory}} />
-                    <InfoItemRow label={'Restarted At'} content={{content: formatTimestamp(rollout.restartedAt as string) || 'Never', icon: faClock}} />
+                    <InfoItemRow
+                        label={'Strategy'}
+                        items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? faPalette : faDove, kind: rollout.strategy.toLowerCase() as InfoItemKind}}
+                    />
+                    <InfoItemRow label={'Generation'} items={{content: `${rollout.generation || 0}`, icon: faHistory}} />
+                    <InfoItemRow label={'Last Restarted'} items={{content: formatTimestamp(rollout.restartedAt as string) || 'Never', icon: faClock}} />
                 </ThemeDiv>
                 {rollout.replicaSets?.map(
                     (rsInfo) =>

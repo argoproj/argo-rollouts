@@ -18,10 +18,31 @@
         user-select: none;
     }
 
+    &__welcome {
+        position: absolute;
+        transform-origin: left;
+        display: block;
+        overflow: hidden;
+        width: 174px;
+        white-space: nowrap;
+        transition: transform 1s ease 1s, opacity 1s ease;
+    }
+
+    &__title {
+        position: absolute;
+        transform: translateX(174px);
+        transition: transform 500ms ease 750ms;
+        display: flex;
+        align-items: center;
+    }
+
     h1 {
-        font-size: 20px;
+        position: relative;
+        font-size: 22px;
         font-weight: 400;
         margin: 0;
+        display: flex;
+        align-items: center;
     }
 
     h2 {
@@ -29,6 +50,8 @@
         color: $sherbert;
         margin: 0;
         margin-left: 10px;
+        flex-grow: 1;
+        white-space: nowrap;
     }
 
     &__info {
