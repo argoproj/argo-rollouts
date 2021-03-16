@@ -4,8 +4,6 @@ import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
-import {IconForTag, ParseTagsFromReplicaSet} from '../../shared/utils/utils';
-import {InfoItem} from '../info-item/info-item';
 import {Menu} from '../menu/menu';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
@@ -13,9 +11,38 @@ import {Tooltip} from '../tooltip/tooltip';
 
 import './pods.scss';
 
+export enum PodStatus {
+    Pending = 'pending',
+    Success = 'success',
+    Failed = 'failure',
+    Warning = 'warning',
+    Unknown = 'unknown',
+}
+
+export const ParsePodStatus = (status: string): PodStatus => {
+    switch (status) {
+        case 'Pending':
+        case 'Terminating':
+        case 'ContainerCreating':
+            return PodStatus.Pending;
+        case 'Running':
+        case 'Completed':
+            return PodStatus.Success;
+        case 'Failed':
+        case 'InvalidImageName':
+        case 'CrashLoopBackOff':
+            return PodStatus.Failed;
+        case 'ImagePullBackOff':
+        case 'RegistryUnavailable':
+            return PodStatus.Warning;
+        default:
+            return PodStatus.Unknown;
+    }
+};
+
 export const PodIcon = (props: {status: string}) => {
     const {status} = props;
-    let icon, className;
+    let icon;
     let spin = false;
     if (status.startsWith('Init:')) {
         icon = faCircleNotch;
@@ -28,32 +55,23 @@ export const PodIcon = (props: {status: string}) => {
         icon = faExclamationTriangle;
     }
 
-    switch (status) {
-        case 'Pending':
-        case 'Terminating':
-        case 'ContainerCreating':
+    const className = ParsePodStatus(status);
+
+    switch (className) {
+        case PodStatus.Pending:
             icon = faCircleNotch;
-            className = 'pending';
             spin = true;
             break;
-        case 'Running':
-        case 'Completed':
+        case PodStatus.Success:
             icon = faCheck;
-            className = 'success';
             break;
-        case 'Failed':
-        case 'InvalidImageName':
-        case 'CrashLoopBackOff':
-            className = 'failure';
+        case PodStatus.Failed:
             icon = faTimes;
             break;
-        case 'ImagePullBackOff':
-        case 'RegistryUnavailable':
-            className = 'warning';
+        case PodStatus.Warning:
             icon = faExclamationTriangle;
             break;
         default:
-            className = 'unknown';
             icon = faQuestionCircle;
     }
 
@@ -66,17 +84,11 @@ export const PodIcon = (props: {status: string}) => {
 
 export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo}) => {
     const rsName = props.rs.objectMeta.name;
-    const tags = ParseTagsFromReplicaSet(props.rs);
     return (
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
                     <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
-                    <div className='pods__header__tags'>
-                        {tags.map((t) => (
-                            <InfoItem key={t} icon={IconForTag(t)} content={t} />
-                        ))}
-                    </div>
                 </ThemeDiv>
             )}
             {props.rs.pods && props.rs.pods.length > 0 && (

@@ -12,7 +12,7 @@ import {Key, useKeyListener, useNav} from '@rbreeze/react-keypress';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
-import {ReplicaSet} from '../pods/pods';
+import {ParsePodStatus, PodStatus, ReplicaSet} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
 
 export const RolloutsList = () => {
@@ -39,21 +39,47 @@ export const RolloutsList = () => {
     );
 };
 
+export const isInProgress = (rollout: RolloutInfo): boolean => {
+    for (const rs of rollout.replicaSets || []) {
+        for (const p of rs.pods || []) {
+            const status = ParsePodStatus(p.status);
+            if (status === PodStatus.Pending) {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
 export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean}) => {
     const [watching, subscribe] = React.useState(false);
     let rollout = props.rollout;
-    const ACTION_WATCH_TIMEOUT = 20000;
+    useWatchRollout(props.rollout?.objectMeta?.name, watching, null, (r: RolloutInfo) => (rollout = r));
+
     React.useEffect(() => {
-        setTimeout(() => {
-            subscribe(false);
-        }, ACTION_WATCH_TIMEOUT);
-    }, [watching]);
-    useWatchRollout(props.rollout?.objectMeta?.name, watching, ACTION_WATCH_TIMEOUT, (r: RolloutInfo) => (rollout = r));
+        if (watching) {
+            const to = setTimeout(() => {
+                console.log(rollout.replicaSets?.map((rs) => (rs.pods || []).length));
+                if (!isInProgress(rollout)) {
+                    subscribe(false);
+                }
+            }, 5000);
+            return () => clearTimeout(to);
+        }
+    }, [watching, rollout]);
 
     return (
         <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}>
             <Link to={`/rollout/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
-                <WidgetHeader rollout={rollout} refresh={() => subscribe(true)} />
+                <WidgetHeader
+                    rollout={rollout}
+                    refresh={() => {
+                        subscribe(true);
+                        setTimeout(() => {
+                            subscribe(false);
+                        }, 1000);
+                    }}
+                />
                 <ThemeDiv className='rollouts-list__widget__body'>
                     <InfoItemRow
                         label={'Strategy'}

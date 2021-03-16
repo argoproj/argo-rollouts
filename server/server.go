@@ -287,7 +287,6 @@ L:
 			break L
 		}
 		if ro == nil {
-			log.Warn("error on rollout watch. Attempting to re-establish")
 			watchIf.Stop()
 			newWatchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
 			if err != nil {
@@ -339,3 +338,7 @@ func (s* ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 	set.SetImage(s.Options.DynamicClientset, s.Options.Namespace, q.GetRollout(), q.GetContainer(), imageString)	
 	return &empty.Empty{}, nil
 }
+
+// func () RollbackRollout() () {
+// 	undo.RunUndoRollout(rolloutIf dynamic.ResourceInterface, c kubernetes.Interface, name string, toRevision int64)
+// }

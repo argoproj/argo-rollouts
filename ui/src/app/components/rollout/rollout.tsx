@@ -40,6 +40,7 @@ import {
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {Autocomplete} from '../autocomplete/autocomplete';
 import {faChartBar} from '@fortawesome/free-regular-svg-icons';
+import {EffectDiv} from '../effect-div/effect-div';
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;
@@ -60,11 +61,10 @@ enum Strategy {
     BlueGreen = 'BlueGreen',
 }
 
-const parseImages = (r: RolloutInfo): ImageInfo[] => {
+const parseImages = (replicaSets: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo[]): ImageInfo[] => {
     const images: {[key: string]: ImageInfo} = {};
     const unknownImages: {[key: string]: boolean} = {};
-
-    (r.replicaSets || []).forEach((rs) => {
+    (replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
             const tags: ImageTag[] = [];
 
@@ -111,7 +111,7 @@ export const Rollout = () => {
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
 
-    const images = parseImages(rollout);
+    const images = parseImages(rollout.replicaSets || []);
 
     for (const img of images) {
         for (const container of rollout.containers) {
@@ -157,13 +157,12 @@ export const Rollout = () => {
                         </ThemeDiv>
                         <ThemeDiv className='rollout__info__section'>
                             <h3>CONTAINERS</h3>
-                            {rollout.containers?.map((c) => (
-                                <ContainerWidget images={images} key={c.name} container={c} setImage={(image, tag) => api.setRolloutImage(name, c.name, image, tag)} />
-                            ))}
+                            <ContainersWidget
+                                images={images}
+                                containers={rollout.containers || []}
+                                setImage={(container, image, tag) => api.setRolloutImage(name, container, image, tag)}
+                            />
                         </ThemeDiv>
-
-                        <h3>IMAGES</h3>
-                        <ImageItems images={images} />
                     </ThemeDiv>
                     {rollout.replicaSets && rollout.replicaSets.length > 0 && (
                         <ThemeDiv className='info rollout__info'>
@@ -257,62 +256,95 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
+    const images = parseImages(revision.replicaSets);
     return (
-        <div key={revision.number} style={{marginBottom: '1.5em'}}>
+        <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
                 <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
                     <FontAwesomeIcon icon={icon} />
                 </ThemeDiv>
             </ThemeDiv>
-            {!collapsed && revision.replicaSets.map((rs) => <ReplicaSet key={rs.objectMeta.uid} rs={rs} />)}
-        </div>
+            <ThemeDiv className='revision__images'>
+                <ImageItems images={images} />
+            </ThemeDiv>
+
+            {!collapsed &&
+                revision.replicaSets.map((rs) => (
+                    <div style={{marginTop: '1em'}}>
+                        <ReplicaSet key={rs.objectMeta.uid} rs={rs} />
+                    </div>
+                ))}
+        </EffectDiv>
+    );
+};
+
+const ContainersWidget = (props: {
+    containers: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo[];
+    images: ImageInfo[];
+    setImage: (container: string, image: string, tag: string) => void;
+}) => {
+    const {containers, images, setImage} = props;
+    const [editing, setEditing] = React.useState(false);
+    const inputMap: {[key: string]: string} = {};
+    for (const container of containers) {
+        inputMap[container.name] = '';
+    }
+    const [inputs, setInputs] = React.useState(inputMap);
+
+    return (
+        <React.Fragment>
+            <FontAwesomeIcon icon={faPencilAlt} onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: '5px'}} />
+            <span style={{marginLeft: '5px'}}>
+                <ActionButton icon={faTimes} action={() => setEditing(false)} />
+            </span>
+            <ActionButton
+                icon={faCheck}
+                action={() => {
+                    for (const container of Object.keys(inputs)) {
+                        const split = inputs[container].split(':');
+                        const image = split[0];
+                        const tag = split[1];
+                        setImage(container, image, tag);
+                    }
+                }}
+                indicateLoading
+            />
+            {containers.map((c, i) => (
+                <ContainerWidget
+                    container={c}
+                    images={images}
+                    editing={editing}
+                    setInput={(c) => {
+                        const update = {...inputs};
+                        update[c] = c;
+                        setInputs(update);
+                    }}
+                />
+            ))}
+        </React.Fragment>
     );
 };
 
 const ContainerWidget = (props: {
     container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo;
     images: ImageInfo[];
-    setImage: (image: string, tag: string) => void;
+    setInput: (container: string, image: string) => void;
+    editing: boolean;
 }) => {
     const {container} = props;
-    const [editing, setEditing] = React.useState(false);
-    const [newImage, setNewImage, newImageInput] = useInput(container.image);
+    const [editing] = React.useState(false);
+    const [, , newImageInput] = useInput(container.image);
 
-    const switchMode = (editing: boolean) => {
-        setEditing(editing);
-        setNewImage(container.image);
-    };
     return (
         <div style={{margin: '1em 0', display: 'flex', alignItems: 'center'}}>
             {container.name}
             <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '2em'}}>
                 {!editing ? (
-                    <React.Fragment>
-                        <InfoItem content={container.image} />
-                        <FontAwesomeIcon icon={faPencilAlt} onClick={() => switchMode(true)} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    </React.Fragment>
+                    <InfoItem content={container.image} />
                 ) : (
                     <React.Fragment>
                         <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} style={{transition: 'width 1s ease'}} />
-                        <span style={{marginLeft: '5px'}}>
-                            <ActionButton icon={faTimes} action={() => switchMode(false)} />
-                        </span>
-                        <ActionButton
-                            disabled={newImage === '' || newImage.split(':').length < 2}
-                            icon={faCheck}
-                            action={() => {
-                                const split = newImage.split(':');
-                                const image = split[0];
-                                const tag = split[1];
-                                props.setImage(image, tag);
-                                setTimeout(() => {
-                                    setNewImage('');
-                                    setEditing(false);
-                                }, 350);
-                            }}
-                            indicateLoading
-                        />
                     </React.Fragment>
                 )}
             </div>

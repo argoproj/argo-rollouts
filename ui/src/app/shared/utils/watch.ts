@@ -114,7 +114,9 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
         );
 
         const sub = handlePageVisibility(() => watch).subscribe(
-            (l) => setItems([...l]),
+            (l) => {
+                setItems(l);
+            },
             () => setError(true)
         );
 

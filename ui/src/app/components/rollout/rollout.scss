@@ -1,17 +1,29 @@
 @import '../../shared/styles/colors.scss';
 
 .revision {
+    padding: 15px;
+    margin-bottom: 1em;
+    background: none;
+
+    &__background {
+        background: $argo-color-gray-2;
+        border-radius: 5px;
+    }
+
+    &--dark > &__background {
+        background: $slate;
+    }
+
+    &:hover > &__background {
+        transform: scale(1.02);
+    }
+
     &__header {
         display: flex;
         align-items: center;
-        margin-bottom: 0.5em;
-        padding-bottom: 0.5em;
-        border-bottom: 1px solid $argo-color-gray-4;
+        margin-bottom: 1em;
         font-size: 18px;
         font-weight: 500;
-        &--dark {
-            border-bottom: 1px solid $silver-lining;
-        }
         &__button {
             cursor: pointer;
             margin-left: auto;
