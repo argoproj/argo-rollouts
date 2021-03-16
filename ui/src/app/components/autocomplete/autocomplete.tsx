@@ -24,14 +24,10 @@ export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> 
     const debouncedVal = useDebounce(value, 350);
 
     React.useEffect(() => {
-        let exactMatch = false;
         const filtered = (props.items || []).filter((i) => {
-            if (i === debouncedVal) {
-                exactMatch = true;
-            }
             return i.includes(debouncedVal);
         });
-        setCurItems(filtered.length > 0 && !exactMatch ? filtered : props.items);
+        setCurItems(filtered.length > 0 ? filtered : props.items);
     }, [debouncedVal, props.items]);
 
     return (

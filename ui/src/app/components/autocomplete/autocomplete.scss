@@ -1,7 +1,10 @@
 @import '../../shared/styles/colors.scss';
 
 .autocomplete {
+    min-width: 0;
+    width: 100%;
     position: relative;
+    box-sizing: border-box;
     $autocompleteClass: &;
 
     &__items {

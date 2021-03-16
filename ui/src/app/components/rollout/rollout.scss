@@ -7,10 +7,12 @@
 
     &__background {
         background: $argo-color-gray-2;
+        border: 1px solid $argo-color-gray-4;
         border-radius: 5px;
     }
 
     &--dark > &__background {
+        border: none;
         background: $slate;
     }
 

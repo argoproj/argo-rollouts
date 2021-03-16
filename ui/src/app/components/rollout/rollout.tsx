@@ -11,10 +11,8 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import {
     faBalanceScale,
     faBalanceScaleRight,
-    faCheck,
     faChevronCircleDown,
     faChevronCircleUp,
-    faClock,
     faDove,
     faPalette,
     faPauseCircle,
@@ -25,7 +23,7 @@ import {
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSet} from '../pods/pods';
-import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
+import {IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
@@ -138,32 +136,35 @@ export const Rollout = () => {
 
             <ThemeDiv className='rollout__body'>
                 <WaitFor loading={loading}>
-                    <ThemeDiv className='info rollout__info'>
-                        <div className='info__title'>Summary</div>
+                    <div style={{display: 'flex', flexDirection: 'column'}}>
+                        <ThemeDiv className='info rollout__info'>
+                            <div className='info__title'>Summary</div>
 
-                        <InfoItemRow
-                            items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
-                            label='Strategy'
-                        />
-                        <InfoItemRow items={{content: formatTimestamp(rollout.restartedAt), icon: faClock}} label='Last Restarted' />
-                        <ThemeDiv className='rollout__info__section'>
-                            {rollout.strategy === Strategy.Canary && (
-                                <React.Fragment>
-                                    <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
-                                    <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
-                                    <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
-                                </React.Fragment>
-                            )}
+                            <InfoItemRow
+                                items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
+                                label='Strategy'
+                            />
+                            <ThemeDiv className='rollout__info__section'>
+                                {rollout.strategy === Strategy.Canary && (
+                                    <React.Fragment>
+                                        <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
+                                        <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
+                                        <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
+                                    </React.Fragment>
+                                )}
+                            </ThemeDiv>
                         </ThemeDiv>
-                        <ThemeDiv className='rollout__info__section'>
-                            <h3>CONTAINERS</h3>
+                        <ThemeDiv className='info rollout__info' style={{marginTop: '1em'}}>
                             <ContainersWidget
                                 images={images}
                                 containers={rollout.containers || []}
-                                setImage={(container, image, tag) => api.setRolloutImage(name, container, image, tag)}
+                                setImage={(container, image, tag) => {
+                                    api.setRolloutImage(name, container, image, tag);
+                                }}
                             />
                         </ThemeDiv>
-                    </ThemeDiv>
+                    </div>
+
                     {rollout.replicaSets && rollout.replicaSets.length > 0 && (
                         <ThemeDiv className='info rollout__info'>
                             <div className='info__title'>Revisions</div>
@@ -179,7 +180,7 @@ export const Rollout = () => {
                             <ThemeDiv className='info__title'>Steps</ThemeDiv>
                             <div style={{marginTop: '1em'}}>
                                 {rollout.steps.map((step, i) => (
-                                    <Step step={step} complete={i < curStep} current={i === curStep} />
+                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} />
                                 ))}
                             </div>
                         </ThemeDiv>
@@ -271,8 +272,8 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
 
             {!collapsed &&
                 revision.replicaSets.map((rs) => (
-                    <div style={{marginTop: '1em'}}>
-                        <ReplicaSet key={rs.objectMeta.uid} rs={rs} />
+                    <div style={{marginTop: '1em'}} key={rs.objectMeta.uid}>
+                        <ReplicaSet rs={rs} />
                     </div>
                 ))}
         </EffectDiv>
@@ -294,30 +295,41 @@ const ContainersWidget = (props: {
 
     return (
         <React.Fragment>
-            <FontAwesomeIcon icon={faPencilAlt} onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: '5px'}} />
-            <span style={{marginLeft: '5px'}}>
-                <ActionButton icon={faTimes} action={() => setEditing(false)} />
-            </span>
-            <ActionButton
-                icon={faCheck}
-                action={() => {
-                    for (const container of Object.keys(inputs)) {
-                        const split = inputs[container].split(':');
-                        const image = split[0];
-                        const tag = split[1];
-                        setImage(container, image, tag);
-                    }
-                }}
-                indicateLoading
-            />
+            <div style={{display: 'flex', alignItems: 'center', height: '2em'}}>
+                <ThemeDiv className='info__title' style={{marginBottom: '0'}}>
+                    Containers
+                </ThemeDiv>
+
+                {editing ? (
+                    <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+                        <ActionButton icon={faTimes} action={() => setEditing(false)} />
+                        <ActionButton
+                            label='SAVE'
+                            style={{marginRight: 0}}
+                            action={() => {
+                                for (const container of Object.keys(inputs)) {
+                                    const split = inputs[container].split(':');
+                                    const image = split[0];
+                                    const tag = split[1];
+                                    setImage(container, image, tag);
+                                }
+                            }}
+                            indicateLoading
+                        />
+                    </div>
+                ) : (
+                    <FontAwesomeIcon icon={faPencilAlt} onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
+                )}
+            </div>
             {containers.map((c, i) => (
                 <ContainerWidget
+                    key={`${c}-${i}`}
                     container={c}
                     images={images}
                     editing={editing}
-                    setInput={(c) => {
+                    setInput={(img) => {
                         const update = {...inputs};
-                        update[c] = c;
+                        update[c.name] = img;
                         setInputs(update);
                     }}
                 />
@@ -329,24 +341,17 @@ const ContainersWidget = (props: {
 const ContainerWidget = (props: {
     container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo;
     images: ImageInfo[];
-    setInput: (container: string, image: string) => void;
+    setInput: (image: string) => void;
     editing: boolean;
 }) => {
-    const {container} = props;
-    const [editing] = React.useState(false);
-    const [, , newImageInput] = useInput(container.image);
+    const {container, editing} = props;
+    const [, , newImageInput] = useInput(container.image, (val) => props.setInput(val));
 
     return (
-        <div style={{margin: '1em 0', display: 'flex', alignItems: 'center'}}>
-            {container.name}
-            <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '2em'}}>
-                {!editing ? (
-                    <InfoItem content={container.image} />
-                ) : (
-                    <React.Fragment>
-                        <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} style={{transition: 'width 1s ease'}} />
-                    </React.Fragment>
-                )}
+        <div style={{margin: '1em 0', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap'}}>
+            <div style={{paddingRight: '20px'}}>{container.name}</div>
+            <div style={{width: '100%', display: 'flex', alignItems: 'center', height: '2em'}}>
+                {!editing ? <InfoItem content={container.image} /> : <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} />}
             </div>
         </div>
     );

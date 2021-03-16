@@ -1,9 +1,9 @@
-import {IconDefinition} from '@fortawesome/free-regular-svg-icons';
 import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {RolloutAPIContext} from '../../shared/context/api';
-import {ActionButton} from '../action-button/action-button';
+import {formatTimestamp} from '../../shared/utils/utils';
+import {ActionButton, ActionButtonProps} from '../action-button/action-button';
 import {RolloutStatus} from '../status-icon/status-icon';
 
 export enum RolloutAction {
@@ -13,23 +13,17 @@ export enum RolloutAction {
     PromoteFull = 'PromoteFull',
 }
 
-interface ActionProps {
-    label: string;
-    icon: IconDefinition;
-    action: Function;
-    disabled?: boolean;
-}
-
 export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
 
-    const actionMap = new Map<RolloutAction, ActionProps>([
+    const actionMap = new Map<RolloutAction, ActionButtonProps>([
         [
             RolloutAction.Restart,
             {
                 label: 'RESTART',
                 icon: faSync,
                 action: api.restartRollout,
+                tooltip: `Last restarted ${formatTimestamp(props.rollout.restartedAt || '')}`,
             },
         ],
         [

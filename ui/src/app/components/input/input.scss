@@ -2,6 +2,7 @@
 
 .input-container {
     min-width: 0;
+    box-sizing: border-box;
     .input {
         box-sizing: border-box;
         width: 100%;
@@ -11,6 +12,7 @@
         background-color: $argo-color-gray-3;
         border: 1px solid $argo-color-gray-5;
         color: $argo-color-gray-7;
+        min-width: 0;
     }
 
     input::placeholder {

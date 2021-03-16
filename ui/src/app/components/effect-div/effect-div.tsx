@@ -16,7 +16,7 @@ import './effect-div.scss';
 export const EffectDiv = (props: {children?: React.ReactNode} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) => {
     const backgroundCl = appendSuffixToClasses(props.className, '__background');
     return (
-        <ThemeDiv className={`${props.className} effect-div`} onClick={props.onClick}>
+        <ThemeDiv className={`${props.className} effect-div`} style={props.style} onClick={props.onClick}>
             <ThemeDiv className={`effect-div__background ${backgroundCl}`} />
             <div style={{zIndex: 2, position: 'relative'}} onClick={props.onClick}>
                 {props.children}
