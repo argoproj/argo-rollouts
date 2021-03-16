@@ -9,32 +9,37 @@ import {useWatchRollout} from '../../shared/services/rollout';
 import {InfoItem, InfoItemKind, InfoItemProps, InfoItemRow} from '../info-item/info-item';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {
-    faArrowCircleDown,
-    faArrowCircleUp,
     faBalanceScale,
     faBalanceScaleRight,
     faCheck,
+    faChevronCircleDown,
+    faChevronCircleUp,
     faClock,
     faDove,
-    faHistory,
     faPalette,
+    faPauseCircle,
     faPencilAlt,
     faShoePrints,
     faTimes,
+    faWeight,
+    IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSet} from '../pods/pods';
 import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
-import {Input, useInput} from '../input/input';
+import {useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
 } from '../../../models/rollout/generated';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {Autocomplete} from '../autocomplete/autocomplete';
+import {faChartBar} from '@fortawesome/free-regular-svg-icons';
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;
@@ -90,9 +95,6 @@ const parseImages = (r: RolloutInfo): ImageInfo[] => {
             } else {
                 unknownImages[img] = false;
             }
-            const colors = Object.values(ImageColor);
-            const color = colors[Math.round(Math.random() * colors.length) % colors.length];
-            images[img].color = color as ImageColor;
         });
     });
 
@@ -109,30 +111,40 @@ export const Rollout = () => {
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
 
+    const images = parseImages(rollout);
+
+    for (const img of images) {
+        for (const container of rollout.containers) {
+            if (img.image === container.image) {
+                img.color = ImageColor.Blue;
+            }
+        }
+    }
+    const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
+
     return (
         <div className='rollout'>
             <Helmet>
                 <title>{name} / Argo Rollouts</title>
             </Helmet>
             <ThemeDiv className='rollout__toolbar'>
+                <ThemeDiv className='rollout__header'>
+                    {name} <StatusIcon status={rollout.status as RolloutStatus} />
+                </ThemeDiv>
                 <React.Suspense fallback={<Spinner />}>
-                    <RolloutActions name={name} />
+                    <RolloutActions rollout={rollout} />
                 </React.Suspense>
             </ThemeDiv>
 
             <ThemeDiv className='rollout__body'>
                 <WaitFor loading={loading}>
-                    <ThemeDiv className='rollout__header'>
-                        {name} <StatusIcon status={rollout.status as RolloutStatus} />
-                    </ThemeDiv>
-                    <ThemeDiv className='rollout__info'>
-                        <div className='rollout__info__title'>Summary</div>
+                    <ThemeDiv className='info rollout__info'>
+                        <div className='info__title'>Summary</div>
 
                         <InfoItemRow
                             items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
                             label='Strategy'
                         />
-                        <InfoItemRow items={{content: rollout.generation, icon: faHistory}} label='Generation' />
                         <InfoItemRow items={{content: formatTimestamp(rollout.restartedAt), icon: faClock}} label='Last Restarted' />
                         <ThemeDiv className='rollout__info__section'>
                             {rollout.strategy === Strategy.Canary && (
@@ -146,19 +158,29 @@ export const Rollout = () => {
                         <ThemeDiv className='rollout__info__section'>
                             <h3>CONTAINERS</h3>
                             {rollout.containers?.map((c) => (
-                                <ContainerWidget key={c.name} container={c} setImage={(image, tag) => api.setRolloutImage(name, c.name, image, tag)} />
+                                <ContainerWidget images={images} key={c.name} container={c} setImage={(image, tag) => api.setRolloutImage(name, c.name, image, tag)} />
                             ))}
                         </ThemeDiv>
 
                         <h3>IMAGES</h3>
-                        <ImageItems images={parseImages(rollout)} />
+                        <ImageItems images={images} />
                     </ThemeDiv>
                     {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                        <ThemeDiv className='rollout__info'>
-                            <div className='rollout__info__title'>Revisions</div>
+                        <ThemeDiv className='info rollout__info'>
+                            <div className='info__title'>Revisions</div>
                             <div style={{marginTop: '1em'}}>
                                 {ProcessRevisions(rollout).map((r, i) => (
                                     <RevisionWidget key={i} revision={r} initCollapsed={false} />
+                                ))}
+                            </div>
+                        </ThemeDiv>
+                    )}
+                    {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
+                        <ThemeDiv className='info steps'>
+                            <ThemeDiv className='info__title'>Steps</ThemeDiv>
+                            <div style={{marginTop: '1em'}}>
+                                {rollout.steps.map((step, i) => (
+                                    <Step step={step} complete={i < curStep} current={i === curStep} />
                                 ))}
                             </div>
                         </ThemeDiv>
@@ -234,7 +256,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
 const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
-    const icon = collapsed ? faArrowCircleDown : faArrowCircleUp;
+    const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
     return (
         <div key={revision.number} style={{marginBottom: '1.5em'}}>
             <ThemeDiv className='revision__header'>
@@ -248,7 +270,11 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
     );
 };
 
-const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo; setImage: (image: string, tag: string) => void}) => {
+const ContainerWidget = (props: {
+    container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo;
+    images: ImageInfo[];
+    setImage: (image: string, tag: string) => void;
+}) => {
     const {container} = props;
     const [editing, setEditing] = React.useState(false);
     const [newImage, setNewImage, newImageInput] = useInput(container.image);
@@ -257,7 +283,6 @@ const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApis
         setEditing(editing);
         setNewImage(container.image);
     };
-
     return (
         <div style={{margin: '1em 0', display: 'flex', alignItems: 'center'}}>
             {container.name}
@@ -269,7 +294,7 @@ const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApis
                     </React.Fragment>
                 ) : (
                     <React.Fragment>
-                        <Input placeholder='New Image' {...newImageInput} style={{transition: 'width 1s ease'}} />
+                        <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} style={{transition: 'width 1s ease'}} />
                         <span style={{marginLeft: '5px'}}>
                             <ActionButton icon={faTimes} action={() => switchMode(false)} />
                         </span>
@@ -281,14 +306,46 @@ const ContainerWidget = (props: {container: GithubComArgoprojArgoRolloutsPkgApis
                                 const image = split[0];
                                 const tag = split[1];
                                 props.setImage(image, tag);
-                                setNewImage('');
-                                setEditing(false);
+                                setTimeout(() => {
+                                    setNewImage('');
+                                    setEditing(false);
+                                }, 350);
                             }}
                             indicateLoading
                         />
                     </React.Fragment>
                 )}
             </div>
+        </div>
+    );
+};
+
+const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean}) => {
+    let icon: IconDefinition;
+    let content = '';
+    let unit = '';
+    if (props.step.setWeight) {
+        icon = faWeight;
+        content = `Set Weight: ${props.step.setWeight}`;
+        unit = '%';
+    }
+    if (props.step.pause) {
+        icon = faPauseCircle;
+        if (props.step.pause.duration) {
+            content = `Pause: ${props.step.pause.duration}`;
+            unit = 's';
+        } else {
+            content = 'Pause';
+        }
+    }
+    if (props.step.analysis) {
+        icon = faChartBar;
+    }
+
+    return (
+        <div className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
+            <FontAwesomeIcon icon={icon} /> {content}
+            {unit}
         </div>
     );
 };

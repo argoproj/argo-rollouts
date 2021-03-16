@@ -25,12 +25,53 @@
     }
 }
 
+.steps {
+    width: 250px;
+    $stepsClass: &;
+
+    @mixin steps-borders {
+        &:hover {
+            border: 1px solid $sherbert;
+        }
+
+        &--complete {
+            border: 2px solid $lime;
+            &:hover {
+                border: 2px solid $lime;
+            }
+        }
+
+        &--current {
+            border: 2px solid $sherbert;
+            &:hover {
+                border: 2px solid $sherbert;
+            }
+        }
+    }
+
+    &--dark {
+        #{$stepsClass}__step {
+            border: 1px solid $silver-lining;
+            @include steps-borders;
+        }
+    }
+
+    &__step {
+        border-radius: 10px;
+        padding: 15px 18px;
+        margin-bottom: 1em;
+        border: 1px solid $argo-color-gray-4;
+
+        @include steps-borders;
+    }
+}
+
 .image {
     &--red {
         color: $clay;
     }
     &--blue {
-        color: $deep-sea;
+        color: $sea;
     }
     &--orange {
         color: $spray-tan;
@@ -47,43 +88,47 @@
     }
 }
 
-.rollout {
-    &__info {
-        width: 450px;
-        border: 1px solid $argo-color-gray-4;
-        border-radius: 5px;
-        padding: 20px;
-        background-color: white;
-        margin-right: 15px;
-        height: max-content;
+.info {
+    border: 1px solid $argo-color-gray-4;
+    border-radius: 5px;
+    padding: 20px;
+    background-color: white;
 
-        &__section {
-            margin-bottom: 0.5em;
-            padding-bottom: 0.5em;
-            border-bottom: 1px solid $argo-color-gray-4;
-
-            &--dark {
-                border-bottom: 1px solid $silver-lining;
-            }
-        }
-
-        &__title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 0.5em;
-        }
+    &__section {
+        margin-bottom: 0.5em;
+        padding-bottom: 0.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
 
         &--dark {
-            background-color: $space;
-            border-color: $silver-lining;
+            border-bottom: 1px solid $silver-lining;
         }
+    }
+
+    &__title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 0.5em;
+    }
+
+    &--dark {
+        background-color: $space;
+        border-color: $silver-lining;
+    }
+}
+
+.rollout {
+    padding-bottom: 5em;
+    &__info {
+        width: 450px;
+        margin-right: 15px;
+        height: max-content;
     }
 
     &__header {
         color: $argo-color-gray-8;
-        width: 100%;
         font-size: 22px;
-        margin-bottom: 1em;
+        margin-left: 12px;
+        margin-right: auto;
         flex-shrink: 0;
         &--dark {
             color: $shine;
@@ -92,6 +137,8 @@
     &__toolbar {
         box-sizing: border-box;
         font-size: 14px;
+        display: flex;
+        align-items: center;
         width: 100%;
         padding: 0 10px;
         padding-bottom: 1em;

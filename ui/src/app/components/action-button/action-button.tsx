@@ -1,8 +1,8 @@
 import {faCircleNotch, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
+import {EffectDiv} from '../effect-div/effect-div';
 
-import {ThemeDiv} from '../theme-div/theme-div';
 import './action-button.scss';
 
 export interface ActionButtonProps {
@@ -22,7 +22,7 @@ export const ActionButton = (props: ActionButtonProps) => {
         setTimeout(() => setLoading(false), 1000);
     }, [loading]);
     return (
-        <ThemeDiv
+        <EffectDiv
             className={`action-button ${props.dark ? 'action-button--dark' : ''} ${props.disabled ? 'action-button--disabled' : ''}`}
             onClick={(e) => {
                 if (action && !props.disabled) {
@@ -33,6 +33,6 @@ export const ActionButton = (props: ActionButtonProps) => {
             }}>
             {icon && <FontAwesomeIcon icon={loading && indicateLoading ? faCircleNotch : icon} spin={loading && indicateLoading} />}
             {label && !short && <span style={icon && {marginLeft: '5px'}}>{label}</span>}
-        </ThemeDiv>
+        </EffectDiv>
     );
 };

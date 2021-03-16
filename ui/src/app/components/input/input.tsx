@@ -31,8 +31,21 @@ export const useInput = (init: string, callback?: (val: string) => void): [strin
     return [state, setState, Input];
 };
 
-export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+export const useDebounce = (value: string, debouncems: number): string => {
+    const [val, setVal] = React.useState(value);
+
+    React.useEffect(() => {
+        const to = setTimeout(() => {
+            setVal(value);
+        }, debouncems);
+        return () => clearInterval(to);
+    }, [value, debouncems]);
+
+    return val;
+};
+
+export const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & {innerref?: React.MutableRefObject<any>}) => (
     <ThemeDiv className='input-container'>
-        <input {...props} className='input' />
+        <input {...props} className={props.className ? `${props.className} input` : 'input'} ref={props.innerref} />
     </ThemeDiv>
 );

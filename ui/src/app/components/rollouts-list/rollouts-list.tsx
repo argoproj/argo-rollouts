@@ -1,4 +1,4 @@
-import {faCircleNotch, faClock, faDove, faHistory, faPalette, faRedoAlt} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch, faClock, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Link} from 'react-router-dom';
@@ -13,6 +13,7 @@ import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {ReplicaSet} from '../pods/pods';
+import {EffectDiv} from '../effect-div/effect-div';
 
 export const RolloutsList = () => {
     const [rollouts, loading] = useWatchRollouts();
@@ -50,9 +51,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
     useWatchRollout(props.rollout?.objectMeta?.name, watching, ACTION_WATCH_TIMEOUT, (r: RolloutInfo) => (rollout = r));
 
     return (
-        <ThemeDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}>
-            <ThemeDiv className='rollouts-list__widget__background' />
-
+        <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}>
             <Link to={`/rollout/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
                 <WidgetHeader rollout={rollout} refresh={() => subscribe(true)} />
                 <ThemeDiv className='rollouts-list__widget__body'>
@@ -60,8 +59,8 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                         label={'Strategy'}
                         items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? faPalette : faDove, kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                     />
-                    <InfoItemRow label={'Generation'} items={{content: `${rollout.generation || 0}`, icon: faHistory}} />
                     <InfoItemRow label={'Last Restarted'} items={{content: formatTimestamp(rollout.restartedAt as string) || 'Never', icon: faClock}} />
+                    {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
                 </ThemeDiv>
                 {rollout.replicaSets?.map(
                     (rsInfo) =>
@@ -73,17 +72,11 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                         )
                 )}
                 <div className='rollouts-list__widget__actions'>
-                    <RolloutActionButton action={RolloutAction.Restart} name={rollout.objectMeta?.name} callback={() => subscribe(true)} indicateLoading />
-                    <RolloutActionButton
-                        action={RolloutAction.PromoteFull}
-                        name={rollout.objectMeta?.name}
-                        callback={() => subscribe(true)}
-                        indicateLoading
-                        disabled={rollout.status !== RolloutStatus.Paused}
-                    />
+                    <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+                    <RolloutActionButton action={RolloutAction.PromoteFull} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
                 </div>
             </Link>
-        </ThemeDiv>
+        </EffectDiv>
     );
 };
 

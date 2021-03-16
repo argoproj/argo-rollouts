@@ -1064,6 +1064,12 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ContainerInfo"
           }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
+          }
         }
       },
       "title": "RolloutInfo is information about a rollout"

@@ -1232,6 +1232,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo
      */
     containers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo
+     */
+    steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
 }
 /**
  * 

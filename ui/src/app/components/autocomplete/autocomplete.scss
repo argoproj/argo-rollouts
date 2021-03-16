@@ -1,0 +1,33 @@
+@import '../../shared/styles/colors.scss';
+
+.autocomplete {
+    position: relative;
+    $autocompleteClass: &;
+
+    &__items {
+        position: absolute;
+        white-space: nowrap;
+        max-height: 6em;
+        overflow-y: auto;
+        margin-top: 0.5em;
+        border-radius: 3px;
+        background-color: white;
+        border: 1px solid $argo-color-gray-4;
+        padding: 10px;
+
+        &__item {
+            padding: 0.75em 0;
+            cursor: pointer;
+            border-bottom: 1px solid $argo-color-gray-4;
+        }
+
+        &--dark {
+            background-color: $space;
+            border: 1px solid $silver-lining;
+
+            #{$autocompleteClass}__items__item {
+                border-bottom: 1px solid $silver-lining;
+            }
+        }
+    }
+}

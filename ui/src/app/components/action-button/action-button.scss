@@ -1,47 +1,70 @@
 @import '../../shared/styles/colors.scss';
 
 .action-button {
-    border-radius: 20px;
-    border: 1px solid $argo-color-gray-6;
     padding: 10px 14px;
-    background-color: $argo-color-gray-6;
     color: white;
     flex-shrink: 0;
     flex-wrap: nowrap;
     cursor: pointer;
-    margin-right: 5px;
+    margin-right: 7px;
     display: flex;
-    &:hover {
+
+    &--dark {
+        color: $shine;
+        &:hover {
+            color: white;
+        }
+    }
+
+    @mixin dark-background {
+        border: 1px solid $silver-lining;
+        background-color: $fog;
+    }
+
+    &--dark > &__background {
+        @include dark-background;
+    }
+
+    &__background {
+        border-radius: 20px;
+        border: 1px solid $argo-color-gray-6;
+        background-color: $argo-color-gray-6;
+
+        &--dark {
+            @include dark-background;
+        }
+    }
+
+    &:hover > &__background {
         background-color: $sherbert;
+        border-color: $sherbert;
+        transform: scale(1.02);
+    }
+
+    &--dark:hover > &__background {
+        background-color: $spray-tan;
         border-color: $sherbert;
     }
 
     &--disabled {
         color: $argo-color-gray-4;
         cursor: not-allowed;
-        &:hover {
-            background-color: $argo-color-gray-6;
-            border-color: $argo-color-gray-6;
-        }
+    }
+
+    &--disabled:hover > &__background {
+        background-color: $argo-color-gray-6;
+        border-color: $argo-color-gray-6;
     }
 
     &--disabled#{&}--dark {
         color: $dull-shine;
         &:hover {
-            border-color: $silver-lining;
             color: $dull-shine;
-            background-color: $fog;
         }
     }
 
-    &--dark {
-        border: 1px solid $silver-lining;
+    &--disabled#{&}--dark:hover > &__background {
+        border-color: $silver-lining;
         background-color: $fog;
-        color: $shine;
-        &:hover {
-            background-color: $spray-tan;
-            color: white;
-            border-color: $sherbert;
-        }
     }
 }

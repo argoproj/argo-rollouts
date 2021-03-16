@@ -693,6 +693,8 @@ type RolloutInfo struct {
 	AnalysisRuns []AnalysisRunInfo `json:"analysisRuns,omitempty" protobuf:"bytes,18,rep,name=analysisRuns"`
 
 	Containers []ContainerInfo `json:"containers,omitempty" protobuf:"bytes,19,rep,name=containers"`
+
+	Steps []CanaryStep `json:"steps,omitempty" protobuf:"bytes,20,rep,name=steps"`
 }
 
 type ReplicaSetInfo struct {

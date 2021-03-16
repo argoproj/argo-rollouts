@@ -1,8 +1,10 @@
 import {IconDefinition} from '@fortawesome/free-regular-svg-icons';
 import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
+import {RolloutInfo} from '../../../models/rollout/rollout';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {ActionButton} from '../action-button/action-button';
+import {RolloutStatus} from '../status-icon/status-icon';
 
 export enum RolloutAction {
     Restart = 'Restart',
@@ -15,9 +17,10 @@ interface ActionProps {
     label: string;
     icon: IconDefinition;
     action: Function;
+    disabled?: boolean;
 }
 
-export const RolloutActionButton = (props: {action: RolloutAction; name: string; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
+export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
 
     const actionMap = new Map<RolloutAction, ActionProps>([
@@ -51,6 +54,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; name: string;
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
                 action: api.promoteRollout,
+                disabled: props.rollout.status !== RolloutStatus.Paused,
             },
         ],
     ]);
@@ -61,22 +65,20 @@ export const RolloutActionButton = (props: {action: RolloutAction; name: string;
         <ActionButton
             {...ap}
             action={() => {
-                ap.action(props.name);
+                ap.action(props.rollout.objectMeta?.name || '');
                 if (props.callback) {
                     props.callback();
                 }
             }}
             indicateLoading={props.indicateLoading}
-            disabled={props.disabled}
-            short={props.disabled}
         />
     );
 };
 
-export const RolloutActions = (props: {name: string}) => (
+export const RolloutActions = (props: {rollout: RolloutInfo}) => (
     <div style={{display: 'flex'}}>
         {Object.values(RolloutAction).map((action) => (
-            <RolloutActionButton key={action} action={action as RolloutAction} name={props.name} indicateLoading />
+            <RolloutActionButton key={action} action={action as RolloutAction} rollout={props.rollout} indicateLoading />
         ))}
     </div>
 );

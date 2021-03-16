@@ -1031,6 +1031,8 @@ message RolloutInfo {
   repeated AnalysisRunInfo analysisRuns = 18;
 
   repeated ContainerInfo containers = 19;
+
+  repeated CanaryStep steps = 20;
 }
 
 // RolloutList is a list of Rollout resources

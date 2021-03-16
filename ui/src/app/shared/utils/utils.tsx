@@ -63,3 +63,15 @@ export const ParseTagsFromReplicaSet = (rs: GithubComArgoprojArgoRolloutsPkgApis
     }
     return tags;
 };
+
+export const appendSuffixToClasses = (classNames: string, suffix: string): string => {
+    let clString = classNames;
+    const cl = (clString || '').split(' ') || [];
+    const suffixed = [];
+    for (const c of cl) {
+        if (!c.endsWith(suffix) && c !== ' ' && c !== '') {
+            suffixed.push(c + suffix);
+        }
+    }
+    return suffixed.join(' ');
+};

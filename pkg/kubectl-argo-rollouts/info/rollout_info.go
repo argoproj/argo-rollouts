@@ -43,6 +43,7 @@ func NewRolloutInfo(
 		roInfo.Strategy = "Canary"
 		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.Canary.Steps) > 0 {
 			roInfo.Step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
+			roInfo.Steps = ro.Spec.Strategy.Canary.Steps
 		}
 		// NOTE that this is desired weight, not the actual current weight
 		roInfo.SetWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(ro)))
@@ -81,8 +82,7 @@ func NewRolloutInfo(
 	}
 
 	roInfo.Generation = ro.Status.ObservedGeneration
-	
-
+		
 	roInfo.Desired = defaults.GetReplicasOrDefault(ro.Spec.Replicas)
 	roInfo.Ready = ro.Status.ReadyReplicas
 	roInfo.Current = ro.Status.Replicas
