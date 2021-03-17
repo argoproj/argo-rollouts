@@ -50,6 +50,11 @@ describe("RolloutServiceApi", () => {
     const tag: string = "tag_example"
     return expect(instance.setRolloutImage(rollout, container, image, tag, {})).resolves.toBe(null)
   })
+  test("undoRollout", () => {
+    const rollout: string = "rollout_example"
+    const revision: string = "revision_example"
+    return expect(instance.undoRollout(rollout, revision, {})).resolves.toBe(null)
+  })
   test("watchRollout", () => {
     const name: string = "name_example"
     return expect(instance.watchRollout(name, {})).resolves.toBe(null)

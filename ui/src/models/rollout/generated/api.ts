@@ -5284,6 +5284,40 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
         },
         /**
          * 
+         * @param {string} rollout 
+         * @param {string} revision 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        undoRollout(rollout: string, revision: string, options: any = {}): FetchArgs {
+            // verify required parameter 'rollout' is not null or undefined
+            if (rollout === null || rollout === undefined) {
+                throw new RequiredError('rollout','Required parameter rollout was null or undefined when calling undoRollout.');
+            }
+            // verify required parameter 'revision' is not null or undefined
+            if (revision === null || revision === undefined) {
+                throw new RequiredError('revision','Required parameter revision was null or undefined when calling undoRollout.');
+            }
+            const localVarPath = `/api/v1/rollout/undo/{rollout}/{revision}`
+                .replace(`{${"rollout"}}`, encodeURIComponent(String(rollout)))
+                .replace(`{${"revision"}}`, encodeURIComponent(String(revision)));
+            const localVarUrlObj = url.parse(localVarPath, true);
+            const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
+            // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
+            delete localVarUrlObj.search;
+            localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
+
+            return {
+                url: url.format(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -5471,6 +5505,25 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {string} rollout 
+         * @param {string} revision 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        undoRollout(rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).undoRollout(rollout, revision, options);
+            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
+                    if (response.status >= 200 && response.status < 300) {
+                        return response.json();
+                    } else {
+                        throw response;
+                    }
+                });
+            };
+        },
+        /**
+         * 
          * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -5580,6 +5633,16 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
         },
         /**
          * 
+         * @param {string} rollout 
+         * @param {string} revision 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        undoRollout(rollout: string, revision: string, options?: any) {
+            return RolloutServiceApiFp(configuration).undoRollout(rollout, revision, options)(fetch, basePath);
+        },
+        /**
+         * 
          * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -5682,6 +5745,18 @@ export class RolloutServiceApi extends BaseAPI {
      */
     public setRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any) {
         return RolloutServiceApiFp(this.configuration).setRolloutImage(rollout, container, image, tag, options)(this.fetch, this.basePath);
+    }
+
+    /**
+     * 
+     * @param {string} rollout 
+     * @param {string} revision 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof RolloutServiceApi
+     */
+    public undoRollout(rollout: string, revision: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).undoRollout(rollout, revision, options)(this.fetch, this.basePath);
     }
 
     /**

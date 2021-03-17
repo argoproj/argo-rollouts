@@ -18,6 +18,11 @@ message SetImageQuery {
     string tag = 4;
 }
 
+message UndoQuery {
+    string rollout = 1;
+    int64 revision = 2;
+}
+
 message RolloutWatchEvent {
     string type = 1;
     github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rolloutInfo = 2;
@@ -63,5 +68,9 @@ service RolloutService {
 
     rpc SetRolloutImage(SetImageQuery) returns (google.protobuf.Empty) {
         option (google.api.http).get = "/api/v1/rollout/set/{rollout}/{container}/{image=**}/{tag}";
+    }
+
+    rpc UndoRollout(UndoQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/undo/{rollout}/{revision}";
     }
 }

@@ -19,6 +19,7 @@ import {
     faPencilAlt,
     faShoePrints,
     faTimes,
+    faUndoAlt,
     faWeight,
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
@@ -119,6 +120,7 @@ export const Rollout = () => {
         }
     }
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
+    const revisions = ProcessRevisions(rollout);
 
     return (
         <div className='rollout'>
@@ -169,8 +171,8 @@ export const Rollout = () => {
                         <ThemeDiv className='info rollout__info'>
                             <div className='info__title'>Revisions</div>
                             <div style={{marginTop: '1em'}}>
-                                {ProcessRevisions(rollout).map((r, i) => (
-                                    <RevisionWidget key={i} revision={r} initCollapsed={false} />
+                                {revisions.map((r, i) => (
+                                    <RevisionWidget key={i} revision={r} initCollapsed={false} rollback={(r) => api.undoRollout(name, `${r}`)} current={i === 0} />
                                 ))}
                             </div>
                         </ThemeDiv>
@@ -253,7 +255,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     return revisions;
 };
 
-const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) => {
+const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rollback: (revision: number) => void; current: boolean}) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
@@ -262,9 +264,12 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean}) =>
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
-                <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
-                    <FontAwesomeIcon icon={icon} />
-                </ThemeDiv>
+                <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+                    {!props.current && <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon={faUndoAlt} style={{fontSize: '13px'}} />}
+                    <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
+                        <FontAwesomeIcon icon={icon} />
+                    </ThemeDiv>
+                </div>
             </ThemeDiv>
             <ThemeDiv className='revision__images'>
                 <ImageItems images={images} />

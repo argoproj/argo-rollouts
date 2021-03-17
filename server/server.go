@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/argoproj/argo-rollouts/utils/json"
@@ -339,6 +340,12 @@ func (s* ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 	return &empty.Empty{}, nil
 }
 
-// func () RollbackRollout() () {
-// 	undo.RunUndoRollout(rolloutIf dynamic.ResourceInterface, c kubernetes.Interface, name string, toRevision int64)
-// }
+func (s* ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoQuery) (*empty.Empty, error) {
+	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(s.Options.Namespace)
+
+	_, err := undo.RunUndoRollout(rolloutIf, s.Options.KubeClientset, q.GetRollout(), q.GetRevision())
+	if err != nil {
+		return nil, err
+	}
+	return &empty.Empty{}, nil
+}

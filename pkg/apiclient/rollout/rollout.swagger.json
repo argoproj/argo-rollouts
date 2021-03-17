@@ -141,6 +141,37 @@
         ]
       }
     },
+    "/api/v1/rollout/undo/{rollout}/{revision}": {
+      "get": {
+        "operationId": "UndoRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rollout",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/watch/{name}": {
       "get": {
         "operationId": "WatchRollout",
