@@ -423,10 +423,10 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	return newStatus
 }
 
-// cleanupRollout is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
+// reconcileRevisionHistoryLimit is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
 // where N=r.Spec.RevisionHistoryLimit. Old replica sets are older versions of the podtemplate of a rollout kept
 // around by default 1) for historical reasons.
-func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
+func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaSet) error {
 	ctx := context.TODO()
 	revHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(c.rollout)
 

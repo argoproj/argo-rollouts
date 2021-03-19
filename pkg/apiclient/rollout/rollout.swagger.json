@@ -4,6 +4,10 @@
     "title": "pkg/apiclient/rollout/rollout.proto",
     "version": "version not set"
   },
+  "schemes": [
+    "http",
+    "https"
+  ],
   "consumes": [
     "application/json"
   ],
@@ -13,18 +17,12 @@
   "paths": {
     "/api/v1/namespace": {
       "get": {
-        "operationId": "RolloutService_GetNamespace",
+        "operationId": "GetNamespace",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.NamespaceInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -35,18 +33,12 @@
     },
     "/api/v1/rollouts/{namespace}/info": {
       "get": {
-        "operationId": "RolloutService_ListRolloutInfos",
+        "operationId": "ListRolloutInfos",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.RolloutInfoList"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -65,27 +57,12 @@
     },
     "/api/v1/rollouts/{namespace}/info/watch": {
       "get": {
-        "operationId": "RolloutService_WatchRolloutInfos",
+        "operationId": "WatchRolloutInfos",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/rollout.RolloutWatchEvent"
-                },
-                "error": {
-                  "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
-                }
-              },
-              "title": "Stream result of rollout.RolloutWatchEvent"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+              "$ref": "#/x-stream-definitions/rollout.RolloutWatchEvent"
             }
           }
         },
@@ -104,18 +81,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/abort": {
       "put": {
-        "operationId": "RolloutService_AbortRollout",
+        "operationId": "AbortRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -148,18 +119,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/info": {
       "get": {
-        "operationId": "RolloutService_GetRolloutInfo",
+        "operationId": "GetRolloutInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.RolloutInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -184,27 +149,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/info/watch": {
       "get": {
-        "operationId": "RolloutService_WatchRolloutInfo",
+        "operationId": "WatchRolloutInfo",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/rollout.RolloutInfo"
-                },
-                "error": {
-                  "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
-                }
-              },
-              "title": "Stream result of rollout.RolloutInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+              "$ref": "#/x-stream-definitions/rollout.RolloutInfo"
             }
           }
         },
@@ -229,18 +179,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/promote": {
       "put": {
-        "operationId": "RolloutService_PromoteRollout",
+        "operationId": "PromoteRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -273,18 +217,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/restart": {
       "put": {
-        "operationId": "RolloutService_RestartRollout",
+        "operationId": "RestartRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -317,18 +255,12 @@
     },
     "/api/v1/rollouts/{namespace}/{name}/retry": {
       "put": {
-        "operationId": "RolloutService_RetryRollout",
+        "operationId": "RetryRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -361,18 +293,12 @@
     },
     "/api/v1/rollouts/{namespace}/{rollout}/set/{container}/{image}/{tag}": {
       "put": {
-        "operationId": "RolloutService_SetRolloutImage",
+        "operationId": "SetRolloutImage",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -423,18 +349,12 @@
     },
     "/api/v1/rollouts/{namespace}/{rollout}/undo/{revision}": {
       "put": {
-        "operationId": "RolloutService_UndoRollout",
+        "operationId": "UndoRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -474,18 +394,12 @@
     },
     "/api/v1/version": {
       "get": {
-        "operationId": "RolloutService_Version",
+        "operationId": "Version",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.VersionInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -578,6 +492,7 @@
         },
         "scaleUpPreviewCheckPoint": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused\n+optional"
         },
         "prePromotionAnalysisRunStatus": {
@@ -609,6 +524,7 @@
         },
         "autoPromotionEnabled": {
           "type": "boolean",
+          "format": "boolean",
           "title": "AutoPromotionEnabled indicates if the rollout should automatically promote the new ReplicaSet\nto the active service or enter a paused state. If not specified, the default value is true.\n+optional"
         },
         "autoPromotionSeconds": {
@@ -743,6 +659,11 @@
         "stableMetadata": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata",
           "title": "StableMetadata specify labels and annotations which will be attached to the stable pods for\nthe duration which they act as a canary, and will be removed after"
+        },
+        "scaleDownDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "ScaleDownDelaySeconds adds a delay before scaling down the previous ReplicaSet when the\ncanary strategy is used with traffic routing (default 30 seconds). A delay in scaling down\nthe previous ReplicaSet is needed after switching the stable service selector to point to\nthe new ReplicaSet, in order to give time for traffic providers to re-target the new pods.\nThis value is ignored with basic, replica-weighted canary without traffic routing.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -945,6 +866,7 @@
         },
         "clusterScope": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
         }
       }
@@ -1016,6 +938,7 @@
         },
         "clusterScope": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
         },
         "args": {
@@ -1027,6 +950,7 @@
         },
         "requiredForCompletion": {
           "type": "boolean",
+          "format": "boolean",
           "title": "RequiredForCompletion blocks the Experiment from completing until the analysis has completed"
         }
       }
@@ -1100,6 +1024,7 @@
         },
         "paused": {
           "type": "boolean",
+          "format": "boolean",
           "description": "Paused pauses the rollout at its current step."
         },
         "progressDeadlineSeconds": {
@@ -1119,6 +1044,7 @@
       "properties": {
         "abort": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Abort cancel the current rollout progression"
         },
         "pauseConditions": {
@@ -1130,6 +1056,7 @@
         },
         "controllerPause": {
           "type": "boolean",
+          "format": "boolean",
           "description": "ControllerPause indicates the controller has paused the rollout. It is set to true when\nthe controller adds a pause condition. This field helps to discern the scenario where a\nrollout was resumed after being paused by the controller (e.g. via the plugin). In that\nsituation, the pauseConditions would have been cleared , but controllerPause would still be\nset to true."
         },
         "abortedAt": {
@@ -1212,6 +1139,7 @@
         },
         "promoteFull": {
           "type": "boolean",
+          "format": "boolean",
           "description": "PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses."
         }
       },
@@ -1282,6 +1210,7 @@
         },
         "matchTrafficWeight": {
           "type": "boolean",
+          "format": "boolean",
           "title": "MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight\n+optional"
         }
       },
@@ -1296,27 +1225,6 @@
         "value": {
           "type": "string",
           "format": "byte"
-        }
-      }
-    },
-    "grpc.gateway.runtime.Error": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/google.protobuf.Any"
-          }
         }
       }
     },
@@ -1363,6 +1271,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify \"true\" to force and set the ReadOnly property in VolumeMounts to \"true\".\nIf omitted, the default is \"false\".\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore\n+optional"
         }
       },
@@ -1407,6 +1316,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         },
         "kind": {
@@ -1429,6 +1339,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         }
       },
@@ -1443,6 +1354,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specifies a read-only configuration for the volume.\nDefaults to false (read/write).\n+optional"
         },
         "fsType": {
@@ -1511,6 +1423,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Optional: Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\nMore info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it\n+optional"
         }
       },
@@ -1529,6 +1442,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Optional: Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md\n+optional"
         },
         "secretRef": {
@@ -1547,6 +1461,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the ConfigMap must be defined\n+optional"
         }
       },
@@ -1565,6 +1480,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the ConfigMap or its key must be defined\n+optional"
         }
       },
@@ -1585,6 +1501,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the ConfigMap or its keys must be defined\n+optional"
         }
       },
@@ -1610,6 +1527,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the ConfigMap or its keys must be defined\n+optional"
         }
       },
@@ -1717,14 +1635,17 @@
         },
         "stdin": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether this container should allocate a buffer for stdin in the container runtime. If this\nis not set, reads from stdin in the container will always result in EOF.\nDefault is false.\n+optional"
         },
         "stdinOnce": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether the container runtime should close the stdin channel after it has been opened by\na single attach. When stdin is true the stdin stream will remain open across multiple attach\nsessions. If stdinOnce is set to true, stdin is opened on container start, is empty until the\nfirst client attaches to stdin, and then remains open and accepts data until the client disconnects,\nat which time stdin is closed and remains closed until the container is restarted. If this\nflag is false, a container processes that reads from stdin will never receive an EOF.\nDefault is false\n+optional"
         },
         "tty": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether this container should allocate a TTY for itself, also requires 'stdin' to be true.\nDefault is false.\n+optional"
         }
       },
@@ -2000,14 +1921,17 @@
         },
         "stdin": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether this container should allocate a buffer for stdin in the container runtime. If this\nis not set, reads from stdin in the container will always result in EOF.\nDefault is false.\n+optional"
         },
         "stdinOnce": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether the container runtime should close the stdin channel after it has been opened by\na single attach. When stdin is true the stdin stream will remain open across multiple attach\nsessions. If stdinOnce is set to true, stdin is opened on container start, is empty until the\nfirst client attaches to stdin, and then remains open and accepts data until the client disconnects,\nat which time stdin is closed and remains closed until the container is restarted. If this\nflag is false, a container processes that reads from stdin will never receive an EOF.\nDefault is false\n+optional"
         },
         "tty": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether this container should allocate a TTY for itself, also requires 'stdin' to be true.\nDefault is false.\n+optional"
         }
       },
@@ -2022,6 +1946,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specifies a read-only configuration for the volume.\nDefaults to false (read/write).\n+optional"
         }
       },
@@ -2061,6 +1986,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Optional: Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         },
         "wwids": {
@@ -2090,6 +2016,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Optional: Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         },
         "options": {
@@ -2134,6 +2061,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force the ReadOnly setting in VolumeMounts.\nDefaults to false.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk\n+optional"
         }
       },
@@ -2170,6 +2098,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force the Glusterfs volume to be mounted with read-only permissions.\nDefaults to false.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod\n+optional"
         }
       },
@@ -2293,6 +2222,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force the ReadOnly setting in VolumeMounts.\nDefaults to false.\n+optional"
         },
         "portals": {
@@ -2304,10 +2234,12 @@
         },
         "chapAuthDiscovery": {
           "type": "boolean",
+          "format": "boolean",
           "title": "whether support iSCSI Discovery CHAP authentication\n+optional"
         },
         "chapAuthSession": {
           "type": "boolean",
+          "format": "boolean",
           "title": "whether support iSCSI Session CHAP authentication\n+optional"
         },
         "secretRef": {
@@ -2377,6 +2309,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force\nthe NFS export to be mounted with read-only permissions.\nDefaults to false.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#nfs\n+optional"
         }
       },
@@ -2527,6 +2460,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Will force the ReadOnly setting in VolumeMounts.\nDefault false.\n+optional"
         }
       },
@@ -2681,6 +2615,7 @@
         },
         "runAsNonRoot": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Indicates that the container must run as a non-root user.\nIf true, the Kubelet will validate the image at runtime to ensure that it\ndoes not run as UID 0 (root) and fail to start the container if it does.\nIf unset or false, no such validation will be performed.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
         },
         "supplementalGroups": {
@@ -2781,6 +2716,7 @@
         },
         "automountServiceAccountToken": {
           "type": "boolean",
+          "format": "boolean",
           "title": "AutomountServiceAccountToken indicates whether a service account token should be automatically mounted.\n+optional"
         },
         "nodeName": {
@@ -2789,18 +2725,22 @@
         },
         "hostNetwork": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Host networking requested for this pod. Use the host's network namespace.\nIf this option is set, the ports that will be used must be specified.\nDefault to false.\n+k8s:conversion-gen=false\n+optional"
         },
         "hostPID": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Use the host's pid namespace.\nOptional: Default to false.\n+k8s:conversion-gen=false\n+optional"
         },
         "hostIPC": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Use the host's ipc namespace.\nOptional: Default to false.\n+k8s:conversion-gen=false\n+optional"
         },
         "shareProcessNamespace": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Share a single process namespace between all of the containers in a pod.\nWhen this is set containers will be able to view and signal processes from other containers\nin the same pod, and the first process in each container will not be assigned PID 1.\nHostPID and ShareProcessNamespace cannot both be set.\nOptional: Default to false.\n+k8s:conversion-gen=false\n+optional"
         },
         "securityContext": {
@@ -2870,6 +2810,7 @@
         },
         "enableServiceLinks": {
           "type": "boolean",
+          "format": "boolean",
           "title": "EnableServiceLinks indicates whether information about services should be injected into pod's\nenvironment variables, matching the syntax of Docker links.\nOptional: Defaults to true.\n+optional"
         },
         "preemptionPolicy": {
@@ -2892,6 +2833,7 @@
         },
         "setHostnameAsFQDN": {
           "type": "boolean",
+          "format": "boolean",
           "title": "If true the pod's hostname will be configured as the pod's FQDN, rather than the leaf name (the default).\nIn Linux containers, this means setting the FQDN in the hostname field of the kernel (the nodename field of struct utsname).\nIn Windows containers, this means setting the registry value of hostname for the registry key HKEY_LOCAL_MACHINE\\\\SYSTEM\\\\CurrentControlSet\\\\Services\\\\Tcpip\\\\Parameters to FQDN.\nIf a pod does not have FQDN, this has no effect.\nDefault to false.\n+optional"
         }
       },
@@ -2924,6 +2866,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         }
       },
@@ -3010,6 +2953,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force the Quobyte volume to be mounted with read-only permissions.\nDefaults to false.\n+optional"
         },
         "user": {
@@ -3063,6 +3007,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ReadOnly here will force the ReadOnly setting in VolumeMounts.\nDefaults to false.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional"
         }
       },
@@ -3145,6 +3090,7 @@
         },
         "sslEnabled": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Flag to enable/disable SSL communication with Gateway, default false\n+optional"
         },
         "protectionDomain": {
@@ -3169,6 +3115,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         }
       },
@@ -3198,6 +3145,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the Secret must be defined\n+optional"
         }
       },
@@ -3216,6 +3164,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the Secret or its key must be defined\n+optional"
         }
       },
@@ -3236,6 +3185,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the Secret or its key must be defined\n+optional"
         }
       },
@@ -3262,6 +3212,7 @@
         },
         "optional": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Specify whether the Secret or its keys must be defined\n+optional"
         }
       },
@@ -3276,6 +3227,7 @@
         },
         "privileged": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Run container in privileged mode.\nProcesses in privileged containers are essentially equivalent to root on the host.\nDefaults to false.\n+optional"
         },
         "seLinuxOptions": {
@@ -3298,14 +3250,17 @@
         },
         "runAsNonRoot": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Indicates that the container must run as a non-root user.\nIf true, the Kubelet will validate the image at runtime to ensure that it\ndoes not run as UID 0 (root) and fail to start the container if it does.\nIf unset or false, no such validation will be performed.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
         },
         "readOnlyRootFilesystem": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether this container has a read-only root filesystem.\nDefault is false.\n+optional"
         },
         "allowPrivilegeEscalation": {
           "type": "boolean",
+          "format": "boolean",
           "title": "AllowPrivilegeEscalation controls whether a process can gain more\nprivileges than its parent process. This bool directly controls if\nthe no_new_privs flag will be set on the container process.\nAllowPrivilegeEscalation is true always when the container is:\n1) run as Privileged\n2) has CAP_SYS_ADMIN\n+optional"
         },
         "procMount": {
@@ -3355,6 +3310,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
         },
         "secretRef": {
@@ -3497,6 +3453,7 @@
         },
         "readOnly": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Mounted read-only if true, read-write otherwise (false or unspecified).\nDefaults to false.\n+optional"
         },
         "mountPath": {
@@ -3916,10 +3873,12 @@
         },
         "controller": {
           "type": "boolean",
+          "format": "boolean",
           "title": "If true, this reference points to the managing controller.\n+optional"
         },
         "blockOwnerDeletion": {
           "type": "boolean",
+          "format": "boolean",
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         }
       },
@@ -4125,16 +4084,20 @@
           "format": "int32"
         },
         "stable": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "canary": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "active": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "preview": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "replicas": {
           "type": "integer",
@@ -4335,6 +4298,32 @@
           "type": "string"
         }
       }
+    }
+  },
+  "x-stream-definitions": {
+    "rollout.RolloutInfo": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/rollout.RolloutInfo"
+        },
+        "error": {
+          "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
+        }
+      },
+      "title": "Stream result of rollout.RolloutInfo"
+    },
+    "rollout.RolloutWatchEvent": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/rollout.RolloutWatchEvent"
+        },
+        "error": {
+          "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
+        }
+      },
+      "title": "Stream result of rollout.RolloutWatchEvent"
     }
   }
 }

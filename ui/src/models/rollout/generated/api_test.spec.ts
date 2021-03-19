@@ -21,69 +21,69 @@ describe("RolloutServiceApi", () => {
     instance = new api.RolloutServiceApi(config)
   });
 
-  test("rolloutServiceAbortRollout", () => {
+  test("abortRollout", () => {
     const body: api.RolloutAbortRolloutRequest = undefined
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServiceAbortRollout(body, namespace, name, {})).resolves.toBe(null)
+    return expect(instance.abortRollout(body, namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceGetNamespace", () => {
-    return expect(instance.rolloutServiceGetNamespace({})).resolves.toBe(null)
+  test("getNamespace", () => {
+    return expect(instance.getNamespace({})).resolves.toBe(null)
   })
-  test("rolloutServiceGetRolloutInfo", () => {
+  test("getRolloutInfo", () => {
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServiceGetRolloutInfo(namespace, name, {})).resolves.toBe(null)
+    return expect(instance.getRolloutInfo(namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceListRolloutInfos", () => {
+  test("listRolloutInfos", () => {
     const namespace: string = "namespace_example"
-    return expect(instance.rolloutServiceListRolloutInfos(namespace, {})).resolves.toBe(null)
+    return expect(instance.listRolloutInfos(namespace, {})).resolves.toBe(null)
   })
-  test("rolloutServicePromoteRollout", () => {
+  test("promoteRollout", () => {
     const body: api.RolloutPromoteRolloutRequest = undefined
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServicePromoteRollout(body, namespace, name, {})).resolves.toBe(null)
+    return expect(instance.promoteRollout(body, namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceRestartRollout", () => {
+  test("restartRollout", () => {
     const body: api.RolloutRestartRolloutRequest = undefined
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServiceRestartRollout(body, namespace, name, {})).resolves.toBe(null)
+    return expect(instance.restartRollout(body, namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceRetryRollout", () => {
+  test("retryRollout", () => {
     const body: api.RolloutRetryRolloutRequest = undefined
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServiceRetryRollout(body, namespace, name, {})).resolves.toBe(null)
+    return expect(instance.retryRollout(body, namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceSetRolloutImage", () => {
+  test("setRolloutImage", () => {
     const body: api.RolloutSetImageRequest = undefined
     const namespace: string = "namespace_example"
     const rollout: string = "rollout_example"
     const container: string = "container_example"
     const image: string = "image_example"
     const tag: string = "tag_example"
-    return expect(instance.rolloutServiceSetRolloutImage(body, namespace, rollout, container, image, tag, {})).resolves.toBe(null)
+    return expect(instance.setRolloutImage(body, namespace, rollout, container, image, tag, {})).resolves.toBe(null)
   })
-  test("rolloutServiceUndoRollout", () => {
+  test("undoRollout", () => {
     const body: api.RolloutUndoRolloutRequest = undefined
     const namespace: string = "namespace_example"
     const rollout: string = "rollout_example"
     const revision: string = "revision_example"
-    return expect(instance.rolloutServiceUndoRollout(body, namespace, rollout, revision, {})).resolves.toBe(null)
+    return expect(instance.undoRollout(body, namespace, rollout, revision, {})).resolves.toBe(null)
   })
-  test("rolloutServiceVersion", () => {
-    return expect(instance.rolloutServiceVersion({})).resolves.toBe(null)
+  test("version", () => {
+    return expect(instance.version({})).resolves.toBe(null)
   })
-  test("rolloutServiceWatchRolloutInfo", () => {
+  test("watchRolloutInfo", () => {
     const namespace: string = "namespace_example"
     const name: string = "name_example"
-    return expect(instance.rolloutServiceWatchRolloutInfo(namespace, name, {})).resolves.toBe(null)
+    return expect(instance.watchRolloutInfo(namespace, name, {})).resolves.toBe(null)
   })
-  test("rolloutServiceWatchRolloutInfos", () => {
+  test("watchRolloutInfos", () => {
     const namespace: string = "namespace_example"
-    return expect(instance.rolloutServiceWatchRolloutInfos(namespace, {})).resolves.toBe(null)
+    return expect(instance.watchRolloutInfos(namespace, {})).resolves.toBe(null)
   })
 })
 

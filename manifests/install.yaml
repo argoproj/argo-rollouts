@@ -9987,6 +9987,9 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      scaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       stableMetadata:
                         properties:
                           annotations:

@@ -1,13 +1,13 @@
 package rollout
 
 import (
+	"math"
 	"sort"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -102,11 +102,11 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 		return err
 	}
 	// Scale down old non-active, non-stable replicasets, if we can.
-	_, err = c.reconcileOldReplicaSets(controller.FilterActiveReplicaSets(c.otherRSs))
+	_, err = c.reconcileOldReplicaSets()
 	if err != nil {
 		return err
 	}
-	if err := c.cleanupRollouts(c.otherRSs); err != nil {
+	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
 		return err
 	}
 	return nil
@@ -215,7 +215,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 		c.log.Infof("Cannot scale down old ReplicaSets while paused with inconclusive Analysis ")
 		return false, nil
 	}
-	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
+	if c.rollout.Spec.Strategy.BlueGreen != nil && c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
 		currentPostAr := c.currentArs.BlueGreenPostPromotion
 		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 			c.log.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
@@ -239,10 +239,11 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 			annotationedRSs++
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+			scaleDownRevisionLimit := getScaleDownRevisionLimit(c.rollout)
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-			} else if c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil && annotationedRSs > *c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit {
-				c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", *c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit)
+			} else if annotationedRSs > scaleDownRevisionLimit {
+				c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
 			} else {
 				now := metav1.Now()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
@@ -269,6 +270,17 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	}
 
 	return hasScaled, nil
+}
+
+func getScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {
+	if ro.Spec.Strategy.BlueGreen != nil {
+		if ro.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil {
+			return *ro.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit
+		}
+	}
+	// TODO: will need to support getScaleDownRevisionLimit in canary
+	// as part of https://github.com/argoproj/argo-rollouts/issues/557
+	return math.MaxInt32
 }
 
 func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, activeSvc *corev1.Service) error {

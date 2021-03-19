@@ -36,6 +36,9 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	ctx := context.TODO()
 	c.log.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(c.rollout))
+	if scaleDownDelaySeconds == 0 {
+		return nil
+	}
 	now := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
@@ -83,7 +86,8 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	return scaled, err
 }
 
-func (c *rolloutContext) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet) (bool, error) {
+func (c *rolloutContext) reconcileOldReplicaSets() (bool, error) {
+	oldRSs := controller.FilterActiveReplicaSets(c.otherRSs)
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
 	if oldPodsCount == 0 {
 		// Can't scale down further
@@ -100,6 +104,13 @@ func (c *rolloutContext) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet) (b
 		if err != nil {
 			return false, nil
 		}
+		// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
+		scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(c.allRSs, oldRSs)
+		if err != nil {
+			return false, nil
+		}
+		hasScaled = hasScaled || scaledDownCount > 0
+		c.log.Infof("Scaled down old RSes by %d", scaledDownCount)
 	}
 
 	// Scale down old replica sets
