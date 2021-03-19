@@ -1146,6 +1146,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" class="md-nav__link">
+    Does Argo Rollouts depend on Argo CD or any other Argo project?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
     How does Argo Rollouts integrate with Argo CD?
   </a>
@@ -1162,6 +1169,13 @@
           <li class="md-nav__item">
   <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
     Does Argo Rollout require a Service Mesh like Istio?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" class="md-nav__link">
+    Does Argo Rollout require we follow GitOps in my organization?
   </a>
   
 </li>
@@ -1429,6 +1443,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" class="md-nav__link">
+    Does Argo Rollouts depend on Argo CD or any other Argo project?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
     How does Argo Rollouts integrate with Argo CD?
   </a>
@@ -1445,6 +1466,13 @@
           <li class="md-nav__item">
   <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
     Does Argo Rollout require a Service Mesh like Istio?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" class="md-nav__link">
+    Does Argo Rollout require we follow GitOps in my organization?
   </a>
   
 </li>
@@ -1561,6 +1589,9 @@
                 
                 <h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
 <h2 id="general">General<a class="headerlink" href="#general" title="Permanent link">&para;</a></h2>
+<h3 id="does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project">Does Argo Rollouts depend on Argo CD or any other Argo project?<a class="headerlink" href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can by used
+on its own for Progressive Delivery scenarios. More specifically, argo Rollouts does <strong>NOT</strong> require that you also have installed Argo CD on the same cluster.</p>
 <h3 id="how-does-argo-rollouts-integrate-with-argo-cd">How does Argo Rollouts integrate with Argo CD?<a class="headerlink" href="#how-does-argo-rollouts-integrate-with-argo-cd" title="Permanent link">&para;</a></h3>
 <p>Argo CD understands the health of Argo Rollouts resources via Argo CD’s <a href="https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md">Lua health check</a>. These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).</p>
 <p>As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress. </p>
@@ -1575,7 +1606,11 @@ This command executes the action listed on the application listed.</p>
 * Resume unpauses a Rollout with a PauseCondition
 * Restart: Sets the RestartAt and causes all the pods to be restarted.</p>
 <h3 id="does-argo-rollout-require-a-service-mesh-like-istio">Does Argo Rollout require a Service Mesh like Istio?<a class="headerlink" href="#does-argo-rollout-require-a-service-mesh-like-istio" title="Permanent link">&para;</a></h3>
-<p>Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets.</p>
+<p>Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets. </p>
+<h3 id="does-argo-rollout-require-we-follow-gitops-in-my-organization">Does Argo Rollout require we follow GitOps in my organization?<a class="headerlink" href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts is a Kubernetes controller that will react to any manifest change regardless of how the manifest was changed. The manifest can be changed
+by a Git commit, an API call, another controller or even a manual <code>kubectl</code> command. You can use Argo Rollouts with any traditional CI/CD
+solution that does not follow the GitOps approach.</p>
 <h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
 <h3 id="which-deployment-strategies-does-argo-rollouts-support">Which deployment strategies does Argo Rollouts support?<a class="headerlink" href="#which-deployment-strategies-does-argo-rollouts-support" title="Permanent link">&para;</a></h3>
 <p>Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.</p>
