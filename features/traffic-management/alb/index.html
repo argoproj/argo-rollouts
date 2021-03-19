@@ -1439,7 +1439,7 @@ which configures an AWS Application Load Balancer (ALB) to route traffic to one 
 services. ALBs provides advanced traffic splitting capability through the concept of
 <a href="https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/">weighted target groups</a>.
 This feature is supported by the AWS Load Balancer Controller through annotations made to the
-Ingress object to configure "actions".</p>
+Ingress object to configure "actions."</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p>ALBs are configured via Listeners, and Rules which contain Actions. Listeners define how traffic
 from a client comes in, and Rules define how to handle those requests with various Actions. One
@@ -1451,17 +1451,66 @@ Rules through the Ingress' annotations and spec. In order to split traffic among
 groups (e.g. different Kubernetes services), the AWS Load Balancer controller looks to a specific
 "action" annotation on the Ingress,
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions"><code>alb.ingress.kubernetes.io/actions.&lt;service-name&gt;</code></a>.
-The action-name in the annotation must match the serviceName in the Ingress rules, and servicePort
-must be the literal value, <code>use-annotation</code>, in lieu of a named or numeric port. The following is an
-example of an Ingress which splits traffic between two Kubernetes services, canary-service and
-stable-service, with a traffic weight of 80 and 20 respectively:</p>
+This annotation is injected and updated automatically by a Rollout during an update according to
+the desired traffic weights.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable 
+services during updates, the Rollout should be configured with the following fields:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nn">...</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="c1"># canaryService and stableService are references to Services which the Rollout will modify</span>
+      <span class="c1"># to target the canary ReplicaSet and stable ReplicaSet respectively (required).</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span>
+      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">alb</span><span class="p">:</span>
+          <span class="c1"># The referenced ingress will be injected with a custom action annotation, directing</span>
+          <span class="c1"># the AWS Load Balancer Controller to split traffic between the canary and stable</span>
+          <span class="c1"># Service, according to the desired traffic weight (required).</span>
+          <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
+          <span class="c1"># Reference to a Service that the Ingress must target in one of the rules (optional).</span>
+          <span class="c1"># If omitted, uses canary.stableService.</span>
+          <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
+          <span class="c1"># Service port is the port which the Service listens on (required).</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>
+</code></pre></div>
+<p>The referenced Ingress should be deployed with an ingress rule that matches the Rollout service:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
-    <span class="nt">alb.ingress.kubernetes.io/actions.stable-service</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
+          <span class="c1"># or canary.stableService (if rootService is omitted)</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
+          <span class="c1"># servicePort must be the value: use-annotation</span>
+          <span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
+</code></pre></div>
+<p>During an update, the rollout controller injects the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code>
+annotation, containing a JSON payload understood by the AWS Load Balancer Controller, directing it
+to split traffic between the <code>canaryService</code> and <code>stableService</code> according to the current canary weight. </p>
+<p>The following is an example of our example Ingress after the rollout has injected the custom action 
+annotation that splits traffic between the canary-service and stable-service, with a traffic weight
+of 80 and 20 respectively:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
+    <span class="nt">alb.ingress.kubernetes.io/actions.root-service</span><span class="p">:</span> <span class="p p-Indicator">|</span>
       <span class="no">{ </span>
         <span class="no">&quot;Type&quot;:&quot;forward&quot;,</span>
         <span class="no">&quot;ForwardConfig&quot;:{ </span>
@@ -1483,57 +1532,11 @@ stable-service, with a traffic weight of 80 and 20 respectively:</p>
   <span class="nt">rules</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">http</span><span class="p">:</span>
       <span class="nt">paths</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
-          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
-        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
 </code></pre></div>
-<p>The example Ingress uses the <code>alb.ingress.kubernetes.io/actions.stable-service</code> annotation to define
-how to split traffic to multiple services for the rule with the <code>stable-service</code> serviceName.
-During a canary update, the rollout controller injects, then continually modifies the
-<code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code> annotation to achieve the desired canary weight.</p>
-<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable 
-services during updates, the Rollout should be configured with the following fields:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nn">...</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">strategy</span><span class="p">:</span>
-    <span class="nt">canary</span><span class="p">:</span>
-      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span>  <span class="c1"># required</span>
-      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>  <span class="c1"># required</span>
-      <span class="nt">trafficRouting</span><span class="p">:</span>
-        <span class="nt">alb</span><span class="p">:</span>
-          <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>           <span class="c1"># required</span>
-          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>           <span class="c1"># required</span>
-          <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>  <span class="c1"># optional</span>
-</code></pre></div>
-<p>The <code>ingress</code> field is a reference to an Ingress in the same namespace of the Rollout which manages
-the underlying ALB. The <code>servicePort</code> field refers to service port for which the service is handling
-traffic on. </p>
-<p>Additionally, the referenced Ingress must specify <code>use-annotation</code> as the value of 
-<code>servicePort</code> (requirement from AWS Load Balancer Controller). e.g.:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
-  <span class="nt">annotations</span><span class="p">:</span>
-    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">rules</span><span class="p">:</span>
-    <span class="p p-Indicator">-</span> <span class="nt">http</span><span class="p">:</span>
-        <span class="nt">paths</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
-              <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
-              <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
-            <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
-</code></pre></div>
-<p>During an update, the rollout controller examines the Ingress' <code>spec.rules</code> to find the service name
-referenced under <code>spec.strategy.canary.stableService</code> (or optionally <code>rootService</code> if specified).
-It then injects the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code> annotation, containing a
-JSON payload understood by the AWS Load Balancer Controller, directing it to split traffic between
-the <code>canaryService</code> and <code>stableService</code> according to the current canary weight. </p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Argo rollouts additionally injects an annotation, <code>rollouts.argoproj.io/managed-alb-actions</code>,

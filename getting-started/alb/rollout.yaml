@@ -12,6 +12,7 @@ spec:
         alb:
           ingress: rollouts-demo-ingress
           servicePort: 80
+          rootService: rollouts-demo-root
       steps:
       - setWeight: 5
       - pause: {}

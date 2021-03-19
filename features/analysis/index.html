@@ -1946,9 +1946,9 @@ An example would be to reference metadata labels like env and region and passing
               <span class="nt">fieldPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;region&#39;]</span>
 </code></pre></div></p>
 <h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
-<p>A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
-AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
-failure of the analysis run decides if the Rollout will switch traffic, or abort the Rollout completely.</p>
+<p>A Rollout using the BlueGreen strategy can launch an AnalysisRun <em>before</em> it switches traffic to the new version using
+pre-promotion. This can be used to block the Service selector switch until the AnalysisRun finishes successfully. The success or
+failure of the AnalysisRun decides if the Rollout switches traffic, or abort the Rollout completely.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1966,18 +1966,18 @@ failure of the analysis run decides if the Rollout will switch traffic, or abort
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </code></pre></div>
-<p>In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
-Rollout will not switch traffic to the new version until the analysis run finishes successfully. </p>
+<p>In this example, the Rollout creates a pre-promotion AnalysisRun once the new ReplicaSet is fully available.
+The Rollout will not switch traffic to the new version until the analysis run finishes successfully. </p>
 <p>Note: if the<code>autoPromotionSeconds</code> field is specified and the Rollout has waited auto promotion seconds amount of time,
 the Rollout marks the AnalysisRun successful and switches the traffic to a new version automatically. If the AnalysisRun
 completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the 
 <code>autoPromotionSeconds</code>.</p>
 <h2 id="bluegreen-post-promotion-analysis">BlueGreen Post Promotion Analysis<a class="headerlink" href="#bluegreen-post-promotion-analysis" title="Permanent link">&para;</a></h2>
-<p>A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
-run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
-If <code>scaleDownDelaySeconds</code> is specified, the controller will cancel any AnalysisRuns at time of <code>scaleDownDelay</code> to 
-scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
-after the AnalysisRun completes (with a minimum of 30 seconds).</p>
+<p>A Rollout using a BlueGreen strategy can launch an analysis run <em>after</em> the traffic switch to the new version using
+post-promotion analysis. If post-promotion Analysis fails or errors, the Rollout enters an aborted state and switches traffic back to the
+previous stable Replicaset. When post-analysis is Successful, the Rollout is considered fully promoted and
+the new ReplicaSet will be marked as stable. The old ReplicaSet will then be scaled down according to 
+<code>scaleDownDelaySeconds</code> (default 30 seconds).</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
