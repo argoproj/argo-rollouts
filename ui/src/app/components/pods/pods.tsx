@@ -72,7 +72,9 @@ export const PodIcon = (props: {status: string}) => {
             icon = faExclamationTriangle;
             break;
         default:
+            spin = false;
             icon = faQuestionCircle;
+            break;
     }
 
     return (

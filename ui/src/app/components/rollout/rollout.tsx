@@ -11,12 +11,16 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import {
     faBalanceScale,
     faBalanceScaleRight,
+    faBoxes,
     faChevronCircleDown,
     faChevronCircleUp,
     faDove,
+    faExclamationCircle,
+    faFlask,
     faPalette,
     faPauseCircle,
     faPencilAlt,
+    faSave,
     faShoePrints,
     faTimes,
     faUndoAlt,
@@ -35,11 +39,13 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus,
 } from '../../../models/rollout/generated';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {Autocomplete} from '../autocomplete/autocomplete';
 import {faChartBar} from '@fortawesome/free-regular-svg-icons';
 import {EffectDiv} from '../effect-div/effect-div';
+import {Tooltip} from '../tooltip/tooltip';
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;
@@ -129,16 +135,18 @@ export const Rollout = () => {
             </Helmet>
             <ThemeDiv className='rollout__toolbar'>
                 <ThemeDiv className='rollout__header'>
-                    {name} <StatusIcon status={rollout.status as RolloutStatus} />
+                    <div style={{marginRight: '5px'}}>{name}</div> <StatusIcon status={rollout.status as RolloutStatus} />
                 </ThemeDiv>
-                <React.Suspense fallback={<Spinner />}>
-                    <RolloutActions rollout={rollout} />
-                </React.Suspense>
+                <div className='rollout__toolbar__actions'>
+                    <React.Suspense fallback={<Spinner />}>
+                        <RolloutActions rollout={rollout} />
+                    </React.Suspense>
+                </div>
             </ThemeDiv>
 
             <ThemeDiv className='rollout__body'>
                 <WaitFor loading={loading}>
-                    <div style={{display: 'flex', flexDirection: 'column'}}>
+                    <div className='rollout__row rollout__row--top'>
                         <ThemeDiv className='info rollout__info'>
                             <div className='info__title'>Summary</div>
 
@@ -156,7 +164,7 @@ export const Rollout = () => {
                                 )}
                             </ThemeDiv>
                         </ThemeDiv>
-                        <ThemeDiv className='info rollout__info' style={{marginTop: '1em'}}>
+                        <ThemeDiv className='info rollout__info'>
                             <ContainersWidget
                                 images={images}
                                 containers={rollout.containers || []}
@@ -167,26 +175,28 @@ export const Rollout = () => {
                         </ThemeDiv>
                     </div>
 
-                    {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                        <ThemeDiv className='info rollout__info'>
-                            <div className='info__title'>Revisions</div>
-                            <div style={{marginTop: '1em'}}>
-                                {revisions.map((r, i) => (
-                                    <RevisionWidget key={i} revision={r} initCollapsed={false} rollback={(r) => api.undoRollout(name, `${r}`)} current={i === 0} />
-                                ))}
-                            </div>
-                        </ThemeDiv>
-                    )}
-                    {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
-                        <ThemeDiv className='info steps'>
-                            <ThemeDiv className='info__title'>Steps</ThemeDiv>
-                            <div style={{marginTop: '1em'}}>
-                                {rollout.steps.map((step, i) => (
-                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} />
-                                ))}
-                            </div>
-                        </ThemeDiv>
-                    )}
+                    <div className='rollout__row rollout__row--bottom'>
+                        {rollout.replicaSets && rollout.replicaSets.length > 0 && (
+                            <ThemeDiv className='info rollout__info rollout__revisions'>
+                                <div className='info__title'>Revisions</div>
+                                <div style={{marginTop: '1em'}}>
+                                    {revisions.map((r, i) => (
+                                        <RevisionWidget key={i} revision={r} initCollapsed={false} rollback={(r) => api.undoRollout(name, `${r}`)} current={i === 0} />
+                                    ))}
+                                </div>
+                            </ThemeDiv>
+                        )}
+                        {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
+                            <ThemeDiv className='info steps'>
+                                <ThemeDiv className='info__title'>Steps</ThemeDiv>
+                                <div style={{marginTop: '1em'}}>
+                                    {rollout.steps.map((step, i) => (
+                                        <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
+                                    ))}
+                                </div>
+                            </ThemeDiv>
+                        )}
+                    </div>
                 </WaitFor>
             </ThemeDiv>
         </div>
@@ -241,6 +251,14 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
         map[rs.revision].replicaSets = [...map[rs.revision].replicaSets, rs];
     }
 
+    for (const ar of ri.analysisRuns || []) {
+        if (!map[ar.revision]) {
+            map[ar.revision] = {...emptyRevision};
+        }
+        map[ar.revision].number = ar.revision;
+        map[ar.revision].analysisRuns = [...map[ar.revision].analysisRuns, ar];
+    }
+
     const revisions: Revision[] = [];
     const prevRn = 0;
     Object.keys(map).forEach((key) => {
@@ -265,7 +283,9 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                    {!props.current && <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon={faUndoAlt} style={{fontSize: '13px'}} />}
+                    {!props.current && (
+                        <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon={faUndoAlt} style={{fontSize: '13px'}} indicateLoading shouldConfirm />
+                    )}
                     <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
                         <FontAwesomeIcon icon={icon} />
                     </ThemeDiv>
@@ -275,13 +295,37 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
                 <ImageItems images={images} />
             </ThemeDiv>
 
-            {!collapsed &&
-                revision.replicaSets.map((rs) => (
-                    <div style={{marginTop: '1em'}} key={rs.objectMeta.uid}>
-                        <ReplicaSet rs={rs} />
-                    </div>
-                ))}
+            {!collapsed && (
+                <React.Fragment>
+                    {revision.replicaSets.map((rs) => (
+                        <div style={{marginTop: '1em'}} key={rs.objectMeta.uid}>
+                            <ReplicaSet rs={rs} />
+                        </div>
+                    ))}
+                    {(revision.analysisRuns || []).length > 0 && (
+                        <React.Fragment>
+                            <div style={{marginTop: '1em'}}>Analysis Runs</div>
+                            <div style={{marginTop: '1em'}}>
+                                <AnalysisRunWidget analysisRuns={revision.analysisRuns} />
+                            </div>
+                        </React.Fragment>
+                    )}
+                </React.Fragment>
+            )}
         </EffectDiv>
+    );
+};
+
+const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus[]}) => {
+    const {analysisRuns} = props;
+    return (
+        <div style={{display: 'flex'}}>
+            {analysisRuns.map((ar) => (
+                <Tooltip content={`${ar.name ? ar.name + ': ' : ''}${ar.status}`}>
+                    <ThemeDiv className={`analysis analysis--${ar.status.toLowerCase() || 'unknown'}`} />
+                </Tooltip>
+            ))}
+        </div>
     );
 };
 
@@ -297,6 +341,7 @@ const ContainersWidget = (props: {
         inputMap[container.name] = '';
     }
     const [inputs, setInputs] = React.useState(inputMap);
+    const [error, setError] = React.useState(false);
 
     return (
         <React.Fragment>
@@ -307,19 +352,34 @@ const ContainersWidget = (props: {
 
                 {editing ? (
                     <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                        <ActionButton icon={faTimes} action={() => setEditing(false)} />
                         <ActionButton
-                            label='SAVE'
+                            icon={faTimes}
+                            action={() => {
+                                setEditing(false);
+                                setError(false);
+                            }}
+                        />
+                        <ActionButton
+                            label={error ? 'ERROR' : 'SAVE'}
                             style={{marginRight: 0}}
+                            icon={error ? faExclamationCircle : faSave}
                             action={() => {
                                 for (const container of Object.keys(inputs)) {
                                     const split = inputs[container].split(':');
-                                    const image = split[0];
-                                    const tag = split[1];
-                                    setImage(container, image, tag);
+                                    if (split.length > 1) {
+                                        const image = split[0];
+                                        const tag = split[1];
+                                        setImage(container, image, tag);
+                                        setTimeout(() => {
+                                            setEditing(false);
+                                        }, 350);
+                                    } else {
+                                        setError(true);
+                                    }
                                 }
                             }}
-                            indicateLoading
+                            shouldConfirm
+                            indicateLoading={!error}
                         />
                     </div>
                 ) : (
@@ -339,6 +399,14 @@ const ContainersWidget = (props: {
                     }}
                 />
             ))}
+            {containers.length < 2 && (
+                <ThemeDiv className='containers__few'>
+                    <span style={{marginRight: '5px'}}>
+                        <FontAwesomeIcon icon={faBoxes} />
+                    </span>
+                    Add more containers to fill this space!
+                </ThemeDiv>
+            )}
         </React.Fragment>
     );
 };
@@ -362,7 +430,7 @@ const ContainerWidget = (props: {
     );
 };
 
-const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean}) => {
+const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     let icon: IconDefinition;
     let content = '';
     let unit = '';
@@ -375,19 +443,29 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         icon = faPauseCircle;
         if (props.step.pause.duration) {
             content = `Pause: ${props.step.pause.duration}`;
-            unit = 's';
         } else {
             content = 'Pause';
         }
     }
     if (props.step.analysis) {
+        content = 'Analysis';
         icon = faChartBar;
+    }
+    if (props.step.setCanaryScale) {
+        content = 'Canary Scale';
+    }
+    if (props.step.experiment) {
+        content = 'Experiment';
+        icon = faFlask;
     }
 
     return (
-        <div className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-            <FontAwesomeIcon icon={icon} /> {content}
-            {unit}
-        </div>
+        <React.Fragment>
+            <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
+                <FontAwesomeIcon icon={icon} /> {content}
+                {unit}
+            </EffectDiv>
+            {!props.last && <ThemeDiv className='steps__connector' />}
+        </React.Fragment>
     );
 };

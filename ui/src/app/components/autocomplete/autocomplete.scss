@@ -8,6 +8,7 @@
     $autocompleteClass: &;
 
     &__items {
+        z-index: 3;
         position: absolute;
         white-space: nowrap;
         max-height: 6em;
@@ -17,16 +18,28 @@
         background-color: white;
         border: 1px solid $argo-color-gray-4;
         padding: 10px;
+        box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
 
         &__item {
+            z-index: 2;
             padding: 0.75em 0;
+            padding-right: 30px;
+            padding-left: 5px;
             cursor: pointer;
             border-bottom: 1px solid $argo-color-gray-4;
+            box-sizing: border-box;
+
+            &--selected {
+                border-bottom: 1px solid $sky;
+                box-shadow: 0px 1px 0px 0px $sky;
+            }
         }
 
         &--dark {
             background-color: $space;
             border: 1px solid $silver-lining;
+            box-shadow: 1px 2px 3px 1px $space;
+            color: $shine;
 
             #{$autocompleteClass}__items__item {
                 border-bottom: 1px solid $silver-lining;

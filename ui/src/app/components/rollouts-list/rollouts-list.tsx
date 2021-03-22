@@ -1,10 +1,9 @@
-import {faCircleNotch, faClock, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Link} from 'react-router-dom';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
-import {formatTimestamp} from '../../shared/utils/utils';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {WaitFor} from '../wait-for/wait-for';
@@ -14,6 +13,7 @@ import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {ParsePodStatus, PodStatus, ReplicaSet} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
+import {Autocomplete} from '../autocomplete/autocomplete';
 
 export const RolloutsList = () => {
     const [rollouts, loading] = useWatchRollouts();
@@ -28,9 +28,18 @@ export const RolloutsList = () => {
         return true;
     });
 
+    const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
+
+    const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
+
+    React.useEffect(() => {
+        setRolloutNames(parseNames(rollouts));
+    }, [rollouts]);
+
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
+                <Autocomplete items={rolloutNames} placeholder='Search' style={{marginBottom: '1.5em'}} />
                 {(rollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
                     <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} />
                 ))}
@@ -85,7 +94,6 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                         label={'Strategy'}
                         items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? faPalette : faDove, kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                     />
-                    <InfoItemRow label={'Last Restarted'} items={{content: formatTimestamp(rollout.restartedAt as string) || 'Never', icon: faClock}} />
                     {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
                 </ThemeDiv>
                 {rollout.replicaSets?.map(

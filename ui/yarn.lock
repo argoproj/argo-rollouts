@@ -1485,10 +1485,10 @@
   resolved "https://registry.yarnpkg.com/@polka/url/-/url-1.0.0-next.11.tgz#aeb16f50649a91af79dbe36574b66d0f9e4d9f71"
   integrity sha512-3NsZsJIA/22P3QUyrEDNA2D133H4j224twJrdipXN38dpnIOzAbUDtOwkcJ5pXmn75w7LSQDjA4tO9dm1XlqlA==
 
-"@rbreeze/react-keypress@^0.1.0":
-  version "0.1.1"
-  resolved "https://npm.pkg.github.com/download/@rbreeze/react-keypress/0.1.1/c22084694bbbb2f4e3c9ae14200ac24e85c4d5d55fe07fa1ee38c6d4c918fbab#08779fe877f52c6fc52c2b021577291d0e572daa"
-  integrity sha512-Lsu8OaOjMfVBnODUBQwTL7PwQdIRiVbyX9udHbwu9JD088+SKPjdgyVtiARES69z5Gmja5LV4qh/gPShjqqKkg==
+"@rbreeze/react-keypress@^0.1.2":
+  version "0.1.2"
+  resolved "https://npm.pkg.github.com/download/@rbreeze/react-keypress/0.1.2/8dd88986a50cbd13b61f3f7249b8b22981949daafc10036b350837238179c4d3#dbcfbb0d0338f0824b48b23aa3edebcd3dbe736c"
+  integrity sha512-dbPEiirtOAJCwtuaC4QgNSsGj7MJFYIK2WXDBXm5tqOe0dBvfAj9kRnDMvweAnv6yU2xoYp5N7onkMo3q9PdJw==
   dependencies:
     "@types/react" "^17.0.2"
     react "^17.0.1"

@@ -43,6 +43,10 @@ describe("RolloutServiceApi", () => {
     const name: string = "name_example"
     return expect(instance.restartRollout(name, {})).resolves.toBe(null)
   })
+  test("retryRollout", () => {
+    const name: string = "name_example"
+    return expect(instance.retryRollout(name, {})).resolves.toBe(null)
+  })
   test("setRolloutImage", () => {
     const rollout: string = "rollout_example"
     const container: string = "container_example"

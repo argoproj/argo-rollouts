@@ -99,6 +99,30 @@
         ]
       }
     },
+    "/api/v1/rollout/retry/{name}": {
+      "get": {
+        "operationId": "RetryRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "properties": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollout/set/{rollout}/{container}/{image}/{tag}": {
       "get": {
         "operationId": "SetRolloutImage",

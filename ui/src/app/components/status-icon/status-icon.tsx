@@ -53,6 +53,7 @@ export enum ReplicaSetStatus {
     Degraded = 'Degraded',
     ScaledDown = 'ScaledDown',
     Healthy = 'Healthy',
+    Progressing = 'Progressing',
 }
 
 export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
@@ -74,6 +75,12 @@ export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
         case 'Degraded': {
             icon = faTimesCircle;
             className = 'degraded';
+            break;
+        }
+        case 'Progressing': {
+            icon = faCircleNotch;
+            spin = true;
+            className = 'progressing';
             break;
         }
         default: {

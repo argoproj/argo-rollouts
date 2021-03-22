@@ -73,4 +73,8 @@ service RolloutService {
     rpc UndoRollout(UndoQuery) returns (google.protobuf.Empty) {
         option (google.api.http).get = "/api/v1/rollout/undo/{rollout}/{revision}";
     }
+
+    rpc RetryRollout(RolloutQuery) returns (google.protobuf.Empty) {
+        option (google.api.http).get = "/api/v1/rollout/retry/{name}";
+    }
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
@@ -347,5 +348,12 @@ func (s* ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoQue
 	if err != nil {
 		return nil, err
 	}
+	return &empty.Empty{}, nil
+}
+
+func (s* ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	retry.RetryRollout(rolloutIf, q.GetName())
+
 	return &empty.Empty{}, nil
 }

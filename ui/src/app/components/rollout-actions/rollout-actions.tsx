@@ -24,6 +24,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 icon: faSync,
                 action: api.restartRollout,
                 tooltip: `Last restarted ${formatTimestamp(props.rollout.restartedAt || '')}`,
+                shouldConfirm: true,
             },
         ],
         [
@@ -31,7 +32,8 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RETRY',
                 icon: faRedoAlt,
-                action: (): any => null,
+                action: api.retryRollout,
+                shouldConfirm: true,
             },
         ],
         [
@@ -40,6 +42,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'ABORT',
                 icon: faExclamationCircle,
                 action: api.abortRollout,
+                shouldConfirm: true,
             },
         ],
         [
@@ -49,6 +52,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 icon: faArrowCircleUp,
                 action: api.promoteRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,
+                shouldConfirm: true,
             },
         ],
     ]);

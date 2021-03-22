@@ -2,13 +2,27 @@
 
 $WIDGET_WIDTH: 400px;
 
+$widgetPadding: 17px;
+$widgetMarginRight: 20px;
+$colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
+
 .rollouts-list {
     display: flex;
     padding: 20px;
+    box-sizing: border-box;
     flex-wrap: wrap;
+    @media screen and (max-width: 3 * $colWidth) {
+        width: 2 * $colWidth;
+        margin: 0 auto;
+    }
+
+    @media screen and (max-width: 2 * $colWidth) {
+        width: $colWidth;
+    }
 
     &__widget {
         position: relative;
+        box-sizing: border-box;
         padding: 17px;
         font-size: 14px;
         margin-right: 20px;

@@ -13,14 +13,14 @@ import './effect-div.scss';
  * - Add transitions to the &__background element
  */
 
-export const EffectDiv = (props: {children?: React.ReactNode} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) => {
+export const EffectDiv = (
+    props: {children?: React.ReactNode; innerref?: React.MutableRefObject<any>} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+) => {
     const backgroundCl = appendSuffixToClasses(props.className, '__background');
     return (
-        <ThemeDiv className={`${props.className} effect-div`} style={props.style} onClick={props.onClick}>
+        <ThemeDiv className={`${props.className} effect-div`} style={props.style} onClick={props.onClick} innerref={props.innerref}>
             <ThemeDiv className={`effect-div__background ${backgroundCl}`} />
-            <div style={{zIndex: 2, position: 'relative'}} onClick={props.onClick}>
-                {props.children}
-            </div>
+            <div style={{zIndex: 2, position: 'relative', display: 'inherit', flex: 'inherit', alignItems: 'inherit'}}>{props.children}</div>
         </ThemeDiv>
     );
 };

@@ -1,7 +1,9 @@
 import * as React from 'react';
 import {Theme, useTheme} from '../../shared/context/theme';
 
-export const ThemeDiv = (props: {children?: React.ReactNode; disabled?: boolean} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) => {
+export const ThemeDiv = (
+    props: {children?: React.ReactNode; disabled?: boolean; innerref?: React.MutableRefObject<any>} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+) => {
     const theme = useTheme();
     let clString = props.className;
 
@@ -17,7 +19,7 @@ export const ThemeDiv = (props: {children?: React.ReactNode; disabled?: boolean}
     }
 
     return (
-        <div {...props} className={clString}>
+        <div {...props} className={clString} ref={props.innerref}>
             {props.children}
         </div>
     );
