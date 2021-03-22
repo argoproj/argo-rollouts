@@ -84,7 +84,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&statusOptions.Watch, "watch", "w", true, "Watch the status of the rollout until it's done")
-	cmd.Flags().Int64VarP(&statusOptions.Timeout, "timeout", "t", 300, "The length of time in seconds to watch before giving up, zero means wait forever")
+	cmd.Flags().Int64VarP(&statusOptions.Timeout, "timeout", "t", 0, "The length of time in seconds to watch before giving up, zero means wait forever")
 	return cmd
 }
 
