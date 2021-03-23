@@ -1,5 +1,6 @@
 import {faCheck, faCircleNotch, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {Key, useKeyListener} from '@rbreeze/react-keypress';
 import * as React from 'react';
 import {useClickOutside} from '../../shared/utils/utils';
 import {EffectDiv} from '../effect-div/effect-div';
@@ -45,6 +46,12 @@ export const ActionButton = (props: ActionButtonProps) => {
         const to = setTimeout(() => setLoading(false), 1000);
         return () => clearInterval(to);
     }, [loading]);
+
+    const listen = useKeyListener();
+    listen(Key.ESCAPE, () => {
+        unconfirm();
+        return confirmed;
+    });
     const button = (
         <EffectDiv
             className={`action-button ${props.dark ? 'action-button--dark' : ''} ${props.disabled ? 'action-button--disabled' : ''} ${confirmed ? 'action-button--selected' : ''}`}

@@ -1,7 +1,7 @@
 import {faCircleNotch, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useHistory} from 'react-router-dom';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
@@ -14,10 +14,13 @@ import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-act
 import {ParsePodStatus, PodStatus, ReplicaSet} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
 import {Autocomplete} from '../autocomplete/autocomplete';
+import {useInput} from '../input/input';
 
 export const RolloutsList = () => {
     const [rollouts, loading] = useWatchRollouts();
-    const [pos, nav, reset] = useNav(rollouts.length);
+    const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
+    const [pos, nav, reset] = useNav(filteredRollouts.length);
+    const [searchString, setSearchString, searchInput] = useInput('');
 
     const useKeyPress = useKeyListener();
 
@@ -25,6 +28,7 @@ export const RolloutsList = () => {
     useKeyPress(Key.LEFT, () => nav(-1));
     useKeyPress(Key.ESCAPE, () => {
         reset();
+        setSearchString('');
         return true;
     });
 
@@ -32,15 +36,42 @@ export const RolloutsList = () => {
 
     const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
 
+    const history = useHistory();
+
+    useKeyPress(Key.ENTER, () => {
+        if (pos > -1) {
+            history.push(`/rollout/${filteredRollouts[pos].objectMeta?.name}`);
+            return true;
+        }
+        return false;
+    });
+
     React.useEffect(() => {
         setRolloutNames(parseNames(rollouts));
     }, [rollouts]);
 
+    React.useEffect(() => {
+        const filtered = (rollouts || []).filter((r) => (r.objectMeta?.name || '').includes(searchString));
+        console.log(filtered);
+        if ((filtered || []).length > 0) {
+            setFilteredRollouts(filtered);
+        }
+    }, [searchString, rollouts]);
+
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
-                <Autocomplete items={rolloutNames} placeholder='Search' style={{marginBottom: '1.5em'}} />
-                {(rollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                <div style={{width: '100%'}}>
+                    <Autocomplete
+                        items={rolloutNames}
+                        placeholder='Search...'
+                        inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
+                        style={{marginBottom: '1.5em', width: '50%'}}
+                        onItemClick={(item) => history.push(`/rollout/${item}`)}
+                        {...searchInput}
+                    />
+                </div>
+                {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
                     <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} />
                 ))}
             </WaitFor>
@@ -68,7 +99,6 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
     React.useEffect(() => {
         if (watching) {
             const to = setTimeout(() => {
-                console.log(rollout.replicaSets?.map((rs) => (rs.pods || []).length));
                 if (!isInProgress(rollout)) {
                     subscribe(false);
                 }

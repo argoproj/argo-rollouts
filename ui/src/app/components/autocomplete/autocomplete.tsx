@@ -5,7 +5,7 @@ import ThemeDiv from '../theme-div/theme-div';
 
 import './autocomplete.scss';
 
-export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> & {items: string[]}) => {
+export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> & {items: string[]; inputStyle?: React.CSSProperties; onItemClick?: (item: string) => void}) => {
     const [value, setValue] = React.useState((props.value as string) || '');
     const [curItems, setCurItems] = React.useState(props.items || []);
     const inputRef = React.useRef(null);
@@ -54,14 +54,24 @@ export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> 
         return false;
     });
 
+    listen(Key.ENTER, () => {
+        if (showSuggestions && props.onItemClick) {
+            props.onItemClick(curItems[pos]);
+            return true;
+        }
+        return false;
+    });
+
     const style = props.style;
     const trimmedProps = {...props};
     delete trimmedProps.style;
+    delete trimmedProps.inputStyle;
 
     return (
         <div className='autocomplete' ref={autocompleteRef} style={style}>
             <Input
                 {...trimmedProps}
+                style={props.inputStyle}
                 innerref={inputRef}
                 className={(props.className || '') + ' autocomplete__input'}
                 value={value}
@@ -78,6 +88,9 @@ export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> 
                     <div
                         key={i}
                         onClick={() => {
+                            if (props.onItemClick) {
+                                props.onItemClick(i);
+                            }
                             setValue(i);
                             props.onChange({target: {value: i}} as React.ChangeEvent<HTMLInputElement>);
                             setShowSuggestions(false);
