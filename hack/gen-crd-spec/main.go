@@ -26,6 +26,10 @@ const metadataValidation = `properties:
    type: object
 type: object`
 
+var preserveUnknownFields = map[string]interface{}{
+	"x-kubernetes-preserve-unknown-fields": true,
+}
+
 var crdPaths = map[string]string{
 	"Rollout":                 "manifests/crds/rollout-crd.yaml",
 	"Experiment":              "manifests/crds/experiment-crd.yaml",
@@ -34,7 +38,7 @@ var crdPaths = map[string]string{
 	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
 }
 
-func removeValidation(un *unstructured.Unstructured, path string) {
+func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]interface{}, path string) {
 	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
 		if strings.HasSuffix(part, "[]") {
@@ -49,7 +53,8 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 	if !ok {
 		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
 	}
-	unstructured.RemoveNestedField(un.Object, schemaPath...)
+
+	unstructured.SetNestedMap(un.Object, fieldOverride, schemaPath...)
 }
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
@@ -230,34 +235,40 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
-		removeValidation(un, "spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "Experiment":
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
