@@ -114,6 +114,7 @@ func NewManager(
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
+	kapcomIngressClasses []string,
 ) *Manager {
 
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
@@ -211,7 +212,7 @@ func NewManager(
 		RolloutWorkQueue: rolloutWorkqueue,
 
 		MetricsServer: metricsServer,
-
+		KapcomClasses: kapcomIngressClasses,
 		ALBClasses:   albIngressClasses,
 		NGINXClasses: nginxIngressClasses,
 	})

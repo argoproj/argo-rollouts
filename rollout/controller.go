@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	// Somewhere here we have to define the kapcom as well
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -82,6 +83,7 @@ type ControllerConfig struct {
 	ArgoProjClientset               clientset.Interface
 	DynamicClientSet                dynamic.Interface
 	SmiClientSet                    smiclientset.Interface
+	KapcomclientSet                 clientset.Interface
 	ExperimentInformer              informers.ExperimentInformer
 	AnalysisRunInformer             informers.AnalysisRunInformer
 	AnalysisTemplateInformer        informers.AnalysisTemplateInformer

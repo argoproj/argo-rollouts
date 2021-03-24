@@ -137,9 +137,11 @@ func (c *Controller) syncIngress(key string) error {
 		return nil
 	}
 	// An ingress without annotations cannot be a alb or nginx ingress
+	// here also I think we need to have ingressroutes related changes.
 	if ingress.Annotations == nil {
 		return nil
 	}
+	// We have to add one more annotation, in ingress to find the class which will be ingressroutes in our case.
 	class := ingress.Annotations["kubernetes.io/ingress.class"]
 	switch {
 	case hasClass(c.albClasses, class):

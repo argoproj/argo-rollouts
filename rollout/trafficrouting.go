@@ -65,6 +65,15 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 			ControllerKind: controllerKind,
 		})
 	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Kapcom != nil {
+		return kapcom.NewReconciler(kapcom.ReconcilerConfig{
+			Rollout:        rollout,
+			Client:         c.KapcomclientSet,
+			Recorder:       c.recorder,
+			ControllerKind: controllerKind,
+			ingressClass:   "",
+		})
+	}
 	return nil, nil
 }
 

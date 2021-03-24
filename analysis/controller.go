@@ -121,6 +121,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	return controller
 }
 
+// here 1
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting analysis workers")
 	for i := 0; i < threadiness; i++ {

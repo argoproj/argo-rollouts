@@ -230,6 +230,8 @@ type RolloutTrafficRouting struct {
 	ALB *ALBTrafficRouting `json:"alb,omitempty"`
 	// SMI holds TrafficSplit specific configuration to route traffic
 	SMI *SMITrafficRouting `json:"smi,omitempty"`
+	// SMI holds TrafficSplit specific configuration to route traffic
+	Kapcom *KapcomTrafficRouting `json:"smi,omitempty"`
 }
 
 // SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing
@@ -259,6 +261,16 @@ type IstioTrafficRouting struct {
 	VirtualService IstioVirtualService `json:"virtualService"`
 	// DestinationRule references an Istio DestinationRule to modify to shape traffic
 	DestinationRule *IstioDestinationRule `json:"destinationRule,omitempty"`
+}
+
+// ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
+type KapcomTrafficRouting struct {
+	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
+	Ingress string `json:"ingress"`
+	// ServicePort refers to the port that the Ingress action should route traffic to
+	ServicePort int32 `json:"servicePort"`
+	// RootService references the service in the ingress to the controller should add the action to
+	RootService string `json:"rootService,omitempty"`
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify
