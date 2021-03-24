@@ -790,6 +790,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -1338,6 +1343,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -1890,6 +1900,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -2374,21 +2389,9 @@ spec:
                                                         resources:
                                                           properties:
                                                             limits:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             requests:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                           type: object
                                                         selector:
                                                           properties:
@@ -3745,6 +3748,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -4293,6 +4301,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -4845,6 +4858,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -5329,21 +5347,9 @@ spec:
                                                         resources:
                                                           properties:
                                                             limits:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             requests:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                           type: object
                                                         selector:
                                                           properties:
@@ -6628,6 +6634,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -7176,6 +7187,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -7728,6 +7744,11 @@ spec:
                                                   type: integer
                                               type: object
                                             resources:
+                                              properties:
+                                                limits:
+                                                  x-kubernetes-preserve-unknown-fields: true
+                                                requests:
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             securityContext:
                                               properties:
@@ -8212,21 +8233,9 @@ spec:
                                                         resources:
                                                           properties:
                                                             limits:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             requests:
-                                                              additionalProperties:
-                                                                anyOf:
-                                                                - type: integer
-                                                                - type: string
-                                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                x-kubernetes-int-or-string: true
-                                                              type: object
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                           type: object
                                                         selector:
                                                           properties:
@@ -9478,6 +9487,11 @@ spec:
                                       type: integer
                                   type: object
                                 resources:
+                                  properties:
+                                    limits:
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    requests:
+                                      x-kubernetes-preserve-unknown-fields: true
                                   type: object
                                 securityContext:
                                   properties:
@@ -10026,6 +10040,11 @@ spec:
                                       type: integer
                                   type: object
                                 resources:
+                                  properties:
+                                    limits:
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    requests:
+                                      x-kubernetes-preserve-unknown-fields: true
                                   type: object
                                 securityContext:
                                   properties:
@@ -10578,6 +10597,11 @@ spec:
                                       type: integer
                                   type: object
                                 resources:
+                                  properties:
+                                    limits:
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    requests:
+                                      x-kubernetes-preserve-unknown-fields: true
                                   type: object
                                 securityContext:
                                   properties:
@@ -11062,21 +11086,9 @@ spec:
                                             resources:
                                               properties:
                                                 limits:
-                                                  additionalProperties:
-                                                    anyOf:
-                                                    - type: integer
-                                                    - type: string
-                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                    x-kubernetes-int-or-string: true
-                                                  type: object
+                                                  x-kubernetes-preserve-unknown-fields: true
                                                 requests:
-                                                  additionalProperties:
-                                                    anyOf:
-                                                    - type: integer
-                                                    - type: string
-                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                    x-kubernetes-int-or-string: true
-                                                  type: object
+                                                  x-kubernetes-preserve-unknown-fields: true
                                               type: object
                                             selector:
                                               properties:
@@ -12700,6 +12712,11 @@ spec:
                                 type: integer
                             type: object
                           resources:
+                            properties:
+                              limits:
+                                x-kubernetes-preserve-unknown-fields: true
+                              requests:
+                                x-kubernetes-preserve-unknown-fields: true
                             type: object
                           securityContext:
                             properties:
@@ -13248,6 +13265,11 @@ spec:
                                 type: integer
                             type: object
                           resources:
+                            properties:
+                              limits:
+                                x-kubernetes-preserve-unknown-fields: true
+                              requests:
+                                x-kubernetes-preserve-unknown-fields: true
                             type: object
                           securityContext:
                             properties:
@@ -13800,6 +13822,11 @@ spec:
                                 type: integer
                             type: object
                           resources:
+                            properties:
+                              limits:
+                                x-kubernetes-preserve-unknown-fields: true
+                              requests:
+                                x-kubernetes-preserve-unknown-fields: true
                             type: object
                           securityContext:
                             properties:
@@ -14284,21 +14311,9 @@ spec:
                                       resources:
                                         properties:
                                           limits:
-                                            additionalProperties:
-                                              anyOf:
-                                              - type: integer
-                                              - type: string
-                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                              x-kubernetes-int-or-string: true
-                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           requests:
-                                            additionalProperties:
-                                              anyOf:
-                                              - type: integer
-                                              - type: string
-                                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                              x-kubernetes-int-or-string: true
-                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                         type: object
                                       selector:
                                         properties:
