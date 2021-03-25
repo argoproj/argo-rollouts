@@ -44,6 +44,10 @@ func (c *FakeArgoprojV1alpha1) Experiments(namespace string) v1alpha1.Experiment
 	return &FakeExperiments{c, namespace}
 }
 
+func (c *FakeArgoprojV1alpha1) IngressRoutes(namespace string) v1alpha1.IngressRouteInterface {
+	return &FakeIngressRoutes{c, namespace}
+}
+
 func (c *FakeArgoprojV1alpha1) Rollouts(namespace string) v1alpha1.RolloutInterface {
 	return &FakeRollouts{c, namespace}
 }

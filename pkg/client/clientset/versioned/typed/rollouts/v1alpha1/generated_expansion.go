@@ -26,4 +26,6 @@ type ClusterAnalysisTemplateExpansion interface{}
 
 type ExperimentExpansion interface{}
 
+type IngressRouteExpansion interface{}
+
 type RolloutExpansion interface{}

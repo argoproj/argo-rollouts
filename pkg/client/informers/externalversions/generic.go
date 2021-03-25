@@ -61,6 +61,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().ClusterAnalysisTemplates().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("experiments"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().Experiments().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("ingressroutes"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().IngressRoutes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("rollouts"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().Rollouts().Informer()}, nil
 

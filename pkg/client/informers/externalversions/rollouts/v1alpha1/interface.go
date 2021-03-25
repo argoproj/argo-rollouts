@@ -32,6 +32,8 @@ type Interface interface {
 	ClusterAnalysisTemplates() ClusterAnalysisTemplateInformer
 	// Experiments returns a ExperimentInformer.
 	Experiments() ExperimentInformer
+	// IngressRoutes returns a IngressRouteInformer.
+	IngressRoutes() IngressRouteInformer
 	// Rollouts returns a RolloutInformer.
 	Rollouts() RolloutInformer
 }
@@ -65,6 +67,11 @@ func (v *version) ClusterAnalysisTemplates() ClusterAnalysisTemplateInformer {
 // Experiments returns a ExperimentInformer.
 func (v *version) Experiments() ExperimentInformer {
 	return &experimentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// IngressRoutes returns a IngressRouteInformer.
+func (v *version) IngressRoutes() IngressRouteInformer {
+	return &ingressRouteInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Rollouts returns a RolloutInformer.

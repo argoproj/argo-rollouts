@@ -212,9 +212,8 @@ func NewManager(
 		RolloutWorkQueue: rolloutWorkqueue,
 
 		MetricsServer: metricsServer,
-		KapcomClasses: kapcomIngressClasses,
-		ALBClasses:   albIngressClasses,
-		NGINXClasses: nginxIngressClasses,
+		ALBClasses:    albIngressClasses,
+		NGINXClasses:  nginxIngressClasses,
 	})
 
 	cm := &Manager{

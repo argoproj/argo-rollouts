@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
 	// Somewhere here we have to define the kapcom as well
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"

@@ -18,6 +18,7 @@ var (
 	AnalysisTemplateGVR        = SchemeGroupVersion.WithResource("analysistemplates")
 	ClusterAnalysisTemplateGVR = SchemeGroupVersion.WithResource("clusteranalysistemplates")
 	ExperimentGVR              = SchemeGroupVersion.WithResource("experiments")
+	IngressRoutesGVR           = SchemeGroupVersion.WithResource("ingressroutes")
 )
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind

@@ -43,23 +43,24 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig        clientcmd.ClientConfig
-		rolloutResyncPeriod int64
-		logLevel            string
-		glogLevel           int
-		metricsPort         int
-		instanceID          string
-		rolloutThreads      int
-		experimentThreads   int
-		analysisThreads     int
-		serviceThreads      int
-		ingressThreads      int
-		istioVersion        string
-		trafficSplitVersion string
-		albIngressClasses   []string
-		nginxIngressClasses []string
-		albVerifyWeight     bool
-		namespaced          bool
+		clientConfig         clientcmd.ClientConfig
+		rolloutResyncPeriod  int64
+		logLevel             string
+		glogLevel            int
+		metricsPort          int
+		instanceID           string
+		rolloutThreads       int
+		experimentThreads    int
+		analysisThreads      int
+		serviceThreads       int
+		ingressThreads       int
+		istioVersion         string
+		trafficSplitVersion  string
+		albIngressClasses    []string
+		kapcomIngressClasses []string
+		nginxIngressClasses  []string
+		albVerifyWeight      bool
+		namespaced           bool
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -146,7 +147,8 @@ func newCommand() *cobra.Command {
 				metricsPort,
 				k8sRequestProvider,
 				nginxIngressClasses,
-				albIngressClasses)
+				albIngressClasses,
+				kapcomIngressClasses)
 			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 			dynamicInformerFactory.Start(stopCh)
