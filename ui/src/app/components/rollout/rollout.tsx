@@ -220,7 +220,7 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
                     return {content: t, icon: IconForTag(t)} as InfoItemProps;
                 });
                 if (imageItems.length === 0) {
-                    imageItems = [{icon: IconForTag()}];
+                    imageItems = null;
                 }
                 return <InfoItemRow key={img.image} label={<ThemeDiv className={`image image--${img.color || 'unknown'}`}>{img.image}</ThemeDiv>} items={imageItems} />;
             })}
@@ -304,7 +304,6 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
                     ))}
                     {(revision.analysisRuns || []).length > 0 && (
                         <React.Fragment>
-                            <div style={{marginTop: '1em'}}>Analysis Runs</div>
                             <div style={{marginTop: '1em'}}>
                                 <AnalysisRunWidget analysisRuns={revision.analysisRuns} />
                             </div>
@@ -319,13 +318,16 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
 const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus[]}) => {
     const {analysisRuns} = props;
     return (
-        <div style={{display: 'flex'}}>
-            {analysisRuns.map((ar) => (
-                <Tooltip content={`${ar.name ? ar.name + ': ' : ''}${ar.status}`}>
-                    <ThemeDiv className={`analysis analysis--${ar.status.toLowerCase() || 'unknown'}`} />
-                </Tooltip>
-            ))}
-        </div>
+        <ThemeDiv className='analysis'>
+            <div>Analysis Runs</div>
+            <div className='analysis__runs'>
+                {analysisRuns.map((ar) => (
+                    <Tooltip content={`${ar.name ? ar.name + ': ' : ''}${ar.status}`}>
+                        <ThemeDiv className={`analysis__run analysis__run--${ar.status.toLowerCase() || 'unknown'}`} />
+                    </Tooltip>
+                ))}
+            </div>
+        </ThemeDiv>
     );
 };
 

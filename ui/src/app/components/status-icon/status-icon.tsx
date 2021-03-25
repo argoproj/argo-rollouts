@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCircleNotch, faSortAmountDownAlt} from '@fortawesome/free-solid-svg-icons';
+import {faArrowAltCircleDown, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
 
 import './status-icon.scss';
@@ -68,7 +68,7 @@ export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
             break;
         }
         case 'ScaledDown': {
-            icon = faSortAmountDownAlt;
+            icon = faArrowAltCircleDown;
             className = 'paused';
             break;
         }

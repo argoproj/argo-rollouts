@@ -29,19 +29,18 @@ export const InfoItem = (props: InfoItemProps) => (
     </ThemeDiv>
 );
 
-export const InfoItemRow = (props: {label: string | React.ReactNode; items: InfoItemProps | InfoItemProps[]}) => {
+export const InfoItemRow = (props: {label: string | React.ReactNode; items?: InfoItemProps | InfoItemProps[]}) => {
     let {label, items} = props;
+    let itemComponents = null;
     if (!Array.isArray(items)) {
         items = [items];
     }
+    itemComponents = items.map((c, i) => <InfoItem key={`${c} ${i}`} {...c} />);
+
     return (
         <div className='info-item--row'>
             {props.label && <label>{label}</label>}
-            <div style={{marginLeft: 'auto', display: 'flex'}}>
-                {items.map((c, i) => (
-                    <InfoItem key={`${c} ${i}`} {...c} />
-                ))}
-            </div>
+            {props.items && <div style={{marginLeft: 'auto', display: 'flex'}}>{itemComponents}</div>}
         </div>
     );
 };

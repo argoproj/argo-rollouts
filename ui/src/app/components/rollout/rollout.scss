@@ -145,17 +145,28 @@
 }
 
 .analysis {
-    width: 40px;
-    margin-right: 5px;
-    height: 10px;
-    border-radius: 3px;
-    background-color: $argo-color-gray-4;
-    &--successful {
-        background-color: $lime;
+    padding-top: 1em;
+    border-top: 1px solid $argo-color-gray-4;
+    &__runs {
+        margin-top: 1em;
+        display: flex;
     }
+    &--dark {
+        border-top: 1px solid $silver-lining;
+    }
+    &__run {
+        width: 40px;
+        margin-right: 5px;
+        height: 10px;
+        border-radius: 3px;
+        background-color: $argo-color-gray-4;
+        &--successful {
+            background-color: $lime;
+        }
 
-    &--failed {
-        background-color: $coral;
+        &--failed {
+            background-color: $coral;
+        }
     }
 }
 

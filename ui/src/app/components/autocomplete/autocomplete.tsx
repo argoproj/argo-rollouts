@@ -62,6 +62,22 @@ export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> 
         return false;
     });
 
+    listen(Key.UP, () => {
+        if (showSuggestions) {
+            nav(-1);
+            return false;
+        }
+        return true;
+    });
+
+    listen(Key.DOWN, () => {
+        if (showSuggestions) {
+            nav(1);
+            return false;
+        }
+        return true;
+    });
+
     const style = props.style;
     const trimmedProps = {...props};
     delete trimmedProps.style;
