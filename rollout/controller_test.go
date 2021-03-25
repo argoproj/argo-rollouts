@@ -200,9 +200,9 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 			// rollout-analysis-step-58bfdcfddd-4-random-fail
 			atName := ""
 			if resource.Spec.Strategy.Canary.Analysis != nil {
-				atName = resource.Spec.Strategy.Canary.Analysis.TemplateName
+				atName = resource.Spec.Strategy.Canary.Analysis.Templates[0].TemplateName
 			} else if resource.Spec.Strategy.Canary.Steps != nil && resource.Status.CurrentStepIndex != nil {
-				atName = resource.Spec.Strategy.Canary.Steps[*resource.Status.CurrentStepIndex].Analysis.TemplateName
+				atName = resource.Spec.Strategy.Canary.Steps[*resource.Status.CurrentStepIndex].Analysis.Templates[0].TemplateName
 			}
 			arName := fmt.Sprintf("%s-%s-%s-%s", resource.Name, resource.Status.CurrentPodHash, "10", atName)
 			msg = fmt.Sprintf(conditions.RolloutAnalysisRunFailedMessage, arName, resource.Name)

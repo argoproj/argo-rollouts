@@ -153,10 +153,6 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterScope:
-                          type: boolean
-                        templateName:
-                          type: string
                         templates:
                           items:
                             properties:
@@ -192,10 +188,6 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterScope:
-                          type: boolean
-                        templateName:
-                          type: string
                         templates:
                           items:
                             properties:
@@ -258,13 +250,9 @@ spec:
                             - name
                             type: object
                           type: array
-                        clusterScope:
-                          type: boolean
                         startingStep:
                           format: int32
                           type: integer
-                        templateName:
-                          type: string
                         templates:
                           items:
                             properties:
@@ -352,10 +340,6 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                              clusterScope:
-                                type: boolean
-                              templateName:
-                                type: string
                               templates:
                                 items:
                                   properties:
@@ -3147,8 +3131,6 @@ spec:
               properties:
                 activeSelector:
                   type: string
-                postPromotionAnalysisRun:
-                  type: string
                 postPromotionAnalysisRunStatus:
                   properties:
                     message:
@@ -3161,8 +3143,6 @@ spec:
                   - name
                   - status
                   type: object
-                prePromotionAnalysisRun:
-                  type: string
                 prePromotionAnalysisRunStatus:
                   properties:
                     message:
@@ -3177,18 +3157,11 @@ spec:
                   type: object
                 previewSelector:
                   type: string
-                previousActiveSelector:
-                  type: string
-                scaleDownDelayStartTime:
-                  format: date-time
-                  type: string
                 scaleUpPreviewCheckPoint:
                   type: boolean
               type: object
             canary:
               properties:
-                currentBackgroundAnalysisRun:
-                  type: string
                 currentBackgroundAnalysisRunStatus:
                   properties:
                     message:
@@ -3202,8 +3175,6 @@ spec:
                   - status
                   type: object
                 currentExperiment:
-                  type: string
-                currentStepAnalysisRun:
                   type: string
                 currentStepAnalysisRunStatus:
                   properties:

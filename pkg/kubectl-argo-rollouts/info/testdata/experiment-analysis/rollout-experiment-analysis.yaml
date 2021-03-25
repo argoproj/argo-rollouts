@@ -18,7 +18,8 @@ spec:
   strategy:
     canary:
       analysis:
-        templateName: random-fail
+        templates:
+        - templateName: random-fail
       steps:
       - setWeight: 25
       - experiment:

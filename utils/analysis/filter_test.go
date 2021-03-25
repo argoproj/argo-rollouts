@@ -61,8 +61,12 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
 				Canary: v1alpha1.CanaryStatus{
-					CurrentStepAnalysisRun:       "foo",
-					CurrentBackgroundAnalysisRun: "bar",
+					CurrentStepAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+						Name: "foo",
+					},
+					CurrentBackgroundAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+						Name: "bar",
+					},
 				},
 			},
 		}
@@ -78,8 +82,12 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
 				BlueGreen: v1alpha1.BlueGreenStatus{
-					PrePromotionAnalysisRun:  "foo",
-					PostPromotionAnalysisRun: "bar",
+					PrePromotionAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+						Name: "foo",
+					},
+					PostPromotionAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+						Name: "bar",
+					},
 				},
 			},
 		}

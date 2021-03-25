@@ -105,7 +105,7 @@ func TestValidateRolloutStrategyBlueGreen(t *testing.T) {
 					PreviewService:              "service-name",
 					ActiveService:               "service-name",
 					ScaleDownDelayRevisionLimit: &scaleDownDelayRevisionLimit,
-					AutoPromotionSeconds:        &autoPromotionSeconds,
+					AutoPromotionSeconds:        autoPromotionSeconds,
 				},
 			},
 		},

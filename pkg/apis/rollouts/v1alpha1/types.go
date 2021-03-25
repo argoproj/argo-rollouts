@@ -96,30 +96,21 @@ type BlueGreenStrategy struct {
 	// Name of the service that the rollout modifies as the preview service.
 	// +optional
 	PreviewService string `json:"previewService,omitempty"`
-	// PreviewReplica the number of replicas to run under the preview service before the switchover. Once the rollout is
-	// resumed the new replicaset will be full scaled up before the switch occurs
+	// PreviewReplicaCount is the number of replicas to run for the preview stack before the
+	// switchover. Once the rollout is resumed the desired replicaset will be full scaled up before the switch occurs
 	// +optional
 	PreviewReplicaCount *int32 `json:"previewReplicaCount,omitempty"`
 	// AutoPromotionEnabled indicates if the rollout should automatically promote the new ReplicaSet
 	// to the active service or enter a paused state. If not specified, the default value is true.
 	// +optional
 	AutoPromotionEnabled *bool `json:"autoPromotionEnabled,omitempty"`
-	// AutoPromotionSeconds automatically promotes the current ReplicaSet to active after the
-	// specified pause delay in seconds after the ReplicaSet becomes ready.
-	// If omitted, the Rollout enters and remains in a paused state until manually resumed by
-	// removing the pause condition.
+	// AutoPromotionSeconds is a duration in seconds in which to delay auto-promotion (default: 0).
+	// The countdown begins after the preview ReplicaSet have reached full availability.
+	// This option is ignored if autoPromotionEnabled is set to false.
 	// +optional
-	AutoPromotionSeconds *int32 `json:"autoPromotionSeconds,omitempty"`
-	// MaxUnavailable The maximum number of pods that can be unavailable during the update.
-	// Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
-	// Absolute number is calculated from percentage by rounding down.
-	// This can not be 0 if MaxSurge is 0.
-	// By default, a fixed value of 1 is used.
-	// Example: when this is set to 30%, the old RC can be scaled down by 30%
-	// immediately when the rolling update starts. Once new pods are ready, old RC
-	// can be scaled down further, followed by scaling up the new RC, ensuring
-	// that at least 70% of original number of pods are available at all times
-	// during the update.
+	AutoPromotionSeconds int32 `json:"autoPromotionSeconds,omitempty"`
+	// MaxUnavailable The maximum number of pods that can be unavailable during a restart operation.
+	// Defaults to 25% of total replicas.
 	// +optional
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
@@ -397,13 +388,6 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	// Whether to look for the templateName at cluster scope or namespace scope
-	// Deprecated and will be removed in v0.9
-	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty"`
-	// TemplateName reference of the AnalysisTemplate name used by the Rollout to create the run
-	// Deprecated and will be removed in v0.9
-	TemplateName string `json:"templateName,omitempty"`
 	//Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplate `json:"templates,omitempty"`
 	// Args the arguments that will be added to the AnalysisRuns
@@ -537,7 +521,11 @@ type RolloutStatus struct {
 	Abort bool `json:"abort,omitempty"`
 	// PauseConditions indicates why the rollout is currently paused
 	PauseConditions []PauseCondition `json:"pauseConditions,omitempty"`
-	//ControllerPause indicates the controller has paused the rollout
+	// ControllerPause indicates the controller has paused the rollout. It is set to true when
+	// the controller adds a pause condition. This field helps to discern the scenario where a
+	// rollout was resumed after being paused by the controller (e.g. via the plugin). In that
+	// situation, the pauseConditions would have been cleared , but controllerPause would still be
+	// set to true.
 	ControllerPause bool `json:"controllerPause,omitempty"`
 	// AbortedAt indicates the controller reconciled an aborted rollout. The controller uses this to understand if
 	// the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used
@@ -607,40 +595,19 @@ type BlueGreenStatus struct {
 	// ActiveSelector indicates which replicas set the active service is serving traffic to
 	// +optional
 	ActiveSelector string `json:"activeSelector,omitempty"`
-	// PreviousActiveSelector indicates the last selector that the active service used. This is used to know which replicaset
-	// to avoid scaling down for the scale down delay
-	// Deprecated: PreviousActiveSelector is tracked with the replicaset now instead of the rollout. will remove in v0.6
-	// +optional
-	PreviousActiveSelector string `json:"previousActiveSelector,omitempty"`
-	// ScaleDownDelayStartTime indicates the start of the scaleDownDelay
-	// Deprecated: ScaleDownDelay is now tracked at the replicaset now instead of the rollout. will remove in v0.6
-	// +optional
-	ScaleDownDelayStartTime *metav1.Time `json:"scaleDownDelayStartTime,omitempty"`
 	// ScaleUpPreviewCheckPoint indicates that the Replicaset receiving traffic from the preview service is ready to be scaled up after the rollout is unpaused
 	// +optional
 	ScaleUpPreviewCheckPoint bool `json:"scaleUpPreviewCheckPoint,omitempty"`
-	// PrePromotionAnalysisRun is the current analysis run running before the active service promotion
-	// TODO(Deprecated): Remove in v0.10
-	PrePromotionAnalysisRun string `json:"prePromotionAnalysisRun,omitempty"`
 	// PrePromotionAnalysisRunStatus indicates the status of the current prepromotion analysis run
 	PrePromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"prePromotionAnalysisRunStatus,omitempty"`
-	// PostPromotionAnalysisRun is the current analysis run running after the active service promotion
-	// TODO(Deprecated): Remove in v0.10
-	PostPromotionAnalysisRun string `json:"postPromotionAnalysisRun,omitempty"`
 	// PostPromotionAnalysisRunStatus indicates the status of the current post promotion analysis run
 	PostPromotionAnalysisRunStatus *RolloutAnalysisRunStatus `json:"postPromotionAnalysisRunStatus,omitempty"`
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
 type CanaryStatus struct {
-	// CurrentStepAnalysisRun indicates the analysisRun for the current step index
-	// TODO(Deprecated): Remove in v0.10
-	CurrentStepAnalysisRun string `json:"currentStepAnalysisRun,omitempty"`
 	// CurrentStepAnalysisRunStatus indicates the status of the current step analysis run
 	CurrentStepAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentStepAnalysisRunStatus,omitempty"`
-	// CurrentBackgroundAnalysisRun indicates the analysisRun for the Background step
-	// TODO(Deprecated): Remove in v0.10
-	CurrentBackgroundAnalysisRun string `json:"currentBackgroundAnalysisRun,omitempty"`
 	// CurrentBackgroundAnalysisRunStatus indicates the status of the current background analysis run
 	CurrentBackgroundAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentBackgroundAnalysisRunStatus,omitempty"`
 	// CurrentExperiment indicates the running experiment

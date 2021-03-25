@@ -161,15 +161,6 @@ nameReference:
     kind: Rollout
   - path: spec/analyses/templateName
     kind: Experiment
-    # NOTE: templateName is deprecated in the below fields, in favor of templates[].templateName
-  - path: spec/strategy/blueGreen/prePromotionAnalysis/templateName   
-    kind: Rollout
-  - path: spec/strategy/blueGreen/postPromotionAnalysis/templateName
-    kind: Rollout
-  - path: spec/strategy/canary/analysis/templateName
-    kind: Rollout
-  - path: spec/strategy/canary/steps/analysis/templateName
-    kind: Rollout
 - kind: Rollout
   fieldSpecs:
   - path: spec/scaleTargetRef/name

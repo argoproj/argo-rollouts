@@ -355,3 +355,55 @@ spec:
 		Then().
 		ExpectRevisionPods("revision 2 has stable metadata2", "2", podsHaveStableMetadata2)
 }
+
+func (s *CanarySuite) TestCanaryProgressDeadlineExceededWithPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary-with-pause
+spec:
+  replicas: 3
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary-with-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-canary-with-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 20
+      - pause: {}
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		WaitForRolloutReplicas(3).
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(1, 3).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy")
+}

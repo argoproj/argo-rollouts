@@ -105,7 +105,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 	if c.rollout.Spec.Strategy.Canary != nil {
 		currBackgroundAr := currARs.CanaryBackground
 		if currBackgroundAr != nil {
-			c.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currBackgroundAr.Name,
 				Status:  currBackgroundAr.Status.Phase,
@@ -114,7 +113,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 		}
 		currStepAr := currARs.CanaryStep
 		if currStepAr != nil {
-			c.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
 			c.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currStepAr.Name,
 				Status:  currStepAr.Status.Phase,
@@ -124,7 +122,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		currPrePromoAr := currARs.BlueGreenPrePromotion
 		if currPrePromoAr != nil {
-			c.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 			c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currPrePromoAr.Name,
 				Status:  currPrePromoAr.Status.Phase,
@@ -133,7 +130,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 		}
 		currPostPromoAr := currARs.BlueGreenPostPromotion
 		if currPostPromoAr != nil {
-			c.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
 			c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currPostPromoAr.Name,
 				Status:  currPostPromoAr.Status.Phase,

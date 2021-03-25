@@ -210,7 +210,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	}
 	switch {
 	case currentStep.Pause != nil:
-		return c.pauseContext.CompletedPauseStep(*currentStep.Pause)
+		return c.pauseContext.CompletedCanaryPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
 		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 	case currentStep.SetWeight != nil:
@@ -318,7 +318,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	if completedStep {
 		*currentStepIndex++
 		newStatus.CurrentStepIndex = currentStepIndex
-		newStatus.Canary.CurrentStepAnalysisRun = ""
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 		if int(*currentStepIndex) == len(c.rollout.Spec.Strategy.Canary.Steps) {
 			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")

@@ -21,17 +21,23 @@ func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string
 func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) (CurrentAnalysisRuns, []*v1alpha1.AnalysisRun) {
 	currArs := CurrentAnalysisRuns{}
 	otherArs := []*v1alpha1.AnalysisRun{}
+	getArName := func(s *v1alpha1.RolloutAnalysisRunStatus) string {
+		if s == nil {
+			return ""
+		}
+		return s.Name
+	}
 	for i := range analysisRuns {
 		ar := analysisRuns[i]
 		if ar != nil {
 			switch ar.Name {
-			case r.Status.Canary.CurrentStepAnalysisRun:
+			case getArName(r.Status.Canary.CurrentStepAnalysisRunStatus):
 				currArs.CanaryStep = ar
-			case r.Status.Canary.CurrentBackgroundAnalysisRun:
+			case getArName(r.Status.Canary.CurrentBackgroundAnalysisRunStatus):
 				currArs.CanaryBackground = ar
-			case r.Status.BlueGreen.PrePromotionAnalysisRun:
+			case getArName(r.Status.BlueGreen.PrePromotionAnalysisRunStatus):
 				currArs.BlueGreenPrePromotion = ar
-			case r.Status.BlueGreen.PostPromotionAnalysisRun:
+			case getArName(r.Status.BlueGreen.PostPromotionAnalysisRunStatus):
 				currArs.BlueGreenPostPromotion = ar
 			default:
 				otherArs = append(otherArs, ar)
