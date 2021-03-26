@@ -178,10 +178,10 @@ spec:
           preStop:
             exec:
               command: [sleep, "5"]
-          resources:
-            requests:
-              memory: 16Mi
-              cpu: 1m
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
 `).
 		When().
 		UpdateSpec().
@@ -237,10 +237,10 @@ spec:
           preStop:
             exec:
               command: [sleep, "5"]
-          resources:
-            requests:
-              memory: 16Mi
-              cpu: 1m
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
 `).
 		When().
 		UpdateSpec().
