@@ -197,6 +197,7 @@ spec:
 func (s *FunctionalSuite) TestRolloutPDBRestart() {
 	s.Given().
 		HealthyRollout(`
+---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
@@ -253,6 +254,74 @@ spec:
 		When().
 		DeleteObject("pdb", "rollout-pdb-restart").
 		WaitForRolloutAvailableReplicas(0) // wait for rollout to retry deletion (30s)
+}
+
+// Test which verifies an array named 'items' is deployable. Example test is in the 'volumes' spec
+func (s *FunctionalSuite) TestRolloutPodVolumesItemsSpec() {
+	s.Given().
+		HealthyRollout(`
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollout-volumes-items
+data:
+  game.properties: |
+    enemy.types=aliens,monsters
+    player.maximum-lives=5
+  user-interface.properties: |
+    color.good=purple
+    color.bad=yellow
+    allow.textmode=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-volumes-items
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      maxUnavailable: 100%
+      steps:
+      - setWeight: 25
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-volumes-items
+  template:
+    metadata:
+      labels:
+        app: rollout-volumes-items
+    spec:
+      containers:
+      - name: rollout-volumes-items
+        image: nginx:1.19-alpine
+        lifecycle:
+          postStart:
+            exec:
+              command: [sleep, "5"]
+          preStop:
+            exec:
+              command: [sleep, "5"]
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+        volumeMounts:
+        - name: rollout-volumes-items
+          mountPath: "/config"
+          readOnly: true
+      volumes:
+        - name: rollout-volumes-items
+          configMap:
+            name: game-demo
+            items:
+            - key: "game.properties"
+              path: "game.properties"
+            - key: "user-interface.properties"
+              path: "user-interface.properties"
+`)
 }
 
 func (s *FunctionalSuite) TestMalformedRollout() {
