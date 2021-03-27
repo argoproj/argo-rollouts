@@ -148,6 +148,7 @@ spec:
 func (s *FunctionalSuite) TestRolloutRestart() {
 	s.Given().
 		HealthyRollout(`
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
