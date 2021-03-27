@@ -19,7 +19,7 @@ import (
 type ReplicaSetInfo v1alpha1.ReplicaSetInfo
 type PodInfo v1alpha1.PodInfo
 
-func getReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []v1alpha1.ReplicaSetInfo {
+func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []v1alpha1.ReplicaSetInfo {
 	var rsInfos []v1alpha1.ReplicaSetInfo
 	for _, rs := range allReplicaSets {
 		// if owned by replicaset

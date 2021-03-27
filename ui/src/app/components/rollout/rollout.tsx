@@ -39,7 +39,6 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
-    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus,
 } from '../../../models/rollout/generated';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {Autocomplete} from '../autocomplete/autocomplete';
@@ -315,14 +314,14 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
     );
 };
 
-const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus[]}) => {
+const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo[]}) => {
     const {analysisRuns} = props;
     return (
         <ThemeDiv className='analysis'>
             <div>Analysis Runs</div>
             <div className='analysis__runs'>
                 {analysisRuns.map((ar) => (
-                    <Tooltip content={`${ar.name ? ar.name + ': ' : ''}${ar.status}`}>
+                    <Tooltip content={ar.status}>
                         <ThemeDiv className={`analysis__run analysis__run--${ar.status.toLowerCase() || 'unknown'}`} />
                     </Tooltip>
                 ))}

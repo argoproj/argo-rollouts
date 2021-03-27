@@ -1,13 +1,43 @@
 import {RolloutRolloutWatchEvent, RolloutServiceApiFetchParamCreator} from '../../../models/rollout/generated';
-import {useWatch, useWatchList} from '../utils/watch';
+import {ListState, useLoading, useWatch, useWatchList} from '../utils/watch';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import * as React from 'react';
+import {RolloutAPIContext} from '../context/api';
 
-export const useWatchRollouts = (init?: RolloutInfo[]): [RolloutInfo[], boolean, boolean] => {
+export const useRollouts = (): RolloutInfo[] => {
+    const api = React.useContext(RolloutAPIContext);
+    const [rollouts, setRollouts] = React.useState([]);
+
+    React.useEffect(() => {
+        const fetchList = async () => {
+            const list = await api.listRollouts();
+            setRollouts(list.rollouts || []);
+        };
+        fetchList();
+    }, [api]);
+
+    return rollouts;
+};
+
+export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const findRollout = React.useCallback((ri: RolloutInfo, change: RolloutRolloutWatchEvent) => ri.objectMeta.name === change.rolloutInfo?.objectMeta?.name, []);
     const getRollout = React.useCallback((c) => c.rolloutInfo as RolloutInfo, []);
     const streamUrl = RolloutServiceApiFetchParamCreator().watchRollouts().url;
-    return useWatchList<RolloutInfo, RolloutRolloutWatchEvent>(streamUrl, findRollout, getRollout, init);
+
+    const init = useRollouts();
+    const loading = useLoading(init);
+
+    const [rollouts, setRollouts] = React.useState(init);
+    const liveList = useWatchList<RolloutInfo, RolloutRolloutWatchEvent>(streamUrl, findRollout, getRollout, rollouts);
+
+    React.useEffect(() => {
+        setRollouts(init);
+    }, [init, loading]);
+
+    return {
+        items: liveList,
+        loading,
+    } as ListState<RolloutInfo>;
 };
 
 export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {

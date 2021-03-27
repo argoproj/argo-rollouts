@@ -33,7 +33,7 @@ func NewExperimentInfo(
 	}
 	expInfo.Icon = analysisIcon(exp.Status.Phase)
 	expInfo.Revision = int32(parseRevision(exp.ObjectMeta.Annotations))
-	expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
+	expInfo.ReplicaSets = GetReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
 	expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
 	return &expInfo
 }

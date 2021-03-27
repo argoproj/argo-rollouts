@@ -9,6 +9,24 @@ enum ReadyState {
     DONE = 4,
 }
 
+export interface ListState<T> {
+    loading: boolean;
+    items: T[];
+}
+
+export const useLoading = (list: any[], minLength?: number) => {
+    const [loading, setLoading] = React.useState(true);
+    React.useEffect(() => {
+        if (!list) {
+            return;
+        }
+        if (list.length > (minLength || 0)) {
+            setLoading(false);
+        }
+    }, [list, minLength]);
+    return loading;
+};
+
 function fromEventSource(url: string): Observable<string> {
     return Observable.create((observer: Observer<any>) => {
         let eventSource = new EventSource(url);
@@ -76,11 +94,11 @@ interface WatchEvent {
 }
 
 // NOTE: findItem and getItem must be React.useCallback functions
-export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): [T[], boolean, boolean] {
-    const [items, setItems] = React.useState([] as T[]);
-    const [error, setError] = React.useState(false);
-    const [loading, setLoading] = React.useState(true);
+export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): T[] {
+    const [items, setItems] = React.useState(init as T[]);
+
     React.useEffect(() => {
+        setItems(init);
         const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as E));
         let watch = stream.pipe(
             repeat(),
@@ -113,22 +131,16 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
             mergeMap((l) => l)
         );
 
-        const sub = handlePageVisibility(() => watch).subscribe(
-            (l) => {
-                setItems([...l]);
-            },
-            () => setError(true)
-        );
-
-        const loader = setTimeout(() => setLoading(false), BUFFER_TIME + 10);
+        const sub = handlePageVisibility(() => watch).subscribe((l) => {
+            setItems([...l]);
+        });
 
         return () => {
             sub.unsubscribe();
             watch = null;
-            clearInterval(loader);
         };
     }, [init, url, findItem, getItem]);
-    return [items, loading, error];
+    return items;
 }
 
 export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: T) => boolean, timeoutAfter?: number) {

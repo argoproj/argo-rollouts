@@ -39,6 +39,16 @@ COPY . .
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
+####################################################################################################
+# Kubectl plugin image
+####################################################################################################
+FROM scratch
+
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/
+
+WORKDIR /home/argo-rollouts
+
+ENTRYPOINT [ "/bin/kubectl-argo-rollouts" ]
 
 ####################################################################################################
 # Final image

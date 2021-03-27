@@ -16,8 +16,21 @@ import {EffectDiv} from '../effect-div/effect-div';
 import {Autocomplete} from '../autocomplete/autocomplete';
 import {useInput} from '../input/input';
 
+const useRolloutNames = (rollouts: RolloutInfo[]) => {
+    const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
+
+    const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
+    React.useEffect(() => {
+        setRolloutNames(parseNames(rollouts));
+    }, [rollouts]);
+
+    return rolloutNames;
+};
+
 export const RolloutsList = () => {
-    const [rollouts, loading] = useWatchRollouts();
+    const rolloutsList = useWatchRollouts();
+    const rollouts = rolloutsList.items;
+    const loading = rolloutsList.loading;
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
     const [searchString, setSearchString, searchInput] = useInput('');
@@ -32,10 +45,7 @@ export const RolloutsList = () => {
         return true;
     });
 
-    const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
-
-    const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
-
+    const rolloutNames = useRolloutNames(rollouts);
     const history = useHistory();
 
     useKeyPress(Key.ENTER, () => {
@@ -47,12 +57,7 @@ export const RolloutsList = () => {
     });
 
     React.useEffect(() => {
-        setRolloutNames(parseNames(rollouts));
-    }, [rollouts]);
-
-    React.useEffect(() => {
         const filtered = (rollouts || []).filter((r) => (r.objectMeta?.name || '').includes(searchString));
-        console.log(filtered);
         if ((filtered || []).length > 0) {
             setFilteredRollouts(filtered);
         }
@@ -64,9 +69,10 @@ export const RolloutsList = () => {
                 <div style={{width: '100%'}}>
                     <Autocomplete
                         items={rolloutNames}
+                        className='rollouts-list__search'
                         placeholder='Search...'
                         inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
-                        style={{marginBottom: '1.5em', width: '50%'}}
+                        style={{marginBottom: '1.5em'}}
                         onItemClick={(item) => history.push(`/rollout/${item}`)}
                         {...searchInput}
                     />

@@ -35,7 +35,7 @@ func NewRolloutInfo(
 		},
 	}
 
-	roInfo.ReplicaSets = getReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
+	roInfo.ReplicaSets = GetReplicaSetInfo(ro.UID, ro, allReplicaSets, allPods)
 	roInfo.Experiments = getExperimentInfo(ro, allExperiments, allReplicaSets, allARs, allPods)
 	roInfo.AnalysisRuns = getAnalysisRunInfo(ro.UID, allARs)
 

@@ -32,6 +32,10 @@ message NamespaceInfo {
     string namespace = 1;
 }
 
+message RolloutInfoList {
+    repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rollouts = 1;
+}
+
 service RolloutService {
     // Get returns a rollout
     rpc GetRollout(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
@@ -42,7 +46,7 @@ service RolloutService {
         option (google.api.http).get = "/api/v1/rollout/watch/{name}";
     }
 
-    rpc ListRollouts(google.protobuf.Empty) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutList) {
+    rpc ListRollouts(google.protobuf.Empty) returns (RolloutInfoList) {
         option (google.api.http).get = "/api/v1/rollouts";
     }
 

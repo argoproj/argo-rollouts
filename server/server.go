@@ -30,18 +30,21 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 //go:embed static/*
 var static embed.FS
-
-var (
-	watchAPIBufferSize = 1000
-)
 
 var backoff = wait.Backoff{
 	Steps:    5,
@@ -64,12 +67,41 @@ const (
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
 	Options ServerOptions
+	NamespaceVC NamespaceViewController 
 	stopCh chan struct{}
+}
+
+type NamespaceViewController struct {
+	namespace string
+
+	kubeInformerFactory kubeinformers.SharedInformerFactory
+	replicaSetLister    appslisters.ReplicaSetNamespaceLister
+	podLister           corelisters.PodNamespaceLister
+	cacheSyncs          []cache.InformerSynced
+}
+
+func (vc* NamespaceViewController) Start(ctx context.Context) {
+	vc.kubeInformerFactory.Start(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), vc.cacheSyncs...)
 }
 
 // NewServer creates an ArgoRolloutsServer
 func NewServer(o ServerOptions) *ArgoRolloutsServer {
-	return &ArgoRolloutsServer{Options: o};
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(o.KubeClientset, 0, kubeinformers.WithNamespace(o.Namespace))
+	
+	vc := NamespaceViewController{
+		namespace: o.Namespace,
+		kubeInformerFactory: kubeInformerFactory,
+		podLister: kubeInformerFactory.Core().V1().Pods().Lister().Pods(o.Namespace),
+		replicaSetLister: kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(o.Namespace),
+	}
+
+	vc.cacheSyncs = append(vc.cacheSyncs,
+		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
+		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
+	)
+
+	return &ArgoRolloutsServer{Options: o, NamespaceVC: vc };
 }
 
 type spaFileSystem struct {
@@ -161,7 +193,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	errors.CheckError(realErr)
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
-	if (dashboard == true) {
+	if dashboard {
 		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
 	}
 
@@ -223,14 +255,45 @@ func (s* ArgoRolloutsServer) WatchRollout(q *rollout.RolloutQuery, ws rollout.Ro
 	return nil
 }
 
+func (s* ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
+	s.NamespaceVC.Start(ctx)
+
+	allReplicaSets, err := s.NamespaceVC.replicaSetLister.List(labels.Everything())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	allPods, err := s.NamespaceVC.podLister.List(labels.Everything())
+	if err != nil {
+		return allReplicaSets, nil, err
+	}
+
+	return allReplicaSets, allPods, nil
+}
+
 // ListRollouts returns a list of all rollouts
-func (s* ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (*v1alpha1.RolloutList, error) {
+func (s* ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (*rollout.RolloutInfoList, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
-	if (err != nil) {
+
+	if err != nil {
 		return nil, err
 	}
-	return rolloutList, nil
+
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var riList []*v1alpha1.RolloutInfo
+	for i := range(rolloutList.Items) {
+		cur := rolloutList.Items[i]
+		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil)
+		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, &cur, allReplicaSets, allPods)
+		riList = append(riList, ri)
+	}
+
+	return &rollout.RolloutInfoList{Rollouts: riList}, nil
 }
 
 func (s* ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
@@ -253,24 +316,10 @@ func (s* ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 	}
 	ctx := context.Background()
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
+
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
 	if err != nil {
 		return err
-	}
-
-	for i := range(rolloutList.Items) {
-		// only do intensive get for initial list
-		ri, err := s.getRolloutInfo(rolloutList.Items[i].ObjectMeta.Name)
-		if (err != nil) {
-			return nil
-		}
-		err = ws.Send(&rollout.RolloutWatchEvent{
-			Type:        "Added",
-			RolloutInfo:     ri,
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	watchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
@@ -296,7 +345,6 @@ L:
 					return err
 				}
 				log.Warn(err)
-				// this sleep prevents a hot-loop in the event there is a persistent error
 				time.Sleep(time.Second)
 				retries++
 			} else {
@@ -306,7 +354,7 @@ L:
 			continue
 		}
 		// get shallow rollout info
-		ri := info.NewRolloutInfo(ro, nil, nil, nil, nil)
+		ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
 		send(ri)
 	}
 	watchIf.Stop()
