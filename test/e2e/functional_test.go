@@ -264,7 +264,7 @@ func (s *FunctionalSuite) TestRolloutPodVolumesItemsSpec() {
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rollout-volumes-items
+  name: rollout-items
 data:
   game.properties: |
     enemy.types=aliens,monsters
@@ -277,7 +277,7 @@ data:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-volumes-items
+  name: rollout-items
 spec:
   replicas: 2
   strategy:
@@ -288,14 +288,14 @@ spec:
       - pause: {}
   selector:
     matchLabels:
-      app: rollout-volumes-items
+      app: rollout-items
   template:
     metadata:
       labels:
-        app: rollout-volumes-items
+        app: rollout-items
     spec:
       containers:
-      - name: rollout-volumes-items
+      - name: rollout-items
         image: nginx:1.19-alpine
         lifecycle:
           postStart:
@@ -309,13 +309,13 @@ spec:
             memory: 16Mi
             cpu: 1m
         volumeMounts:
-        - name: rollout-volumes-items
+        - name: rollout-items
           mountPath: "/config"
           readOnly: true
       volumes:
-        - name: rollout-volumes-items
+        - name: rollout-items
           configMap:
-            name: game-demo
+            name: rollout-items
             items:
             - key: "game.properties"
               path: "game.properties"
