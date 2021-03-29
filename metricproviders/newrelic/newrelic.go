@@ -152,13 +152,22 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 
 	apiKey := string(secret.Data["personal-api-key"])
 	accountID := string(secret.Data["account-id"])
-	region := "us"
-	if _, ok := secret.Data["region"]; ok {
-		region = string(secret.Data["region"])
+
+	newrelicOptions := []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigUserAgent(userAgent)}
+
+	// support either base-url or region; default to us region if neither is used
+	if _, ok := secret.Data["base-url"]; ok {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(string(secret.Data["base-url"])))
+	} else {
+		region := "us"
+		if _, ok := secret.Data["region"]; ok {
+			region = string(secret.Data["region"])
+		}
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(region))
 	}
 
 	if apiKey != "" && accountID != "" {
-		nrClient, err := newrelic.New(newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigRegion(region), newrelic.ConfigUserAgent(userAgent))
+		nrClient, err := newrelic.New(newrelicOptions...)
 		if err != nil {
 			return nil, err
 		}
