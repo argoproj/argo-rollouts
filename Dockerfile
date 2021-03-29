@@ -42,13 +42,13 @@ RUN make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM scratch
+FROM scratch as kubectl-argo-rollouts
 
-COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
 
 WORKDIR /home/argo-rollouts
 
-ENTRYPOINT [ "/bin/kubectl-argo-rollouts" ]
+ENTRYPOINT ["/bin/kubectl-argo-rollouts", "dashboard"]
 
 ####################################################################################################
 # Final image
