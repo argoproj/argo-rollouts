@@ -7,7 +7,7 @@ import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
-import {Key, useKeyListener, useNav} from '@rbreeze/react-keypress';
+import {Key, useKeyListener, useNav} from 'react-keyhooks';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';

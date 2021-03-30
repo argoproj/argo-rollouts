@@ -1,4 +1,4 @@
-import {Key, useKeyListener, useNav} from '@rbreeze/react-keypress';
+import {Key, useKeyListener, useNav} from 'react-keyhooks';
 import * as React from 'react';
 import {Input, useDebounce} from '../input/input';
 import ThemeDiv from '../theme-div/theme-div';

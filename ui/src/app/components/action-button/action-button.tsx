@@ -1,6 +1,6 @@
 import {faCheck, faCircleNotch, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {Key, useKeyListener} from '@rbreeze/react-keypress';
+import {Key, useKeyListener} from 'react-keyhooks';
 import * as React from 'react';
 import {useClickOutside} from '../../shared/utils/utils';
 import {EffectDiv} from '../effect-div/effect-div';
