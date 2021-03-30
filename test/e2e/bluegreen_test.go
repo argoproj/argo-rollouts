@@ -158,3 +158,123 @@ spec:
 		Then().
 		ExpectRevisionPods("revision 2 has active metadata2", "2", podsHaveActiveMetadata2)
 }
+
+func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithPause() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen-with-pause
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen-with-pause
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5 # note this is less than initialDelaySeconds
+  selector:
+    matchLabels:
+      app: rollout-bluegreen-with-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen-with-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    blueGreen: 
+      autoPromotionEnabled: false
+      activeService: rollout-bluegreen-active
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Paused").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectActiveRevision("2")
+}
+
+func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithoutPause() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen-without-pause
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen-without-pause
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5 # note this is less than initialDelaySeconds
+  selector:
+    matchLabels:
+      app: rollout-bluegreen-without-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen-without-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    blueGreen: 
+      autoPromotionEnabled: true
+      activeService: rollout-bluegreen-active
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectActiveRevision("2")
+}

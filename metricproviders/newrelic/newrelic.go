@@ -95,15 +95,15 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NrdbRe
 		if err != nil {
 			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("could not marshal results: %w", err)
 		}
-		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
+		return valueStr, newStatus, err
 	} else if len(results) > 1 {
 		valueStr, err := toJSONString(results)
 		if err != nil {
 			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("could not marshal results: %w", err)
 		}
-		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
+		return valueStr, newStatus, err
 	} else {
 		return "", v1alpha1.AnalysisPhaseFailed, fmt.Errorf("no results returned from NRQL query")
 	}

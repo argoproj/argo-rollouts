@@ -94,8 +94,8 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 	case *model.Scalar:
 		valueStr := value.Value.String()
 		result := float64(value.Value)
-		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
+		return valueStr, newStatus, err
 	case model.Vector:
 		results := make([]float64, 0, len(value))
 		valueStr := "["
@@ -110,8 +110,8 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 			valueStr = valueStr[:len(valueStr)-1]
 		}
 		valueStr = valueStr + "]"
-		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
+		return valueStr, newStatus, err
 	//TODO(dthomson) add other response types
 	default:
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Prometheus metric type not supported")
