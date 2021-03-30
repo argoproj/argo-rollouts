@@ -12,7 +12,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
     box-sizing: border-box;
     flex-wrap: wrap;
 
-    &__search {
+    &__search-container {
         width: 60% !important;
     }
 
@@ -117,7 +117,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             width: 100%;
         }
 
-        &__search {
+        &__search-container {
             width: 100% !important;
         }
     }

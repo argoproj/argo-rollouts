@@ -28,7 +28,7 @@ import {
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSet} from '../pods/pods';
-import {IconForTag, ImageTag} from '../../shared/utils/utils';
+import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
@@ -321,7 +321,13 @@ const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPk
             <div>Analysis Runs</div>
             <div className='analysis__runs'>
                 {analysisRuns.map((ar) => (
-                    <Tooltip content={ar.status}>
+                    <Tooltip
+                        content={
+                            <React.Fragment>
+                                <div>{ar.objectMeta.name}</div>
+                                <div>Created at {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
+                            </React.Fragment>
+                        }>
                         <ThemeDiv className={`analysis__run analysis__run--${ar.status.toLowerCase() || 'unknown'}`} />
                     </Tooltip>
                 ))}

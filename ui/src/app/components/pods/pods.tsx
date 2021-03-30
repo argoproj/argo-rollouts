@@ -8,6 +8,7 @@ import {Menu} from '../menu/menu';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {Tooltip} from '../tooltip/tooltip';
+import {WaitFor} from '../wait-for/wait-for';
 
 import './pods.scss';
 
@@ -95,9 +96,11 @@ export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRollo
             )}
             {props.rs.pods && props.rs.pods.length > 0 && (
                 <ThemeDiv className='pods__container'>
-                    {props.rs.pods.map((pod, i) => (
-                        <PodWidget key={pod.objectMeta.uid} pod={pod} />
-                    ))}
+                    <WaitFor loading={(props.rs.pods || []).length < 1}>
+                        {props.rs.pods.map((pod, i) => (
+                            <PodWidget key={pod.objectMeta.uid} pod={pod} />
+                        ))}
+                    </WaitFor>
                 </ThemeDiv>
             )}
         </ThemeDiv>

@@ -167,6 +167,10 @@
         &--failed {
             background-color: $coral;
         }
+
+        &--running {
+            background-color: $sky;
+        }
     }
 }
 

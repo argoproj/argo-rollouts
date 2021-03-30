@@ -6,7 +6,7 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
-import {WaitFor} from '../wait-for/wait-for';
+import {Spinner, WaitFor} from '../wait-for/wait-for';
 import {Key, useKeyListener, useNav} from '@rbreeze/react-keypress';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
@@ -67,15 +67,17 @@ export const RolloutsList = () => {
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
                 <div style={{width: '100%'}}>
-                    <Autocomplete
-                        items={rolloutNames}
-                        className='rollouts-list__search'
-                        placeholder='Search...'
-                        inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
-                        style={{marginBottom: '1.5em'}}
-                        onItemClick={(item) => history.push(`/rollout/${item}`)}
-                        {...searchInput}
-                    />
+                    <div className='rollouts-list__search-container'>
+                        <Autocomplete
+                            items={rolloutNames}
+                            className='rollouts-list__search'
+                            placeholder='Search...'
+                            inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
+                            style={{marginBottom: '1.5em'}}
+                            onItemClick={(item) => history.push(`/rollout/${item}`)}
+                            {...searchInput}
+                        />
+                    </div>
                 </div>
                 {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
                     <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} />
@@ -132,15 +134,17 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                     />
                     {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
                 </ThemeDiv>
-                {rollout.replicaSets?.map(
-                    (rsInfo) =>
-                        rsInfo.pods &&
-                        rsInfo.pods.length > 0 && (
-                            <div className='rollouts-list__widget__pods' key={rsInfo.objectMeta.uid}>
-                                <ReplicaSet rs={rsInfo} />
-                            </div>
-                        )
-                )}
+                <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
+                    {rollout.replicaSets?.map(
+                        (rsInfo) =>
+                            rsInfo.pods &&
+                            rsInfo.pods.length > 0 && (
+                                <div className='rollouts-list__widget__pods' key={rsInfo.objectMeta.uid}>
+                                    <ReplicaSet rs={rsInfo} />
+                                </div>
+                            )
+                    )}
+                </WaitFor>
                 <div className='rollouts-list__widget__actions'>
                     <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
                     <RolloutActionButton action={RolloutAction.PromoteFull} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
