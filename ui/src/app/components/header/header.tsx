@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {RolloutNamespaceInfo, RolloutServiceApi} from '../../../models/rollout/generated';
+import {RolloutAPIContext} from '../../shared/context/api';
 import {useServerData} from '../../shared/utils/utils';
 import {InfoItemRow} from '../info-item/info-item';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
@@ -35,6 +36,15 @@ export const Header = () => {
     const getNs = React.useCallback(() => new RolloutServiceApi().getNamespace(), []);
     const nsData = useServerData<RolloutNamespaceInfo>(getNs);
     const {name} = useParams<{name: string}>();
+    const api = React.useContext(RolloutAPIContext);
+    const [version, setVersion] = React.useState('v?');
+    React.useEffect(() => {
+        const getVersion = async () => {
+            const v = await api.version();
+            setVersion(v.rolloutsVersion);
+        };
+        getVersion();
+    });
     return (
         <header className='rollouts-header'>
             <Brand path={name} />
@@ -43,7 +53,7 @@ export const Header = () => {
                     <ThemeToggle />
                 </span>
                 <InfoItemRow label={'NS:'} items={{content: nsData.namespace}} />
-                <div className='rollouts-header__version'>v0.1.0</div>
+                <div className='rollouts-header__version'>{version}</div>
             </div>
         </header>
     );

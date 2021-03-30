@@ -70,19 +70,19 @@ func NewRolloutInfo(
 	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []v1alpha1.ContainerInfo{}
-	for c := range(ro.Spec.Template.Spec.Containers) {
+	for c := range ro.Spec.Template.Spec.Containers {
 		curContainer := ro.Spec.Template.Spec.Containers[c]
-		roInfo.Containers = append(roInfo.Containers, v1alpha1.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image,})
+		roInfo.Containers = append(roInfo.Containers, v1alpha1.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
 	}
 
-	if (ro.Status.RestartedAt != nil) {
+	if ro.Status.RestartedAt != nil {
 		roInfo.RestartedAt = ro.Status.RestartedAt.String()
 	} else {
 		roInfo.RestartedAt = "Never"
 	}
 
 	roInfo.Generation = ro.Status.ObservedGeneration
-		
+
 	roInfo.Desired = defaults.GetReplicasOrDefault(ro.Spec.Replicas)
 	roInfo.Ready = ro.Status.ReadyReplicas
 	roInfo.Current = ro.Status.Replicas

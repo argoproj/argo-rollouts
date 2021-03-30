@@ -93,12 +93,11 @@ func Watch(stopCh <-chan struct{}, rolloutUpdates chan *v1alpha1.RolloutInfo, ca
 }
 
 func (o *GetOptions) WatchRollout(stopCh <-chan struct{}, rolloutUpdates chan *v1alpha1.RolloutInfo) {
-	Watch(stopCh, rolloutUpdates, 
-	func (i *v1alpha1.RolloutInfo) {
-		o.Clear()
-		ri := v1alpha1.RolloutInfo(*i)
-		o.PrintRollout(&ri)
-	})
+	Watch(stopCh, rolloutUpdates,
+		func(i *v1alpha1.RolloutInfo) {
+			o.Clear()
+			o.PrintRollout(i)
+		})
 }
 
 // formatImage formats an ImageInfo with colorized imageinfo tags (e.g. canary, stable)

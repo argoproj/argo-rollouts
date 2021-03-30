@@ -10,18 +10,18 @@ import (
 
 func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:          "dashboard",
-		Short:        "Start UI dashboard",
+		Use:   "dashboard",
+		Short: "Start UI dashboard",
 		RunE: func(c *cobra.Command, args []string) error {
 			namespace := o.Namespace()
 			kubeclientset := o.KubeClientset()
 			rolloutclientset := o.RolloutsClientset()
 
 			opts := server.ServerOptions{
-				Namespace: namespace,
-				KubeClientset: kubeclientset,
+				Namespace:         namespace,
+				KubeClientset:     kubeclientset,
 				RolloutsClientset: rolloutclientset,
-				DynamicClientset: o.DynamicClientset(),
+				DynamicClientset:  o.DynamicClientset(),
 			}
 
 			for {

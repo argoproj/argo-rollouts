@@ -36,6 +36,10 @@ message RolloutInfoList {
     repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rollouts = 1;
 }
 
+message VersionInfo {
+    string rolloutsVersion = 1;
+}
+
 service RolloutService {
     // Get returns a rollout
     rpc GetRollout(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
@@ -80,5 +84,9 @@ service RolloutService {
 
     rpc RetryRollout(RolloutQuery) returns (google.protobuf.Empty) {
         option (google.api.http).get = "/api/v1/rollout/retry/{name}";
+    }
+
+    rpc Version(google.protobuf.Empty) returns (VersionInfo) {
+        option (google.api.http).get = "/api/v1/version";
     }
 }

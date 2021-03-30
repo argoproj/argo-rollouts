@@ -294,6 +294,22 @@
           "RolloutService"
         ]
       }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "Version",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rollout.VersionInfo"
+            }
+          }
+        },
+        "tags": [
+          "RolloutService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1095,6 +1111,14 @@
         },
         "rolloutInfo": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+        }
+      }
+    },
+    "rollout.VersionInfo": {
+      "type": "object",
+      "properties": {
+        "rolloutsVersion": {
+          "type": "string"
         }
       }
     }

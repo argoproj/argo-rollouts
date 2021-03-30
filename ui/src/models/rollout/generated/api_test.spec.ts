@@ -59,6 +59,9 @@ describe("RolloutServiceApi", () => {
     const revision: string = "revision_example"
     return expect(instance.undoRollout(rollout, revision, {})).resolves.toBe(null)
   })
+  test("version", () => {
+    return expect(instance.version({})).resolves.toBe(null)
+  })
   test("watchRollout", () => {
     const name: string = "name_example"
     return expect(instance.watchRollout(name, {})).resolves.toBe(null)

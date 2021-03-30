@@ -33,7 +33,7 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 
 func NewCommand(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var (
-		listenPort int
+		listenPort   int
 		clientConfig clientcmd.ClientConfig
 	)
 
@@ -43,7 +43,7 @@ func NewCommand(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			
+
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
@@ -55,10 +55,10 @@ func NewCommand(o *options.ArgoRolloutsOptions) *cobra.Command {
 			rolloutclientset := rolloutclientset.NewForConfigOrDie(rolloutclientsetConfig)
 
 			opts := server.ServerOptions{
-				Namespace: namespace,
-				KubeClientset: kubeclientset,
+				Namespace:         namespace,
+				KubeClientset:     kubeclientset,
 				RolloutsClientset: rolloutclientset,
-				DynamicClientset: o.DynamicClientset(),
+				DynamicClientset:  o.DynamicClientset(),
 			}
 			for {
 				ctx := context.Background()
@@ -72,7 +72,7 @@ func NewCommand(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 	clientConfig = AddKubectlFlagsToCmd(command)
 	command.Flags().IntVar(&listenPort, "port", 3100, "Listen on given port")
-	return command;
+	return command
 }
 
 func main() {

@@ -53,7 +53,7 @@ func TestRolloutControllerCallback(t *testing.T) {
 	}
 
 	callbackCalled := false
-	cb := func(roInfo *info.RolloutInfo) {
+	cb := func(roInfo *v1alpha1.RolloutInfo) {
 		callbackCalled = true
 		assert.Equal(t, roInfo.Name, "foo")
 	}
