@@ -43,7 +43,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//go:embed static/* // nolint
+//nolint
+//go:embed static/*
 var static embed.FS //nolint
 
 var backoff = wait.Backoff{
