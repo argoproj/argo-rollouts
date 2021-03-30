@@ -44,7 +44,7 @@ import (
 )
 
 //go:embed static/*
-var static embed.FS
+var static embed.FS //nolint
 
 var backoff = wait.Backoff{
 	Steps:    5,
