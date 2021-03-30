@@ -6,7 +6,6 @@ import (
 	"time"
 
 	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,7 +100,7 @@ func TestExperimentControllerCallback(t *testing.T) {
 	}
 
 	callbackCalled := false
-	cb := func(expInfo *info.ExperimentInfo) {
+	cb := func(expInfo *v1alpha1.ExperimentInfo) {
 		callbackCalled = true
 		assert.Equal(t, expInfo.Name, "foo")
 	}

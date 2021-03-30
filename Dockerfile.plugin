@@ -1,7 +1,0 @@
-####################################################################################################
-# argo-rollouts-plugin
-####################################################################################################
-FROM ghcr.io/argoproj/argo-rollouts:latest
-COPY dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
-COPY dist/rollouts-server bin/rollouts-server
-ENTRYPOINT [ "/bin/rollouts-server" ]

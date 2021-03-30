@@ -56,7 +56,7 @@ type ExperimentViewController struct {
 
 type RolloutInfoCallback func(*v1alpha1.RolloutInfo)
 
-type ExperimentInfoCallback func(*info.ExperimentInfo)
+type ExperimentInfoCallback func(*v1alpha1.ExperimentInfo)
 
 func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
 	vc := newViewController(namespace, name, kubeClient, rolloutClient)
@@ -226,7 +226,7 @@ func (c *ExperimentViewController) GetExperimentInfo() (*v1alpha1.ExperimentInfo
 
 func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*info.ExperimentInfo))
+		callback(i.(*v1alpha1.ExperimentInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }
