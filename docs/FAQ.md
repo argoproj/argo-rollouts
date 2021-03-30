@@ -1,6 +1,12 @@
 # FAQ
 
 ## General
+
+### Does Argo Rollouts depend on Argo CD or any other Argo project?
+
+Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can by used
+on its own for Progressive Delivery scenarios. More specifically, argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
+
 ### How does Argo Rollouts integrate with Argo CD?
 Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua health check](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md). These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).
 
@@ -22,7 +28,13 @@ Currently, the Rollout action has two available custom actions in Argo CD: resum
 * Restart: Sets the RestartAt and causes all the pods to be restarted.
 
 ### Does Argo Rollout require a Service Mesh like Istio?
-Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets.
+Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets. 
+
+### Does Argo Rollout require we follow GitOps in my organization?
+
+Argo Rollouts is a Kubernetes controller that will react to any manifest change regardless of how the manifest was changed. The manifest can be changed
+by a Git commit, an API call, another controller or even a manual `kubectl` command. You can use Argo Rollouts with any traditional CI/CD
+solution that does not follow the GitOps approach.
 
 ## Rollouts
 

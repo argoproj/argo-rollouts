@@ -38,7 +38,7 @@ spec:
       steps:
       - setWeight: 5
       # The following pause step will pause the rollout indefinitely until manually resumed.
-      # Rollouts can be manually resumed by running `kubectl argo rollouts resume ROLLOUT`
+      # Rollouts can be manually resumed by running `kubectl argo rollouts promote ROLLOUT`
       - pause: {}
 ---
 kind: Service

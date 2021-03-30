@@ -1,20 +1,21 @@
-# Getting Started - AWS ALB Ingress Controller
+# Getting Started - AWS Load Balancer Controller
 
-This guide covers how Argo Rollouts integrates with the [AWS Application Load Balancer (ALB)](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) 
-for traffic shaping. 
-This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md).
+This guide covers how Argo Rollouts integrates with the
+[AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/) 
+for traffic shaping. This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md).
 
 ## Requirements
 - Kubernetes cluster with AWS ALB Ingress Controller installed
 
 !!! tip
-    See the [Setup ALB ingress controller](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/guide/controller/setup/) on how to setup a
-    Kubernetes cluster with AWS ALB Ingress Controller
+
+    See the [Load Balancer Controller Installation instructions](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/)
+    on how to install the AWS Load Balancer Controller
 
 ## 1. Deploy the Rollout, Services, and Ingress
 
-When AWS ALB is used as the traffic router, the Rollout canary strategy must define the following
-mandatory fields:
+When an AWS ALB Ingress is used as the traffic router, the Rollout canary strategy must define the
+following fields:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -24,24 +25,27 @@ metadata:
 spec:
   strategy:
     canary:
-      # Reference to a Service which the controller updates to point to the canary ReplicaSet
+      # canaryService and stableService are references to Services which the Rollout will modify
+      # to target the canary ReplicaSet and stable ReplicaSet respectively (required).
       canaryService: rollouts-demo-canary
-      # Reference to a Service which the controller updates to point to the stable ReplicaSet
       stableService: rollouts-demo-stable
       trafficRouting:
-        alb:  
-          # Reference to an Ingress in the same namespace of the Rollout
+        alb:
+          # The referenced ingress will be injected with a custom action annotation, directing
+          # the AWS Load Balancer Controller to split traffic between the canary and stable
+          # Service, according to the desired traffic weight (required).
           ingress: rollouts-demo-ingress
-          # Reference to a port of the Service
-          servicePort: 80
+          # Reference to a Service that the Ingress must target in one of the rules (optional).
+          # If omitted, uses canary.stableService.
+          rootService: rollouts-demo-root
+          # Service port is the port which the Service listens on (required).
+          servicePort: 443
 ...
 ```
 
-The Ingress in `trafficRouting.alb.ingress` is required
-to have a custom action which splits between the stable and canary Services, referenced in the rollout.
-In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
-respectively. The weight values for these services used should be initially set to 100% stable, 
-and 0% on the canary. During an update, these values will be modified by the controller.
+The Ingress referenced by the Rollout must have a rule which matches one of Rollout services.
+This should be `canary.trafficRouting.alb.rootService` (if specified), otherwise the rollout will
+use `canary.stableService`.
 
 ```yaml
 apiVersion: networking.k8s.io/v1beta1
@@ -50,39 +54,30 @@ metadata:
   name: rollouts-demo-ingress
   annotations:
     kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/actions.rollouts-demo-stable: |
-      {
-        "Type":"forward",
-        "ForwardConfig":{
-          "TargetGroups":[
-            {
-                "Weight":0,
-                "ServiceName":"rollouts-demo-canary",
-                "ServicePort":"80"
-            },
-            {
-                "Weight":100,
-                "ServiceName":"rollouts-demo-stable",
-                "ServicePort":"80"
-            }
-          ]
-        }
-      }
 spec:
   rules:
-    - http:
-        paths:
-          - path: /*
-            backend:
-              serviceName: rollouts-demo-stable
-              servicePort: use-annotation
+  - http:
+      paths:
+      - path: /*
+        backend:
+          # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
+          # or canary.stableService (if rootService is omitted)
+          serviceName: rollouts-demo-root
+          # servicePort must be the value: use-annotation
+          # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
+          servicePort: use-annotation
 ```
+
+During an update, the Ingress will be injected with a
+[custom action annotation](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions),
+which directs the ALB to splits traffic between the stable and canary Services referenced by the Rollout.
+In this example, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
+respectively.
 
 Run the following commands to deploy:
 
 * A Rollout
-* Two Services (stable and canary)
+* Three Services (root, stable, canary)
 * An Ingress
 
 ```shell
@@ -100,6 +95,7 @@ rollouts-demo   1         1         1            1
 
 $ kubectl get svc
 NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+rollouts-demo-root     NodePort    10.100.16.123    <none>        80:30225/TCP   2m43s
 rollouts-demo-canary   NodePort    10.100.16.64     <none>        80:30224/TCP   2m43s
 rollouts-demo-stable   NodePort    10.100.146.232   <none>        80:31135/TCP   2m43s
 

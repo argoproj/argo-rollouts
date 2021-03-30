@@ -173,6 +173,17 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
 	})
 
+	t.Run("validate inline analysisTemplate argument - success", func(t *testing.T) {
+		template := getAnalysisTemplateWithType()
+		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+			{
+				Name: "service-name",
+			},
+		}
+		allErrs := ValidateAnalysisTemplateWithType(template)
+		assert.Empty(t, allErrs)
+	})
+
 	// verify background analysis does not care about a metric that runs indefinitely
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
 		count := intstr.FromInt(0)

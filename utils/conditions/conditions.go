@@ -178,8 +178,8 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 
 	strategySpecificProgress := false
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		activeSelectorChange := rollout.Status.BlueGreen.ActiveSelector != newStatus.BlueGreen.ActiveSelector
-		previewSelectorChange := rollout.Status.BlueGreen.PreviewSelector != newStatus.BlueGreen.PreviewSelector
+		activeSelectorChange := oldStatus.BlueGreen.ActiveSelector != newStatus.BlueGreen.ActiveSelector
+		previewSelectorChange := oldStatus.BlueGreen.PreviewSelector != newStatus.BlueGreen.PreviewSelector
 		strategySpecificProgress = activeSelectorChange || previewSelectorChange
 	}
 

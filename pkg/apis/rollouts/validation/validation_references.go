@@ -107,6 +107,7 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
 	}
 	if template.TemplateType != BackgroundAnalysis {
+		setArgValuePlaceHolder(templateSpec.Args)
 		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
 		if err != nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s: %v", templateName, err)
@@ -122,6 +123,15 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 		}
 	}
 	return allErrs
+}
+
+func setArgValuePlaceHolder(Args []v1alpha1.Argument) {
+	for i, arg := range Args {
+		if arg.ValueFrom == nil && arg.Value == nil {
+			argVal := "dummy-value"
+			Args[i].Value = &argVal
+		}
+	}
 }
 
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.ErrorList {
