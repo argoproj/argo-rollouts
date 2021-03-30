@@ -52,7 +52,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy UI files for plugin build
-COPY --from=argocd-ui ./src/dist/app /shared/app
+COPY --from=argo-rollouts-ui ./src/dist/app /shared/app
 
 # Perform the build
 COPY . .
