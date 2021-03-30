@@ -5,6 +5,7 @@ import './input.scss';
 
 interface InputProps {
     value: string;
+    ref: React.MutableRefObject<HTMLInputElement>;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -17,9 +18,11 @@ export const FormResetFactory = (setFxns: SetInputFxn[]) => {
 
 export const useInput = (init: string, callback?: (val: string) => void): [string, SetInputFxn, InputProps] => {
     const [state, setState] = React.useState(init);
+    const inputRef = React.useRef(null);
 
     const Input: InputProps = {
         value: state,
+        ref: inputRef,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
             setState(e.target.value);
             if (callback) {

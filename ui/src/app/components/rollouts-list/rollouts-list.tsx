@@ -48,6 +48,17 @@ export const RolloutsList = () => {
     const rolloutNames = useRolloutNames(rollouts);
     const history = useHistory();
 
+    useKeyPress(Key.SLASH, () => {
+        if (!searchString) {
+            alert('Hello!');
+            if (searchInput.ref.current) {
+                searchInput.ref.current.focus();
+            }
+            return true;
+        }
+        return false;
+    });
+
     useKeyPress(Key.ENTER, () => {
         if (pos > -1) {
             history.push(`/rollout/${filteredRollouts[pos].objectMeta?.name}`);
