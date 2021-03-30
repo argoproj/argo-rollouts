@@ -54,8 +54,8 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if !getOptions.Watch {
 				getOptions.PrintExperiment(expInfo)
 			} else {
-				expUpdates := make(chan *info.ExperimentInfo)
-				controller.RegisterCallback(func(expInfo *info.ExperimentInfo) {
+				expUpdates := make(chan *v1alpha1.ExperimentInfo)
+				controller.RegisterCallback(func(expInfo *v1alpha1.ExperimentInfo) {
 					expUpdates <- expInfo
 				})
 				go getOptions.WatchExperiment(ctx.Done(), expUpdates)
@@ -70,9 +70,9 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *GetOptions) WatchExperiment(stopCh <-chan struct{}, expUpdates chan *info.ExperimentInfo) {
+func (o *GetOptions) WatchExperiment(stopCh <-chan struct{}, expUpdates chan *v1alpha1.ExperimentInfo) {
 	ticker := time.NewTicker(time.Second)
-	var currExpInfo *info.ExperimentInfo
+	var currExpInfo *v1alpha1.ExperimentInfo
 	// preventFlicker is used to rate-limit the updates we print to the terminal when updates occur
 	// so rapidly that it causes the terminal to flicker
 	var preventFlicker time.Time
@@ -87,8 +87,7 @@ func (o *GetOptions) WatchExperiment(stopCh <-chan struct{}, expUpdates chan *in
 		}
 		if currExpInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
 			o.Clear()
-			e := v1alpha1.ExperimentInfo(*currExpInfo)
-			o.PrintExperiment(&e)
+			o.PrintExperiment(currExpInfo)
 			preventFlicker = time.Now()
 		}
 	}
