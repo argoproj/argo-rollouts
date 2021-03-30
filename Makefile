@@ -161,7 +161,7 @@ server: clean-debug ui/dist
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-server ./cmd/rollouts-server
 
 .PHONY: plugin
-plugin: ui/dist
+plugin:
 	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
@@ -170,12 +170,12 @@ ui/dist:
 	yarn --cwd ui build
 
 .PHONY: plugin-linux
-plugin-linux: ui/dist
+plugin-linux:
 	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-darwin
-plugin-darwin: ui/dist
+plugin-darwin:
 	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
