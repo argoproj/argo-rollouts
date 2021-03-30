@@ -43,7 +43,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//nolint
 //go:embed static/*
 var static embed.FS //nolint
 

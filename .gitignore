@@ -13,4 +13,5 @@ vendor/
 # generated
 docs/generated
 # static
-server/static
+server/static/*
+!server/static/.gitkeep
