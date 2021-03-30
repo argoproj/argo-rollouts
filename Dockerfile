@@ -24,22 +24,6 @@ RUN cd ${GOPATH}/src/dummy && \
     golangci-lint run
 
 ####################################################################################################
-# Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
-####################################################################################################
-FROM golang:1.16.1 as argo-rollouts-build
-
-
-WORKDIR /go/src/github.com/argoproj/argo-rollouts
-# Copy only go.mod and go.sum files. This way on subsequent docker builds if the
-# dependencies didn't change it won't re-download the dependencies for nothing.
-COPY go.mod go.sum ./
-RUN go mod download
-# Perform the build
-COPY . .
-ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
-RUN make ${MAKE_TARGET}
-
-####################################################################################################
 # UI build stage
 ####################################################################################################
 FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
@@ -54,6 +38,26 @@ ADD ["ui/", "."]
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
 RUN NODE_ENV='production' yarn build
+
+####################################################################################################
+# Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
+####################################################################################################
+FROM golang:1.16.1 as argo-rollouts-build
+
+WORKDIR /go/src/github.com/argoproj/argo-rollouts
+
+# Copy only go.mod and go.sum files. This way on subsequent docker builds if the
+# dependencies didn't change it won't re-download the dependencies for nothing.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy UI files for plugin build
+COPY --from=argocd-ui ./src/dist/app /shared/app
+
+# Perform the build
+COPY . .
+ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
+RUN make ${MAKE_TARGET}
 
 ####################################################################################################
 # Kubectl plugin image
