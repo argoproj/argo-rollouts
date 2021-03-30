@@ -40,6 +40,22 @@ ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
 ####################################################################################################
+# UI build stage
+####################################################################################################
+FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
+
+WORKDIR /src
+ADD ["ui/package.json", "ui/yarn.lock", "./"]
+
+RUN yarn install
+
+ADD ["ui/", "."]
+
+ARG ARGO_VERSION=latest
+ENV ARGO_VERSION=$ARGO_VERSION
+RUN NODE_ENV='production' yarn build
+
+####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
 FROM scratch as kubectl-argo-rollouts
