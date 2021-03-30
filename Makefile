@@ -76,6 +76,9 @@ codegen: mocks protogen
 
 LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-rollouts
 
+install-codegen-tools: 
+	sudo ./hack/install-codegen-go-tools.sh
+
 .PHONY: ensure-gopath
 ensure-gopath:
 ifneq ("$(PWD)","$(LEGACY_PATH)")

@@ -69,11 +69,25 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.16
+      - name: Create symlink in GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          cp -a ../argo-cd ~/go/src/github.com/argoproj
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download & vendor dependencies
         run: |
-          # We need to vendor go modules for codegen yet
+          # We need to vendor go modules for codegen
           go mod download
           go mod vendor -v
+      - name: Install toolchain for codegen
+        run: |
+          make install-codegen-tools
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-rollouts
       - name: Run codegen
         run: |
           make codegen

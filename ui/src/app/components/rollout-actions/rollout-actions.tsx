@@ -16,6 +16,8 @@ export enum RolloutAction {
 export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
 
+    const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
+
     const actionMap = new Map<RolloutAction, ActionButtonProps>([
         [
             RolloutAction.Restart,
@@ -23,7 +25,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'RESTART',
                 icon: faSync,
                 action: api.restartRollout,
-                tooltip: `Last restarted ${formatTimestamp(props.rollout.restartedAt || '')}`,
+                tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
             },
         ],
