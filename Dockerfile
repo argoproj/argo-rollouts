@@ -56,6 +56,11 @@ COPY --from=argo-rollouts-ui ./src/dist/app ./ui/dist
 
 # Perform the build
 COPY . .
+
+# stop make from trying to re-build this without yarn installed
+RUN touch ui/dist/node_modules.marker
+RUN touch ui/dist/app/index.html
+
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
