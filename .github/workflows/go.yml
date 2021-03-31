@@ -104,8 +104,6 @@ jobs:
           ln -s "$PWD" /home/runner/go/src/github.com/argoproj/argo-rollouts
       - name: Run codegen
         run: |
-          export GOPATH=$(go env GOPATH)
-          git checkout -- go.mod go.sum
           make codegen
           make manifests
       - name: Ensure nothing changed
