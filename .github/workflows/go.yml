@@ -62,6 +62,8 @@ jobs:
   codegen:
     name: Verify Codegen
     runs-on: ubuntu-latest
+    env:
+      PROTOC_ZIP: protoc-3.11.1-linux-x86_64.zip
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -72,11 +74,11 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: /home/runner/.cache/go-build
-          key: GOCACHE-v2-${{ hashFiles('**/go.mod') }}
+          key: GOCACHE-${{ hashFiles('**/go.mod') }}
       - uses: actions/cache@v2
         with:
           path: /home/runner/go/pkg/mod
-          key: GOMODCACHE-v2-${{ hashFiles('**/go.mod') }}
+          key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
       - uses: actions/cache@v2
         with:
           path: /home/runner/go/bin
