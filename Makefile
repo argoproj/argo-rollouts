@@ -65,6 +65,9 @@ define protoc
       $(1)
 endef
 
+PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
+TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
+
 .PHONY: all
 all: controller image
 
@@ -95,9 +98,6 @@ protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollo
 	rm -Rf vendor
 	go mod tidy
 	cd ui && ${UI_PROTOGEN_CMD} && cd ..
-
-PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
-TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 
 $(GOPATH)/bin/mockery:
 	./hack/recurl.sh dist/mockery.tar.gz https://github.com/vektra/mockery/releases/download/v1.1.1/mockery_1.1.1_$(shell uname -s)_$(shell uname -m).tar.gz
