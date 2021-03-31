@@ -69,7 +69,7 @@ endef
 all: controller image
 
 .PHONY: codegen
-codegen: mocks protogen
+codegen: protogen mocks
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
