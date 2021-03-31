@@ -101,29 +101,11 @@ jobs:
         run: |
           mkdir -p /home/runner/go/src/github.com/argoproj
           ln -s "$PWD" /home/runner/go/src/github.com/argoproj/argo-rollouts
-      - name: Add ~/go/bin to PATH
-        run: |
-          echo "/home/runner/go/bin" >> $GITHUB_PATH
-      - name: Add /usr/local/bin to PATH
-        run: |
-          echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Download & vendor dependencies
-        run: |
-          # We need to vendor go modules for codegen
-          go mod download
-          go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-rollouts
-      - name: Install toolchain for codegen
-        run: |
-          make install-codegen-tools
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-rollouts
       - name: Run codegen
         run: |
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
           make codegen
           make manifests
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-rollouts
       - name: Ensure nothing changed
         run: git diff --exit-code
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-rollouts
