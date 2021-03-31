@@ -71,7 +71,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15.7
+          go-version: 1.16.2
       - uses: actions/cache@v2
         with:
           path: /home/runner/.cache/go-build
@@ -98,10 +98,19 @@ jobs:
           sudo find /usr/local/include -type f | xargs sudo chmod a+r
           sudo find /usr/local/include -type d | xargs sudo chmod a+rx
           ls /usr/local/include/google/protobuf/
+
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+
       - name: Create links
         run: |
-          mkdir -p /home/runner/go/src/github.com/argoproj
-          ln -s "$PWD" /home/runner/go/src/github.com/argoproj/argo-rollouts
+          mkdir -p ~/go/src/github.com/argoproj
+          cp -a ../argo-rollouts ~/go/src/github.com/argoproj
+
       - name: Run codegen
         run: |
           make codegen
