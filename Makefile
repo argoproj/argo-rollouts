@@ -18,6 +18,12 @@ E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 1
 
+# go_install,path
+define go_install
+	[ -e ./vendor ] || go mod vendor
+	go install -mod=vendor ./vendor/$(1)
+endef
+
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
   -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \
