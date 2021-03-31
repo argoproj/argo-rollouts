@@ -111,6 +111,9 @@ jobs:
           mkdir -p ~/go/src/github.com/argoproj
           cp -a ../argo-rollouts ~/go/src/github.com/argoproj
 
+      - name: Vendor
+        run: go mod vendor -v
+
       - name: Run codegen
         run: |
           make codegen
