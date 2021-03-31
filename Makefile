@@ -89,9 +89,7 @@ endif
 
 UI_PROTOGEN_CMD=yarn run protogen
 .PHONY: protogen
-protogen: \
-	pkg/apis/rollouts/v1alpha1/generated.proto \
-	pkg/apiclient/rollout/rollout.swagger.json \
+protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json \
 	$(GOPATH)/bin/mockery
 	go generate ./pkg/apiclient/rollout
 	rm -Rf vendor
