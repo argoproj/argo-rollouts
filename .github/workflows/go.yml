@@ -97,10 +97,10 @@ jobs:
           sudo find /usr/local/include -type f | xargs sudo chmod a+r
           sudo find /usr/local/include -type d | xargs sudo chmod a+rx
           ls /usr/local/include/google/protobuf/
-      - name: Create symlink in GOPATH
+      - name: Create links
         run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-rollouts ~/go/src/github.com/argoproj
+          mkdir -p /home/runner/go/src/github.com/argoproj
+          ln -s "$PWD" /home/runner/go/src/github.com/argoproj/argo-rollouts
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
