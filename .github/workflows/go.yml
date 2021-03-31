@@ -63,6 +63,7 @@ jobs:
     name: Verify Codegen
     runs-on: ubuntu-latest
     env:
+      GOPATH: /home/runner/go
       PROTOC_ZIP: protoc-3.11.1-linux-x86_64.zip
     steps:
       - name: Checkout code
