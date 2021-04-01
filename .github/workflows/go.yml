@@ -118,7 +118,7 @@ jobs:
 
       - name: Install UI code generator
         run: |
-          wget https://repo1.maven.org/maven2/io/swagger/swagger-codegen-cli/3.0.25/swagger-codegen-cli-3.0.25.jar -O swagger-codegen-cli.jar
+          wget https://repo1.maven.org/maven2/io/swagger/codegen/v3/swagger-codegen-cli/3.0.25/swagger-codegen-cli-3.0.25.jar -O swagger-codegen-cli.jar
           echo "#!/usr/bin/java -jar" > swagger-codegen
           cat swagger-codegen-cli.jar >> swagger-codegen
           chmod +x swagger-codegen
