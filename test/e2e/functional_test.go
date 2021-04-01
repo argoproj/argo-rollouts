@@ -260,6 +260,11 @@ func (s *FunctionalSuite) TestMalformedRollout() {
 		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
 }
 
+func (s *FunctionalSuite) TestMalformedRolloutEphemeralCtr() {
+	s.Given().
+		HealthyRollout(`@expectedfailures/malformed-rollout-ephemeral.yaml`)
+}
+
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
 // rejected by validation
 func (s *FunctionalSuite) TestContainerResourceFormats() {

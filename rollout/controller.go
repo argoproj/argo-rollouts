@@ -221,7 +221,7 @@ func NewController(cfg ControllerConfig) *Controller {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
 			}
-			controller.enqueueRollout(newRollout)
+			controller.enqueueRollout(new)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
