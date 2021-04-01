@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/go
-      PROTOC_ZIP: protoc-3.11.1-linux-x86_64.zip
+      PROTOC_ZIP: protoc-3.12.3-linux-x86_64.zip
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -86,12 +86,12 @@ jobs:
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
       - uses: actions/cache@v2
         with:
-          path: protoc-3.11.1-linux-x86_64.zip
-          key: protoc-3.11.1-linux-x86_64.zip
+          path: protoc-3.12.3-linux-x86_64.zip
+          key: protoc-3.12.3-linux-x86_64.zip
       - name: Install protoc
         run: |
           set -eux -o pipefail
-          curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.1/$PROTOC_ZIP
+          curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/$PROTOC_ZIP
           sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
           sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
           sudo chmod +x /usr/local/bin/protoc
