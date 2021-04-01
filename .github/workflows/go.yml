@@ -112,7 +112,7 @@ jobs:
           cp -a ../argo-rollouts ~/go/src/github.com/argoproj
 
       - name: Vendor and Download
-        rn: |
+        run: |
           go mod vendor -v
           go mod download
 
