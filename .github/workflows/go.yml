@@ -117,7 +117,7 @@ jobs:
           go mod download
 
       - name: Install UI code generator
-        run: sudo npm install --global swagger-codegen
+        run: yarn add swagger-codegen
 
       - name: Run codegen
         run: |
