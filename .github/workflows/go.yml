@@ -122,7 +122,7 @@ jobs:
           echo "#!/usr/bin/java -jar" > swagger-codegen
           cat swagger-codegen-cli.jar >> swagger-codegen
           chmod +x swagger-codegen
-          sudo mv swagger-codegen/usr/local/bin/swagger-codegen
+          sudo mv swagger-codegen /usr/local/bin/swagger-codegen
           rm swagger-codegen-cli.jar
 
       - uses: actions/setup-java@v1
