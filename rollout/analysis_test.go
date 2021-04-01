@@ -1738,11 +1738,10 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
-	conditions.SetRolloutCondition(&r2.Status, 	progressingCondition)
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, 	pausedCondition)
-
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)

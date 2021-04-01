@@ -219,10 +219,10 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
-	progressingCondition, progressingConditionString := newProgressingCondition(conditions.PausedRolloutMessage, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, pausedConditionString := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -237,17 +237,10 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
-	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
-
-	expectedPatch := fmt.Sprintf(`{
-		"status": {
-			"conditions": [%s, %s]
-		}
-	}`, pausedConditionString, progressingConditionString)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
@@ -938,7 +931,6 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
-
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
