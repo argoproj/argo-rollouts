@@ -148,7 +148,7 @@ pkg/apis/rollouts/v1alpha1/generated.proto: $(GOPATH)/bin/go-to-protobuf $(PROTO
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
-		--proto-import ./vendor
+		--proto-import $(CURDIR)/vendor
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
 
 pkg/apiclient/rollout/rollout.swagger.json: $(PROTO_BINARIES) $(TYPES) pkg/apiclient/rollout/rollout.proto
