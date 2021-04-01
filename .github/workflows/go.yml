@@ -122,6 +122,8 @@ jobs:
           sudo mv swagger-codegen-cli.jar /usr/local/bin/swagger-codegen
 
       - uses: actions/setup-java@v1
+        with:
+          java-version: "9.0.4"
 
       - name: Run codegen
         run: |
