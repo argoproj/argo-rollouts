@@ -116,6 +116,9 @@ jobs:
           go mod vendor -v
           go mod download
 
+      - name: Install UI code generator
+        run: npm install --global swagger-codegen
+
       - name: Run codegen
         run: |
           make codegen
