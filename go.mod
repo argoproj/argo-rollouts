@@ -14,7 +14,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.3
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.14.6
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
@@ -33,9 +33,10 @@ require (
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/vektra/mockery/v2 v2.6.0
-	golang.org/x/tools v0.1.0 // indirect
+	golang.org/x/tools v0.1.0
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.33.1
+	google.golang.org/grpc/examples v0.0.0-20210331235824-f6bb3972ed15 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	k8s.io/api v0.20.4
@@ -55,6 +56,7 @@ require (
 )
 
 replace (
+	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.0-alpha.0
