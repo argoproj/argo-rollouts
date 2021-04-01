@@ -99,19 +99,10 @@ endif
 UI_PROTOGEN_CMD=yarn run protogen
 .PHONY: protogen
 protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json \
-	$(GOPATH)/bin/mockery
 	go generate ./pkg/apiclient/rollout
 	rm -Rf vendor
 	go mod tidy
 	cd ui && ${UI_PROTOGEN_CMD} && cd ..
-
-$(GOPATH)/bin/mockery:
-	./hack/recurl.sh dist/mockery.tar.gz https://github.com/vektra/mockery/releases/download/v1.1.1/mockery_1.1.1_$(shell uname -s)_$(shell uname -m).tar.gz
-	tar zxvf dist/mockery.tar.gz mockery
-	chmod +x mockery
-	mkdir -p $(GOPATH)/bin
-	mv mockery $(GOPATH)/bin/mockery
-	mockery -version
 
 $(GOPATH)/bin/controller-gen:
 	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen)
