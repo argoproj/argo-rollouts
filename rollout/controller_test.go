@@ -165,6 +165,26 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplica
 	return rs
 }
 
+func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string){
+	status := corev1.ConditionTrue
+	if !isPaused {
+		status = corev1.ConditionFalse
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            conditions.PausedRolloutMessage,
+		Reason:             conditions.PausedRolloutReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutPaused,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
 func newProgressingCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""

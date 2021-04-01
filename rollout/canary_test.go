@@ -189,6 +189,9 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
 
@@ -216,8 +219,11 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2, "")
+	progressingCondition, progressingConditionString := newProgressingCondition(conditions.PausedRolloutMessage, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, pausedConditionString := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
@@ -235,12 +241,12 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
-	_, pausedCondition := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
-			"conditions": [%s]
+			"conditions": [%s, %s]
 		}
-	}`, pausedCondition)
+	}`, pausedConditionString, progressingConditionString)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -885,6 +891,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -927,6 +936,10 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -964,7 +977,10 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	earlier := metav1.Now()
@@ -1007,6 +1023,9 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	r2 := bumpVersion(r1)
 	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 4, 4)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -1249,7 +1268,10 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 5, 0, 5, true)
 	r2.Spec.Replicas = pointer.Int32Ptr(10)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1343,7 +1365,9 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 		StartTime: overAMinuteAgo,
 	}}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
+	conditions.SetRolloutCondition(&r1.Status, progressingCondition)
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
 	r1.Spec.Paused = true
 	f.kubeobjects = append(f.kubeobjects, rs1)
@@ -1380,7 +1404,10 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Replicas = pointer.Int32Ptr(3)
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 3, 0, 3, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs1, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.kubeobjects = append(f.kubeobjects, rs1)
