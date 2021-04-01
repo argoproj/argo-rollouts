@@ -11556,11 +11556,13 @@ spec:
     name: Current
     type: integer
   - JSONPath: .status.updatedReplicas
-    description: Total number of non-terminated pods targeted by this rollout that have the desired template spec
+    description: Total number of non-terminated pods targeted by this rollout that
+      have the desired template spec
     name: Up-to-date
     type: integer
   - JSONPath: .status.availableReplicas
-    description: Total number of available pods (ready for at least minReadySeconds) targeted by this rollout
+    description: Total number of available pods (ready for at least minReadySeconds)
+      targeted by this rollout
     name: Available
     type: integer
   group: argoproj.io
