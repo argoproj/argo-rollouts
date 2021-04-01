@@ -7,6 +7,7 @@ import (
 	_ "github.com/gogo/protobuf/protoc-gen-gogofast"
 	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
 	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger"
+	_ "golang.org/x/tools/cmd/goimports"
 	_ "k8s.io/code-generator/cmd/client-gen"
 	_ "k8s.io/code-generator/cmd/deepcopy-gen"
 	_ "k8s.io/code-generator/cmd/defaulter-gen"
