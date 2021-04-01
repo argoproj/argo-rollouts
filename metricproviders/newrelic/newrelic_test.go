@@ -348,9 +348,10 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 
 	t.Run("when a base-url is set", func(t *testing.T) {
 		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("12345"),
-			"base-url":         []byte("example.com"),
+			"personal-api-key":   []byte("ABCDEFG01234"),
+			"account-id":         []byte("12345"),
+			"base-url-rest":      []byte("example.com/api/v2"),
+			"base-url-nerdgraph": []byte("example.com/query"),
 		}
 		_, err := NewNewRelicAPIClient(metric, fakeClient)
 

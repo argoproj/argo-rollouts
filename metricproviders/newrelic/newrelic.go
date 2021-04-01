@@ -155,15 +155,20 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 
 	newrelicOptions := []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigUserAgent(userAgent)}
 
-	// support either base-url or region; default to us region if neither is used
-	if _, ok := secret.Data["base-url"]; ok {
-		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(string(secret.Data["base-url"])))
-	} else {
-		region := "us"
-		if _, ok := secret.Data["region"]; ok {
-			region = string(secret.Data["region"])
-		}
-		newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(region))
+	region := "us"
+	if _, ok := secret.Data["region"]; ok {
+		region = string(secret.Data["region"])
+	}
+	newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(region))
+
+	// base URL for the new relic REST API
+	if _, ok := secret.Data["base-url-rest"]; ok {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(string(secret.Data["base-url-rest"])))
+	}
+
+	// base URL for the nerdgraph (graphQL) API
+	if _, ok := secret.Data["base-url-nerdgraph"]; ok {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigNerdGraphBaseURL(string(secret.Data["base-url-nerdgraph"])))
 	}
 
 	if apiKey != "" && accountID != "" {
