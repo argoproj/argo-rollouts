@@ -114,9 +114,6 @@ jobs:
       - name: Vendor
         run: go mod vendor -v
 
-      - name: Debug
-        run: ls vendor/k8s.io/code-generator/cmd/
-
       - name: Run codegen
         run: |
           make codegen
