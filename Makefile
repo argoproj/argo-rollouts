@@ -98,8 +98,7 @@ endif
 
 UI_PROTOGEN_CMD=yarn run protogen
 .PHONY: protogen
-protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json \
-	go generate ./pkg/apiclient/rollout
+protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json 
 	rm -Rf vendor
 	go mod tidy
 	cd ui && ${UI_PROTOGEN_CMD} && cd ..
