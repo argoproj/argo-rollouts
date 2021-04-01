@@ -356,6 +356,10 @@ message CanaryStrategy {
   // This value is ignored with basic, replica-weighted canary without traffic routing.
   // +optional
   optional int32 scaleDownDelaySeconds = 11;
+
+  // ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
+  // +optional
+  optional int32 scaleDownDelayRevisionLimit = 12;
 }
 
 // ClusterAnalysisTemplate holds the template for performing canary analysis

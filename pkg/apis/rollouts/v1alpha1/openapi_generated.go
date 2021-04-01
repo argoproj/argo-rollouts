@@ -946,6 +946,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"scaleDownDelayRevisionLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},

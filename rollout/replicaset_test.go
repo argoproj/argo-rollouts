@@ -260,7 +260,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			roCtx, err := c.newRolloutContext(rollout)
 			assert.NoError(t, err)
 			roCtx.otherRSs = []*appsv1.ReplicaSet{oldRS}
-			scaled, err := roCtx.reconcileOldReplicaSets()
+			scaled, err := roCtx.reconcileOtherReplicaSets()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

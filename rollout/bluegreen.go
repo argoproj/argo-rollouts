@@ -69,7 +69,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 
-func (c *rolloutContext) reconcileStableReplicaSet(activeSvc *corev1.Service) error {
+func (c *rolloutContext) reconcileBlueGreenStableReplicaSet(activeSvc *corev1.Service) error {
 	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
 		return nil
 	}
@@ -80,20 +80,16 @@ func (c *rolloutContext) reconcileStableReplicaSet(activeSvc *corev1.Service) er
 	}
 
 	c.log.Infof("Reconciling stable ReplicaSet '%s'", activeRS.Name)
-	if replicasetutil.HasScaleDownDeadline(activeRS) {
-		// SetScaleDownDeadlineAnnotation should be removed from the new RS to ensure a new value is set
-		// when the active service changes to a different RS
-		err := c.removeScaleDownDelay(activeRS)
-		if err != nil {
-			return err
-		}
-	}
 	_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
 	return err
 }
 
 func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service) error {
-	err := c.reconcileStableReplicaSet(activeSvc)
+	err := c.removeScaleDownDeadlines()
+	if err != nil {
+		return err
+	}
+	err = c.reconcileBlueGreenStableReplicaSet(activeSvc)
 	if err != nil {
 		return err
 	}
@@ -102,7 +98,7 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 		return err
 	}
 	// Scale down old non-active, non-stable replicasets, if we can.
-	_, err = c.reconcileOldReplicaSets()
+	_, err = c.reconcileOtherReplicaSets()
 	if err != nil {
 		return err
 	}
@@ -278,8 +274,11 @@ func getScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {
 			return *ro.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit
 		}
 	}
-	// TODO: will need to support getScaleDownRevisionLimit in canary
-	// as part of https://github.com/argoproj/argo-rollouts/issues/557
+	if ro.Spec.Strategy.Canary != nil {
+		if ro.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit != nil {
+			return *ro.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit
+		}
+	}
 	return math.MaxInt32
 }
 

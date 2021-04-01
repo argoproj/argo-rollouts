@@ -2035,7 +2035,6 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -2141,7 +2140,6 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(-10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -2201,7 +2199,6 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

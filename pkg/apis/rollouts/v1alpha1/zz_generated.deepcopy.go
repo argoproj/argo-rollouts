@@ -558,6 +558,11 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ScaleDownDelayRevisionLimit != nil {
+		in, out := &in.ScaleDownDelayRevisionLimit, &out.ScaleDownDelayRevisionLimit
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

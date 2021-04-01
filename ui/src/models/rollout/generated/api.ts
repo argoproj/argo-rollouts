@@ -427,6 +427,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     scaleDownDelaySeconds?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    scaleDownDelayRevisionLimit?: number;
 }
 /**
  * 

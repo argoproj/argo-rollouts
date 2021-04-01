@@ -213,6 +213,9 @@ type CanaryStrategy struct {
 	// This value is ignored with basic, replica-weighted canary without traffic routing.
 	// +optional
 	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,11,opt,name=scaleDownDelaySeconds"`
+	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
+	// +optional
+	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty" protobuf:"varint,12,opt,name=scaleDownDelayRevisionLimit"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing

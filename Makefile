@@ -191,7 +191,7 @@ lint:
 	golangci-lint run --fix
 
 .PHONY: test
-test: #test-kustomize
+test:
 	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
 
 .PHONY: test-kustomize
@@ -204,7 +204,7 @@ start-e2e:
 
 .PHONY: test-e2e
 test-e2e:
-	go test -timeout 15m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
+	go test -timeout 20m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: coverage
 coverage: test
