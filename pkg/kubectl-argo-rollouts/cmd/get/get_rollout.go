@@ -61,7 +61,7 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				stopCh := ctx.Done()
 				if getOptions.TimeoutSeconds > 0 {
 					ts := time.Duration(getOptions.TimeoutSeconds)
-					newCtx, cancel := context.WithTimeout(ctx, ts * time.Second)
+					newCtx, cancel := context.WithTimeout(ctx, ts*time.Second)
 					ctx = newCtx
 					defer cancel()
 					stopCh = newCtx.Done()
