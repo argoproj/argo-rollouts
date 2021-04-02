@@ -262,8 +262,9 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.requests")
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
+		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
@@ -275,8 +276,9 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.requests")
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
+		// Replace this with "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
@@ -288,8 +290,9 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.requests")
+		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
