@@ -345,6 +345,18 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		// client defaults to US when not set or set to something incorrect, does not error
 		assert.Nil(t, err)
 	})
+
+	t.Run("when a base-url is set", func(t *testing.T) {
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key":   []byte("ABCDEFG01234"),
+			"account-id":         []byte("12345"),
+			"base-url-rest":      []byte("example.com/api/v2"),
+			"base-url-nerdgraph": []byte("example.com/query"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+
+		assert.Nil(t, err)
+	})
 	t.Run("with api token or account id missing missing", func(t *testing.T) {
 		tokenSecret.Data = map[string][]byte{
 			"personal-api-key": []byte("ABCDEFG01234"),
