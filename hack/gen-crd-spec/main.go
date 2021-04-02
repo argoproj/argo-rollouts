@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -26,6 +26,10 @@ const metadataValidation = `properties:
    type: object
 type: object`
 
+var preserveUnknownFields = map[string]interface{}{
+	"x-kubernetes-preserve-unknown-fields": true,
+}
+
 var crdPaths = map[string]string{
 	"Rollout":                 "manifests/crds/rollout-crd.yaml",
 	"Experiment":              "manifests/crds/experiment-crd.yaml",
@@ -34,8 +38,12 @@ var crdPaths = map[string]string{
 	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
 }
 
-func removeValidation(un *unstructured.Unstructured, path string) {
-	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
+func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]interface{}, path string) {
+	// Prepare variables
+	preSchemaPath := []string{"spec", "versions"}
+	objVersions, _, _ := unstructured.NestedSlice(un.Object, preSchemaPath...)
+
+	schemaPath := []string{"schema", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
 		if strings.HasSuffix(part, "[]") {
 			part = strings.TrimSuffix(part, "[]")
@@ -44,12 +52,23 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 			schemaPath = append(schemaPath, "properties", part)
 		}
 	}
-	_, ok, err := unstructured.NestedFieldNoCopy(un.Object, schemaPath...)
-	checkErr(err)
-	if !ok {
-		panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
+
+	// Loop over version's slice
+	var finalOverride []interface{}
+	for _, v := range objVersions {
+		unstructured.SetNestedMap(v.(map[string]interface{}), fieldOverride, schemaPath...)
+
+		_, ok, err := unstructured.NestedFieldNoCopy(v.(map[string]interface{}), schemaPath...)
+		checkErr(err)
+		if !ok {
+			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
+		} else {
+			finalOverride = append(finalOverride, v)
+		}
 	}
-	unstructured.RemoveNestedField(un.Object, schemaPath...)
+
+	// Write back to top object
+	unstructured.SetNestedSlice(un.Object, finalOverride, preSchemaPath...)
 }
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
@@ -57,10 +76,12 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
-		// cannot use preserveUnknownFields=false until controller-gen generates proper support for
-		// resource.Quantity, which we remove validation for
-		//"crd:preserveUnknownFields=false",
-		"crd:crdVersions=v1beta1",
+		// The only possible value is 'false' since 'apiextensions.k8s.io/v1'
+		// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#field-pruning
+		// It is possible though to opt-out of pruning for specifc sub-trees of fields by adding x-kubernetes-preserve-unknown-fields: true
+		// by using the 'setValidationOverride' function in this file.
+		"crd:preserveUnknownFields=false",
+		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
@@ -89,7 +110,6 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
-		removeNestedItems(obj)
 		removeDescriptions(obj)
 		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
@@ -126,24 +146,35 @@ func deleteFile(path string) {
 func createMetadataValidation(un *unstructured.Unstructured) {
 	metadataValidationObj := unstructuredutil.StrToUnstructuredUnsafe(metadataValidation)
 	kind := crdKind(un)
-	path := []string{
+	prePath := []string{
 		"spec",
-		"validation",
+		"versions",
+	}
+	path := []string{
+		"schema",
 		"openAPIV3Schema",
 		"properties",
 		"spec",
 		"properties",
 	}
+	objVersions, _, _ := unstructured.NestedSlice(un.Object, prePath...)
+
 	switch kind {
 	case "Rollout":
+		var roValidated []interface{}
 		roPath := []string{
 			"template",
 			"properties",
 			"metadata",
 		}
 		roPath = append(path, roPath...)
-		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, roPath...)
+		for _, v := range objVersions {
+			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, roPath...)
+			roValidated = append(roValidated, v)
+		}
+		unstructured.SetNestedSlice(un.Object, roValidated, prePath...)
 	case "Experiment":
+		var exValidated []interface{}
 		exPath := []string{
 			"templates",
 			"items",
@@ -153,8 +184,13 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"metadata",
 		}
 		exPath = append(path, exPath...)
-		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, exPath...)
+		for _, v := range objVersions {
+			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, exPath...)
+			exValidated = append(exValidated, v)
+		}
+		unstructured.SetNestedSlice(un.Object, exValidated, prePath...)
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
+		var analysisValidated []interface{}
 		analysisPath := []string{
 			"metrics",
 			"items",
@@ -167,8 +203,13 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		analysisPath = append(path, analysisPath...)
 
 		analysisPathJobMetadata := append(analysisPath, "metadata")
-		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobMetadata...)
+		for _, v := range objVersions {
+			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, analysisPathJobMetadata...)
+			analysisValidated = append(analysisValidated, v)
+		}
+		unstructured.SetNestedSlice(un.Object, analysisValidated, prePath...)
 
+		var analysisJobValidated []interface{}
 		analysisPathJobTemplateMetadata := []string{
 			"spec",
 			"properties",
@@ -177,17 +218,26 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			"metadata",
 		}
 		analysisPathJobTemplateMetadata = append(analysisPath, analysisPathJobTemplateMetadata...)
-		unstructured.SetNestedMap(un.Object, metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
+		for _, v := range objVersions {
+			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
+			analysisJobValidated = append(analysisJobValidated, v)
+		}
+		unstructured.SetNestedSlice(un.Object, analysisJobValidated, prePath...)
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
 }
 
-// removeDescriptions removes all descriptions which bloats the API spec
 func removeDescriptions(un *unstructured.Unstructured) {
-	validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-	removeFieldHelper(validation, "description")
-	unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
+	objVersions, _, _ := unstructured.NestedSlice(un.Object, "spec", "versions")
+
+	var validation []interface{}
+	for _, v := range objVersions {
+		removeFieldHelper(v.(map[string]interface{}), "description")
+		validation = append(validation, v)
+	}
+
+	unstructured.SetNestedSlice(un.Object, validation, "spec", "versions")
 }
 
 func removeFieldHelper(obj map[string]interface{}, fieldName string) {
@@ -202,62 +252,47 @@ func removeFieldHelper(obj map[string]interface{}, fieldName string) {
 	}
 }
 
-// removeNestedItems completely removes validation for a field  whenever 'items' is used as a sub field name.
-// This is due to Kubernetes' inability to properly validate objects with fields with the name 'items'
-// (e.g. spec.template.spec.volumes.configMap)
-func removeNestedItems(un *unstructured.Unstructured) {
-	validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-	removeNestedItemsHelper(validation)
-	unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
-}
-
-func removeNestedItemsHelper(obj map[string]interface{}) {
-	for k, v := range obj {
-		vObj, ok := v.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		_, ok, _ = unstructured.NestedMap(vObj, "properties", "items", "items")
-		if ok {
-			delete(obj, k)
-		} else {
-			removeNestedItemsHelper(vObj)
-		}
-	}
-}
-
 func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
-		removeValidation(un, "spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
+		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "Experiment":
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		// Replace this with "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
 		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		removeValidation(un, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
+		// when it's ok to only support k8s 1.17+
+		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")
 		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
 		removeFieldHelper(validation, "x-kubernetes-list-type")
 		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
