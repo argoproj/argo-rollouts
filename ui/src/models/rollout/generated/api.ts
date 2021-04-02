@@ -796,6 +796,37 @@ export interface GoogleProtobufAny {
 /**
  * 
  * @export
+ * @interface GrpcGatewayRuntimeError
+ */
+export interface GrpcGatewayRuntimeError {
+    /**
+     * 
+     * @type {string}
+     * @memberof GrpcGatewayRuntimeError
+     */
+    error?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GrpcGatewayRuntimeError
+     */
+    code?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GrpcGatewayRuntimeError
+     */
+    message?: string;
+    /**
+     * 
+     * @type {Array<GoogleProtobufAny>}
+     * @memberof GrpcGatewayRuntimeError
+     */
+    details?: Array<GoogleProtobufAny>;
+}
+/**
+ * 
+ * @export
  * @interface GrpcGatewayRuntimeStreamError
  */
 export interface GrpcGatewayRuntimeStreamError {
@@ -1228,10 +1259,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        abortRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServiceAbortRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling abortRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServiceAbortRollout.');
             }
             const localVarPath = `/api/v1/rollout/abort/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1255,7 +1286,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNamespace(options: any = {}): FetchArgs {
+        rolloutServiceGetNamespace(options: any = {}): FetchArgs {
             const localVarPath = `/api/v1/namespace`;
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
@@ -1279,10 +1310,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServiceGetRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling getRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServiceGetRollout.');
             }
             const localVarPath = `/api/v1/rollout/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1306,7 +1337,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listRollouts(options: any = {}): FetchArgs {
+        rolloutServiceListRollouts(options: any = {}): FetchArgs {
             const localVarPath = `/api/v1/rollouts`;
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
@@ -1329,10 +1360,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        promoteRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServicePromoteRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling promoteRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServicePromoteRollout.');
             }
             const localVarPath = `/api/v1/rollout/promote/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1357,10 +1388,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        restartRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServiceRestartRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling restartRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServiceRestartRollout.');
             }
             const localVarPath = `/api/v1/rollout/restart/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1385,10 +1416,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        retryRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServiceRetryRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling retryRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServiceRetryRollout.');
             }
             const localVarPath = `/api/v1/rollout/retry/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1416,22 +1447,22 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setRolloutImage(rollout: string, container: string, image: string, tag: string, options: any = {}): FetchArgs {
+        rolloutServiceSetRolloutImage(rollout: string, container: string, image: string, tag: string, options: any = {}): FetchArgs {
             // verify required parameter 'rollout' is not null or undefined
             if (rollout === null || rollout === undefined) {
-                throw new RequiredError('rollout','Required parameter rollout was null or undefined when calling setRolloutImage.');
+                throw new RequiredError('rollout','Required parameter rollout was null or undefined when calling rolloutServiceSetRolloutImage.');
             }
             // verify required parameter 'container' is not null or undefined
             if (container === null || container === undefined) {
-                throw new RequiredError('container','Required parameter container was null or undefined when calling setRolloutImage.');
+                throw new RequiredError('container','Required parameter container was null or undefined when calling rolloutServiceSetRolloutImage.');
             }
             // verify required parameter 'image' is not null or undefined
             if (image === null || image === undefined) {
-                throw new RequiredError('image','Required parameter image was null or undefined when calling setRolloutImage.');
+                throw new RequiredError('image','Required parameter image was null or undefined when calling rolloutServiceSetRolloutImage.');
             }
             // verify required parameter 'tag' is not null or undefined
             if (tag === null || tag === undefined) {
-                throw new RequiredError('tag','Required parameter tag was null or undefined when calling setRolloutImage.');
+                throw new RequiredError('tag','Required parameter tag was null or undefined when calling rolloutServiceSetRolloutImage.');
             }
             const localVarPath = `/api/v1/rollout/set/{rollout}/{container}/{image}/{tag}`
                 .replace(`{${"rollout"}}`, encodeURIComponent(String(rollout)))
@@ -1460,14 +1491,14 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        undoRollout(rollout: string, revision: string, options: any = {}): FetchArgs {
+        rolloutServiceUndoRollout(rollout: string, revision: string, options: any = {}): FetchArgs {
             // verify required parameter 'rollout' is not null or undefined
             if (rollout === null || rollout === undefined) {
-                throw new RequiredError('rollout','Required parameter rollout was null or undefined when calling undoRollout.');
+                throw new RequiredError('rollout','Required parameter rollout was null or undefined when calling rolloutServiceUndoRollout.');
             }
             // verify required parameter 'revision' is not null or undefined
             if (revision === null || revision === undefined) {
-                throw new RequiredError('revision','Required parameter revision was null or undefined when calling undoRollout.');
+                throw new RequiredError('revision','Required parameter revision was null or undefined when calling rolloutServiceUndoRollout.');
             }
             const localVarPath = `/api/v1/rollout/undo/{rollout}/{revision}`
                 .replace(`{${"rollout"}}`, encodeURIComponent(String(rollout)))
@@ -1492,7 +1523,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        version(options: any = {}): FetchArgs {
+        rolloutServiceVersion(options: any = {}): FetchArgs {
             const localVarPath = `/api/v1/version`;
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
@@ -1515,10 +1546,10 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollout(name: string, options: any = {}): FetchArgs {
+        rolloutServiceWatchRollout(name: string, options: any = {}): FetchArgs {
             // verify required parameter 'name' is not null or undefined
             if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling watchRollout.');
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServiceWatchRollout.');
             }
             const localVarPath = `/api/v1/rollout/watch/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
@@ -1542,7 +1573,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollouts(options: any = {}): FetchArgs {
+        rolloutServiceWatchRollouts(options: any = {}): FetchArgs {
             const localVarPath = `/api/v1/rollouts/watch`;
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
@@ -1574,8 +1605,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        abortRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).abortRollout(name, options);
+        rolloutServiceAbortRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceAbortRollout(name, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1591,8 +1622,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNamespace(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutNamespaceInfo> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).getNamespace(options);
+        rolloutServiceGetNamespace(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutNamespaceInfo> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetNamespace(options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1610,8 +1641,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).getRollout(name, options);
+        rolloutServiceGetRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetRollout(name, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1627,26 +1658,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listRollouts(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfoList> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).listRollouts(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
-                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
-                    if (response.status >= 200 && response.status < 300) {
-                        return response.json();
-                    } else {
-                        throw response;
-                    }
-                });
-            };
-        },
-        /**
-         * 
-         * @param {string} name 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        promoteRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).promoteRollout(name, options);
+        rolloutServiceListRollouts(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfoList> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceListRollouts(options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1663,8 +1676,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        restartRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).restartRollout(name, options);
+        rolloutServicePromoteRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePromoteRollout(name, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1681,8 +1694,26 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        retryRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).retryRollout(name, options);
+        rolloutServiceRestartRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRestartRollout(name, options);
+            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
+                    if (response.status >= 200 && response.status < 300) {
+                        return response.json();
+                    } else {
+                        throw response;
+                    }
+                });
+            };
+        },
+        /**
+         * 
+         * @param {string} name 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rolloutServiceRetryRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRetryRollout(name, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1702,8 +1733,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).setRolloutImage(rollout, container, image, tag, options);
+        rolloutServiceSetRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceSetRolloutImage(rollout, container, image, tag, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1721,8 +1752,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        undoRollout(rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).undoRollout(rollout, revision, options);
+        rolloutServiceUndoRollout(rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<any> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceUndoRollout(rollout, revision, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1738,8 +1769,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        version(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutVersionInfo> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).version(options);
+        rolloutServiceVersion(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutVersionInfo> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceVersion(options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1756,8 +1787,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfGithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).watchRollout(name, options);
+        rolloutServiceWatchRollout(name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfGithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRollout(name, options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1773,8 +1804,8 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollouts(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutWatchEvent> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).watchRollouts(options);
+        rolloutServiceWatchRollouts(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutWatchEvent> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRollouts(options);
             return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -1800,16 +1831,16 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        abortRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).abortRollout(name, options)(fetch, basePath);
+        rolloutServiceAbortRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceAbortRollout(name, options)(fetch, basePath);
         },
         /**
          * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNamespace(options?: any) {
-            return RolloutServiceApiFp(configuration).getNamespace(options)(fetch, basePath);
+        rolloutServiceGetNamespace(options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceGetNamespace(options)(fetch, basePath);
         },
         /**
          * 
@@ -1818,25 +1849,16 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).getRollout(name, options)(fetch, basePath);
+        rolloutServiceGetRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceGetRollout(name, options)(fetch, basePath);
         },
         /**
          * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listRollouts(options?: any) {
-            return RolloutServiceApiFp(configuration).listRollouts(options)(fetch, basePath);
-        },
-        /**
-         * 
-         * @param {string} name 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        promoteRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).promoteRollout(name, options)(fetch, basePath);
+        rolloutServiceListRollouts(options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceListRollouts(options)(fetch, basePath);
         },
         /**
          * 
@@ -1844,8 +1866,8 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        restartRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).restartRollout(name, options)(fetch, basePath);
+        rolloutServicePromoteRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServicePromoteRollout(name, options)(fetch, basePath);
         },
         /**
          * 
@@ -1853,8 +1875,17 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        retryRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).retryRollout(name, options)(fetch, basePath);
+        rolloutServiceRestartRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceRestartRollout(name, options)(fetch, basePath);
+        },
+        /**
+         * 
+         * @param {string} name 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rolloutServiceRetryRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceRetryRollout(name, options)(fetch, basePath);
         },
         /**
          * 
@@ -1865,8 +1896,8 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any) {
-            return RolloutServiceApiFp(configuration).setRolloutImage(rollout, container, image, tag, options)(fetch, basePath);
+        rolloutServiceSetRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceSetRolloutImage(rollout, container, image, tag, options)(fetch, basePath);
         },
         /**
          * 
@@ -1875,16 +1906,16 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        undoRollout(rollout: string, revision: string, options?: any) {
-            return RolloutServiceApiFp(configuration).undoRollout(rollout, revision, options)(fetch, basePath);
+        rolloutServiceUndoRollout(rollout: string, revision: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceUndoRollout(rollout, revision, options)(fetch, basePath);
         },
         /**
          * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        version(options?: any) {
-            return RolloutServiceApiFp(configuration).version(options)(fetch, basePath);
+        rolloutServiceVersion(options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceVersion(options)(fetch, basePath);
         },
         /**
          * 
@@ -1892,16 +1923,16 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollout(name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).watchRollout(name, options)(fetch, basePath);
+        rolloutServiceWatchRollout(name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceWatchRollout(name, options)(fetch, basePath);
         },
         /**
          * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        watchRollouts(options?: any) {
-            return RolloutServiceApiFp(configuration).watchRollouts(options)(fetch, basePath);
+        rolloutServiceWatchRollouts(options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServiceWatchRollouts(options)(fetch, basePath);
         },
     };
 };
@@ -1920,8 +1951,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public abortRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).abortRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServiceAbortRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceAbortRollout(name, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1930,8 +1961,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public getNamespace(options?: any) {
-        return RolloutServiceApiFp(this.configuration).getNamespace(options)(this.fetch, this.basePath);
+    public rolloutServiceGetNamespace(options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceGetNamespace(options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1942,8 +1973,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public getRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).getRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServiceGetRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceGetRollout(name, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1952,19 +1983,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public listRollouts(options?: any) {
-        return RolloutServiceApiFp(this.configuration).listRollouts(options)(this.fetch, this.basePath);
-    }
-
-    /**
-     * 
-     * @param {string} name 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof RolloutServiceApi
-     */
-    public promoteRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).promoteRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServiceListRollouts(options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceListRollouts(options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1974,8 +1994,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public restartRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).restartRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServicePromoteRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServicePromoteRollout(name, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1985,8 +2005,19 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public retryRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).retryRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServiceRestartRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceRestartRollout(name, options)(this.fetch, this.basePath);
+    }
+
+    /**
+     * 
+     * @param {string} name 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof RolloutServiceApi
+     */
+    public rolloutServiceRetryRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceRetryRollout(name, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -1999,8 +2030,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public setRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).setRolloutImage(rollout, container, image, tag, options)(this.fetch, this.basePath);
+    public rolloutServiceSetRolloutImage(rollout: string, container: string, image: string, tag: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceSetRolloutImage(rollout, container, image, tag, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -2011,8 +2042,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public undoRollout(rollout: string, revision: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).undoRollout(rollout, revision, options)(this.fetch, this.basePath);
+    public rolloutServiceUndoRollout(rollout: string, revision: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceUndoRollout(rollout, revision, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -2021,8 +2052,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public version(options?: any) {
-        return RolloutServiceApiFp(this.configuration).version(options)(this.fetch, this.basePath);
+    public rolloutServiceVersion(options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceVersion(options)(this.fetch, this.basePath);
     }
 
     /**
@@ -2032,8 +2063,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public watchRollout(name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).watchRollout(name, options)(this.fetch, this.basePath);
+    public rolloutServiceWatchRollout(name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceWatchRollout(name, options)(this.fetch, this.basePath);
     }
 
     /**
@@ -2042,8 +2073,8 @@ export class RolloutServiceApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof RolloutServiceApi
      */
-    public watchRollouts(options?: any) {
-        return RolloutServiceApiFp(this.configuration).watchRollouts(options)(this.fetch, this.basePath);
+    public rolloutServiceWatchRollouts(options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServiceWatchRollouts(options)(this.fetch, this.basePath);
     }
 
 }

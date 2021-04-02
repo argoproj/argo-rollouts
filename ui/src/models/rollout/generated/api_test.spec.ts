@@ -21,53 +21,53 @@ describe("RolloutServiceApi", () => {
     instance = new api.RolloutServiceApi(config)
   });
 
-  test("abortRollout", () => {
+  test("rolloutServiceAbortRollout", () => {
     const name: string = "name_example"
-    return expect(instance.abortRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceAbortRollout(name, {})).resolves.toBe(null)
   })
-  test("getNamespace", () => {
-    return expect(instance.getNamespace({})).resolves.toBe(null)
+  test("rolloutServiceGetNamespace", () => {
+    return expect(instance.rolloutServiceGetNamespace({})).resolves.toBe(null)
   })
-  test("getRollout", () => {
+  test("rolloutServiceGetRollout", () => {
     const name: string = "name_example"
-    return expect(instance.getRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceGetRollout(name, {})).resolves.toBe(null)
   })
-  test("listRollouts", () => {
-    return expect(instance.listRollouts({})).resolves.toBe(null)
+  test("rolloutServiceListRollouts", () => {
+    return expect(instance.rolloutServiceListRollouts({})).resolves.toBe(null)
   })
-  test("promoteRollout", () => {
+  test("rolloutServicePromoteRollout", () => {
     const name: string = "name_example"
-    return expect(instance.promoteRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServicePromoteRollout(name, {})).resolves.toBe(null)
   })
-  test("restartRollout", () => {
+  test("rolloutServiceRestartRollout", () => {
     const name: string = "name_example"
-    return expect(instance.restartRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceRestartRollout(name, {})).resolves.toBe(null)
   })
-  test("retryRollout", () => {
+  test("rolloutServiceRetryRollout", () => {
     const name: string = "name_example"
-    return expect(instance.retryRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceRetryRollout(name, {})).resolves.toBe(null)
   })
-  test("setRolloutImage", () => {
+  test("rolloutServiceSetRolloutImage", () => {
     const rollout: string = "rollout_example"
     const container: string = "container_example"
     const image: string = "image_example"
     const tag: string = "tag_example"
-    return expect(instance.setRolloutImage(rollout, container, image, tag, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceSetRolloutImage(rollout, container, image, tag, {})).resolves.toBe(null)
   })
-  test("undoRollout", () => {
+  test("rolloutServiceUndoRollout", () => {
     const rollout: string = "rollout_example"
     const revision: string = "revision_example"
-    return expect(instance.undoRollout(rollout, revision, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceUndoRollout(rollout, revision, {})).resolves.toBe(null)
   })
-  test("version", () => {
-    return expect(instance.version({})).resolves.toBe(null)
+  test("rolloutServiceVersion", () => {
+    return expect(instance.rolloutServiceVersion({})).resolves.toBe(null)
   })
-  test("watchRollout", () => {
+  test("rolloutServiceWatchRollout", () => {
     const name: string = "name_example"
-    return expect(instance.watchRollout(name, {})).resolves.toBe(null)
+    return expect(instance.rolloutServiceWatchRollout(name, {})).resolves.toBe(null)
   })
-  test("watchRollouts", () => {
-    return expect(instance.watchRollouts({})).resolves.toBe(null)
+  test("rolloutServiceWatchRollouts", () => {
+    return expect(instance.rolloutServiceWatchRollouts({})).resolves.toBe(null)
   })
 })
 

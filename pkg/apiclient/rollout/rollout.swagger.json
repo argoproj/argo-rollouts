@@ -13,12 +13,18 @@
   "paths": {
     "/api/v1/namespace": {
       "get": {
-        "operationId": "GetNamespace",
+        "operationId": "RolloutService_GetNamespace",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.NamespaceInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -29,12 +35,18 @@
     },
     "/api/v1/rollout/abort/{name}": {
       "get": {
-        "operationId": "AbortRollout",
+        "operationId": "RolloutService_AbortRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -53,12 +65,18 @@
     },
     "/api/v1/rollout/promote/{name}": {
       "get": {
-        "operationId": "PromoteRollout",
+        "operationId": "RolloutService_PromoteRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -77,12 +95,18 @@
     },
     "/api/v1/rollout/restart/{name}": {
       "get": {
-        "operationId": "RestartRollout",
+        "operationId": "RolloutService_RestartRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -101,12 +125,18 @@
     },
     "/api/v1/rollout/retry/{name}": {
       "get": {
-        "operationId": "RetryRollout",
+        "operationId": "RolloutService_RetryRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -125,12 +155,18 @@
     },
     "/api/v1/rollout/set/{rollout}/{container}/{image}/{tag}": {
       "get": {
-        "operationId": "SetRolloutImage",
+        "operationId": "RolloutService_SetRolloutImage",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -167,12 +203,18 @@
     },
     "/api/v1/rollout/undo/{rollout}/{revision}": {
       "get": {
-        "operationId": "UndoRollout",
+        "operationId": "RolloutService_UndoRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -198,7 +240,7 @@
     },
     "/api/v1/rollout/watch/{name}": {
       "get": {
-        "operationId": "WatchRollout",
+        "operationId": "RolloutService_WatchRollout",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -213,6 +255,12 @@
                 }
               },
               "title": "Stream result of github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -232,12 +280,18 @@
     "/api/v1/rollout/{name}": {
       "get": {
         "summary": "Get returns a rollout",
-        "operationId": "GetRollout",
+        "operationId": "RolloutService_GetRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -256,12 +310,18 @@
     },
     "/api/v1/rollouts": {
       "get": {
-        "operationId": "ListRollouts",
+        "operationId": "RolloutService_ListRollouts",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.RolloutInfoList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -272,7 +332,7 @@
     },
     "/api/v1/rollouts/watch": {
       "get": {
-        "operationId": "WatchRollouts",
+        "operationId": "RolloutService_WatchRollouts",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -288,6 +348,12 @@
               },
               "title": "Stream result of rollout.RolloutWatchEvent"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
           }
         },
         "tags": [
@@ -297,12 +363,18 @@
     },
     "/api/v1/version": {
       "get": {
-        "operationId": "Version",
+        "operationId": "RolloutService_Version",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/rollout.VersionInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
             }
           }
         },
@@ -537,20 +609,16 @@
           "format": "int32"
         },
         "stable": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "canary": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "active": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "preview": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "replicas": {
           "type": "integer",
@@ -609,7 +677,6 @@
         },
         "clusterScope": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
         }
       }
@@ -651,7 +718,6 @@
         },
         "clusterScope": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
         },
         "args": {
@@ -663,7 +729,6 @@
         },
         "requiredForCompletion": {
           "type": "boolean",
-          "format": "boolean",
           "title": "RequiredForCompletion blocks the Experiment from completing until the analysis has completed"
         }
       }
@@ -806,7 +871,6 @@
         },
         "matchTrafficWeight": {
           "type": "boolean",
-          "format": "boolean",
           "title": "MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight\n+optional"
         }
       },
@@ -821,6 +885,27 @@
         "value": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "grpc.gateway.runtime.Error": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/google.protobuf.Any"
+          }
         }
       }
     },
@@ -1039,12 +1124,10 @@
         },
         "controller": {
           "type": "boolean",
-          "format": "boolean",
           "title": "If true, this reference points to the managing controller.\n+optional"
         },
         "blockOwnerDeletion": {
           "type": "boolean",
-          "format": "boolean",
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         }
       },
