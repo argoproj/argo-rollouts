@@ -58,7 +58,15 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				controller.RegisterCallback(func(roInfo *v1alpha1.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
-				go getOptions.WatchRollout(ctx.Done(), rolloutUpdates)
+				stopCh := ctx.Done()
+				if getOptions.TimeoutSeconds > 0 {
+					ts := time.Duration(getOptions.TimeoutSeconds)
+					newCtx, cancel := context.WithTimeout(ctx, ts * time.Second)
+					ctx = newCtx
+					defer cancel()
+					stopCh = newCtx.Done()
+				}
+				go getOptions.WatchRollout(stopCh, rolloutUpdates)
 				controller.Run(ctx)
 				close(rolloutUpdates)
 			}
@@ -67,6 +75,7 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
 	cmd.Flags().BoolVar(&getOptions.NoColor, "no-color", false, "Do not colorize output")
+	cmd.Flags().IntVar(&getOptions.TimeoutSeconds, "timeout-seconds", -1, "Timeout after specified seconds")
 	return cmd
 }
 
