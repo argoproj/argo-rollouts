@@ -168,7 +168,7 @@ export const Rollout = () => {
                                 images={images}
                                 containers={rollout.containers || []}
                                 setImage={(container, image, tag) => {
-                                    api.setRolloutImage(name, container, image, tag);
+                                    api.rolloutServiceSetRolloutImage(name, container, image, tag);
                                 }}
                             />
                         </ThemeDiv>
@@ -180,7 +180,13 @@ export const Rollout = () => {
                                 <div className='info__title'>Revisions</div>
                                 <div style={{marginTop: '1em'}}>
                                     {revisions.map((r, i) => (
-                                        <RevisionWidget key={i} revision={r} initCollapsed={false} rollback={(r) => api.undoRollout(name, `${r}`)} current={i === 0} />
+                                        <RevisionWidget
+                                            key={i}
+                                            revision={r}
+                                            initCollapsed={false}
+                                            rollback={(r) => api.rolloutServiceUndoRollout(name, `${r}`)}
+                                            current={i === 0}
+                                        />
                                     ))}
                                 </div>
                             </ThemeDiv>

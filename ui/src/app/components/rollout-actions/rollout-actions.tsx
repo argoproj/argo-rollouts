@@ -24,7 +24,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RESTART',
                 icon: faSync,
-                action: api.restartRollout,
+                action: api.rolloutServiceRestartRollout,
                 tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
             },
@@ -34,7 +34,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RETRY',
                 icon: faRedoAlt,
-                action: api.retryRollout,
+                action: api.rolloutServiceRetryRollout,
                 shouldConfirm: true,
             },
         ],
@@ -43,7 +43,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'ABORT',
                 icon: faExclamationCircle,
-                action: api.abortRollout,
+                action: api.rolloutServiceAbortRollout,
                 shouldConfirm: true,
             },
         ],
@@ -52,7 +52,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
-                action: api.promoteRollout,
+                action: api.rolloutServicePromoteRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,
                 shouldConfirm: true,
             },

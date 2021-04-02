@@ -33,14 +33,14 @@ const Brand = (props: {path?: string}) => {
 };
 
 export const Header = () => {
-    const getNs = React.useCallback(() => new RolloutServiceApi().getNamespace(), []);
+    const getNs = React.useCallback(() => new RolloutServiceApi().rolloutServiceGetNamespace(), []);
     const nsData = useServerData<RolloutNamespaceInfo>(getNs);
     const {name} = useParams<{name: string}>();
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
     React.useEffect(() => {
         const getVersion = async () => {
-            const v = await api.version();
+            const v = await api.rolloutServiceVersion();
             setVersion(v.rolloutsVersion);
         };
         getVersion();

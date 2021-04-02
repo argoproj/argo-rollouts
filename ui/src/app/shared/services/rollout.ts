@@ -10,7 +10,7 @@ export const useRollouts = (): RolloutInfo[] => {
 
     React.useEffect(() => {
         const fetchList = async () => {
-            const list = await api.listRollouts();
+            const list = await api.rolloutServiceListRollouts();
             setRollouts(list.rollouts || []);
         };
         fetchList();
@@ -22,7 +22,7 @@ export const useRollouts = (): RolloutInfo[] => {
 export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const findRollout = React.useCallback((ri: RolloutInfo, change: RolloutRolloutWatchEvent) => ri.objectMeta.name === change.rolloutInfo?.objectMeta?.name, []);
     const getRollout = React.useCallback((c) => c.rolloutInfo as RolloutInfo, []);
-    const streamUrl = RolloutServiceApiFetchParamCreator().watchRollouts().url;
+    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRollouts().url;
 
     const init = useRollouts();
     const loading = useLoading(init);
@@ -49,7 +49,7 @@ export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?:
 
         return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
     }, []);
-    const streamUrl = RolloutServiceApiFetchParamCreator().watchRollout(name).url;
+    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRollout(name).url;
     const ri = useWatch<RolloutInfo>(streamUrl, subscribe, isEqual, timeoutAfter);
     if (callback && ri.objectMeta) {
         callback(ri);
