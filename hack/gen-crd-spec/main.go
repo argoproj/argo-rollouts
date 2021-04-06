@@ -82,6 +82,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		// by using the 'setValidationOverride' function in this file.
 		"crd:preserveUnknownFields=false",
 		"crd:crdVersions=v1",
+		"crd:maxDescLen=0",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
@@ -110,7 +111,6 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
-		removeDescriptions(obj)
 		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
@@ -228,18 +228,6 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 	}
 }
 
-func removeDescriptions(un *unstructured.Unstructured) {
-	objVersions, _, _ := unstructured.NestedSlice(un.Object, "spec", "versions")
-
-	var validation []interface{}
-	for _, v := range objVersions {
-		removeFieldHelper(v.(map[string]interface{}), "description")
-		validation = append(validation, v)
-	}
-
-	unstructured.SetNestedSlice(un.Object, validation, "spec", "versions")
-}
-
 func removeFieldHelper(obj map[string]interface{}, fieldName string) {
 	for k, v := range obj {
 		if k == fieldName {
@@ -331,6 +319,11 @@ func main() {
 		var r unstructured.Unstructured
 		err = json.Unmarshal(jsonBytes, &r.Object)
 		checkErr(err)
+
+		// Need to explicitly set spec.preserveUnknownFields to false, despite false being the
+		// default value in v1, in order to facilitate upgrades from apiextensions.k8s.io/v1beta1 v1.
+		// See https://github.com/argoproj/argo-rollouts/issues/1067
+		unstructured.SetNestedField(r.Object, false, "spec", "preserveUnknownFields")
 
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
