@@ -260,13 +260,13 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
+	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.resetRolloutStatus(&newStatus)
-		c.SetRestartedAt()
 		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
 			if stepCount > 0 {
 				// If we get here, we detected that we've moved back to the stable ReplicaSet
@@ -278,6 +278,14 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.rollout.Status.PromoteFull {
+		c.pauseContext.ClearPauseConditions()
+		c.pauseContext.RemoveAbort()
+		if stepCount > 0 {
+			currentStepIndex = &stepCount
+		}
 	}
 
 	if reason := c.shouldFullPromote(newStatus); reason != "" {
@@ -301,7 +309,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if c.completedCurrentCanaryStep() {
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
@@ -343,7 +350,7 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return false, err
 	}
 	if scaledDown {
-		c.log.Info("Not finished reconciling old replica sets")
+		c.log.Info("Not finished reconciling old ReplicaSets")
 		return true, nil
 	}
 	return false, nil

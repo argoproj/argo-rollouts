@@ -1169,7 +1169,7 @@ func TestFastRollback(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-func TestScaleDownLimit(t *testing.T) {
+func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 

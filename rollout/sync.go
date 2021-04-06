@@ -784,21 +784,21 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 	// NOTE: the order of these checks are significant
 	if c.stableRS == nil {
 		return "Initial deploy"
-		// } else if newStatus.StableRS == newStatus.CurrentPodHash {
-		// 	// Don't think we should ever get here
-		// 	return "Already fully promoted"
 	} else if c.rollout.Spec.Strategy.Canary != nil {
+		if c.pauseContext.IsAborted() {
+			return ""
+		}
+		if c.newRS == nil || c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+			return ""
+		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
-		} else if c.pauseContext.IsAborted() {
-			return ""
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
-		if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == int32(stepCount)) {
-			if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
-				return fmt.Sprintf("Completed all %d steps", stepCount)
-			}
+		completedAllSteps := stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == int32(stepCount))
+		if completedAllSteps {
+			return fmt.Sprintf("Completed all %d canary steps", stepCount)
 		}
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		if newStatus.BlueGreen.ActiveSelector == "" {
@@ -806,14 +806,18 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			// We must allow current to be marked stable, so that active can be marked to current, and
 			// subsequently stable marked to current too. (chicken and egg problem)
 			return "Initial deploy"
-		} else if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
+		}
+		if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
 			// active selector still pointing to previous RS, don't update stable yet
 			return ""
-		} else if c.rollout.Status.PromoteFull {
+		}
+		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
-		} else if c.pauseContext.IsAborted() {
+		}
+		if c.pauseContext.IsAborted() {
 			return ""
-		} else if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+		}
+		if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
 			// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
 			// moving to a ReplicaSet within scaleDownDelay and wish to skip analysis.
 			if replicasetutil.HasScaleDownDeadline(c.newRS) {
