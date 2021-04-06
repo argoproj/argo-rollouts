@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -88,6 +86,8 @@ func (c *rolloutContext) rolloutCanary() error {
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 	if !replicasetutil.CheckStableRSExists(c.newRS, c.stableRS) {
+		// we skip this because if they are equal, then it will get reconciled in reconcileNewReplicaSet()
+		// making this redundant
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
@@ -260,39 +260,36 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
-	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
+		c.resetRolloutStatus(&newStatus)
+		c.SetRestartedAt()
 		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
-			if newStatus.CurrentStepIndex != nil {
-				msg := "Skipping all steps because the newRS is the stableRS."
+			if stepCount > 0 {
+				// If we get here, we detected that we've moved back to the stable ReplicaSet
+				msg := "Rollback to stable"
 				c.log.Info(msg)
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepCount)
 				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SkipSteps", msg)
+				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
-		c.pauseContext.ClearPauseConditions()
-		c.pauseContext.RemoveAbort()
-		c.SetRestartedAt()
 		newStatus = c.calculateRolloutConditions(newStatus)
-		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
-		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
-		newStatus.PromoteFull = false
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	// non-empty value of fullyPromotedReason indicates we should be at a fully promted state,
-	// and the desired ReplicaSet should become stable
-	var fullyPromotedReason string
-	if c.stableRS == nil {
-		fullyPromotedReason = "Initial deploy"
-	} else if c.rollout.Status.PromoteFull {
-		fullyPromotedReason = "Full promotion requested"
-	} else if c.pauseContext.IsAborted() {
+	if reason := c.shouldFullPromote(newStatus); reason != "" {
+		err := c.promoteStable(&newStatus, reason)
+		if err != nil {
+			return err
+		}
+		newStatus = c.calculateRolloutConditions(newStatus)
+		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.pauseContext.IsAborted() {
 		if stepCount > int32(0) {
 			if newStatus.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
@@ -302,39 +299,9 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
-	} else if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == stepCount) {
-		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
-			fullyPromotedReason = fmt.Sprintf("Completed all %d steps", stepCount)
-		}
 	}
 
-	if fullyPromotedReason != "" {
-		c.pauseContext.ClearPauseConditions()
-		c.pauseContext.RemoveAbort()
-		if stepCount > 0 {
-			newStatus.CurrentStepIndex = &stepCount
-		}
-		newStatus.PromoteFull = false
-		previousStableHash := newStatus.StableRS
-		if previousStableHash != newStatus.CurrentPodHash {
-			// only emit this event when we changed
-			newStatus.StableRS = newStatus.CurrentPodHash
-			msg := fmt.Sprintf("Set stable to revision %s (%s): %s", c.rollout.Annotations[annotations.RevisionAnnotation], newStatus.CurrentPodHash, fullyPromotedReason)
-			c.log.Info(msg)
-			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", msg)
-			// Now that we've marked the desired RS as stable, start the scale-down countdown on the previous stable RS
-			previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, previousStableHash)
-			if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousStableRS}) > 0 {
-				err := c.addScaleDownDelay(previousStableRS)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		newStatus = c.calculateRolloutConditions(newStatus)
-		return c.persistRolloutStatus(&newStatus)
-	}
-
+	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if c.completedCurrentCanaryStep() {
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil

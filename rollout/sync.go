@@ -763,3 +763,103 @@ func (c *rolloutContext) getReplicaFailures(allRSs []*appsv1.ReplicaSet, newRS *
 	}
 	return errorConditions
 }
+
+// resetRolloutStatus will reset the rollout status as if it is in a beginning of a new update
+func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
+	c.pauseContext.ClearPauseConditions()
+	c.pauseContext.RemoveAbort()
+	c.SetRestartedAt()
+	newStatus.PromoteFull = false
+	newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
+	newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
+	newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
+}
+
+// shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
+// the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
+func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
+	// NOTE: the order of these checks are significant
+	if c.stableRS == nil {
+		return "Initial deploy"
+		// } else if newStatus.StableRS == newStatus.CurrentPodHash {
+		// 	// Don't think we should ever get here
+		// 	return "Already fully promoted"
+	} else if c.rollout.Spec.Strategy.Canary != nil {
+		if c.rollout.Status.PromoteFull {
+			return "Full promotion requested"
+		} else if c.pauseContext.IsAborted() {
+			return ""
+		}
+		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
+		if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == int32(stepCount)) {
+			if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+				return fmt.Sprintf("Completed all %d steps", stepCount)
+			}
+		}
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
+		if newStatus.BlueGreen.ActiveSelector == "" {
+			// corner case - initial deployments won't update the active selector until stable is set.
+			// We must allow current to be marked stable, so that active can be marked to current, and
+			// subsequently stable marked to current too. (chicken and egg problem)
+			return "Initial deploy"
+		} else if newStatus.BlueGreen.ActiveSelector != newStatus.CurrentPodHash {
+			// active selector still pointing to previous RS, don't update stable yet
+			return ""
+		} else if c.rollout.Status.PromoteFull {
+			return "Full promotion requested"
+		} else if c.pauseContext.IsAborted() {
+			return ""
+		} else if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+			// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
+			// moving to a ReplicaSet within scaleDownDelay and wish to skip analysis.
+			if replicasetutil.HasScaleDownDeadline(c.newRS) {
+				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
+			}
+			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
+			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
+				// we have yet to start post-promotion analysis or post-promotion was not successful
+				return ""
+			}
+		}
+		return "Completed blue-green update"
+	}
+	return ""
+}
+
+// promoteStable will take appropriate action once we have promoted the current ReplicaSet as stable
+// e.g. reset status conditions, emit Kubernetes events, start scaleDownDelay, etc...
+func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason string) error {
+	c.pauseContext.ClearPauseConditions()
+	c.pauseContext.RemoveAbort()
+	newStatus.PromoteFull = false
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
+	if c.rollout.Spec.Strategy.Canary != nil {
+		stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
+		if stepCount > 0 {
+			newStatus.CurrentStepIndex = &stepCount
+		} else {
+			newStatus.CurrentStepIndex = nil
+		}
+	}
+	previousStableHash := newStatus.StableRS
+	if previousStableHash != newStatus.CurrentPodHash {
+		// only emit this event when we switched stable
+		newStatus.StableRS = newStatus.CurrentPodHash
+		msg := fmt.Sprintf("Set stable to revision %s (%s): %s", c.rollout.Annotations[annotations.RevisionAnnotation], newStatus.CurrentPodHash, reason)
+		c.log.Info(msg)
+		c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SetStable", msg)
+		// Now that we've marked the desired RS as stable, start the scale-down countdown on the previous stable RS
+		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, previousStableHash)
+		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousStableRS}) > 0 {
+			err := c.addScaleDownDelay(previousStableRS)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
