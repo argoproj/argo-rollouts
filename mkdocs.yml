@@ -47,6 +47,7 @@ nav:
   - SMI: features/traffic-management/smi.md
 - Analysis:
   - Overview: features/analysis.md
+  - Prometheus: analysis/prometheus.md
   - DataDog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
   - Wavefront: analysis/wavefront.md
@@ -76,6 +77,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md

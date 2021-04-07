@@ -80,4 +80,4 @@ The controller also publishes the following Prometheus metrics to describe the c
 | `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running |
 | `workqueue_retries_total`                     | Total number of retries handled by workqueue |
 
-In additional, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
+In addition, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
