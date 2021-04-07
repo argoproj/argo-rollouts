@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as moment from 'moment';
 import {faDove, faQuestion, faRunning, faSearch, faThumbsUp} from '@fortawesome/free-solid-svg-icons';
-import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo} from '../../../models/rollout/generated';
+import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 
 export function useServerData<T>(getData: () => Promise<T>) {
     const [data, setData] = React.useState({} as T);
@@ -47,7 +47,7 @@ export const IconForTag = (t?: ImageTag) => {
     }
 };
 
-export const ParseTagsFromReplicaSet = (rs: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo): ImageTag[] => {
+export const ParseTagsFromReplicaSet = (rs: RolloutReplicaSetInfo): ImageTag[] => {
     const tags = [] as ImageTag[];
     if (rs.canary) {
         tags.push(ImageTag.Canary);

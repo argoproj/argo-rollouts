@@ -96,12 +96,12 @@ ifneq ("$(PWD)","$(LEGACY_PATH)")
 	@exit 1
 endif
 
-UI_PROTOGEN_CMD=yarn run protogen
+UI_PROTOGEN_CMD=yarn --cwd ui run protogen
 .PHONY: protogen
 protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json 
 	rm -Rf vendor
 	go mod tidy
-	cd ui && ${UI_PROTOGEN_CMD} && cd ..
+	${UI_PROTOGEN_CMD}
 
 $(GOPATH)/bin/controller-gen:
 	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen)

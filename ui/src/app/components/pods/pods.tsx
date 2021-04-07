@@ -2,7 +2,7 @@ import {faQuestionCircle} from '@fortawesome/free-regular-svg-icons';
 import {faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
-import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo} from '../../../models/rollout/generated';
+import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
 import {Menu} from '../menu/menu';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
@@ -85,7 +85,7 @@ export const PodIcon = (props: {status: string}) => {
     );
 };
 
-export const ReplicaSets = (props: {replicaSets: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo[]}) => {
+export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]}) => {
     const {replicaSets} = props;
     if (!replicaSets || replicaSets.length < 1) {
         return <div>No replica sets!</div>;
@@ -106,7 +106,7 @@ export const ReplicaSets = (props: {replicaSets: GithubComArgoprojArgoRolloutsPk
     );
 };
 
-export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo}) => {
+export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo}) => {
     const rsName = props.rs.objectMeta.name;
     return (
         <ThemeDiv className='pods'>

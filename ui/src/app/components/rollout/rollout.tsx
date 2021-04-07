@@ -34,11 +34,11 @@ import {useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
 import {
-    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo,
+    RolloutAnalysisRunInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
-    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo,
-    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo,
-    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo,
+    RolloutContainerInfo,
+    RolloutExperimentInfo,
+    RolloutReplicaSetInfo,
 } from '../../../models/rollout/generated';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {Autocomplete} from '../autocomplete/autocomplete';
@@ -65,7 +65,7 @@ enum Strategy {
     BlueGreen = 'BlueGreen',
 }
 
-const parseImages = (replicaSets: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo[]): ImageInfo[] => {
+const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] => {
     const images: {[key: string]: ImageInfo} = {};
     const unknownImages: {[key: string]: boolean} = {};
     (replicaSets || []).forEach((rs) => {
@@ -235,9 +235,9 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
 
 interface Revision {
     number: number;
-    replicaSets: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo[];
-    experiments: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ExperimentInfo[];
-    analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo[];
+    replicaSets: RolloutReplicaSetInfo[];
+    experiments: RolloutExperimentInfo[];
+    analysisRuns: RolloutAnalysisRunInfo[];
 }
 
 const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
@@ -316,7 +316,7 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
     );
 };
 
-const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunInfo[]}) => {
+const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
     const {analysisRuns} = props;
     return (
         <ThemeDiv className='analysis'>
@@ -338,11 +338,7 @@ const AnalysisRunWidget = (props: {analysisRuns: GithubComArgoprojArgoRolloutsPk
     );
 };
 
-const ContainersWidget = (props: {
-    containers: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo[];
-    images: ImageInfo[];
-    setImage: (container: string, image: string, tag: string) => void;
-}) => {
+const ContainersWidget = (props: {containers: RolloutContainerInfo[]; images: ImageInfo[]; setImage: (container: string, image: string, tag: string) => void}) => {
     const {containers, images, setImage} = props;
     const [editing, setEditing] = React.useState(false);
     const inputMap: {[key: string]: string} = {};
@@ -420,12 +416,7 @@ const ContainersWidget = (props: {
     );
 };
 
-const ContainerWidget = (props: {
-    container: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ContainerInfo;
-    images: ImageInfo[];
-    setInput: (image: string) => void;
-    editing: boolean;
-}) => {
+const ContainerWidget = (props: {container: RolloutContainerInfo; images: ImageInfo[]; setInput: (image: string) => void; editing: boolean}) => {
     const {container, editing} = props;
     const [, , newImageInput] = useInput(container.image, (val) => props.setInput(val));
 

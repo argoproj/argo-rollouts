@@ -1,4 +1,4 @@
 import * as Generated from './generated';
 
-export type RolloutInfo = Generated.GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutInfo;
-export type Pod = Generated.GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodInfo;
+export type RolloutInfo = Generated.RolloutRolloutInfo;
+export type Pod = Generated.RolloutPodInfo;
