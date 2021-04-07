@@ -16,7 +16,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-
 func NewRolloutInfo(
 	ro *v1alpha1.Rollout,
 	allReplicaSets []*appsv1.ReplicaSet,
@@ -44,7 +43,7 @@ func NewRolloutInfo(
 		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.Canary.Steps) > 0 {
 			roInfo.Step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
 			var steps []*v1alpha1.CanaryStep
-			for i := range(ro.Spec.Strategy.Canary.Steps) {
+			for i := range ro.Spec.Strategy.Canary.Steps {
 				steps = append(steps, &ro.Spec.Strategy.Canary.Steps[i])
 			}
 			roInfo.Steps = steps

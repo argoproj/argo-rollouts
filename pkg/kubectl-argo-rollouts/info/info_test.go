@@ -83,7 +83,7 @@ func TestAge(t *testing.T) {
 func TestCanaryRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 	assert.Len(t, Revisions(roInfo), 3)
 
 	assert.Equal(t, Images(roInfo), []ImageInfo{
@@ -102,7 +102,7 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-		assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
+		assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 		assert.Len(t, Revisions(roInfo), 3)
 
 		assert.Len(t, ReplicaSetsByRevision(roInfo, 11), 1)
@@ -110,7 +110,7 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		assert.Len(t, ReplicaSetsByRevision(roInfo, 8), 1)
 
 		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDeadline, "")
-		assert.Equal(t, ScaleDownDelay(roInfo.ReplicaSets[0]), "")
+		assert.Equal(t, ScaleDownDelay(*roInfo.ReplicaSets[0]), "")
 
 		assert.Equal(t, Images(roInfo), []ImageInfo{
 			{
@@ -130,16 +130,16 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
 
-		assert.Equal(t, roInfo.ReplicaSets[1].UID, delayedRs)
+		assert.Equal(t, roInfo.ReplicaSets[1].ObjectMeta.UID, delayedRs)
 		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDeadline, inFourHours)
-		assert.Equal(t, ScaleDownDelay(roInfo.ReplicaSets[1]), "3h59m")
+		assert.Equal(t, ScaleDownDelay(*roInfo.ReplicaSets[1]), "3h59m")
 	}
 }
 
 func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewExperimentAnalysisRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 	assert.Len(t, Revisions(roInfo), 2)
 
 	assert.Len(t, ReplicaSetsByRevision(roInfo, 1), 1)
@@ -162,7 +162,7 @@ func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 func TestExperimentInfo(t *testing.T) {
 	rolloutObjs := testdata.NewExperimentAnalysisRollout()
 	expInfo := NewExperimentInfo(rolloutObjs.Experiments[0], rolloutObjs.ReplicaSets, rolloutObjs.AnalysisRuns, rolloutObjs.Pods)
-	assert.Equal(t, expInfo.Name, rolloutObjs.Experiments[0].Name)
+	assert.Equal(t, expInfo.ObjectMeta.Name, rolloutObjs.Experiments[0].Name)
 
 	assert.Equal(t, ExperimentImages(expInfo), []ImageInfo{
 		{

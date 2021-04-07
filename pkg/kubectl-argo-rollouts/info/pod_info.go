@@ -26,7 +26,7 @@ func addPodInfos(rsInfos []*rollout.ReplicaSetInfo, allPods []*corev1.Pod) []*ro
 			continue
 		}
 
-		podInfo := rollout.PodInfo(newPodInfo(pod))
+		podInfo := newPodInfo(pod)
 		idx := uidToRSInfoIdx[owner.UID]
 		rsInfos[idx].Pods = append(rsInfos[idx].Pods, &podInfo)
 	}
