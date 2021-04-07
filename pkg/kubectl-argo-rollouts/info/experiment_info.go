@@ -9,20 +9,19 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
-
-type ExperimentInfo v1alpha1.ExperimentInfo
 
 func NewExperimentInfo(
 	exp *v1alpha1.Experiment,
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) *v1alpha1.ExperimentInfo {
+) *rollout.ExperimentInfo {
 
-	expInfo := v1alpha1.ExperimentInfo{
-		ObjectMeta: v1.ObjectMeta{
+	expInfo := rollout.ExperimentInfo{
+		ObjectMeta: &v1.ObjectMeta{
 			Name:              exp.Name,
 			Namespace:         exp.Namespace,
 			CreationTimestamp: exp.CreationTimestamp,
@@ -44,27 +43,27 @@ func getExperimentInfo(
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) []v1alpha1.ExperimentInfo {
+) []*rollout.ExperimentInfo {
 
-	var expInfos []v1alpha1.ExperimentInfo
+	var expInfos []*rollout.ExperimentInfo
 	for _, exp := range allExperiments {
 		if ownerRef(exp.OwnerReferences, []types.UID{ro.UID}) == nil {
 			continue
 		}
 		expInfo := NewExperimentInfo(exp, allReplicaSets, allAnalysisRuns, allPods)
-		expInfos = append(expInfos, *expInfo)
+		expInfos = append(expInfos, expInfo)
 	}
 	sort.Slice(expInfos[:], func(i, j int) bool {
 		if expInfos[i].Revision > expInfos[j].Revision {
 			return true
 		}
-		return expInfos[i].CreationTimestamp.Before(&expInfos[j].CreationTimestamp)
+		return expInfos[i].ObjectMeta.CreationTimestamp.Before(&expInfos[j].ObjectMeta.CreationTimestamp)
 	})
 	return expInfos
 }
 
 // Images returns a list of images that are currently running along with tags on which stack they belong to
-func ExperimentImages(r *v1alpha1.ExperimentInfo) []ImageInfo {
+func ExperimentImages(r *rollout.ExperimentInfo) []ImageInfo {
 	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {

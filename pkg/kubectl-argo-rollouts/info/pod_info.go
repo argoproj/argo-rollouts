@@ -5,19 +5,19 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
-func addPodInfos(rsInfos []v1alpha1.ReplicaSetInfo, allPods []*corev1.Pod) []v1alpha1.ReplicaSetInfo {
+func addPodInfos(rsInfos []*rollout.ReplicaSetInfo, allPods []*corev1.Pod) []*rollout.ReplicaSetInfo {
 	var uids []types.UID
 	uidToRSInfoIdx := make(map[types.UID]int)
 	for i, rsInfo := range rsInfos {
-		uids = append(uids, rsInfo.UID)
-		uidToRSInfoIdx[rsInfo.UID] = i
+		uids = append(uids, rsInfo.ObjectMeta.UID)
+		uidToRSInfoIdx[rsInfo.ObjectMeta.UID] = i
 	}
 
 	for _, pod := range allPods {
@@ -26,26 +26,26 @@ func addPodInfos(rsInfos []v1alpha1.ReplicaSetInfo, allPods []*corev1.Pod) []v1a
 			continue
 		}
 
-		podInfo := v1alpha1.PodInfo(newPodInfo(pod))
+		podInfo := rollout.PodInfo(newPodInfo(pod))
 		idx := uidToRSInfoIdx[owner.UID]
-		rsInfos[idx].Pods = append(rsInfos[idx].Pods, podInfo)
+		rsInfos[idx].Pods = append(rsInfos[idx].Pods, &podInfo)
 	}
 
 	for _, rsInfo := range rsInfos {
 		sort.Slice(rsInfo.Pods[:], func(i, j int) bool {
-			if rsInfo.Pods[i].CreationTimestamp != rsInfo.Pods[j].CreationTimestamp {
-				return rsInfo.Pods[i].CreationTimestamp.Before(&rsInfo.Pods[j].CreationTimestamp)
+			if rsInfo.Pods[i].ObjectMeta.CreationTimestamp != rsInfo.Pods[j].ObjectMeta.CreationTimestamp {
+				return rsInfo.Pods[i].ObjectMeta.CreationTimestamp.Before(&rsInfo.Pods[j].ObjectMeta.CreationTimestamp)
 			}
-			return rsInfo.Pods[i].Name < rsInfo.Pods[j].Name
+			return rsInfo.Pods[i].ObjectMeta.Name < rsInfo.Pods[j].ObjectMeta.Name
 		})
 	}
 
 	return rsInfos
 }
 
-func newPodInfo(pod *corev1.Pod) PodInfo {
-	podInfo := PodInfo{
-		ObjectMeta: v1.ObjectMeta{
+func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
+	podInfo := rollout.PodInfo{
+		ObjectMeta: &v1.ObjectMeta{
 			Name:              pod.Name,
 			Namespace:         pod.Namespace,
 			CreationTimestamp: pod.CreationTimestamp,

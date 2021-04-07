@@ -27,7 +27,7 @@ import {
     faWeight,
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
-import {ReplicaSet} from '../pods/pods';
+import {ReplicaSets} from '../pods/pods';
 import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {useInput} from '../input/input';
@@ -302,11 +302,7 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
 
             {!collapsed && (
                 <React.Fragment>
-                    {revision.replicaSets.map((rs) => (
-                        <div style={{marginTop: '1em'}} key={rs.objectMeta.uid}>
-                            <ReplicaSet rs={rs} />
-                        </div>
-                    ))}
+                    <ReplicaSets replicaSets={revision.replicaSets} />
                     {(revision.analysisRuns || []).length > 0 && (
                         <React.Fragment>
                             <div style={{marginTop: '1em'}}>

@@ -85,6 +85,27 @@ export const PodIcon = (props: {status: string}) => {
     );
 };
 
+export const ReplicaSets = (props: {replicaSets: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo[]}) => {
+    const {replicaSets} = props;
+    if (!replicaSets || replicaSets.length < 1) {
+        return <div>No replica sets!</div>;
+    }
+
+    return (
+        <div>
+            {replicaSets?.map(
+                (rsInfo) =>
+                    rsInfo.pods &&
+                    rsInfo.pods.length > 0 && (
+                        <div key={rsInfo.objectMeta.uid} style={{marginBottom: '1em'}}>
+                            <ReplicaSet rs={rsInfo} />
+                        </div>
+                    )
+            )}
+        </div>
+    );
+};
+
 export const ReplicaSet = (props: {rs: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaSetInfo}) => {
     const rsName = props.rs.objectMeta.name;
     return (

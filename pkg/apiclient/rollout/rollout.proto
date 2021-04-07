@@ -3,6 +3,7 @@ option go_package = "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout";
 
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "google/protobuf/empty.proto";
 
 package rollout;
@@ -25,7 +26,7 @@ message UndoQuery {
 
 message RolloutWatchEvent {
     string type = 1;
-    github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rolloutInfo = 2;
+    RolloutInfo rolloutInfo = 2;
 }
 
 message NamespaceInfo {
@@ -33,20 +34,106 @@ message NamespaceInfo {
 }
 
 message RolloutInfoList {
-    repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo rollouts = 1;
+    repeated RolloutInfo rollouts = 1;
 }
 
 message VersionInfo {
     string rolloutsVersion = 1;
 }
 
+message RolloutInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+
+  string status = 2;
+  string message = 3;
+  string icon = 4;
+  string strategy = 5;
+  string step = 6;
+  string setWeight = 7;
+  string actualWeight = 8;
+
+  int32 ready = 9;
+  int32 current = 10;
+  int32 desired = 11;
+  int32 updated = 12;
+  int32 available = 13;
+  string restartedAt = 14;
+  string generation = 15;
+
+  repeated ReplicaSetInfo replicaSets = 16;
+  repeated ExperimentInfo experiments = 17;
+  repeated AnalysisRunInfo analysisRuns = 18;
+
+  repeated ContainerInfo containers = 19;
+
+  repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
+}
+
+message ExperimentInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  string icon = 2;
+  int32 revision = 3;
+  string status = 4;
+  string message = 5;
+  repeated ReplicaSetInfo replicaSets = 6;
+  repeated AnalysisRunInfo analysisRuns = 7;
+}
+
+message ReplicaSetInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  string status = 2;
+  string icon = 3;
+  int32 revision = 4;
+  bool stable = 5;
+  bool canary = 6;
+  bool active = 7;
+  bool preview = 8;
+  int32 replicas = 9;
+  int32 available = 10;
+  string template = 11;
+  string scaleDownDeadline = 12;
+  repeated string images = 13;
+  repeated PodInfo pods = 14;
+}
+
+message PodInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  string status = 2;
+  string icon = 3;
+  string ready = 4;
+  int32 restarts = 5;
+}
+
+message ContainerInfo {
+  string name = 1;
+  string image = 2;
+}
+
+message JobInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  string status = 2;
+  string icon = 3;
+}
+
+message AnalysisRunInfo {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  string icon = 2;
+  int32 revision = 3;
+  string status = 4;
+  int32 successful = 5;
+  int32 failed = 6;
+  int32 inconclusive = 7;
+  int32 error = 8;
+  repeated JobInfo jobs = 9;
+}
+
 service RolloutService {
     // Get returns a rollout
-    rpc GetRollout(RolloutQuery) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
+    rpc GetRollout(RolloutQuery) returns (RolloutInfo) {
         option (google.api.http).get = "/api/v1/rollout/{name}";
     }
 
-    rpc WatchRollout(RolloutQuery) returns (stream github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo) {
+    rpc WatchRollout(RolloutQuery) returns (stream RolloutInfo) {
         option (google.api.http).get = "/api/v1/rollout/watch/{name}";
     }
 

@@ -9,13 +9,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-type RolloutInfo v1alpha1.RolloutInfo
 
 func NewRolloutInfo(
 	ro *v1alpha1.Rollout,
@@ -23,10 +23,10 @@ func NewRolloutInfo(
 	allPods []*corev1.Pod,
 	allExperiments []*v1alpha1.Experiment,
 	allARs []*v1alpha1.AnalysisRun,
-) *v1alpha1.RolloutInfo {
+) *rollout.RolloutInfo {
 
-	roInfo := v1alpha1.RolloutInfo{
-		ObjectMeta: v1.ObjectMeta{
+	roInfo := rollout.RolloutInfo{
+		ObjectMeta: &v1.ObjectMeta{
 			Name:              ro.Name,
 			Namespace:         ro.Namespace,
 			UID:               ro.UID,
@@ -43,7 +43,11 @@ func NewRolloutInfo(
 		roInfo.Strategy = "Canary"
 		if ro.Status.CurrentStepIndex != nil && len(ro.Spec.Strategy.Canary.Steps) > 0 {
 			roInfo.Step = fmt.Sprintf("%d/%d", *ro.Status.CurrentStepIndex, len(ro.Spec.Strategy.Canary.Steps))
-			roInfo.Steps = ro.Spec.Strategy.Canary.Steps
+			var steps []*v1alpha1.CanaryStep
+			for i := range(ro.Spec.Strategy.Canary.Steps) {
+				steps = append(steps, &ro.Spec.Strategy.Canary.Steps[i])
+			}
+			roInfo.Steps = steps
 		}
 		// NOTE that this is desired weight, not the actual current weight
 		roInfo.SetWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(ro)))
@@ -69,10 +73,10 @@ func NewRolloutInfo(
 	}
 	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
 	roInfo.Icon = rolloutIcon(roInfo.Status)
-	roInfo.Containers = []v1alpha1.ContainerInfo{}
+	roInfo.Containers = []*rollout.ContainerInfo{}
 	for c := range ro.Spec.Template.Spec.Containers {
 		curContainer := ro.Spec.Template.Spec.Containers[c]
-		roInfo.Containers = append(roInfo.Containers, v1alpha1.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
+		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
 	}
 
 	if ro.Status.RestartedAt != nil {
@@ -205,7 +209,7 @@ func rolloutIcon(status string) string {
 // Images returns a list of images that are currently running along with informational tags about
 // 1. which stack they belong to (canary, stable, active, preview)
 // 2. which experiment template they are part of
-func Images(r *v1alpha1.RolloutInfo) []ImageInfo {
+func Images(r *rollout.RolloutInfo) []ImageInfo {
 	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {
@@ -230,7 +234,7 @@ func Images(r *v1alpha1.RolloutInfo) []ImageInfo {
 		}
 	}
 	for _, expInfo := range r.Experiments {
-		for _, expImage := range ExperimentImages(&expInfo) {
+		for _, expImage := range ExperimentImages(expInfo) {
 			images = mergeImageAndTags(expImage, images)
 		}
 	}
@@ -275,7 +279,7 @@ func mergeTags(newTags []string, existingTags []string) []string {
 	return tags
 }
 
-func Revisions(r *v1alpha1.RolloutInfo) []int {
+func Revisions(r *rollout.RolloutInfo) []int {
 	revisionMap := make(map[int]bool)
 	for _, rsInfo := range r.ReplicaSets {
 		revisionMap[int(rsInfo.Revision)] = true
@@ -294,8 +298,8 @@ func Revisions(r *v1alpha1.RolloutInfo) []int {
 	return revisions
 }
 
-func ReplicaSetsByRevision(r *v1alpha1.RolloutInfo, rev int) []v1alpha1.ReplicaSetInfo {
-	var replicaSets []v1alpha1.ReplicaSetInfo
+func ReplicaSetsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.ReplicaSetInfo {
+	var replicaSets []*rollout.ReplicaSetInfo
 	for _, rs := range r.ReplicaSets {
 		if rs.Revision == int32(rev) {
 			replicaSets = append(replicaSets, rs)
@@ -304,8 +308,8 @@ func ReplicaSetsByRevision(r *v1alpha1.RolloutInfo, rev int) []v1alpha1.ReplicaS
 	return replicaSets
 }
 
-func ExperimentsByRevision(r *v1alpha1.RolloutInfo, rev int) []v1alpha1.ExperimentInfo {
-	var experiments []v1alpha1.ExperimentInfo
+func ExperimentsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.ExperimentInfo {
+	var experiments []*rollout.ExperimentInfo
 	for _, e := range r.Experiments {
 		if int(e.Revision) == rev {
 			experiments = append(experiments, e)
@@ -314,8 +318,8 @@ func ExperimentsByRevision(r *v1alpha1.RolloutInfo, rev int) []v1alpha1.Experime
 	return experiments
 }
 
-func AnalysisRunsByRevision(r *v1alpha1.RolloutInfo, rev int) []v1alpha1.AnalysisRunInfo {
-	var runs []v1alpha1.AnalysisRunInfo
+func AnalysisRunsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.AnalysisRunInfo {
+	var runs []*rollout.AnalysisRunInfo
 	for _, run := range r.AnalysisRuns {
 		if int(run.Revision) == rev {
 			runs = append(runs, run)

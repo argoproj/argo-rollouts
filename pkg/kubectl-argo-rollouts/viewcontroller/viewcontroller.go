@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -54,9 +54,9 @@ type ExperimentViewController struct {
 	*viewController
 }
 
-type RolloutInfoCallback func(*v1alpha1.RolloutInfo)
+type RolloutInfoCallback func(*rollout.RolloutInfo)
 
-type ExperimentInfoCallback func(*v1alpha1.ExperimentInfo)
+type ExperimentInfoCallback func(*rollout.ExperimentInfo)
 
 func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
 	vc := newViewController(namespace, name, kubeClient, rolloutClient)
@@ -166,7 +166,7 @@ func (c *viewController) processNextWorkItem() bool {
 	return true
 }
 
-func (c *RolloutViewController) GetRolloutInfo() (*v1alpha1.RolloutInfo, error) {
+func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 	ro, err := c.rolloutLister.Get(c.name)
 	if err != nil {
 		return nil, err
@@ -198,12 +198,12 @@ func (c *RolloutViewController) GetRolloutInfo() (*v1alpha1.RolloutInfo, error) 
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*v1alpha1.RolloutInfo))
+		callback(i.(*rollout.RolloutInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }
 
-func (c *ExperimentViewController) GetExperimentInfo() (*v1alpha1.ExperimentInfo, error) {
+func (c *ExperimentViewController) GetExperimentInfo() (*rollout.ExperimentInfo, error) {
 	exp, err := c.experimentLister.Get(c.name)
 	if err != nil {
 		return nil, err
@@ -226,7 +226,7 @@ func (c *ExperimentViewController) GetExperimentInfo() (*v1alpha1.ExperimentInfo
 
 func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*v1alpha1.ExperimentInfo))
+		callback(i.(*rollout.ExperimentInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }

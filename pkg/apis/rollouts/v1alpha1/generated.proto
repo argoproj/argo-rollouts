@@ -72,26 +72,6 @@ message AnalysisRunArgument {
   optional ArgumentValueFrom valueFrom = 3;
 }
 
-message AnalysisRunInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string icon = 2;
-
-  optional int32 revision = 3;
-
-  optional string status = 4;
-
-  optional int32 successful = 5;
-
-  optional int32 failed = 6;
-
-  optional int32 inconclusive = 7;
-
-  optional int32 error = 8;
-
-  repeated JobInfo jobs = 9;
-}
-
 // AnalysisRunList is a list of AnalysisTemplate resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message AnalysisRunList {
@@ -389,12 +369,6 @@ message ClusterAnalysisTemplateList {
   repeated ClusterAnalysisTemplate items = 2;
 }
 
-message ContainerInfo {
-  optional string name = 1;
-
-  optional string image = 2;
-}
-
 message DatadogMetric {
   optional string interval = 1;
 
@@ -468,22 +442,6 @@ message ExperimentCondition {
 
   // A human readable message indicating details about the transition.
   optional string message = 6;
-}
-
-message ExperimentInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string icon = 2;
-
-  optional int32 revision = 3;
-
-  optional string status = 4;
-
-  optional string message = 5;
-
-  repeated ReplicaSetInfo replicaSets = 6;
-
-  repeated AnalysisRunInfo analysisRuns = 7;
 }
 
 // ExperimentList is a list of Experiment resources
@@ -583,14 +541,6 @@ message IstioVirtualService {
 
   // Routes list of routes within VirtualService to edit
   repeated string routes = 2;
-}
-
-message JobInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string status = 2;
-
-  optional string icon = 3;
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -793,18 +743,6 @@ message PauseCondition {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
 }
 
-message PodInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string status = 2;
-
-  optional string icon = 3;
-
-  optional string ready = 4;
-
-  optional int32 restarts = 5;
-}
-
 // PodTemplateMetadata extra labels to add to the template
 message PodTemplateMetadata {
   // Labels Additional labels to add to the experiment
@@ -829,36 +767,6 @@ message PrometheusMetric {
 
   // Query is a raw prometheus query to perform
   optional string query = 2;
-}
-
-message ReplicaSetInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string status = 2;
-
-  optional string icon = 3;
-
-  optional int32 revision = 4;
-
-  optional bool stable = 5;
-
-  optional bool canary = 6;
-
-  optional bool active = 7;
-
-  optional bool preview = 8;
-
-  optional int32 replicas = 9;
-
-  optional int32 available = 10;
-
-  optional string template = 11;
-
-  optional string scaleDownDeadline = 12;
-
-  repeated string images = 13;
-
-  repeated PodInfo pods = 14;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
@@ -990,49 +898,6 @@ message RolloutExperimentTemplate {
   // use the same selector as the Rollout
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 5;
-}
-
-// RolloutInfo is information about a rollout
-message RolloutInfo {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
-
-  optional string status = 2;
-
-  optional string message = 3;
-
-  optional string icon = 4;
-
-  optional string strategy = 5;
-
-  optional string step = 6;
-
-  optional string setWeight = 7;
-
-  optional string actualWeight = 8;
-
-  optional int32 ready = 9;
-
-  optional int32 current = 10;
-
-  optional int32 desired = 11;
-
-  optional int32 updated = 12;
-
-  optional int32 available = 13;
-
-  optional string restartedAt = 14;
-
-  optional string generation = 15;
-
-  repeated ReplicaSetInfo replicaSets = 16;
-
-  repeated ExperimentInfo experiments = 17;
-
-  repeated AnalysisRunInfo analysisRuns = 18;
-
-  repeated ContainerInfo containers = 19;
-
-  repeated CanaryStep steps = 20;
 }
 
 // RolloutList is a list of Rollout resources

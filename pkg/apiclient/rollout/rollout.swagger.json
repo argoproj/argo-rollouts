@@ -248,13 +248,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+                  "$ref": "#/definitions/rollout.RolloutInfo"
                 },
                 "error": {
                   "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
                 }
               },
-              "title": "Stream result of github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+              "title": "Stream result of rollout.RolloutInfo"
             }
           },
           "default": {
@@ -285,7 +285,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -403,46 +403,6 @@
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "icon": {
-          "type": "string"
-        },
-        "revision": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "status": {
-          "type": "string"
-        },
-        "successful": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "failed": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "inconclusive": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "error": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "jobs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobInfo"
-          }
-        }
-      }
-    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ArgumentValueFrom": {
       "type": "object",
       "properties": {
@@ -484,91 +444,12 @@
       },
       "description": "CanaryStep defines a step of a canary deployment."
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ContainerInfo": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "image": {
-          "type": "string"
-        }
-      }
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ExperimentInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "icon": {
-          "type": "string"
-        },
-        "revision": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "status": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "replicaSets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo"
-          }
-        },
-        "analysisRuns": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo"
-          }
-        }
-      }
-    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef": {
       "type": "object",
       "properties": {
         "fieldPath": {
           "type": "string",
           "title": "Required: Path of the field to select in the specified API version"
-        }
-      }
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "status": {
-          "type": "string"
-        },
-        "icon": {
-          "type": "string"
-        }
-      }
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "status": {
-          "type": "string"
-        },
-        "icon": {
-          "type": "string"
-        },
-        "ready": {
-          "type": "string"
-        },
-        "restarts": {
-          "type": "integer",
-          "format": "int32"
         }
       }
     },
@@ -591,62 +472,6 @@
         }
       },
       "title": "PodTemplateMetadata extra labels to add to the template"
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "status": {
-          "type": "string"
-        },
-        "icon": {
-          "type": "string"
-        },
-        "revision": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "stable": {
-          "type": "boolean"
-        },
-        "canary": {
-          "type": "boolean"
-        },
-        "active": {
-          "type": "boolean"
-        },
-        "preview": {
-          "type": "boolean"
-        },
-        "replicas": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "available": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "template": {
-          "type": "string"
-        },
-        "scaleDownDeadline": {
-          "type": "string"
-        },
-        "images": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "pods": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodInfo"
-          }
-        }
-      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutAnalysis": {
       "type": "object",
@@ -759,92 +584,6 @@
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo": {
-      "type": "object",
-      "properties": {
-        "objectMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
-        },
-        "status": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "icon": {
-          "type": "string"
-        },
-        "strategy": {
-          "type": "string"
-        },
-        "step": {
-          "type": "string"
-        },
-        "setWeight": {
-          "type": "string"
-        },
-        "actualWeight": {
-          "type": "string"
-        },
-        "ready": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "current": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "desired": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "updated": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "available": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "restartedAt": {
-          "type": "string"
-        },
-        "generation": {
-          "type": "string"
-        },
-        "replicaSets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaSetInfo"
-          }
-        },
-        "experiments": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ExperimentInfo"
-          }
-        },
-        "analysisRuns": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunInfo"
-          }
-        },
-        "containers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ContainerInfo"
-          }
-        },
-        "steps": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
-          }
-        }
-      },
-      "title": "RolloutInfo is information about a rollout"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutPause": {
       "type": "object",
@@ -1167,11 +906,271 @@
       "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true",
       "title": "IntOrString is a type that can hold an int32 or a string.  When used in\nJSON or YAML marshalling and unmarshalling, it produces or consumes the\ninner type.  This allows you to have, for example, a JSON field that can\naccept a name or number.\nTODO: Rename to Int32OrString"
     },
+    "rollout.AnalysisRunInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "successful": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusive": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "error": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.JobInfo"
+          }
+        }
+      }
+    },
+    "rollout.ContainerInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        }
+      }
+    },
+    "rollout.ExperimentInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "replicaSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.ReplicaSetInfo"
+          }
+        },
+        "analysisRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.AnalysisRunInfo"
+          }
+        }
+      }
+    },
+    "rollout.JobInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        }
+      }
+    },
     "rollout.NamespaceInfo": {
       "type": "object",
       "properties": {
         "namespace": {
           "type": "string"
+        }
+      }
+    },
+    "rollout.PodInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "string"
+        },
+        "restarts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "rollout.ReplicaSetInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stable": {
+          "type": "boolean"
+        },
+        "canary": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "preview": {
+          "type": "boolean"
+        },
+        "replicas": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "available": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "template": {
+          "type": "string"
+        },
+        "scaleDownDeadline": {
+          "type": "string"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.PodInfo"
+          }
+        }
+      }
+    },
+    "rollout.RolloutInfo": {
+      "type": "object",
+      "properties": {
+        "objectMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "status": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "step": {
+          "type": "string"
+        },
+        "setWeight": {
+          "type": "string"
+        },
+        "actualWeight": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "current": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "desired": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "available": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "restartedAt": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "replicaSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.ReplicaSetInfo"
+          }
+        },
+        "experiments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.ExperimentInfo"
+          }
+        },
+        "analysisRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.AnalysisRunInfo"
+          }
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.ContainerInfo"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
+          }
         }
       }
     },
@@ -1181,7 +1180,7 @@
         "rollouts": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+            "$ref": "#/definitions/rollout.RolloutInfo"
           }
         }
       }
@@ -1193,7 +1192,7 @@
           "type": "string"
         },
         "rolloutInfo": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutInfo"
+          "$ref": "#/definitions/rollout.RolloutInfo"
         }
       }
     },

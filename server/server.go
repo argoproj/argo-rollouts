@@ -225,7 +225,7 @@ func (s *ArgoRolloutsServer) initRolloutViewController(name string, ctx context.
 	return controller
 }
 
-func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*v1alpha1.RolloutInfo, error) {
+func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*rollout.RolloutInfo, error) {
 	controller := s.initRolloutViewController(name, context.Background())
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
@@ -235,7 +235,7 @@ func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*v1alpha1.RolloutInfo,
 }
 
 // GetRollout returns a rollout
-func (s *ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*v1alpha1.RolloutInfo, error) {
+func (s *ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*rollout.RolloutInfo, error) {
 	return s.getRolloutInfo(q.GetName())
 }
 
@@ -244,12 +244,12 @@ func (s *ArgoRolloutsServer) WatchRollout(q *rollout.RolloutQuery, ws rollout.Ro
 	ctx := context.Background()
 	controller := s.initRolloutViewController(q.GetName(), ctx)
 
-	rolloutUpdates := make(chan *v1alpha1.RolloutInfo)
-	controller.RegisterCallback(func(roInfo *v1alpha1.RolloutInfo) {
+	rolloutUpdates := make(chan *rollout.RolloutInfo)
+	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 		rolloutUpdates <- roInfo
 	})
 
-	go get.Watch(ctx.Done(), rolloutUpdates, func(i *v1alpha1.RolloutInfo) {
+	go get.Watch(ctx.Done(), rolloutUpdates, func(i *rollout.RolloutInfo) {
 		ws.Send(i)
 	})
 	controller.Run(ctx)
@@ -287,7 +287,7 @@ func (s *ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (
 		return nil, err
 	}
 
-	var riList []*v1alpha1.RolloutInfo
+	var riList []*rollout.RolloutInfo
 	for i := range rolloutList.Items {
 		cur := rolloutList.Items[i]
 		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil)
@@ -307,7 +307,7 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Roll
 
 // WatchRollouts returns a stream of all rollouts
 func (s *ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutService_WatchRolloutsServer) error {
-	send := func(r *v1alpha1.RolloutInfo) {
+	send := func(r *rollout.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",
 			RolloutInfo: r,

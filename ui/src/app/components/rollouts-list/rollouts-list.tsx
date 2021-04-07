@@ -11,7 +11,7 @@ import {Key, useKeyListener, useNav} from 'react-keyhooks';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
-import {ParsePodStatus, PodStatus, ReplicaSet} from '../pods/pods';
+import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
 import {Autocomplete} from '../autocomplete/autocomplete';
 import {useInput} from '../input/input';
@@ -146,15 +146,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                     {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
                 </ThemeDiv>
                 <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
-                    {rollout.replicaSets?.map(
-                        (rsInfo) =>
-                            rsInfo.pods &&
-                            rsInfo.pods.length > 0 && (
-                                <div className='rollouts-list__widget__pods' key={rsInfo.objectMeta.uid}>
-                                    <ReplicaSet rs={rsInfo} />
-                                </div>
-                            )
-                    )}
+                    <ReplicaSets replicaSets={rollout.replicaSets} />
                 </WaitFor>
                 <div className='rollouts-list__widget__actions'>
                     <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
