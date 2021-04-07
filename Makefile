@@ -148,11 +148,6 @@ pkg/apiclient/rollout/rollout.swagger.json: $(PROTO_BINARIES) $(TYPES) pkg/apicl
 controller: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
-.PHONY: server
-server: clean-debug ui/dist
-	cp -r ui/dist/app server/static
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-server ./cmd/rollouts-server
-
 .PHONY: plugin
 plugin: ui/dist
 	cp -r ui/dist/app server/static
