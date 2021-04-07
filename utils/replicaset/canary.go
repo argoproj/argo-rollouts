@@ -194,7 +194,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
 			newRSReplicaCount = desiredNewRSReplicaCount
 			// Calculating how many replicas were used to scale down to the desired count
-			scaleDownCount = scaleDownCount - (desiredNewRSReplicaCount - *newRS.Spec.Replicas)
+			scaleDownCount = scaleDownCount - (*newRS.Spec.Replicas - desiredNewRSReplicaCount)
 		} else {
 			// The controller is using every replica it can to get closer to desired state.
 			newRSReplicaCount = *newRS.Spec.Replicas - scaleDownCount
