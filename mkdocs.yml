@@ -8,88 +8,88 @@ theme:
   palette:
     primary: teal
 google_analytics:
-  - UA-105170809-3
-  - auto
+- UA-105170809-3
+- auto
 markdown_extensions:
-  - codehilite
-  - admonition
-  - pymdownx.superfences
-  - pymdownx.tabbed
-  - footnotes
-  - toc:
-      permalink: true
+- codehilite
+- admonition
+- pymdownx.superfences
+- pymdownx.tabbed
+- footnotes
+- toc:
+    permalink: true
 nav:
-  - Overview: index.md
-  - Installation: installation.md
-  - Concepts: concepts.md
-  - Getting Started:
-      - Basic Usage: getting-started.md
-      - ALB: getting-started/alb/index.md
-      - NGINX: getting-started/nginx/index.md
-      - Istio: getting-started/istio/index.md
-      - SMI: getting-started/smi/index.md
-  - Rollout:
-      - Deployment Strategies:
-          - BlueGreen: features/bluegreen.md
-          - Canary: features/canary.md
-      - Rollout Spec: features/specification.md
-      - HPA: features/hpa-support.md
-      - Ephemeral Metadata: features/ephemeral-metadata.md
-      - Restarting Rollouts: features/restart.md
-      - Anti Affinity: features/anti-affinity/anti-affinity.md
-      - Kustomize: features/kustomize.md
-      - Controller Metrics: features/controller-metrics.md
-  - Traffic Management:
-      - Overview: features/traffic-management/index.md
-      - Istio: features/traffic-management/istio.md
-      - NGINX: features/traffic-management/nginx.md
-      - AWS ALB: features/traffic-management/alb.md
-      - SMI: features/traffic-management/smi.md
-  - Analysis:
-      - Overview: features/analysis.md
-      - DataDog: analysis/datadog.md
-      - NewRelic: analysis/newrelic.md
-      - Wavefront: analysis/wavefront.md
-      - Job: analysis/job.md
-      - Web: analysis/web.md
-      - Kayenta: analysis/kayenta.md
-  - Experiments: features/experiment.md
-  - Kubectl Plugin:
-      - Overview: features/kubectl-plugin.md
-      - Commands:
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
-          - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
-  - Best Practices: best-practices.md
-  - Migrating: migrating.md
-  - FAQ: FAQ.md
-  - Security: security.md
-  - Roadmap: roadmap.md
-  - Contributing:
-      - Contribution Guide: CONTRIBUTING.md
-      - Environment Setup: getting-started/setup/index.md
-  - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
-  - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
-  - Blog ⧉: https://blog.argoproj.io/
+- Overview: index.md
+- Installation: installation.md
+- Concepts: concepts.md
+- Getting Started:
+  - Basic Usage: getting-started.md
+  - ALB: getting-started/alb/index.md
+  - NGINX: getting-started/nginx/index.md
+  - Istio: getting-started/istio/index.md
+  - SMI: getting-started/smi/index.md
+- Rollout:
+  - Deployment Strategies:
+    - BlueGreen: features/bluegreen.md
+    - Canary: features/canary.md
+  - Rollout Spec: features/specification.md
+  - HPA: features/hpa-support.md
+  - Ephemeral Metadata: features/ephemeral-metadata.md
+  - Restarting Rollouts: features/restart.md
+  - Anti Affinity: features/anti-affinity/anti-affinity.md
+  - Kustomize: features/kustomize.md
+  - Controller Metrics: features/controller-metrics.md
+- Traffic Management:
+  - Overview: features/traffic-management/index.md
+  - Istio: features/traffic-management/istio.md
+  - NGINX: features/traffic-management/nginx.md
+  - AWS ALB: features/traffic-management/alb.md
+  - SMI: features/traffic-management/smi.md
+- Analysis:
+  - Overview: features/analysis.md
+  - DataDog: analysis/datadog.md
+  - NewRelic: analysis/newrelic.md
+  - Wavefront: analysis/wavefront.md
+  - Job: analysis/job.md
+  - Web: analysis/web.md
+  - Kayenta: analysis/kayenta.md
+- Experiments: features/experiment.md
+- Kubectl Plugin:
+  - Overview: features/kubectl-plugin.md
+  - Commands:
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Best Practices: best-practices.md
+- Migrating: migrating.md
+- FAQ: FAQ.md
+- Security: security.md
+- Roadmap: roadmap.md
+- Contributing:
+  - Contribution Guide: CONTRIBUTING.md
+  - Environment Setup: getting-started/setup/index.md
+- Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
+- Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
+- Blog ⧉: https://blog.argoproj.io/
