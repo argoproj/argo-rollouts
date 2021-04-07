@@ -14,6 +14,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
 
     &__search-container {
         width: 60% !important;
+        margin: 0 auto;
     }
 
     &__widget {
@@ -103,6 +104,9 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             margin-top: 1.5em;
         }
     }
+
+    width: 3 * $colWidth;
+    margin: 0 auto;
 
     @media screen and (max-width: 3 * $colWidth) {
         width: 2 * $colWidth;

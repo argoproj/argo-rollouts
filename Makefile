@@ -150,7 +150,7 @@ controller: clean-debug
 
 .PHONY: plugin
 plugin: ui/dist
-	cp -r ui/dist/app server/static
+	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
 ui/dist:
