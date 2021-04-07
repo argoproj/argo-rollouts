@@ -443,6 +443,14 @@ const ContainerWidget = (props: {
     );
 };
 
+const parseDuration = (duration: string): string => {
+    const lastChar = duration[duration.length - 1];
+    if (lastChar === 's' || lastChar === 'm' || lastChar === 'h') {
+        return `${duration}`;
+    }
+    return `${duration}s`;
+};
+
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     let icon: IconDefinition;
     let content = '';
@@ -455,7 +463,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     if (props.step.pause) {
         icon = faPauseCircle;
         if (props.step.pause.duration) {
-            content = `Pause: ${props.step.pause.duration}`;
+            content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}`;
         } else {
             content = 'Pause';
         }
