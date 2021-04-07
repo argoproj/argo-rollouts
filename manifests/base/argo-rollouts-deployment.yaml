@@ -20,6 +20,9 @@ spec:
       - name: argo-rollouts
         image: argoproj/argo-rollouts:latest
         imagePullPolicy: Always
+        ports:
+          - containerPort: 8090
+            name: metrics
       securityContext:
         runAsNonRoot: true
   strategy:
