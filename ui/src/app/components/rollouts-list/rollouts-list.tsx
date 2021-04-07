@@ -146,7 +146,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
                     {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
                 </ThemeDiv>
                 <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
-                    <ReplicaSets replicaSets={rollout.replicaSets} />
+                    <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
                 </WaitFor>
                 <div className='rollouts-list__widget__actions'>
                     <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />

@@ -85,7 +85,7 @@ export const PodIcon = (props: {status: string}) => {
     );
 };
 
-export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]}) => {
+export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRevisions?: boolean}) => {
     const {replicaSets} = props;
     if (!replicaSets || replicaSets.length < 1) {
         return <div>No replica sets!</div>;
@@ -98,7 +98,7 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]}) => {
                     rsInfo.pods &&
                     rsInfo.pods.length > 0 && (
                         <div key={rsInfo.objectMeta.uid} style={{marginBottom: '1em'}}>
-                            <ReplicaSet rs={rsInfo} />
+                            <ReplicaSet rs={rsInfo} showRevision={props.showRevisions} />
                         </div>
                     )
             )}
@@ -106,15 +106,17 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]}) => {
     );
 };
 
-export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo}) => {
+export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boolean}) => {
     const rsName = props.rs.objectMeta.name;
     return (
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
                     <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
+                    {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
                 </ThemeDiv>
             )}
+
             {props.rs.pods && props.rs.pods.length > 0 && (
                 <ThemeDiv className='pods__container'>
                     <WaitFor loading={(props.rs.pods || []).length < 1}>
