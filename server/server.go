@@ -386,7 +386,7 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 	return abort.AbortRollout(rolloutIf, q.GetName())
 }
 
-func (s* ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
+func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
 	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
 	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
 	return rolloutsLister.Get(name)
