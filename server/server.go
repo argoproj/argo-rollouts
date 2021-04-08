@@ -298,11 +298,14 @@ func (s *ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (
 	return &rollout.RolloutInfoList{Rollouts: riList}, nil
 }
 
-func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.ResrtartRolloutRequest) (*rollout.RolloutInfo, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
 	restartAt := time.Now().UTC()
-	restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
-	return &empty.Empty{}, nil
+	ro, err := restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
+	if err != nil {
+		return nil, err
+	}
+	return s.RolloutToRolloutInfo(ro)
 }
 
 // WatchRollouts returns a stream of all rollouts
@@ -363,49 +366,60 @@ L:
 	return nil
 }
 
+func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
+	ctx := context.Background()
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil), nil
+}
+
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
 	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace}, nil
 }
 
-func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*rollout.RolloutInfo, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	_, err := promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
+	ro, err := promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
 	if err != nil {
 		return nil, err
 	}
-	return &empty.Empty{}, nil
+	return s.RolloutToRolloutInfo(ro)
 }
 
-func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*rollout.RolloutInfo, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	_, err := abort.AbortRollout(rolloutIf, q.GetName())
+	ro, err := abort.AbortRollout(rolloutIf, q.GetName())
 	if err != nil {
 		return nil, err
 	}
-	return &empty.Empty{}, nil
+	return s.RolloutToRolloutInfo(ro)
 }
 
-func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*rollout.RolloutInfo, error) {
 	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
 	set.SetImage(s.Options.DynamicClientset, s.Options.Namespace, q.GetRollout(), q.GetContainer(), imageString)
-	return &empty.Empty{}, nil
+	return s.getRolloutInfo(q.GetRollout())
 }
 
-func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*rollout.RolloutInfo, error) {
 	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(s.Options.Namespace)
-
 	_, err := undo.RunUndoRollout(rolloutIf, s.Options.KubeClientset, q.GetRollout(), q.GetRevision())
 	if err != nil {
 		return nil, err
 	}
-	return &empty.Empty{}, nil
+	return s.getRolloutInfo(q.GetRollout())
 }
 
-func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RolloutQuery) (*empty.Empty, error) {
+func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*rollout.RolloutInfo, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	retry.RetryRollout(rolloutIf, q.GetName())
+	ro, err := retry.RetryRollout(rolloutIf, q.GetName())
+	if err != nil {
+		return nil, err
+	}
 
-	return &empty.Empty{}, nil
+	return s.RolloutToRolloutInfo(ro)
 }
 
 func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*rollout.VersionInfo, error) {

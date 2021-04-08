@@ -77,7 +77,7 @@ func (m *RolloutQuery) GetName() string {
 	return ""
 }
 
-type SetImageQuery struct {
+type SetImageRequest struct {
 	Rollout              string   `protobuf:"bytes,1,opt,name=rollout,proto3" json:"rollout,omitempty"`
 	Container            string   `protobuf:"bytes,2,opt,name=container,proto3" json:"container,omitempty"`
 	Image                string   `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
@@ -87,18 +87,18 @@ type SetImageQuery struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SetImageQuery) Reset()         { *m = SetImageQuery{} }
-func (m *SetImageQuery) String() string { return proto.CompactTextString(m) }
-func (*SetImageQuery) ProtoMessage()    {}
-func (*SetImageQuery) Descriptor() ([]byte, []int) {
+func (m *SetImageRequest) Reset()         { *m = SetImageRequest{} }
+func (m *SetImageRequest) String() string { return proto.CompactTextString(m) }
+func (*SetImageRequest) ProtoMessage()    {}
+func (*SetImageRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_99101d942e8912a7, []int{1}
 }
-func (m *SetImageQuery) XXX_Unmarshal(b []byte) error {
+func (m *SetImageRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SetImageQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SetImageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SetImageQuery.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SetImageRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -108,47 +108,47 @@ func (m *SetImageQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return b[:n], nil
 	}
 }
-func (m *SetImageQuery) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetImageQuery.Merge(m, src)
+func (m *SetImageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetImageRequest.Merge(m, src)
 }
-func (m *SetImageQuery) XXX_Size() int {
+func (m *SetImageRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SetImageQuery) XXX_DiscardUnknown() {
-	xxx_messageInfo_SetImageQuery.DiscardUnknown(m)
+func (m *SetImageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetImageRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SetImageQuery proto.InternalMessageInfo
+var xxx_messageInfo_SetImageRequest proto.InternalMessageInfo
 
-func (m *SetImageQuery) GetRollout() string {
+func (m *SetImageRequest) GetRollout() string {
 	if m != nil {
 		return m.Rollout
 	}
 	return ""
 }
 
-func (m *SetImageQuery) GetContainer() string {
+func (m *SetImageRequest) GetContainer() string {
 	if m != nil {
 		return m.Container
 	}
 	return ""
 }
 
-func (m *SetImageQuery) GetImage() string {
+func (m *SetImageRequest) GetImage() string {
 	if m != nil {
 		return m.Image
 	}
 	return ""
 }
 
-func (m *SetImageQuery) GetTag() string {
+func (m *SetImageRequest) GetTag() string {
 	if m != nil {
 		return m.Tag
 	}
 	return ""
 }
 
-type UndoQuery struct {
+type UndoRolloutRequest struct {
 	Rollout              string   `protobuf:"bytes,1,opt,name=rollout,proto3" json:"rollout,omitempty"`
 	Revision             int64    `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -156,18 +156,18 @@ type UndoQuery struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UndoQuery) Reset()         { *m = UndoQuery{} }
-func (m *UndoQuery) String() string { return proto.CompactTextString(m) }
-func (*UndoQuery) ProtoMessage()    {}
-func (*UndoQuery) Descriptor() ([]byte, []int) {
+func (m *UndoRolloutRequest) Reset()         { *m = UndoRolloutRequest{} }
+func (m *UndoRolloutRequest) String() string { return proto.CompactTextString(m) }
+func (*UndoRolloutRequest) ProtoMessage()    {}
+func (*UndoRolloutRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_99101d942e8912a7, []int{2}
 }
-func (m *UndoQuery) XXX_Unmarshal(b []byte) error {
+func (m *UndoRolloutRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *UndoQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *UndoRolloutRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_UndoQuery.Marshal(b, m, deterministic)
+		return xxx_messageInfo_UndoRolloutRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -177,30 +177,218 @@ func (m *UndoQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *UndoQuery) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UndoQuery.Merge(m, src)
+func (m *UndoRolloutRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UndoRolloutRequest.Merge(m, src)
 }
-func (m *UndoQuery) XXX_Size() int {
+func (m *UndoRolloutRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *UndoQuery) XXX_DiscardUnknown() {
-	xxx_messageInfo_UndoQuery.DiscardUnknown(m)
+func (m *UndoRolloutRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UndoRolloutRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_UndoQuery proto.InternalMessageInfo
+var xxx_messageInfo_UndoRolloutRequest proto.InternalMessageInfo
 
-func (m *UndoQuery) GetRollout() string {
+func (m *UndoRolloutRequest) GetRollout() string {
 	if m != nil {
 		return m.Rollout
 	}
 	return ""
 }
 
-func (m *UndoQuery) GetRevision() int64 {
+func (m *UndoRolloutRequest) GetRevision() int64 {
 	if m != nil {
 		return m.Revision
 	}
 	return 0
+}
+
+type ResrtartRolloutRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ResrtartRolloutRequest) Reset()         { *m = ResrtartRolloutRequest{} }
+func (m *ResrtartRolloutRequest) String() string { return proto.CompactTextString(m) }
+func (*ResrtartRolloutRequest) ProtoMessage()    {}
+func (*ResrtartRolloutRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{3}
+}
+func (m *ResrtartRolloutRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResrtartRolloutRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ResrtartRolloutRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ResrtartRolloutRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResrtartRolloutRequest.Merge(m, src)
+}
+func (m *ResrtartRolloutRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResrtartRolloutRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResrtartRolloutRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResrtartRolloutRequest proto.InternalMessageInfo
+
+func (m *ResrtartRolloutRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type PromoteRolloutRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PromoteRolloutRequest) Reset()         { *m = PromoteRolloutRequest{} }
+func (m *PromoteRolloutRequest) String() string { return proto.CompactTextString(m) }
+func (*PromoteRolloutRequest) ProtoMessage()    {}
+func (*PromoteRolloutRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{4}
+}
+func (m *PromoteRolloutRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PromoteRolloutRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PromoteRolloutRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PromoteRolloutRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PromoteRolloutRequest.Merge(m, src)
+}
+func (m *PromoteRolloutRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *PromoteRolloutRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PromoteRolloutRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PromoteRolloutRequest proto.InternalMessageInfo
+
+func (m *PromoteRolloutRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type AbortRolloutRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AbortRolloutRequest) Reset()         { *m = AbortRolloutRequest{} }
+func (m *AbortRolloutRequest) String() string { return proto.CompactTextString(m) }
+func (*AbortRolloutRequest) ProtoMessage()    {}
+func (*AbortRolloutRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{5}
+}
+func (m *AbortRolloutRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AbortRolloutRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AbortRolloutRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AbortRolloutRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AbortRolloutRequest.Merge(m, src)
+}
+func (m *AbortRolloutRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *AbortRolloutRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AbortRolloutRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AbortRolloutRequest proto.InternalMessageInfo
+
+func (m *AbortRolloutRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type RetryRolloutRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RetryRolloutRequest) Reset()         { *m = RetryRolloutRequest{} }
+func (m *RetryRolloutRequest) String() string { return proto.CompactTextString(m) }
+func (*RetryRolloutRequest) ProtoMessage()    {}
+func (*RetryRolloutRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{6}
+}
+func (m *RetryRolloutRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RetryRolloutRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RetryRolloutRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RetryRolloutRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RetryRolloutRequest.Merge(m, src)
+}
+func (m *RetryRolloutRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *RetryRolloutRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RetryRolloutRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RetryRolloutRequest proto.InternalMessageInfo
+
+func (m *RetryRolloutRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
 }
 
 type RolloutWatchEvent struct {
@@ -215,7 +403,7 @@ func (m *RolloutWatchEvent) Reset()         { *m = RolloutWatchEvent{} }
 func (m *RolloutWatchEvent) String() string { return proto.CompactTextString(m) }
 func (*RolloutWatchEvent) ProtoMessage()    {}
 func (*RolloutWatchEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{3}
+	return fileDescriptor_99101d942e8912a7, []int{7}
 }
 func (m *RolloutWatchEvent) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -269,7 +457,7 @@ func (m *NamespaceInfo) Reset()         { *m = NamespaceInfo{} }
 func (m *NamespaceInfo) String() string { return proto.CompactTextString(m) }
 func (*NamespaceInfo) ProtoMessage()    {}
 func (*NamespaceInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{4}
+	return fileDescriptor_99101d942e8912a7, []int{8}
 }
 func (m *NamespaceInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -316,7 +504,7 @@ func (m *RolloutInfoList) Reset()         { *m = RolloutInfoList{} }
 func (m *RolloutInfoList) String() string { return proto.CompactTextString(m) }
 func (*RolloutInfoList) ProtoMessage()    {}
 func (*RolloutInfoList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{5}
+	return fileDescriptor_99101d942e8912a7, []int{9}
 }
 func (m *RolloutInfoList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -363,7 +551,7 @@ func (m *VersionInfo) Reset()         { *m = VersionInfo{} }
 func (m *VersionInfo) String() string { return proto.CompactTextString(m) }
 func (*VersionInfo) ProtoMessage()    {}
 func (*VersionInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{6}
+	return fileDescriptor_99101d942e8912a7, []int{10}
 }
 func (m *VersionInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -429,7 +617,7 @@ func (m *RolloutInfo) Reset()         { *m = RolloutInfo{} }
 func (m *RolloutInfo) String() string { return proto.CompactTextString(m) }
 func (*RolloutInfo) ProtoMessage()    {}
 func (*RolloutInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{7}
+	return fileDescriptor_99101d942e8912a7, []int{11}
 }
 func (m *RolloutInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -615,7 +803,7 @@ func (m *ExperimentInfo) Reset()         { *m = ExperimentInfo{} }
 func (m *ExperimentInfo) String() string { return proto.CompactTextString(m) }
 func (*ExperimentInfo) ProtoMessage()    {}
 func (*ExperimentInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{8}
+	return fileDescriptor_99101d942e8912a7, []int{12}
 }
 func (m *ExperimentInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -717,7 +905,7 @@ func (m *ReplicaSetInfo) Reset()         { *m = ReplicaSetInfo{} }
 func (m *ReplicaSetInfo) String() string { return proto.CompactTextString(m) }
 func (*ReplicaSetInfo) ProtoMessage()    {}
 func (*ReplicaSetInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{9}
+	return fileDescriptor_99101d942e8912a7, []int{13}
 }
 func (m *ReplicaSetInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -859,7 +1047,7 @@ func (m *PodInfo) Reset()         { *m = PodInfo{} }
 func (m *PodInfo) String() string { return proto.CompactTextString(m) }
 func (*PodInfo) ProtoMessage()    {}
 func (*PodInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{10}
+	return fileDescriptor_99101d942e8912a7, []int{14}
 }
 func (m *PodInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -935,7 +1123,7 @@ func (m *ContainerInfo) Reset()         { *m = ContainerInfo{} }
 func (m *ContainerInfo) String() string { return proto.CompactTextString(m) }
 func (*ContainerInfo) ProtoMessage()    {}
 func (*ContainerInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{11}
+	return fileDescriptor_99101d942e8912a7, []int{15}
 }
 func (m *ContainerInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -991,7 +1179,7 @@ func (m *JobInfo) Reset()         { *m = JobInfo{} }
 func (m *JobInfo) String() string { return proto.CompactTextString(m) }
 func (*JobInfo) ProtoMessage()    {}
 func (*JobInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{12}
+	return fileDescriptor_99101d942e8912a7, []int{16}
 }
 func (m *JobInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1060,7 +1248,7 @@ func (m *AnalysisRunInfo) Reset()         { *m = AnalysisRunInfo{} }
 func (m *AnalysisRunInfo) String() string { return proto.CompactTextString(m) }
 func (*AnalysisRunInfo) ProtoMessage()    {}
 func (*AnalysisRunInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_99101d942e8912a7, []int{13}
+	return fileDescriptor_99101d942e8912a7, []int{17}
 }
 func (m *AnalysisRunInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1154,8 +1342,12 @@ func (m *AnalysisRunInfo) GetJobs() []*JobInfo {
 
 func init() {
 	proto.RegisterType((*RolloutQuery)(nil), "rollout.RolloutQuery")
-	proto.RegisterType((*SetImageQuery)(nil), "rollout.SetImageQuery")
-	proto.RegisterType((*UndoQuery)(nil), "rollout.UndoQuery")
+	proto.RegisterType((*SetImageRequest)(nil), "rollout.SetImageRequest")
+	proto.RegisterType((*UndoRolloutRequest)(nil), "rollout.UndoRolloutRequest")
+	proto.RegisterType((*ResrtartRolloutRequest)(nil), "rollout.ResrtartRolloutRequest")
+	proto.RegisterType((*PromoteRolloutRequest)(nil), "rollout.PromoteRolloutRequest")
+	proto.RegisterType((*AbortRolloutRequest)(nil), "rollout.AbortRolloutRequest")
+	proto.RegisterType((*RetryRolloutRequest)(nil), "rollout.RetryRolloutRequest")
 	proto.RegisterType((*RolloutWatchEvent)(nil), "rollout.RolloutWatchEvent")
 	proto.RegisterType((*NamespaceInfo)(nil), "rollout.NamespaceInfo")
 	proto.RegisterType((*RolloutInfoList)(nil), "rollout.RolloutInfoList")
@@ -1174,96 +1366,100 @@ func init() {
 }
 
 var fileDescriptor_99101d942e8912a7 = []byte{
-	// 1414 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x58, 0xdd, 0x6e, 0x1b, 0xc5,
-	0x17, 0x97, 0xe3, 0x38, 0x71, 0x8e, 0xf3, 0x39, 0xed, 0x3f, 0xdd, 0x7f, 0xa8, 0xac, 0x68, 0xa9,
-	0x50, 0x29, 0x74, 0x9d, 0x14, 0xd4, 0x52, 0x54, 0x2e, 0xd2, 0x36, 0x2a, 0x45, 0x05, 0xc2, 0x46,
-	0x50, 0xb5, 0x17, 0x54, 0xe3, 0xf5, 0xc9, 0x66, 0xdb, 0xf5, 0xce, 0x6a, 0x67, 0xec, 0x62, 0x45,
-	0xb9, 0x41, 0x42, 0x3c, 0x00, 0x0f, 0xc1, 0x33, 0x70, 0xc1, 0x15, 0x37, 0x5c, 0x21, 0x04, 0x2f,
-	0x80, 0x2a, 0x1e, 0x04, 0xcd, 0xd9, 0xd9, 0xd9, 0xb5, 0x1b, 0xab, 0xb4, 0x2a, 0x94, 0xab, 0xec,
-	0xf9, 0xfc, 0xcd, 0x9c, 0x2f, 0x9f, 0x09, 0xbc, 0x9e, 0x3e, 0x0a, 0x3b, 0x3c, 0x8d, 0x82, 0x38,
-	0xc2, 0x44, 0x75, 0x32, 0x11, 0xc7, 0x62, 0x60, 0xff, 0x7a, 0x69, 0x26, 0x94, 0x60, 0xf3, 0x86,
-	0xdc, 0x38, 0x1b, 0x0a, 0x11, 0xc6, 0xa8, 0x0d, 0x3a, 0x3c, 0x49, 0x84, 0xe2, 0x2a, 0x12, 0x89,
-	0xcc, 0xd5, 0x36, 0xee, 0x84, 0x91, 0x3a, 0x1c, 0x74, 0xbd, 0x40, 0xf4, 0x3b, 0x3c, 0x0b, 0x45,
-	0x9a, 0x89, 0x87, 0xf4, 0x71, 0xd1, 0xd8, 0xcb, 0x8e, 0x41, 0x93, 0x1d, 0xcb, 0x19, 0x6e, 0xf3,
-	0x38, 0x3d, 0xe4, 0xdb, 0x9d, 0x10, 0x13, 0xcc, 0xb8, 0xc2, 0x9e, 0xf1, 0xf6, 0xee, 0xa3, 0xf7,
-	0xa4, 0x17, 0x09, 0xad, 0xde, 0xe7, 0xc1, 0x61, 0x94, 0x60, 0x36, 0x2a, 0xed, 0xfb, 0xa8, 0x78,
-	0x67, 0xf8, 0xb4, 0xd5, 0x6b, 0xe6, 0x84, 0x44, 0x75, 0x07, 0x07, 0x1d, 0xec, 0xa7, 0x6a, 0x94,
-	0x0b, 0x5d, 0x17, 0x16, 0xfd, 0x1c, 0xf7, 0xb3, 0x01, 0x66, 0x23, 0xc6, 0x60, 0x36, 0xe1, 0x7d,
-	0x74, 0x6a, 0x9b, 0xb5, 0xf3, 0x0b, 0x3e, 0x7d, 0xbb, 0x02, 0x96, 0xf6, 0x51, 0xdd, 0xee, 0xf3,
-	0x10, 0x73, 0x25, 0x07, 0x8a, 0xeb, 0x1b, 0xbd, 0x82, 0x64, 0x67, 0x61, 0x21, 0x10, 0x89, 0xe2,
-	0xfa, 0x68, 0xce, 0x0c, 0xc9, 0x4a, 0x06, 0x3b, 0x0d, 0x8d, 0x48, 0x7b, 0x71, 0xea, 0x24, 0xc9,
-	0x09, 0xb6, 0x0a, 0x75, 0xc5, 0x43, 0x67, 0x96, 0x78, 0xfa, 0xd3, 0xdd, 0x81, 0x85, 0xcf, 0x93,
-	0x9e, 0x78, 0x16, 0xd8, 0x06, 0x34, 0x33, 0x1c, 0x46, 0x32, 0x12, 0x09, 0x61, 0xd5, 0x7d, 0x4b,
-	0xbb, 0x0f, 0x60, 0xcd, 0xdc, 0xeb, 0x2e, 0x57, 0xc1, 0xe1, 0xee, 0x10, 0x13, 0xa5, 0x2f, 0xa7,
-	0x46, 0xa9, 0xbd, 0x9c, 0xfe, 0x66, 0x97, 0xa1, 0x65, 0xfc, 0xdd, 0x4e, 0x0e, 0x04, 0xf9, 0x69,
-	0x5d, 0x3a, 0xed, 0x15, 0xd9, 0xf6, 0x4b, 0x99, 0x5f, 0x55, 0x74, 0x2f, 0xc2, 0xd2, 0x27, 0xbc,
-	0x8f, 0x32, 0xe5, 0x01, 0x6a, 0x86, 0xbe, 0x7a, 0x52, 0x30, 0x0c, 0x42, 0xc9, 0x70, 0x6f, 0xc0,
-	0x4a, 0xc5, 0xd5, 0x9d, 0x48, 0x2a, 0xb6, 0x05, 0xcd, 0x22, 0xe5, 0x4e, 0x6d, 0xb3, 0x3e, 0x15,
-	0xd6, 0x6a, 0xb9, 0x57, 0xa0, 0xf5, 0x05, 0x66, 0xfa, 0x7e, 0x84, 0x78, 0x1e, 0x56, 0x0a, 0x91,
-	0x61, 0x1b, 0xdc, 0x49, 0xb6, 0xfb, 0xfd, 0x1c, 0xb4, 0x2a, 0x2e, 0xd9, 0x1e, 0x80, 0xe8, 0x3e,
-	0xc4, 0x40, 0x7d, 0x8c, 0x8a, 0x93, 0x51, 0xeb, 0xd2, 0x96, 0x97, 0x57, 0x97, 0x57, 0xad, 0x2e,
-	0x2f, 0x7d, 0x14, 0x6a, 0x86, 0xf4, 0x74, 0x75, 0x79, 0xc3, 0x6d, 0xef, 0x53, 0x6b, 0xe7, 0x57,
-	0x7c, 0xb0, 0x75, 0x98, 0x93, 0x8a, 0xab, 0x81, 0x34, 0x59, 0x37, 0x94, 0xce, 0x5e, 0x1f, 0xa5,
-	0x2c, 0x93, 0x5e, 0x90, 0x3a, 0x19, 0x51, 0x20, 0x12, 0x93, 0x77, 0xfa, 0xd6, 0x19, 0x95, 0x4a,
-	0xd7, 0x6e, 0x38, 0x72, 0x1a, 0xc4, 0xb7, 0xb4, 0xd6, 0x97, 0x0a, 0x53, 0x67, 0x2e, 0xd7, 0xd7,
-	0xdf, 0x3a, 0xe6, 0x12, 0xd5, 0x5d, 0x8c, 0xc2, 0x43, 0xe5, 0xcc, 0xe7, 0x31, 0xb7, 0x0c, 0xe6,
-	0xc2, 0x22, 0x0f, 0xd4, 0x80, 0xc7, 0x46, 0xa1, 0x49, 0x0a, 0x63, 0x3c, 0x5d, 0x92, 0x19, 0xf2,
-	0xde, 0xc8, 0x59, 0xd8, 0xac, 0x9d, 0x6f, 0xf8, 0x39, 0xa1, 0x4f, 0x1d, 0x0c, 0xb2, 0x0c, 0x13,
-	0xe5, 0x00, 0xf1, 0x0b, 0x52, 0x4b, 0x7a, 0x28, 0xa3, 0x0c, 0x7b, 0x4e, 0x2b, 0x97, 0x18, 0x52,
-	0x4b, 0x06, 0x69, 0x4f, 0xf7, 0x9d, 0xb3, 0x98, 0x4b, 0x0c, 0xa9, 0x4f, 0xc9, 0x87, 0x3c, 0x8a,
-	0x79, 0x37, 0x46, 0x67, 0x89, 0x64, 0x25, 0x83, 0x6d, 0x42, 0x2b, 0x43, 0xa9, 0x78, 0xa6, 0xb0,
-	0xb7, 0xa3, 0x9c, 0x65, 0x3a, 0x64, 0x95, 0xc5, 0xda, 0x00, 0xa6, 0xa7, 0x75, 0x8a, 0x57, 0x48,
-	0xa1, 0xc2, 0x61, 0x57, 0xb5, 0x87, 0x34, 0x8e, 0x02, 0xbe, 0x8f, 0x4a, 0x3a, 0xab, 0x54, 0x4b,
-	0x67, 0xca, 0x5a, 0xb2, 0x32, 0x53, 0xc5, 0xa5, 0xae, 0x36, 0xc5, 0xaf, 0x52, 0xcc, 0xa2, 0x3e,
-	0x26, 0x4a, 0x3a, 0x6b, 0x13, 0xa6, 0xbb, 0x56, 0x96, 0x9b, 0x56, 0x74, 0xd9, 0x35, 0x58, 0xe4,
-	0x09, 0x8f, 0x47, 0x32, 0x92, 0xfe, 0x20, 0x91, 0x0e, 0x23, 0x5b, 0xc7, 0xda, 0xee, 0x94, 0x42,
-	0x32, 0x1e, 0xd3, 0x66, 0x97, 0x01, 0xec, 0x5c, 0x90, 0xce, 0x29, 0xb2, 0x5d, 0xb7, 0xb6, 0x37,
-	0x0a, 0x11, 0x59, 0x56, 0x34, 0xd9, 0x97, 0xd0, 0xd0, 0x99, 0x97, 0xce, 0x69, 0x32, 0xf9, 0xd0,
-	0x2b, 0x07, 0xac, 0x57, 0x0c, 0x58, 0xfa, 0x78, 0x50, 0xf4, 0x40, 0x59, 0xc2, 0x96, 0x53, 0x0c,
-	0x58, 0xef, 0x06, 0x4f, 0x78, 0x36, 0xda, 0x57, 0x98, 0xfa, 0xb9, 0x5b, 0xf7, 0xc7, 0x19, 0x58,
-	0x1e, 0xbf, 0xf5, 0x3f, 0xd0, 0x2c, 0x45, 0xe9, 0xcf, 0x8c, 0x97, 0xbe, 0x1d, 0x66, 0x75, 0xaa,
-	0x11, 0x4b, 0x57, 0x9a, 0x6b, 0x76, 0x5a, 0x73, 0x35, 0xc6, 0x9b, 0x6b, 0xa2, 0x24, 0xe6, 0x9e,
-	0xa3, 0x24, 0x26, 0xf3, 0x3a, 0xff, 0x3c, 0x79, 0x75, 0x7f, 0xa9, 0xc3, 0xf2, 0xb8, 0xf7, 0x7f,
-	0x71, 0xd8, 0x14, 0x71, 0xad, 0x4f, 0x89, 0xeb, 0xec, 0x89, 0x71, 0xd5, 0x5d, 0xa9, 0xc3, 0xd7,
-	0xf4, 0x0d, 0xa5, 0xf9, 0x01, 0x55, 0x06, 0x0d, 0x9b, 0xa6, 0x6f, 0x28, 0xcd, 0xe7, 0x81, 0x8a,
-	0x86, 0x48, 0xb3, 0xa6, 0xe9, 0x1b, 0x4a, 0xe7, 0x21, 0xd5, 0x4e, 0xf1, 0x31, 0xcd, 0x98, 0xa6,
-	0x5f, 0x90, 0x39, 0x3a, 0x45, 0x43, 0x9a, 0x09, 0x63, 0xe9, 0xf1, 0xb1, 0x00, 0x93, 0x63, 0x61,
-	0x03, 0x9a, 0x0a, 0xfb, 0x69, 0xcc, 0x15, 0xd2, 0xa4, 0x59, 0xf0, 0x2d, 0xcd, 0xde, 0x86, 0x35,
-	0x19, 0xf0, 0x18, 0x6f, 0x8a, 0xc7, 0xc9, 0x4d, 0xe4, 0xbd, 0x38, 0x4a, 0x90, 0x86, 0xce, 0x82,
-	0xff, 0xb4, 0x40, 0x9f, 0x9a, 0x7e, 0x68, 0xa5, 0xb3, 0xb4, 0x59, 0xd7, 0xd1, 0xca, 0x29, 0x76,
-	0x0e, 0x66, 0x53, 0xd1, 0x93, 0xce, 0x32, 0x25, 0x78, 0xd5, 0x26, 0x78, 0x4f, 0xf4, 0x28, 0xb1,
-	0x24, 0x75, 0x7f, 0xa8, 0xc1, 0xbc, 0xe1, 0xbc, 0xe2, 0x4c, 0xda, 0x51, 0x9d, 0x37, 0x81, 0x19,
-	0xd5, 0x14, 0x61, 0x9a, 0x95, 0x92, 0xb2, 0x48, 0x11, 0xce, 0x69, 0xf7, 0x2a, 0x2c, 0x8d, 0x4d,
-	0x92, 0x93, 0xb6, 0x9b, 0x72, 0x29, 0x99, 0xa9, 0x2c, 0x25, 0xee, 0xb7, 0x35, 0x98, 0xff, 0x48,
-	0x74, 0x5f, 0xfd, 0xb5, 0xdd, 0x9f, 0x66, 0x60, 0x65, 0xa2, 0xe7, 0xfe, 0xc3, 0x23, 0xa9, 0x0d,
-	0x20, 0x07, 0x41, 0x80, 0x52, 0x1e, 0x0c, 0x62, 0x93, 0x90, 0x0a, 0x47, 0xdb, 0x1d, 0xf0, 0x28,
-	0xc6, 0x1e, 0xb5, 0x56, 0xc3, 0x37, 0x94, 0xfe, 0xad, 0x8e, 0x92, 0x40, 0x24, 0x41, 0x3c, 0x90,
-	0x45, 0x83, 0x35, 0xfc, 0x31, 0x9e, 0xce, 0x14, 0x66, 0x99, 0xc8, 0xa8, 0xc9, 0x1a, 0x7e, 0x4e,
-	0xe8, 0x32, 0x7e, 0x28, 0xba, 0xba, 0xbd, 0xc6, 0xcb, 0xd8, 0x64, 0xcf, 0x27, 0xe9, 0xa5, 0xdf,
-	0x16, 0x60, 0xd9, 0x6c, 0x40, 0xfb, 0x98, 0x0d, 0xa3, 0x00, 0xd9, 0x3d, 0x80, 0x5b, 0xa8, 0x0c,
-	0x93, 0xfd, 0x6f, 0x72, 0xf7, 0xa2, 0xed, 0x73, 0xe3, 0xc4, 0x95, 0xcc, 0x6d, 0x7f, 0xfd, 0xfb,
-	0x9f, 0xdf, 0xcd, 0x38, 0x6c, 0x9d, 0xd6, 0xfe, 0xe1, 0xb6, 0x7d, 0x24, 0x1c, 0xe9, 0x92, 0x3a,
-	0x66, 0x01, 0x2c, 0xd2, 0xda, 0xf9, 0x42, 0xce, 0xcf, 0x91, 0xf3, 0x36, 0x3b, 0x3b, 0xe9, 0xfc,
-	0xb1, 0x76, 0x69, 0x20, 0xb6, 0x6a, 0xec, 0x3e, 0x2c, 0xea, 0x3d, 0xd2, 0x98, 0x4a, 0xb6, 0xee,
-	0xe5, 0x8b, 0xbe, 0x57, 0x2c, 0xfa, 0xde, 0xae, 0x5e, 0xf4, 0x37, 0x9c, 0x93, 0x50, 0xb4, 0xa5,
-	0xeb, 0x10, 0x12, 0x63, 0xab, 0x13, 0x48, 0x92, 0x21, 0x2c, 0x55, 0x2f, 0x30, 0xdd, 0xf9, 0xc6,
-	0xa4, 0xf3, 0x72, 0xdd, 0x9e, 0x1a, 0x25, 0x99, 0xdf, 0x64, 0xab, 0xc6, 0xee, 0xc1, 0xe2, 0x2d,
-	0x54, 0x76, 0x8f, 0x9e, 0x8a, 0x52, 0x6e, 0x06, 0x63, 0x3b, 0xb7, 0xfb, 0x7f, 0x42, 0x38, 0xc5,
-	0xd6, 0x0a, 0x04, 0xbb, 0x70, 0xb3, 0x50, 0xff, 0x0e, 0xd1, 0x1c, 0x78, 0x46, 0x12, 0xa6, 0x60,
-	0xba, 0x6f, 0x90, 0xef, 0x4d, 0xd6, 0x9e, 0x4c, 0x83, 0x19, 0x2f, 0x45, 0xae, 0x43, 0x58, 0xde,
-	0xcb, 0x44, 0x5f, 0x28, 0x7c, 0xd9, 0x40, 0x69, 0xee, 0xb6, 0x52, 0x54, 0x3b, 0x5d, 0xf1, 0xc2,
-	0xf7, 0x99, 0x5a, 0x56, 0x5c, 0x3b, 0x2d, 0x40, 0xbe, 0xa9, 0xc1, 0xca, 0xbe, 0xed, 0x0a, 0x7a,
-	0xf3, 0xb1, 0x32, 0xfa, 0x63, 0xcf, 0xc0, 0xa9, 0x48, 0xd7, 0x09, 0xe9, 0x1a, 0x7b, 0x7f, 0x12,
-	0x49, 0xa2, 0xea, 0x1c, 0x19, 0xe2, 0xb8, 0x73, 0x64, 0xd7, 0xba, 0xe3, 0xce, 0x11, 0x4d, 0xdd,
-	0x0f, 0x2e, 0x5c, 0x38, 0xee, 0x1c, 0x29, 0x1e, 0x1e, 0xb3, 0x18, 0x5a, 0xfa, 0x09, 0x58, 0xdc,
-	0x95, 0xd9, 0x23, 0xd8, 0x87, 0xe1, 0x54, 0xf8, 0x6d, 0x82, 0x7f, 0x8b, 0xbd, 0x39, 0x09, 0x3f,
-	0x48, 0x7a, 0xa2, 0x8a, 0x5f, 0x0c, 0x33, 0x0a, 0xad, 0x8f, 0x2a, 0x1b, 0xbd, 0xec, 0xd0, 0x66,
-	0xda, 0x69, 0x11, 0xda, 0x3d, 0x98, 0x37, 0xef, 0xb1, 0xa9, 0x75, 0x5e, 0x0e, 0x84, 0xca, 0x3b,
-	0xcf, 0x3d, 0x43, 0xee, 0xd7, 0xd8, 0x4a, 0xe1, 0x7e, 0x98, 0x0b, 0xaf, 0xef, 0xfe, 0xfc, 0xa4,
-	0x5d, 0xfb, 0xf5, 0x49, 0xbb, 0xf6, 0xc7, 0x93, 0x76, 0xed, 0xfe, 0x95, 0xbf, 0xfd, 0xbf, 0x86,
-	0xf1, 0xff, 0x6c, 0x74, 0xe7, 0xe8, 0x14, 0xef, 0xfc, 0x15, 0x00, 0x00, 0xff, 0xff, 0xa8, 0xc6,
-	0x48, 0xb5, 0xf9, 0x10, 0x00, 0x00,
+	// 1476 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x18, 0xdd, 0x6e, 0x1b, 0x45,
+	0x57, 0x8e, 0xe3, 0xc4, 0x39, 0x76, 0xfe, 0x26, 0x6d, 0xba, 0x9f, 0x1b, 0xf9, 0x8b, 0x96, 0x0a,
+	0xf5, 0x77, 0xdd, 0x14, 0xd4, 0x52, 0x54, 0x2e, 0xfa, 0x13, 0x95, 0x56, 0x05, 0xc2, 0x46, 0x50,
+	0xb5, 0x17, 0x54, 0xe3, 0xf5, 0x89, 0xb3, 0xed, 0x7a, 0x67, 0xbb, 0x33, 0x76, 0xb1, 0xa2, 0xdc,
+	0x20, 0x21, 0x1e, 0x80, 0x87, 0xe0, 0x19, 0xb8, 0xe0, 0x8a, 0x1b, 0xae, 0x10, 0x12, 0x2f, 0x80,
+	0x2a, 0x9e, 0x80, 0x27, 0x40, 0x73, 0x76, 0xf6, 0xc7, 0x8e, 0x0d, 0x69, 0x25, 0x28, 0x57, 0x9e,
+	0xf3, 0x3f, 0x7b, 0xfe, 0xe6, 0x1c, 0xc3, 0x5b, 0xd1, 0xb3, 0x6e, 0x8b, 0x47, 0xbe, 0x17, 0xf8,
+	0x18, 0xaa, 0x56, 0x2c, 0x82, 0x40, 0xf4, 0xb3, 0x5f, 0x27, 0x8a, 0x85, 0x12, 0x6c, 0xde, 0x80,
+	0x8d, 0x8d, 0xae, 0x10, 0xdd, 0x00, 0xb5, 0x40, 0x8b, 0x87, 0xa1, 0x50, 0x5c, 0xf9, 0x22, 0x94,
+	0x09, 0x5b, 0xe3, 0x41, 0xd7, 0x57, 0xfb, 0xfd, 0xb6, 0xe3, 0x89, 0x5e, 0x8b, 0xc7, 0x5d, 0x11,
+	0xc5, 0xe2, 0x29, 0x1d, 0x2e, 0x19, 0x79, 0xd9, 0x32, 0xd6, 0x64, 0x2b, 0xc3, 0x0c, 0xb6, 0x78,
+	0x10, 0xed, 0xf3, 0xad, 0x56, 0x17, 0x43, 0x8c, 0xb9, 0xc2, 0x8e, 0xd1, 0xf6, 0xee, 0xb3, 0xf7,
+	0xa4, 0xe3, 0x0b, 0xcd, 0xde, 0xe3, 0xde, 0xbe, 0x1f, 0x62, 0x3c, 0xcc, 0xe5, 0x7b, 0xa8, 0x78,
+	0x6b, 0x70, 0x54, 0xea, 0xb4, 0xb9, 0x21, 0x41, 0xed, 0xfe, 0x5e, 0x0b, 0x7b, 0x91, 0x1a, 0x26,
+	0x44, 0xdb, 0x86, 0xba, 0x9b, 0xd8, 0xfd, 0xb4, 0x8f, 0xf1, 0x90, 0x31, 0x98, 0x0d, 0x79, 0x0f,
+	0xad, 0xd2, 0x66, 0xe9, 0xec, 0x82, 0x4b, 0x67, 0xfb, 0x39, 0x2c, 0xef, 0xa2, 0xba, 0xd7, 0xe3,
+	0x5d, 0x74, 0xf1, 0x79, 0x1f, 0xa5, 0x62, 0x16, 0xa4, 0x0e, 0x30, 0x9c, 0x29, 0xc8, 0x36, 0x60,
+	0xc1, 0x13, 0xa1, 0xe2, 0xfa, 0x72, 0xd6, 0x0c, 0xd1, 0x72, 0x04, 0x3b, 0x01, 0x15, 0x5f, 0xeb,
+	0xb1, 0xca, 0x44, 0x49, 0x00, 0xb6, 0x02, 0x65, 0xc5, 0xbb, 0xd6, 0x2c, 0xe1, 0xf4, 0xd1, 0xbe,
+	0x0f, 0xec, 0xb3, 0xb0, 0x23, 0xcc, 0xd5, 0xfe, 0xde, 0x6a, 0x03, 0xaa, 0x31, 0x0e, 0x7c, 0xe9,
+	0x8b, 0x90, 0x8c, 0x96, 0xdd, 0x0c, 0xb6, 0x2f, 0xc2, 0xba, 0x8b, 0x32, 0x56, 0x3c, 0x56, 0x63,
+	0xfa, 0x26, 0x7d, 0xec, 0x05, 0x38, 0xb9, 0x13, 0x8b, 0x9e, 0x50, 0x78, 0x0c, 0xe6, 0x73, 0xb0,
+	0x76, 0xb3, 0x2d, 0x8e, 0xa5, 0xf7, 0x1c, 0xac, 0xb9, 0xa8, 0xe2, 0xe1, 0x31, 0x58, 0x9f, 0xc0,
+	0xaa, 0xe1, 0x7a, 0xc8, 0x95, 0xb7, 0xbf, 0x3d, 0xc0, 0x90, 0x18, 0xd5, 0x30, 0xca, 0x18, 0xf5,
+	0x99, 0x5d, 0x85, 0x9a, 0x71, 0xc0, 0xbd, 0x70, 0x4f, 0xd0, 0x87, 0xd7, 0xae, 0x9c, 0x70, 0xd2,
+	0x4c, 0x75, 0x73, 0x9a, 0x5b, 0x64, 0xb4, 0x2f, 0xc1, 0xe2, 0xc7, 0xbc, 0x87, 0x32, 0xe2, 0x1e,
+	0x6a, 0x84, 0x0e, 0x5a, 0x98, 0x22, 0x8c, 0x85, 0x1c, 0x61, 0xdf, 0x86, 0xe5, 0x82, 0xaa, 0x07,
+	0xbe, 0x54, 0xec, 0x32, 0x54, 0xd3, 0x74, 0xb5, 0x4a, 0x9b, 0xe5, 0xa9, 0x66, 0x33, 0x2e, 0xfb,
+	0x1a, 0xd4, 0x3e, 0xc7, 0x58, 0x07, 0x84, 0x2c, 0x9e, 0x85, 0xe5, 0x94, 0x64, 0xd0, 0xc6, 0xee,
+	0x38, 0xda, 0xfe, 0x6e, 0x0e, 0x6a, 0x05, 0x95, 0x6c, 0x07, 0x40, 0xb4, 0x9f, 0xa2, 0xa7, 0x3e,
+	0x42, 0xc5, 0x49, 0xa8, 0x76, 0xe5, 0xb2, 0x93, 0x54, 0x86, 0x53, 0xac, 0x0c, 0x27, 0x7a, 0xd6,
+	0xd5, 0x08, 0xe9, 0xe8, 0xca, 0x70, 0x06, 0x5b, 0xce, 0x27, 0x99, 0x9c, 0x5b, 0xd0, 0xc1, 0xd6,
+	0x61, 0x4e, 0x2a, 0xae, 0xfa, 0xd2, 0xe4, 0xab, 0x81, 0x74, 0xba, 0xf5, 0x50, 0xca, 0x3c, 0x5d,
+	0x53, 0x50, 0x07, 0xc3, 0xf7, 0x44, 0x68, 0x32, 0x96, 0xce, 0x3a, 0x05, 0xa5, 0xd2, 0x75, 0xd7,
+	0x1d, 0x5a, 0x15, 0xc2, 0x67, 0xb0, 0xe6, 0x97, 0x0a, 0x23, 0x6b, 0x2e, 0xe1, 0xd7, 0x67, 0xed,
+	0x73, 0x89, 0xea, 0x21, 0xfa, 0xdd, 0x7d, 0x65, 0xcd, 0x27, 0x3e, 0xcf, 0x10, 0xcc, 0x86, 0x3a,
+	0xf7, 0x54, 0x9f, 0x07, 0x86, 0xa1, 0x4a, 0x0c, 0x23, 0x38, 0x5d, 0x4c, 0x31, 0xf2, 0xce, 0xd0,
+	0x5a, 0xd8, 0x2c, 0x9d, 0xad, 0xb8, 0x09, 0xa0, 0x6f, 0xed, 0xf5, 0xe3, 0x18, 0x43, 0x65, 0x01,
+	0xe1, 0x53, 0x50, 0x53, 0x3a, 0x28, 0xfd, 0x18, 0x3b, 0x56, 0x2d, 0xa1, 0x18, 0x50, 0x53, 0xfa,
+	0x51, 0x47, 0xf7, 0x0c, 0xab, 0x9e, 0x50, 0x0c, 0xa8, 0x6f, 0xc9, 0x07, 0xdc, 0x0f, 0x78, 0x3b,
+	0x40, 0x6b, 0x91, 0x68, 0x39, 0x82, 0x6d, 0x42, 0x2d, 0x46, 0xa9, 0x2b, 0x0b, 0x3b, 0x37, 0x95,
+	0xb5, 0x44, 0x97, 0x2c, 0xa2, 0x58, 0x13, 0xc0, 0xf4, 0x23, 0x1d, 0xe2, 0x65, 0x62, 0x28, 0x60,
+	0xd8, 0x75, 0xad, 0x21, 0x0a, 0x7c, 0x8f, 0xef, 0xa2, 0x92, 0xd6, 0x0a, 0xe5, 0xd2, 0xa9, 0x3c,
+	0x97, 0x32, 0x9a, 0xc9, 0xe2, 0x9c, 0x57, 0x8b, 0xe2, 0x97, 0x11, 0xc6, 0x7e, 0x0f, 0x43, 0x25,
+	0xad, 0xd5, 0x31, 0xd1, 0xed, 0x8c, 0x96, 0x88, 0x16, 0x78, 0xd9, 0x0d, 0xa8, 0xf3, 0x90, 0x07,
+	0x43, 0xe9, 0x4b, 0xb7, 0x1f, 0x4a, 0x8b, 0x91, 0xac, 0x95, 0xc9, 0xde, 0xcc, 0x89, 0x24, 0x3c,
+	0xc2, 0xcd, 0xae, 0x02, 0x64, 0x1d, 0x4d, 0x5a, 0x6b, 0x24, 0xbb, 0x9e, 0xc9, 0xde, 0x4e, 0x49,
+	0x24, 0x59, 0xe0, 0x64, 0x5f, 0x40, 0x45, 0x47, 0x5e, 0x5a, 0x27, 0x48, 0xe4, 0x43, 0x27, 0x7f,
+	0x1c, 0x9c, 0xf4, 0x71, 0xa0, 0xc3, 0x93, 0xb4, 0x06, 0xf2, 0x14, 0xce, 0x30, 0xe9, 0xe3, 0xe0,
+	0xdc, 0xe6, 0x21, 0x8f, 0x87, 0xbb, 0x0a, 0x23, 0x37, 0x51, 0x6b, 0xff, 0x30, 0x03, 0x4b, 0xa3,
+	0x5f, 0xfd, 0x0f, 0x14, 0x4b, 0x9a, 0xfa, 0x33, 0xa3, 0xa9, 0x9f, 0x75, 0xdf, 0x32, 0xe5, 0x48,
+	0x06, 0x17, 0x8a, 0x6b, 0x76, 0x5a, 0x71, 0x55, 0x46, 0x8b, 0x6b, 0x2c, 0x25, 0xe6, 0x5e, 0x21,
+	0x25, 0xc6, 0xe3, 0x3a, 0xff, 0x2a, 0x71, 0xb5, 0x7f, 0x2e, 0xc3, 0xd2, 0xa8, 0xf6, 0x7f, 0xb1,
+	0xd9, 0xa4, 0x7e, 0x2d, 0x4f, 0xf1, 0xeb, 0xec, 0x44, 0xbf, 0xea, 0xaa, 0xd4, 0xee, 0xab, 0xba,
+	0x06, 0xd2, 0x78, 0x8f, 0x32, 0x83, 0x9a, 0x4d, 0xd5, 0x35, 0x90, 0xc6, 0x73, 0x4f, 0xf9, 0x03,
+	0xa4, 0x5e, 0x53, 0x75, 0x0d, 0xa4, 0xe3, 0x10, 0x69, 0xa5, 0xf8, 0x82, 0x7a, 0x4c, 0xd5, 0x4d,
+	0xc1, 0xc4, 0x3a, 0x79, 0x43, 0x9a, 0x0e, 0x93, 0xc1, 0xa3, 0x6d, 0x01, 0xc6, 0xdb, 0x42, 0x03,
+	0xaa, 0x0a, 0x7b, 0x51, 0xc0, 0x15, 0x52, 0xa7, 0x59, 0x70, 0x33, 0x98, 0x5d, 0x84, 0x55, 0xe9,
+	0xf1, 0x00, 0xef, 0x88, 0x17, 0xe1, 0x1d, 0xe4, 0x9d, 0xc0, 0x0f, 0x91, 0x9a, 0xce, 0x82, 0x7b,
+	0x94, 0xa0, 0x6f, 0x4d, 0x23, 0x82, 0xb4, 0x16, 0x37, 0xcb, 0xda, 0x5b, 0x09, 0xc4, 0xce, 0xc0,
+	0x6c, 0x24, 0x3a, 0xd2, 0x5a, 0xa2, 0x00, 0xaf, 0x64, 0x01, 0xde, 0x11, 0x1d, 0x0a, 0x2c, 0x51,
+	0xed, 0xef, 0x4b, 0x30, 0x6f, 0x30, 0x6f, 0x38, 0x92, 0x59, 0xab, 0x4e, 0x8a, 0xc0, 0xb4, 0x6a,
+	0xf2, 0x30, 0xf5, 0x4a, 0x49, 0x51, 0x24, 0x0f, 0x27, 0xb0, 0x7d, 0x1d, 0x16, 0x47, 0x3a, 0xc9,
+	0xa4, 0x49, 0x21, 0x1f, 0xa7, 0x66, 0x0a, 0xe3, 0x94, 0xfd, 0x4d, 0x09, 0xe6, 0xef, 0x8b, 0xf6,
+	0x9b, 0xff, 0x6c, 0xfb, 0xc7, 0x19, 0x58, 0x1e, 0xab, 0xb9, 0xff, 0x70, 0x4b, 0x6a, 0x02, 0xc8,
+	0xbe, 0xe7, 0xa1, 0x94, 0x7b, 0xfd, 0xc0, 0x04, 0xa4, 0x80, 0xd1, 0x72, 0x7b, 0xdc, 0x0f, 0xb0,
+	0x43, 0xa5, 0x55, 0x71, 0x0d, 0xa4, 0xdf, 0x6a, 0x3f, 0xf4, 0x44, 0xe8, 0x05, 0x7d, 0x99, 0x16,
+	0x58, 0xc5, 0x1d, 0xc1, 0xe9, 0x48, 0x61, 0x1c, 0x8b, 0x98, 0x8a, 0xac, 0xe2, 0x26, 0x80, 0x4e,
+	0xe3, 0xa7, 0xa2, 0xad, 0xcb, 0x6b, 0x34, 0x8d, 0x4d, 0xf4, 0x5c, 0xa2, 0x5e, 0xf9, 0x63, 0x01,
+	0x96, 0xcc, 0x04, 0xb4, 0x8b, 0xf1, 0xc0, 0xf7, 0x90, 0x3d, 0x02, 0xb8, 0x8b, 0xe9, 0xd8, 0xc9,
+	0x4e, 0x8e, 0xcf, 0x5e, 0x34, 0xcb, 0x37, 0x26, 0x8e, 0x64, 0x76, 0xf3, 0xab, 0x5f, 0x7f, 0xff,
+	0x76, 0xc6, 0x62, 0xeb, 0xb4, 0xb2, 0x0c, 0xb6, 0xb2, 0x05, 0xe7, 0x40, 0xa7, 0xd4, 0x21, 0xf3,
+	0xa0, 0x4e, 0x63, 0xe7, 0x6b, 0x29, 0x3f, 0x43, 0xca, 0x9b, 0x6c, 0x63, 0xb2, 0xf2, 0xd6, 0x0b,
+	0xad, 0xf9, 0x72, 0x89, 0x3d, 0x86, 0xba, 0x9e, 0x23, 0x8d, 0xa8, 0x64, 0xeb, 0x4e, 0xb2, 0xa4,
+	0x38, 0xe9, 0x92, 0xe2, 0x6c, 0xeb, 0x25, 0xa5, 0x61, 0x4d, 0xb2, 0xa2, 0x25, 0x6d, 0x8b, 0x2c,
+	0x31, 0xb6, 0x32, 0x66, 0x49, 0x32, 0x84, 0xc5, 0xe2, 0x07, 0x4c, 0x57, 0xde, 0x18, 0x57, 0x9e,
+	0x8f, 0xdb, 0x53, 0xbd, 0x24, 0xb3, 0x4f, 0x78, 0x04, 0xf5, 0xbb, 0xa8, 0xb2, 0x39, 0x7a, 0xaa,
+	0x95, 0x7c, 0x32, 0x18, 0x99, 0xb9, 0xed, 0xff, 0x91, 0x85, 0x35, 0xb6, 0x9a, 0x5a, 0xc8, 0x06,
+	0x6e, 0x26, 0xf4, 0x3b, 0x24, 0x0b, 0x0b, 0x0b, 0xfb, 0x7f, 0xe1, 0xf9, 0x9b, 0xb4, 0xca, 0x4c,
+	0x09, 0xc7, 0xdb, 0x64, 0x63, 0xb3, 0xd1, 0x9c, 0x12, 0x0e, 0xd3, 0x6d, 0x58, 0x08, 0x4b, 0xa3,
+	0x4b, 0x0f, 0x6b, 0xe6, 0x2d, 0x75, 0xd2, 0x36, 0xf4, 0x9a, 0xf6, 0xa2, 0x44, 0x17, 0xdb, 0x87,
+	0x7a, 0x71, 0x6f, 0x62, 0x1b, 0xf9, 0x0b, 0x7d, 0x74, 0x9d, 0xfa, 0xeb, 0x54, 0x6b, 0x4c, 0x4b,
+	0x35, 0xae, 0x35, 0xb1, 0xaf, 0x4b, 0xb4, 0xbc, 0xa6, 0x82, 0xb4, 0x6e, 0xe6, 0x49, 0x35, 0xb6,
+	0xd6, 0x4e, 0xb1, 0x74, 0x8b, 0x2c, 0xdd, 0x68, 0xbc, 0x7f, 0xc4, 0x92, 0x39, 0x1c, 0xb6, 0x24,
+	0xaa, 0xd6, 0x41, 0x36, 0xea, 0x1d, 0xb6, 0x0e, 0xa8, 0x13, 0x7f, 0x70, 0xfe, 0xfc, 0x61, 0xeb,
+	0x40, 0xf1, 0xee, 0x21, 0x93, 0x50, 0x2b, 0x2c, 0xb4, 0xec, 0x74, 0x66, 0xe8, 0xe8, 0x9a, 0x3b,
+	0xe5, 0x16, 0x5b, 0x74, 0x8b, 0x0b, 0x8d, 0x73, 0xd3, 0x6f, 0xd1, 0x0f, 0x3b, 0xa2, 0x75, 0x90,
+	0xf6, 0xb9, 0x43, 0xed, 0xe6, 0xe2, 0xce, 0x59, 0x70, 0xf3, 0x84, 0x55, 0xf4, 0x35, 0xdd, 0x1c,
+	0x6b, 0x4d, 0x6c, 0x07, 0xe6, 0xcd, 0xbe, 0x36, 0xb5, 0x0e, 0x72, 0xf5, 0x85, 0x3d, 0xd0, 0x3e,
+	0x45, 0xea, 0x57, 0xd9, 0x72, 0xaa, 0x7e, 0x90, 0x10, 0x6f, 0x6d, 0xff, 0xf4, 0xb2, 0x59, 0xfa,
+	0xe5, 0x65, 0xb3, 0xf4, 0xdb, 0xcb, 0x66, 0xe9, 0xf1, 0xb5, 0x63, 0xff, 0x8f, 0x32, 0xfa, 0xaf,
+	0x4d, 0x7b, 0x8e, 0x6e, 0xf1, 0xce, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x4e, 0xf6, 0xa8, 0xf8,
+	0xd5, 0x11, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1278,18 +1474,17 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RolloutServiceClient interface {
-	// Get returns a rollout
 	GetRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*RolloutInfo, error)
 	WatchRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (RolloutService_WatchRolloutClient, error)
 	ListRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*RolloutInfoList, error)
 	WatchRollouts(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (RolloutService_WatchRolloutsClient, error)
 	GetNamespace(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*NamespaceInfo, error)
-	RestartRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error)
-	PromoteRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error)
-	AbortRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error)
-	SetRolloutImage(ctx context.Context, in *SetImageQuery, opts ...grpc.CallOption) (*empty.Empty, error)
-	UndoRollout(ctx context.Context, in *UndoQuery, opts ...grpc.CallOption) (*empty.Empty, error)
-	RetryRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error)
+	RestartRollout(ctx context.Context, in *ResrtartRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
+	PromoteRollout(ctx context.Context, in *PromoteRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
+	AbortRollout(ctx context.Context, in *AbortRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
+	SetRolloutImage(ctx context.Context, in *SetImageRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
+	UndoRollout(ctx context.Context, in *UndoRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
+	RetryRollout(ctx context.Context, in *RetryRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error)
 	Version(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*VersionInfo, error)
 }
 
@@ -1392,8 +1587,8 @@ func (c *rolloutServiceClient) GetNamespace(ctx context.Context, in *empty.Empty
 	return out, nil
 }
 
-func (c *rolloutServiceClient) RestartRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) RestartRollout(ctx context.Context, in *ResrtartRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/RestartRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1401,8 +1596,8 @@ func (c *rolloutServiceClient) RestartRollout(ctx context.Context, in *RolloutQu
 	return out, nil
 }
 
-func (c *rolloutServiceClient) PromoteRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) PromoteRollout(ctx context.Context, in *PromoteRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/PromoteRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1410,8 +1605,8 @@ func (c *rolloutServiceClient) PromoteRollout(ctx context.Context, in *RolloutQu
 	return out, nil
 }
 
-func (c *rolloutServiceClient) AbortRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) AbortRollout(ctx context.Context, in *AbortRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/AbortRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1419,8 +1614,8 @@ func (c *rolloutServiceClient) AbortRollout(ctx context.Context, in *RolloutQuer
 	return out, nil
 }
 
-func (c *rolloutServiceClient) SetRolloutImage(ctx context.Context, in *SetImageQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) SetRolloutImage(ctx context.Context, in *SetImageRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/SetRolloutImage", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1428,8 +1623,8 @@ func (c *rolloutServiceClient) SetRolloutImage(ctx context.Context, in *SetImage
 	return out, nil
 }
 
-func (c *rolloutServiceClient) UndoRollout(ctx context.Context, in *UndoQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) UndoRollout(ctx context.Context, in *UndoRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/UndoRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1437,8 +1632,8 @@ func (c *rolloutServiceClient) UndoRollout(ctx context.Context, in *UndoQuery, o
 	return out, nil
 }
 
-func (c *rolloutServiceClient) RetryRollout(ctx context.Context, in *RolloutQuery, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *rolloutServiceClient) RetryRollout(ctx context.Context, in *RetryRolloutRequest, opts ...grpc.CallOption) (*RolloutInfo, error) {
+	out := new(RolloutInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/RetryRollout", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1457,18 +1652,17 @@ func (c *rolloutServiceClient) Version(ctx context.Context, in *empty.Empty, opt
 
 // RolloutServiceServer is the server API for RolloutService service.
 type RolloutServiceServer interface {
-	// Get returns a rollout
 	GetRollout(context.Context, *RolloutQuery) (*RolloutInfo, error)
 	WatchRollout(*RolloutQuery, RolloutService_WatchRolloutServer) error
 	ListRollouts(context.Context, *empty.Empty) (*RolloutInfoList, error)
 	WatchRollouts(*empty.Empty, RolloutService_WatchRolloutsServer) error
 	GetNamespace(context.Context, *empty.Empty) (*NamespaceInfo, error)
-	RestartRollout(context.Context, *RolloutQuery) (*empty.Empty, error)
-	PromoteRollout(context.Context, *RolloutQuery) (*empty.Empty, error)
-	AbortRollout(context.Context, *RolloutQuery) (*empty.Empty, error)
-	SetRolloutImage(context.Context, *SetImageQuery) (*empty.Empty, error)
-	UndoRollout(context.Context, *UndoQuery) (*empty.Empty, error)
-	RetryRollout(context.Context, *RolloutQuery) (*empty.Empty, error)
+	RestartRollout(context.Context, *ResrtartRolloutRequest) (*RolloutInfo, error)
+	PromoteRollout(context.Context, *PromoteRolloutRequest) (*RolloutInfo, error)
+	AbortRollout(context.Context, *AbortRolloutRequest) (*RolloutInfo, error)
+	SetRolloutImage(context.Context, *SetImageRequest) (*RolloutInfo, error)
+	UndoRollout(context.Context, *UndoRolloutRequest) (*RolloutInfo, error)
+	RetryRollout(context.Context, *RetryRolloutRequest) (*RolloutInfo, error)
 	Version(context.Context, *empty.Empty) (*VersionInfo, error)
 }
 
@@ -1491,22 +1685,22 @@ func (*UnimplementedRolloutServiceServer) WatchRollouts(req *empty.Empty, srv Ro
 func (*UnimplementedRolloutServiceServer) GetNamespace(ctx context.Context, req *empty.Empty) (*NamespaceInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNamespace not implemented")
 }
-func (*UnimplementedRolloutServiceServer) RestartRollout(ctx context.Context, req *RolloutQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) RestartRollout(ctx context.Context, req *ResrtartRolloutRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RestartRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) PromoteRollout(ctx context.Context, req *RolloutQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) PromoteRollout(ctx context.Context, req *PromoteRolloutRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PromoteRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) AbortRollout(ctx context.Context, req *RolloutQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) AbortRollout(ctx context.Context, req *AbortRolloutRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AbortRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) SetRolloutImage(ctx context.Context, req *SetImageQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) SetRolloutImage(ctx context.Context, req *SetImageRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetRolloutImage not implemented")
 }
-func (*UnimplementedRolloutServiceServer) UndoRollout(ctx context.Context, req *UndoQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) UndoRollout(ctx context.Context, req *UndoRolloutRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UndoRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) RetryRollout(ctx context.Context, req *RolloutQuery) (*empty.Empty, error) {
+func (*UnimplementedRolloutServiceServer) RetryRollout(ctx context.Context, req *RetryRolloutRequest) (*RolloutInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetryRollout not implemented")
 }
 func (*UnimplementedRolloutServiceServer) Version(ctx context.Context, req *empty.Empty) (*VersionInfo, error) {
@@ -1614,7 +1808,7 @@ func _RolloutService_GetNamespace_Handler(srv interface{}, ctx context.Context, 
 }
 
 func _RolloutService_RestartRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RolloutQuery)
+	in := new(ResrtartRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1626,13 +1820,13 @@ func _RolloutService_RestartRollout_Handler(srv interface{}, ctx context.Context
 		FullMethod: "/rollout.RolloutService/RestartRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).RestartRollout(ctx, req.(*RolloutQuery))
+		return srv.(RolloutServiceServer).RestartRollout(ctx, req.(*ResrtartRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RolloutService_PromoteRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RolloutQuery)
+	in := new(PromoteRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1644,13 +1838,13 @@ func _RolloutService_PromoteRollout_Handler(srv interface{}, ctx context.Context
 		FullMethod: "/rollout.RolloutService/PromoteRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).PromoteRollout(ctx, req.(*RolloutQuery))
+		return srv.(RolloutServiceServer).PromoteRollout(ctx, req.(*PromoteRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RolloutService_AbortRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RolloutQuery)
+	in := new(AbortRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1662,13 +1856,13 @@ func _RolloutService_AbortRollout_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: "/rollout.RolloutService/AbortRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).AbortRollout(ctx, req.(*RolloutQuery))
+		return srv.(RolloutServiceServer).AbortRollout(ctx, req.(*AbortRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RolloutService_SetRolloutImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetImageQuery)
+	in := new(SetImageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1680,13 +1874,13 @@ func _RolloutService_SetRolloutImage_Handler(srv interface{}, ctx context.Contex
 		FullMethod: "/rollout.RolloutService/SetRolloutImage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).SetRolloutImage(ctx, req.(*SetImageQuery))
+		return srv.(RolloutServiceServer).SetRolloutImage(ctx, req.(*SetImageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RolloutService_UndoRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UndoQuery)
+	in := new(UndoRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1698,13 +1892,13 @@ func _RolloutService_UndoRollout_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: "/rollout.RolloutService/UndoRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).UndoRollout(ctx, req.(*UndoQuery))
+		return srv.(RolloutServiceServer).UndoRollout(ctx, req.(*UndoRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RolloutService_RetryRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RolloutQuery)
+	in := new(RetryRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1716,7 +1910,7 @@ func _RolloutService_RetryRollout_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: "/rollout.RolloutService/RetryRollout",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).RetryRollout(ctx, req.(*RolloutQuery))
+		return srv.(RolloutServiceServer).RetryRollout(ctx, req.(*RetryRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1833,7 +2027,7 @@ func (m *RolloutQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SetImageQuery) Marshal() (dAtA []byte, err error) {
+func (m *SetImageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1843,12 +2037,12 @@ func (m *SetImageQuery) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SetImageQuery) MarshalTo(dAtA []byte) (int, error) {
+func (m *SetImageRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SetImageQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SetImageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1888,7 +2082,7 @@ func (m *SetImageQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *UndoQuery) Marshal() (dAtA []byte, err error) {
+func (m *UndoRolloutRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1898,12 +2092,12 @@ func (m *UndoQuery) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *UndoQuery) MarshalTo(dAtA []byte) (int, error) {
+func (m *UndoRolloutRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *UndoQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *UndoRolloutRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1921,6 +2115,142 @@ func (m *UndoQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.Rollout)
 		copy(dAtA[i:], m.Rollout)
 		i = encodeVarintRollout(dAtA, i, uint64(len(m.Rollout)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ResrtartRolloutRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResrtartRolloutRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResrtartRolloutRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *PromoteRolloutRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PromoteRolloutRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PromoteRolloutRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AbortRolloutRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AbortRolloutRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AbortRolloutRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *RetryRolloutRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RetryRolloutRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RetryRolloutRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -2805,7 +3135,7 @@ func (m *RolloutQuery) Size() (n int) {
 	return n
 }
 
-func (m *SetImageQuery) Size() (n int) {
+func (m *SetImageRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2833,7 +3163,7 @@ func (m *SetImageQuery) Size() (n int) {
 	return n
 }
 
-func (m *UndoQuery) Size() (n int) {
+func (m *UndoRolloutRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2845,6 +3175,70 @@ func (m *UndoQuery) Size() (n int) {
 	}
 	if m.Revision != 0 {
 		n += 1 + sovRollout(uint64(m.Revision))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ResrtartRolloutRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *PromoteRolloutRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *AbortRolloutRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RetryRolloutRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -3339,7 +3733,7 @@ func (m *RolloutQuery) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SetImageQuery) Unmarshal(dAtA []byte) error {
+func (m *SetImageRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3362,10 +3756,10 @@ func (m *SetImageQuery) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SetImageQuery: wiretype end group for non-group")
+			return fmt.Errorf("proto: SetImageRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SetImageQuery: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SetImageRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3521,7 +3915,7 @@ func (m *SetImageQuery) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *UndoQuery) Unmarshal(dAtA []byte) error {
+func (m *UndoRolloutRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3544,10 +3938,10 @@ func (m *UndoQuery) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: UndoQuery: wiretype end group for non-group")
+			return fmt.Errorf("proto: UndoRolloutRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: UndoQuery: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: UndoRolloutRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3601,6 +3995,350 @@ func (m *UndoQuery) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResrtartRolloutRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResrtartRolloutRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResrtartRolloutRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PromoteRolloutRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PromoteRolloutRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PromoteRolloutRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AbortRolloutRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AbortRolloutRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AbortRolloutRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RetryRolloutRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RetryRolloutRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RetryRolloutRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRollout(dAtA[iNdEx:])

@@ -12,16 +12,32 @@ message RolloutQuery {
     string name = 1;
 }
 
-message SetImageQuery {
+message SetImageRequest {
     string rollout = 1;
     string container = 2;
     string image = 3;
     string tag = 4;
 }
 
-message UndoQuery {
+message UndoRolloutRequest {
     string rollout = 1;
     int64 revision = 2;
+}
+
+message ResrtartRolloutRequest {
+    string name = 1;
+}
+
+message PromoteRolloutRequest {
+    string name = 1;
+}
+
+message AbortRolloutRequest {
+    string name = 1;
+}
+
+message RetryRolloutRequest {
+    string name = 1;
 }
 
 message RolloutWatchEvent {
@@ -128,13 +144,12 @@ message AnalysisRunInfo {
 }
 
 service RolloutService {
-    // Get returns a rollout
     rpc GetRollout(RolloutQuery) returns (RolloutInfo) {
         option (google.api.http).get = "/api/v1/rollout/{name}";
     }
 
     rpc WatchRollout(RolloutQuery) returns (stream RolloutInfo) {
-        option (google.api.http).get = "/api/v1/rollout/watch/{name}";
+        option (google.api.http).get = "/api/v1/rollout/{name}/watch";
     }
 
     rpc ListRollouts(google.protobuf.Empty) returns (RolloutInfoList) {
@@ -149,28 +164,28 @@ service RolloutService {
         option (google.api.http).get = "/api/v1/namespace";
     }
 
-    rpc RestartRollout(RolloutQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/restart/{name}";
+    rpc RestartRollout(ResrtartRolloutRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{name}/restart";
     }
 
-    rpc PromoteRollout(RolloutQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/promote/{name}";
+    rpc PromoteRollout(PromoteRolloutRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{name}/promote";
     }
 
-    rpc AbortRollout(RolloutQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/abort/{name}";
+    rpc AbortRollout(AbortRolloutRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{name}/abort";
     }
 
-    rpc SetRolloutImage(SetImageQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/set/{rollout}/{container}/{image=**}/{tag}";
+    rpc SetRolloutImage(SetImageRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{rollout}/set/{container}/{image=**}/{tag}";
     }
 
-    rpc UndoRollout(UndoQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/undo/{rollout}/{revision}";
+    rpc UndoRollout(UndoRolloutRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{rollout}/undo/{revision}";
     }
 
-    rpc RetryRollout(RolloutQuery) returns (google.protobuf.Empty) {
-        option (google.api.http).get = "/api/v1/rollout/retry/{name}";
+    rpc RetryRollout(RetryRolloutRequest) returns (RolloutInfo) {
+        option (google.api.http).put = "/api/v1/rollout/{name}/retry";
     }
 
     rpc Version(google.protobuf.Empty) returns (VersionInfo) {

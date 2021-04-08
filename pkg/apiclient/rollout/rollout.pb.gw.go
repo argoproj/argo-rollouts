@@ -175,7 +175,7 @@ func local_request_RolloutService_GetNamespace_0(ctx context.Context, marshaler 
 }
 
 func request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq ResrtartRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -202,7 +202,7 @@ func request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runt
 }
 
 func local_request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq ResrtartRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -229,7 +229,7 @@ func local_request_RolloutService_RestartRollout_0(ctx context.Context, marshale
 }
 
 func request_RolloutService_PromoteRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq PromoteRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -256,7 +256,7 @@ func request_RolloutService_PromoteRollout_0(ctx context.Context, marshaler runt
 }
 
 func local_request_RolloutService_PromoteRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq PromoteRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -283,7 +283,7 @@ func local_request_RolloutService_PromoteRollout_0(ctx context.Context, marshale
 }
 
 func request_RolloutService_AbortRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq AbortRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -310,7 +310,7 @@ func request_RolloutService_AbortRollout_0(ctx context.Context, marshaler runtim
 }
 
 func local_request_RolloutService_AbortRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq AbortRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -337,7 +337,7 @@ func local_request_RolloutService_AbortRollout_0(ctx context.Context, marshaler 
 }
 
 func request_RolloutService_SetRolloutImage_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq SetImageQuery
+	var protoReq SetImageRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -397,7 +397,7 @@ func request_RolloutService_SetRolloutImage_0(ctx context.Context, marshaler run
 }
 
 func local_request_RolloutService_SetRolloutImage_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq SetImageQuery
+	var protoReq SetImageRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -457,7 +457,7 @@ func local_request_RolloutService_SetRolloutImage_0(ctx context.Context, marshal
 }
 
 func request_RolloutService_UndoRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq UndoQuery
+	var protoReq UndoRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -495,7 +495,7 @@ func request_RolloutService_UndoRollout_0(ctx context.Context, marshaler runtime
 }
 
 func local_request_RolloutService_UndoRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq UndoQuery
+	var protoReq UndoRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -533,7 +533,7 @@ func local_request_RolloutService_UndoRollout_0(ctx context.Context, marshaler r
 }
 
 func request_RolloutService_RetryRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq RetryRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -560,7 +560,7 @@ func request_RolloutService_RetryRollout_0(ctx context.Context, marshaler runtim
 }
 
 func local_request_RolloutService_RetryRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+	var protoReq RetryRolloutRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -683,7 +683,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_RestartRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_RestartRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -703,7 +703,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_PromoteRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_PromoteRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -723,7 +723,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_AbortRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_AbortRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -743,7 +743,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_SetRolloutImage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_SetRolloutImage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -763,7 +763,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_UndoRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_UndoRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -783,7 +783,7 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_RetryRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_RetryRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -964,7 +964,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_RestartRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_RestartRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -984,7 +984,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_PromoteRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_PromoteRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1004,7 +1004,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_AbortRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_AbortRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1024,7 +1024,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_SetRolloutImage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_SetRolloutImage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1044,7 +1044,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_UndoRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_UndoRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1064,7 +1064,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_RetryRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("PUT", pattern_RolloutService_RetryRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -1110,7 +1110,7 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 var (
 	pattern_RolloutService_GetRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "rollout", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_WatchRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "watch", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_WatchRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "watch"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_RolloutService_ListRollouts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "rollouts"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -1118,17 +1118,17 @@ var (
 
 	pattern_RolloutService_GetNamespace_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "namespace"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_RestartRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "restart", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_RestartRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "restart"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_PromoteRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "promote", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_PromoteRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "promote"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_AbortRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "abort", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_AbortRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "abort"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_SetRolloutImage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 2, 1, 0, 4, 1, 5, 4, 3, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "rollout", "set", "container", "image", "tag"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_SetRolloutImage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 3, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "rollout", "set", "container", "image", "tag"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_UndoRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 2, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "undo", "revision"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_UndoRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "undo", "revision"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_RetryRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "retry", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_RetryRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "retry"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_RolloutService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "version"}, "", runtime.AssumeColonVerbOpt(true)))
 )

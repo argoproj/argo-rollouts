@@ -75,7 +75,7 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
 	cmd.Flags().BoolVar(&getOptions.NoColor, "no-color", false, "Do not colorize output")
-	cmd.Flags().IntVar(&getOptions.TimeoutSeconds, "timeout-seconds", -1, "Timeout after specified seconds")
+	cmd.Flags().IntVar(&getOptions.TimeoutSeconds, "timeout-seconds", 0, "Timeout after specified seconds")
 	return cmd
 }
 

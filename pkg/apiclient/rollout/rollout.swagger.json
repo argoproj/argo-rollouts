@@ -33,14 +33,44 @@
         ]
       }
     },
-    "/api/v1/rollout/abort/{name}": {
+    "/api/v1/rollout/{name}": {
       "get": {
+        "operationId": "RolloutService_GetRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rollout.RolloutInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
+    "/api/v1/rollout/{name}/abort": {
+      "put": {
         "operationId": "RolloutService_AbortRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -63,14 +93,14 @@
         ]
       }
     },
-    "/api/v1/rollout/promote/{name}": {
-      "get": {
+    "/api/v1/rollout/{name}/promote": {
+      "put": {
         "operationId": "RolloutService_PromoteRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -93,14 +123,14 @@
         ]
       }
     },
-    "/api/v1/rollout/restart/{name}": {
-      "get": {
+    "/api/v1/rollout/{name}/restart": {
+      "put": {
         "operationId": "RolloutService_RestartRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -123,14 +153,14 @@
         ]
       }
     },
-    "/api/v1/rollout/retry/{name}": {
-      "get": {
+    "/api/v1/rollout/{name}/retry": {
+      "put": {
         "operationId": "RolloutService_RetryRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -153,14 +183,53 @@
         ]
       }
     },
-    "/api/v1/rollout/set/{rollout}/{container}/{image}/{tag}": {
+    "/api/v1/rollout/{name}/watch": {
       "get": {
+        "operationId": "RolloutService_WatchRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/rollout.RolloutInfo"
+                },
+                "error": {
+                  "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
+                }
+              },
+              "title": "Stream result of rollout.RolloutInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
+    "/api/v1/rollout/{rollout}/set/{container}/{image}/{tag}": {
+      "put": {
         "operationId": "RolloutService_SetRolloutImage",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -201,14 +270,14 @@
         ]
       }
     },
-    "/api/v1/rollout/undo/{rollout}/{revision}": {
-      "get": {
+    "/api/v1/rollout/{rollout}/undo/{revision}": {
+      "put": {
         "operationId": "RolloutService_UndoRollout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "properties": {}
+              "$ref": "#/definitions/rollout.RolloutInfo"
             }
           },
           "default": {
@@ -231,76 +300,6 @@
             "required": true,
             "type": "string",
             "format": "int64"
-          }
-        ],
-        "tags": [
-          "RolloutService"
-        ]
-      }
-    },
-    "/api/v1/rollout/watch/{name}": {
-      "get": {
-        "operationId": "RolloutService_WatchRollout",
-        "responses": {
-          "200": {
-            "description": "A successful response.(streaming responses)",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/rollout.RolloutInfo"
-                },
-                "error": {
-                  "$ref": "#/definitions/grpc.gateway.runtime.StreamError"
-                }
-              },
-              "title": "Stream result of rollout.RolloutInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "RolloutService"
-        ]
-      }
-    },
-    "/api/v1/rollout/{name}": {
-      "get": {
-        "summary": "Get returns a rollout",
-        "operationId": "RolloutService_GetRollout",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/rollout.RolloutInfo"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/grpc.gateway.runtime.Error"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "type": "string"
           }
         ],
         "tags": [
