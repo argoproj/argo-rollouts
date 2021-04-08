@@ -38,3 +38,19 @@ data:
   account-id: <newrelic-account-id>
   region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
 ```
+
+To use the New Relic metric provider from behind a proxy, provide a `base-url-rest` key pointing to the base URL of the New Relic REST API for your proxy, and a `base-url-nerdgraph` key pointing to the base URL for NerdGraph for your proxy:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newrelic
+type: Opaque
+data:
+  personal-api-key: <newrelic-personal-api-key>
+  account-id: <newrelic-account-id>
+  region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
+  base-url-rest: <your-base-url>
+  base-url-nerdgraph: <your-base-url>
+```

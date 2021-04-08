@@ -3,11 +3,13 @@ package unstructured
 import (
 	"regexp"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 func StrToUnstructuredUnsafe(jsonStr string) *unstructured.Unstructured {
@@ -34,14 +36,15 @@ func ObjectToRollout(obj interface{}) *v1alpha1.Rollout {
 		var ro v1alpha1.Rollout
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ro)
 		if err != nil {
-			log.Warnf("Failed to convert Rollout from Unstructured object: %v", err)
+			logCtx := logutil.WithUnstructured(un)
+			logCtx.Warnf("Failed to convert Rollout from Unstructured object: %v", err)
 			return nil
 		}
 		return &ro
 	}
 	ro, ok := obj.(*v1alpha1.Rollout)
 	if !ok {
-		log.Warn("Object is neither a rollout or unstructured")
+		log.Warnf("Object is neither a rollout or unstructured: %v", obj)
 	}
 	return ro
 }

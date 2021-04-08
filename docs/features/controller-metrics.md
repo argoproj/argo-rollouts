@@ -1,5 +1,46 @@
 # Controller Metrics
 
+The Argo Rollouts controller is already instrumented with [Prometheus metrics](https://prometheus.io/) available at `/metrics` in port 8090. You can use these metrics to look at the health of the controller either via dashboards or via other Prometheus integrations.
+
+
+## Installing and configuring Prometheus
+
+To take advantage of the metrics you need to have Prometheus installed in your Kubernetes cluster. If you don't have an existing installation of Prometheus
+you can use any of the common methods to install it in your cluster. Popular options include the [Prometheus Helm chart](https://github.com/prometheus-community/helm-charts) or the [Prometheus Operator](https://prometheus-operator.dev/).
+
+Once Prometheus is running in your cluster you need to make sure that it scrapes the Argo Rollouts endpoint. Prometheus already contains a service discovery mechanism
+for Kubernetes, but you need to [configure it first](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config). Depending on your installation method you might need to take additional actions to scrape the Argo Rollouts endpoint.
+
+For example, if you used the Helm chart of Prometheus you need to annotate your Argo Rollouts Controller with the following:
+
+```yaml
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8090"
+```
+
+You can always see if the controller is reached successfully in the Prometheus "Targets" screen:
+
+[![Prometheus Scraping Argo Rollouts metrics](controller-metrics-assets/prometheus-target.png)](controller-metrics-assets/prometheus-target.png)
+
+Once the controller metrics are read by your Prometheus instance, you can use them like any other Prometheus data source.
+
+## Creating Graphana Dashboards
+
+You can easily visualize the metrics from the controller using [Graphana](https://grafana.com/) dashboards. [Install Graphana](https://grafana.com/docs/grafana/latest/installation/kubernetes/) in your cluster and [connect it your Prometheus instance](https://prometheus.io/docs/visualization/grafana/).
+Then you can create any dashboard by using the available metrics (described in detail in the next sections).
+
+As a starting point you can find an existing dashboard at [https://github.com/argoproj/argo-rollouts/blob/master/examples/dashboard.json](https://github.com/argoproj/argo-rollouts/blob/master/examples/dashboard.json)
+
+[![Example Graphana Dashboard](controller-metrics-assets/argo-rollouts-metrics.png)](controller-metrics-assets/argo-rollouts-metrics.png)
+
+You can import this Dashboard in your Graphana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard). 
+
+
+## Available metrics for Rollout Objects
+
 The Argo Rollouts controller publishes the following prometheus metrics about Argo Rollout objects.
 
 | Name                                | Description |
@@ -24,6 +65,8 @@ The Argo Rollouts controller publishes the following prometheus metrics about Ar
 | `analysis_run_reconcile`            | Analysis Run reconciliation performance. |
 | `analysis_run_reconcile_error`      | Error occurring during the analysis run. |
 
+## Available metrics for the controller itself
+
 The controller also publishes the following Prometheus metrics to describe the controller health.
 
 | Name                                          | Description |
@@ -37,4 +80,4 @@ The controller also publishes the following Prometheus metrics to describe the c
 | `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running |
 | `workqueue_retries_total`                     | Total number of retries handled by workqueue |
 
-In additional, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
+In addition, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
