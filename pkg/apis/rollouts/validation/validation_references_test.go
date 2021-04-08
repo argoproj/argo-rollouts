@@ -225,6 +225,17 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Empty(t, allErrs)
 
+		// default value should be fine
+		defaultValue := "value-name"
+		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+			{
+				Name:  "service-name",
+				Value: &defaultValue,
+			},
+		}
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		assert.Empty(t, allErrs)
+
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
 				Name: "service-name",

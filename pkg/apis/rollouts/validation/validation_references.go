@@ -122,20 +122,18 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template Analys
 			}
 		}
 	} else if template.TemplateType == BackgroundAnalysis && len(templateSpec.Args) > 0 {
-		if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.Args == nil {
-			allErrs = append(allErrs, field.Invalid(fldPath, templateName, "missing analysis arguments in rollout spec"))
-			return allErrs
-		}
-
-		if len(rollout.Spec.Strategy.Canary.Analysis.Args) < len(templateSpec.Args) {
-			allErrs = append(allErrs, field.Invalid(fldPath, templateName, "not enough analysis arguments in rollout spec"))
-			return allErrs
-		}
-
 		for _, arg := range templateSpec.Args {
+			if arg.Value != nil || arg.ValueFrom != nil {
+				continue
+			}
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.Args == nil {
+				allErrs = append(allErrs, field.Invalid(fldPath, templateName, "missing analysis arguments in rollout spec"))
+				continue
+			}
+
 			foundArg := false
-			for _, rolloutarg := range rollout.Spec.Strategy.Canary.Analysis.Args {
-				if arg.Name == rolloutarg.Name {
+			for _, rolloutArg := range rollout.Spec.Strategy.Canary.Analysis.Args {
+				if arg.Name == rolloutArg.Name {
 					foundArg = true
 					break
 				}
