@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -165,18 +167,36 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
+func getSecretValue(key, ns string, kubeclientset kubernetes.Interface, emptyValueOk bool) (string, error) {
+	envKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+	if value, ok := os.LookupEnv(fmt.Sprintf("DD_%s", envKey)); ok {
+		return value, nil
+	}
+	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	_, valueMaybe := secret.Data[key]
+	if emptyValueOk && !valueMaybe {
+		return "", nil
+	}
+
+	return string(secret.Data[key]), nil
+}
+
 func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
 	ns := defaults.Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
+	apiKey, err := getSecretValue("api-key", ns, kubeclientset, false)
 	if err != nil {
 		return nil, err
 	}
-
-	apiKey := string(secret.Data["api-key"])
-	appKey := string(secret.Data["app-key"])
-	address := ""
-	if _, hasAddress := secret.Data["address"]; hasAddress {
-		address = string(secret.Data["address"])
+	appKey, err := getSecretValue("app-key", ns, kubeclientset, false)
+	if err != nil {
+		return nil, err
+	}
+	address, err := getSecretValue("address", ns, kubeclientset, true)
+	if err != nil {
+		return nil, err
 	}
 
 	if apiKey != "" && appKey != "" {
