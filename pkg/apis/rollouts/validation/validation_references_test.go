@@ -157,16 +157,18 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate analysisTemplate - success", func(t *testing.T) {
+		rollout := getRollout()
 		template := getAnalysisTemplateWithType()
-		allErrs := ValidateAnalysisTemplateWithType(template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Empty(t, allErrs)
 	})
 
 	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
+		rollout := getRollout()
 		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
 		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
-		allErrs := ValidateAnalysisTemplateWithType(template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Len(t, allErrs, 1)
 		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric-name", count.String())
 		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, msg)
@@ -174,23 +176,81 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	})
 
 	t.Run("validate inline analysisTemplate argument - success", func(t *testing.T) {
+		rollout := getRollout()
 		template := getAnalysisTemplateWithType()
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
 				Name: "service-name",
 			},
 		}
-		allErrs := ValidateAnalysisTemplateWithType(template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate background analysisTemplate - failure", func(t *testing.T) {
+		rollout := getRollout()
+		template := getAnalysisTemplateWithType()
+		template.TemplateType = BackgroundAnalysis
+		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+			{
+				Name: "service-name",
+			},
+		}
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		assert.NotEmpty(t, allErrs)
+
+		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+			RolloutAnalysis: v1alpha1.RolloutAnalysis{
+				Args: []v1alpha1.AnalysisRunArgument{
+					{
+						Name: "a-different-service-name",
+					},
+				},
+			},
+		}
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		assert.NotEmpty(t, allErrs)
+
+		template.AnalysisTemplate.Spec.Args = append(template.AnalysisTemplate.Spec.Args, v1alpha1.Argument{Name: "second-service-name"})
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		assert.NotEmpty(t, allErrs)
+	})
+
+	// verify background analysis matches the arguments in rollout spec
+	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
+		rollout := getRollout()
+
+		template := getAnalysisTemplateWithType()
+		template.TemplateType = BackgroundAnalysis
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		assert.Empty(t, allErrs)
+
+		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+			{
+				Name: "service-name",
+			},
+		}
+		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+			RolloutAnalysis: v1alpha1.RolloutAnalysis{
+				Args: []v1alpha1.AnalysisRunArgument{
+					{
+						Name: "service-name",
+					},
+				},
+			},
+		}
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Empty(t, allErrs)
 	})
 
 	// verify background analysis does not care about a metric that runs indefinitely
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
+		rollout := getRollout()
 		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
 		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
-		allErrs := ValidateAnalysisTemplateWithType(template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Empty(t, allErrs)
 	})
 }
