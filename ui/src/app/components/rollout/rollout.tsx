@@ -29,7 +29,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import {ReplicaSets} from '../pods/pods';
 import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
-import {RolloutAPIContext} from '../../shared/context/api';
+import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {useInput} from '../input/input';
 import {ActionButton} from '../action-button/action-button';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
@@ -114,7 +114,7 @@ export const Rollout = () => {
 
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
-
+    const namespace = React.useContext(NamespaceContext);
     const images = parseImages(rollout.replicaSets || []);
 
     for (const img of images) {
@@ -168,7 +168,7 @@ export const Rollout = () => {
                                 images={images}
                                 containers={rollout.containers || []}
                                 setImage={(container, image, tag) => {
-                                    api.rolloutServiceSetRolloutImage(name, container, image, tag);
+                                    api.rolloutServiceSetRolloutImage({}, namespace, name, container, image, tag);
                                 }}
                             />
                         </ThemeDiv>
@@ -184,7 +184,7 @@ export const Rollout = () => {
                                             key={i}
                                             revision={r}
                                             initCollapsed={false}
-                                            rollback={(r) => api.rolloutServiceUndoRollout(name, `${r}`)}
+                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespace, name, `${r}`)}
                                             current={i === 0}
                                         />
                                     ))}

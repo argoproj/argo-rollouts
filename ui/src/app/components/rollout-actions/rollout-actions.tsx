@@ -1,7 +1,7 @@
 import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
-import {RolloutAPIContext} from '../../shared/context/api';
+import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
 import {ActionButton, ActionButtonProps} from '../action-button/action-button';
 import {RolloutStatus} from '../status-icon/status-icon';
@@ -15,6 +15,7 @@ export enum RolloutAction {
 
 export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
+    const namespace = React.useContext(NamespaceContext);
 
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
 
@@ -65,7 +66,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
         <ActionButton
             {...ap}
             action={() => {
-                ap.action(props.rollout.objectMeta?.name || '');
+                ap.action({}, namespace, props.rollout.objectMeta?.name || '');
                 if (props.callback) {
                     props.callback();
                 }

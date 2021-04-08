@@ -32,8 +32,8 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 var _ = descriptor.ForMessage
 
-func request_RolloutService_GetRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+func request_RolloutService_GetRolloutInfo_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -42,6 +42,17 @@ func request_RolloutService_GetRollout_0(ctx context.Context, marshaler runtime.
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -54,13 +65,13 @@ func request_RolloutService_GetRollout_0(ctx context.Context, marshaler runtime.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
-	msg, err := client.GetRollout(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetRolloutInfo(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_RolloutService_GetRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+func local_request_RolloutService_GetRolloutInfo_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -69,6 +80,17 @@ func local_request_RolloutService_GetRollout_0(ctx context.Context, marshaler ru
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -81,13 +103,13 @@ func local_request_RolloutService_GetRollout_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
-	msg, err := server.GetRollout(ctx, &protoReq)
+	msg, err := server.GetRolloutInfo(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_RolloutService_WatchRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (RolloutService_WatchRolloutClient, runtime.ServerMetadata, error) {
-	var protoReq RolloutQuery
+func request_RolloutService_WatchRolloutInfo_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (RolloutService_WatchRolloutInfoClient, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -96,6 +118,17 @@ func request_RolloutService_WatchRollout_0(ctx context.Context, marshaler runtim
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -108,7 +141,7 @@ func request_RolloutService_WatchRollout_0(ctx context.Context, marshaler runtim
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
-	stream, err := client.WatchRollout(ctx, &protoReq)
+	stream, err := client.WatchRolloutInfo(ctx, &protoReq)
 	if err != nil {
 		return nil, metadata, err
 	}
@@ -121,29 +154,83 @@ func request_RolloutService_WatchRollout_0(ctx context.Context, marshaler runtim
 
 }
 
-func request_RolloutService_ListRollouts_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq empty.Empty
+func request_RolloutService_ListRolloutInfos_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoListQuery
 	var metadata runtime.ServerMetadata
 
-	msg, err := client.ListRollouts(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
+
+	msg, err := client.ListRolloutInfos(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_RolloutService_ListRollouts_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq empty.Empty
+func local_request_RolloutService_ListRolloutInfos_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoListQuery
 	var metadata runtime.ServerMetadata
 
-	msg, err := server.ListRollouts(ctx, &protoReq)
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
+
+	msg, err := server.ListRolloutInfos(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_RolloutService_WatchRollouts_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (RolloutService_WatchRolloutsClient, runtime.ServerMetadata, error) {
-	var protoReq empty.Empty
+func request_RolloutService_WatchRolloutInfos_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (RolloutService_WatchRolloutInfosClient, runtime.ServerMetadata, error) {
+	var protoReq RolloutInfoListQuery
 	var metadata runtime.ServerMetadata
 
-	stream, err := client.WatchRollouts(ctx, &protoReq)
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
+
+	stream, err := client.WatchRolloutInfos(ctx, &protoReq)
 	if err != nil {
 		return nil, metadata, err
 	}
@@ -175,8 +262,16 @@ func local_request_RolloutService_GetNamespace_0(ctx context.Context, marshaler 
 }
 
 func request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runtime.Marshaler, client RolloutServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ResrtartRolloutRequest
+	var protoReq RestartRolloutRequest
 	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 
 	var (
 		val string
@@ -184,6 +279,17 @@ func request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runt
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -202,8 +308,16 @@ func request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runt
 }
 
 func local_request_RolloutService_RestartRollout_0(ctx context.Context, marshaler runtime.Marshaler, server RolloutServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ResrtartRolloutRequest
+	var protoReq RestartRolloutRequest
 	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 
 	var (
 		val string
@@ -211,6 +325,17 @@ func local_request_RolloutService_RestartRollout_0(ctx context.Context, marshale
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -232,12 +357,31 @@ func request_RolloutService_PromoteRollout_0(ctx context.Context, marshaler runt
 	var protoReq PromoteRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -259,12 +403,31 @@ func local_request_RolloutService_PromoteRollout_0(ctx context.Context, marshale
 	var protoReq PromoteRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -286,12 +449,31 @@ func request_RolloutService_AbortRollout_0(ctx context.Context, marshaler runtim
 	var protoReq AbortRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -313,12 +495,31 @@ func local_request_RolloutService_AbortRollout_0(ctx context.Context, marshaler 
 	var protoReq AbortRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -340,12 +541,31 @@ func request_RolloutService_SetRolloutImage_0(ctx context.Context, marshaler run
 	var protoReq SetImageRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["rollout"]
 	if !ok {
@@ -400,12 +620,31 @@ func local_request_RolloutService_SetRolloutImage_0(ctx context.Context, marshal
 	var protoReq SetImageRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["rollout"]
 	if !ok {
@@ -460,12 +699,31 @@ func request_RolloutService_UndoRollout_0(ctx context.Context, marshaler runtime
 	var protoReq UndoRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["rollout"]
 	if !ok {
@@ -498,12 +756,31 @@ func local_request_RolloutService_UndoRollout_0(ctx context.Context, marshaler r
 	var protoReq UndoRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["rollout"]
 	if !ok {
@@ -536,12 +813,31 @@ func request_RolloutService_RetryRollout_0(ctx context.Context, marshaler runtim
 	var protoReq RetryRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -563,12 +859,31 @@ func local_request_RolloutService_RetryRollout_0(ctx context.Context, marshaler 
 	var protoReq RetryRolloutRequest
 	var metadata runtime.ServerMetadata
 
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	var (
 		val string
 		ok  bool
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["namespace"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "namespace")
+	}
+
+	protoReq.Namespace, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "namespace", err)
+	}
 
 	val, ok = pathParams["name"]
 	if !ok {
@@ -609,7 +924,7 @@ func local_request_RolloutService_Version_0(ctx context.Context, marshaler runti
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server RolloutServiceServer) error {
 
-	mux.Handle("GET", pattern_RolloutService_GetRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_GetRolloutInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -618,25 +933,25 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_RolloutService_GetRollout_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_RolloutService_GetRolloutInfo_0(rctx, inboundMarshaler, server, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_GetRollout_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_GetRolloutInfo_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_WatchRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_WatchRolloutInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
 		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 		return
 	})
 
-	mux.Handle("GET", pattern_RolloutService_ListRollouts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_ListRolloutInfos_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -645,18 +960,18 @@ func RegisterRolloutServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_RolloutService_ListRollouts_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_RolloutService_ListRolloutInfos_0(rctx, inboundMarshaler, server, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_ListRollouts_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_ListRolloutInfos_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_WatchRollouts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_WatchRolloutInfos_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
 		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -864,7 +1179,7 @@ func RegisterRolloutServiceHandler(ctx context.Context, mux *runtime.ServeMux, c
 // "RolloutServiceClient" to call the correct interceptors.
 func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client RolloutServiceClient) error {
 
-	mux.Handle("GET", pattern_RolloutService_GetRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_GetRolloutInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -873,18 +1188,18 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RolloutService_GetRollout_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RolloutService_GetRolloutInfo_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_GetRollout_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_GetRolloutInfo_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_WatchRollout_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_WatchRolloutInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -893,18 +1208,18 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RolloutService_WatchRollout_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RolloutService_WatchRolloutInfo_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_WatchRollout_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_WatchRolloutInfo_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_ListRollouts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_ListRolloutInfos_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -913,18 +1228,18 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RolloutService_ListRollouts_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RolloutService_ListRolloutInfos_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_ListRollouts_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_ListRolloutInfos_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_RolloutService_WatchRollouts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_RolloutService_WatchRolloutInfos_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -933,14 +1248,14 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RolloutService_WatchRollouts_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RolloutService_WatchRolloutInfos_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_RolloutService_WatchRollouts_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_RolloutService_WatchRolloutInfos_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1108,39 +1423,39 @@ func RegisterRolloutServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_RolloutService_GetRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "rollout", "name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_GetRolloutInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "name", "info"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_WatchRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "watch"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_WatchRolloutInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "rollouts", "namespace", "name", "info", "watch"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_ListRollouts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "rollouts"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_ListRolloutInfos_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollouts", "namespace", "info"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_WatchRollouts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "rollouts", "watch"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_WatchRolloutInfos_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "info", "watch"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_RolloutService_GetNamespace_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "namespace"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_RestartRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "restart"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_RestartRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "name", "restart"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_PromoteRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "promote"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_PromoteRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "name", "promote"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_AbortRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "abort"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_AbortRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "name", "abort"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_SetRolloutImage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 3, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "rollout", "set", "container", "image", "tag"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_SetRolloutImage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 3, 0, 4, 1, 5, 7, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "rollouts", "namespace", "rollout", "set", "container", "image", "tag"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_UndoRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rollout", "undo", "revision"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_UndoRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "rollouts", "namespace", "rollout", "undo", "revision"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RolloutService_RetryRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "rollout", "name", "retry"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RolloutService_RetryRollout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "rollouts", "namespace", "name", "retry"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_RolloutService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "version"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
-	forward_RolloutService_GetRollout_0 = runtime.ForwardResponseMessage
+	forward_RolloutService_GetRolloutInfo_0 = runtime.ForwardResponseMessage
 
-	forward_RolloutService_WatchRollout_0 = runtime.ForwardResponseStream
+	forward_RolloutService_WatchRolloutInfo_0 = runtime.ForwardResponseStream
 
-	forward_RolloutService_ListRollouts_0 = runtime.ForwardResponseMessage
+	forward_RolloutService_ListRolloutInfos_0 = runtime.ForwardResponseMessage
 
-	forward_RolloutService_WatchRollouts_0 = runtime.ForwardResponseStream
+	forward_RolloutService_WatchRolloutInfos_0 = runtime.ForwardResponseStream
 
 	forward_RolloutService_GetNamespace_0 = runtime.ForwardResponseMessage
 

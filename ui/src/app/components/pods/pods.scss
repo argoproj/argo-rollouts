@@ -15,7 +15,7 @@ $POD_SIZE: 30px;
     }
     &__container {
         margin-top: 10px;
-        border: 1px solid $argo-color-gray-5;
+        // border: 1px solid $argo-color-gray-5;
         display: flex;
         align-items: center;
         border-radius: 3px;
@@ -46,12 +46,12 @@ $POD_SIZE: 30px;
     cursor: pointer;
 
     &--success {
-        background-color: $grass;
+        background-color: $argo-success-color;
         color: white;
-        border: 1px solid $grass;
+        border: 1px solid $argo-success-color;
         &:hover {
-            background-color: $leaf;
-            border-color: $leaf;
+            background-color: $argo-success-color-dark;
+            border-color: $argo-success-color-dark;
         }
     }
 

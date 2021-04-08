@@ -8,8 +8,13 @@ import "google/protobuf/empty.proto";
 
 package rollout;
 
-message RolloutQuery {
+message RolloutInfoQuery {
     string name = 1;
+    string namespace = 2;
+}
+
+message RolloutInfoListQuery {
+    string namespace = 1;
 }
 
 message SetImageRequest {
@@ -17,27 +22,33 @@ message SetImageRequest {
     string container = 2;
     string image = 3;
     string tag = 4;
+    string namespace = 5;
 }
 
 message UndoRolloutRequest {
     string rollout = 1;
     int64 revision = 2;
+    string namespace = 3;
 }
 
-message ResrtartRolloutRequest {
+message RestartRolloutRequest {
     string name = 1;
+    string namespace = 2;
 }
 
 message PromoteRolloutRequest {
     string name = 1;
+    string namespace = 2;
 }
 
 message AbortRolloutRequest {
     string name = 1;
+    string namespace = 2;
 }
 
 message RetryRolloutRequest {
     string name = 1;
+    string namespace = 2;
 }
 
 message RolloutWatchEvent {
@@ -144,48 +155,66 @@ message AnalysisRunInfo {
 }
 
 service RolloutService {
-    rpc GetRollout(RolloutQuery) returns (RolloutInfo) {
-        option (google.api.http).get = "/api/v1/rollout/{name}";
+    rpc GetRolloutInfo(RolloutInfoQuery) returns (RolloutInfo) {
+        option (google.api.http).get = "/api/v1/rollouts/{namespace}/{name}/info";
     }
 
-    rpc WatchRollout(RolloutQuery) returns (stream RolloutInfo) {
-        option (google.api.http).get = "/api/v1/rollout/{name}/watch";
+    rpc WatchRolloutInfo(RolloutInfoQuery) returns (stream RolloutInfo) {
+        option (google.api.http).get = "/api/v1/rollouts/{namespace}/{name}/info/watch";
     }
 
-    rpc ListRollouts(google.protobuf.Empty) returns (RolloutInfoList) {
-        option (google.api.http).get = "/api/v1/rollouts";
+    rpc ListRolloutInfos(RolloutInfoListQuery) returns (RolloutInfoList) {
+        option (google.api.http).get = "/api/v1/rollouts/{namespace}/info";
     }
 
-    rpc WatchRollouts(google.protobuf.Empty) returns (stream RolloutWatchEvent) {
-        option (google.api.http).get = "/api/v1/rollouts/watch";
+    rpc WatchRolloutInfos(RolloutInfoListQuery) returns (stream RolloutWatchEvent) {
+        option (google.api.http).get = "/api/v1/rollouts/{namespace}/info/watch";
     }
 
     rpc GetNamespace(google.protobuf.Empty) returns (NamespaceInfo) {
         option (google.api.http).get = "/api/v1/namespace";
     }
 
-    rpc RestartRollout(ResrtartRolloutRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{name}/restart";
+    rpc RestartRollout(RestartRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/restart"
+            body: "*"
+        };
     }
 
-    rpc PromoteRollout(PromoteRolloutRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{name}/promote";
+    rpc PromoteRollout(PromoteRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/promote"
+            body: "*"
+        };
     }
 
-    rpc AbortRollout(AbortRolloutRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{name}/abort";
+    rpc AbortRollout(AbortRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/abort"
+            body: "*"
+        };
     }
 
-    rpc SetRolloutImage(SetImageRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{rollout}/set/{container}/{image=**}/{tag}";
+    rpc SetRolloutImage(SetImageRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{rollout}/set/{container}/{image=**}/{tag}"
+            body: "*"
+        };
     }
 
-    rpc UndoRollout(UndoRolloutRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{rollout}/undo/{revision}";
+    rpc UndoRollout(UndoRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{rollout}/undo/{revision}"
+            body: "*"
+        };
     }
 
-    rpc RetryRollout(RetryRolloutRequest) returns (RolloutInfo) {
-        option (google.api.http).put = "/api/v1/rollout/{name}/retry";
+    rpc RetryRollout(RetryRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/retry"
+            body: "*"
+        };
     }
 
     rpc Version(google.protobuf.Empty) returns (VersionInfo) {

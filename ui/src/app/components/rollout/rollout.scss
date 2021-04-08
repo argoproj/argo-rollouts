@@ -61,11 +61,11 @@
         }
 
         &--complete > &__background {
-            border: 2px solid $lime;
+            border: 2px solid $argo-success-color;
         }
 
         &--complete:hover > &__background {
-            border: 2px solid $lime;
+            border: 2px solid $argo-success-color;
         }
 
         &--current > &__background {
@@ -161,7 +161,7 @@
         border-radius: 3px;
         background-color: $argo-color-gray-4;
         &--successful {
-            background-color: $lime;
+            background-color: $argo-success-color;
         }
 
         &--failed {

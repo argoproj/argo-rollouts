@@ -10,21 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
-	rolloutspkg "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
-	"github.com/argoproj/argo-rollouts/utils/json"
-	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -42,6 +27,22 @@ import (
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/set"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/utils/json"
+	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
 
 //go:embed static/*
@@ -138,7 +139,7 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 	opts = append(opts, grpc.WithInsecure())
 
-	err := rolloutspkg.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
+	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -159,8 +160,8 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
 	grpcS := grpc.NewServer()
-	var rolloutsServer rolloutspkg.RolloutServiceServer = NewServer(s.Options)
-	rolloutspkg.RegisterRolloutServiceServer(grpcS, rolloutsServer)
+	var rolloutsServer rollout.RolloutServiceServer = NewServer(s.Options)
+	rollout.RegisterRolloutServiceServer(grpcS, rolloutsServer)
 	return grpcS
 }
 
@@ -235,12 +236,12 @@ func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*rollout.RolloutInfo, 
 }
 
 // GetRollout returns a rollout
-func (s *ArgoRolloutsServer) GetRollout(c context.Context, q *rollout.RolloutQuery) (*rollout.RolloutInfo, error) {
+func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.RolloutInfoQuery) (*rollout.RolloutInfo, error) {
 	return s.getRolloutInfo(q.GetName())
 }
 
 // WatchRollout returns a rollout stream
-func (s *ArgoRolloutsServer) WatchRollout(q *rollout.RolloutQuery, ws rollout.RolloutService_WatchRolloutServer) error {
+func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
 	ctx := context.Background()
 	controller := s.initRolloutViewController(q.GetName(), ctx)
 
@@ -274,8 +275,8 @@ func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context) ([]*app
 }
 
 // ListRollouts returns a list of all rollouts
-func (s *ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (*rollout.RolloutInfoList, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.RolloutInfoListQuery) (*rollout.RolloutInfoList, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
 
 	if err != nil {
@@ -298,18 +299,14 @@ func (s *ArgoRolloutsServer) ListRollouts(ctx context.Context, e *empty.Empty) (
 	return &rollout.RolloutInfoList{Rollouts: riList}, nil
 }
 
-func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.ResrtartRolloutRequest) (*rollout.RolloutInfo, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.RestartRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	restartAt := time.Now().UTC()
-	ro, err := restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
-	if err != nil {
-		return nil, err
-	}
-	return s.RolloutToRolloutInfo(ro)
+	return restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
 }
 
 // WatchRollouts returns a stream of all rollouts
-func (s *ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutService_WatchRolloutsServer) error {
+func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, ws rollout.RolloutService_WatchRolloutInfosServer) error {
 	send := func(r *rollout.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",
@@ -320,7 +317,7 @@ func (s *ArgoRolloutsServer) WatchRollouts(q *empty.Empty, ws rollout.RolloutSer
 		}
 	}
 	ctx := context.Background()
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 
 	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
 	if err != nil {
@@ -379,47 +376,45 @@ func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (
 	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace}, nil
 }
 
-func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*rollout.RolloutInfo, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	ro, err := promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
-	if err != nil {
-		return nil, err
-	}
-	return s.RolloutToRolloutInfo(ro)
+func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
 }
 
-func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*rollout.RolloutInfo, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
-	ro, err := abort.AbortRollout(rolloutIf, q.GetName())
-	if err != nil {
-		return nil, err
-	}
-	return s.RolloutToRolloutInfo(ro)
+func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	return abort.AbortRollout(rolloutIf, q.GetName())
 }
 
-func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*rollout.RolloutInfo, error) {
+func (s* ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
+	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
+	return rolloutsLister.Get(name)
+}
+
+func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
 	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
-	set.SetImage(s.Options.DynamicClientset, s.Options.Namespace, q.GetRollout(), q.GetContainer(), imageString)
-	return s.getRolloutInfo(q.GetRollout())
+	set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	return s.getRollout(q.GetNamespace(), q.GetRollout())
 }
 
-func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*rollout.RolloutInfo, error) {
-	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(s.Options.Namespace)
+func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
 	_, err := undo.RunUndoRollout(rolloutIf, s.Options.KubeClientset, q.GetRollout(), q.GetRevision())
 	if err != nil {
 		return nil, err
 	}
-	return s.getRolloutInfo(q.GetRollout())
+	return s.getRollout(q.GetNamespace(), q.GetRollout())
 }
 
-func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*rollout.RolloutInfo, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(s.Options.Namespace)
+func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	ro, err := retry.RetryRollout(rolloutIf, q.GetName())
 	if err != nil {
 		return nil, err
 	}
 
-	return s.RolloutToRolloutInfo(ro)
+	return ro, nil
 }
 
 func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*rollout.VersionInfo, error) {

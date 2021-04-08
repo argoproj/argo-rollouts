@@ -8,6 +8,7 @@ import {Rollout} from './components/rollout/rollout';
 import {createBrowserHistory} from 'history';
 import {ThemeProvider} from './shared/context/theme';
 import {ThemeDiv} from './components/theme-div/theme-div';
+import { NamespaceProvider } from './shared/context/api';
 
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
@@ -28,16 +29,18 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean}
 
 const App = () => (
     <ThemeProvider>
-        <Router history={history}>
-            <Switch>
-                <Redirect exact={true} path='/' to='/rollouts' />
+        <NamespaceProvider>
+            <Router history={history}>
+                <Switch>
+                    <Redirect exact={true} path='/' to='/rollouts' />
 
-                <Page exact path='/rollouts' component={<RolloutsList />} />
-                <Page path='/rollout/:name' component={<Rollout />} />
+                    <Page exact path='/rollouts' component={<RolloutsList />} />
+                    <Page path='/rollout/:name' component={<Rollout />} />
 
-                <Redirect path='*' to='/' />
-            </Switch>
-        </Router>
+                    <Redirect path='*' to='/' />
+                </Switch>
+            </Router>
+        </NamespaceProvider>
     </ThemeProvider>
 );
 
