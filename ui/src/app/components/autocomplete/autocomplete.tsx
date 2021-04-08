@@ -5,7 +5,14 @@ import ThemeDiv from '../theme-div/theme-div';
 
 import './autocomplete.scss';
 
-export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> & {items: string[]; inputStyle?: React.CSSProperties; onItemClick?: (item: string) => void}) => {
+export const Autocomplete = (
+    props: React.InputHTMLAttributes<HTMLInputElement> & {
+        items: string[];
+        inputStyle?: React.CSSProperties;
+        onItemClick?: (item: string) => void;
+        inputref?: React.MutableRefObject<any>;
+    }
+) => {
     const [value, setValue] = React.useState((props.value as string) || '');
     const [curItems, setCurItems] = React.useState(props.items || []);
     const inputRef = React.useRef(null);
@@ -88,7 +95,7 @@ export const Autocomplete = (props: React.InputHTMLAttributes<HTMLInputElement> 
             <Input
                 {...trimmedProps}
                 style={props.inputStyle}
-                innerref={inputRef}
+                innerref={props.inputref || inputRef}
                 className={(props.className || '') + ' autocomplete__input'}
                 value={value}
                 onChange={(e) => {

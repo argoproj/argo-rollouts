@@ -8,7 +8,6 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
 
 .rollouts-list {
     display: flex;
-    padding: 20px;
     box-sizing: border-box;
     flex-wrap: wrap;
 
@@ -17,12 +16,45 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         margin: 0 auto;
     }
 
+    &__rollouts-container {
+        padding: 20px;
+        display: flex;
+        flex-wrap: wrap;
+
+        width: 3 * $colWidth;
+        margin: 0 auto;
+
+        @media screen and (max-width: 3 * $colWidth) {
+            width: 2 * $colWidth;
+            margin: 0 auto;
+        }
+
+        @media screen and (max-width: 2 * $colWidth) {
+            width: $colWidth;
+
+            .rollouts-list__widget {
+                margin: 0 inherit;
+                width: 100%;
+            }
+
+            .rollouts-list__search-container {
+                width: 100% !important;
+            }
+        }
+    }
+
+    &__toolbar {
+        width: 100%;
+        padding-top: 1.5em;
+        background-color: white;
+    }
+
     &__widget {
         position: relative;
         box-sizing: border-box;
         padding: 17px;
         font-size: 14px;
-        margin-right: 20px;
+        margin: 0 10px;
         color: $argo-color-gray-7;
         width: $WIDGET_WIDTH;
         height: max-content;
@@ -102,27 +134,6 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             display: flex;
             align-items: center;
             margin-top: 1.5em;
-        }
-    }
-
-    width: 3 * $colWidth;
-    margin: 0 auto;
-
-    @media screen and (max-width: 3 * $colWidth) {
-        width: 2 * $colWidth;
-        margin: 0 auto;
-    }
-
-    @media screen and (max-width: 2 * $colWidth) {
-        width: $colWidth;
-
-        &__widget {
-            margin-right: 0;
-            width: 100%;
-        }
-
-        &__search-container {
-            width: 100% !important;
         }
     }
 }

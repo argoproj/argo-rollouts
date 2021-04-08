@@ -15,6 +15,7 @@ import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
 import {Autocomplete} from '../autocomplete/autocomplete';
 import {useInput} from '../input/input';
+import {useClickOutside} from '../../shared/utils/utils';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
@@ -50,7 +51,6 @@ export const RolloutsList = () => {
 
     useKeyPress(Key.SLASH, () => {
         if (!searchString) {
-            alert('Hello!');
             if (searchInput.ref.current) {
                 searchInput.ref.current.focus();
             }
@@ -77,7 +77,7 @@ export const RolloutsList = () => {
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
-                <div style={{width: '100%'}}>
+                <div className='rollouts-list__toolbar'>
                     <div className='rollouts-list__search-container'>
                         <Autocomplete
                             items={rolloutNames}
@@ -86,13 +86,16 @@ export const RolloutsList = () => {
                             inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
                             style={{marginBottom: '1.5em'}}
                             onItemClick={(item) => history.push(`/rollout/${item}`)}
+                            inputref={searchInput.ref}
                             {...searchInput}
                         />
                     </div>
                 </div>
-                {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
-                    <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} />
-                ))}
+                <div className='rollouts-list__rollouts-container'>
+                    {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                        <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
+                    ))}
+                </div>
             </WaitFor>
         </div>
     );
@@ -110,10 +113,12 @@ export const isInProgress = (rollout: RolloutInfo): boolean => {
     return false;
 };
 
-export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean}) => {
+export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void; selected?: boolean}) => {
     const [watching, subscribe] = React.useState(false);
     let rollout = props.rollout;
     useWatchRollout(props.rollout?.objectMeta?.name, watching, null, (r: RolloutInfo) => (rollout = r));
+    const ref = React.useRef(null);
+    useClickOutside(ref, props.deselect);
 
     React.useEffect(() => {
         if (watching) {
@@ -127,7 +132,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; selected?: boolean})
     }, [watching, rollout]);
 
     return (
-        <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}>
+        <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`} innerref={ref}>
             <Link to={`/rollout/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
                 <WidgetHeader
                     rollout={rollout}
