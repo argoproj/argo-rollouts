@@ -3,6 +3,9 @@
 package e2e
 
 import (
+	"fmt"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
@@ -837,4 +841,66 @@ spec:
 		ExpectRevisionPodCount("2", 0).
 		ExpectRevisionPodCount("1", 0).
 		ExpectReplicaCounts(1, 2, 1, 1, 1)
+}
+
+func (s *FunctionalSuite) TestKubectlWaitForPaused() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+      autoPromotionEnabled: false
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		Then().
+		ExpectRollout("Paused", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Paused", fmt.Sprintf("rollout/%s", r.Name))
+			out, err := cmd.CombinedOutput()
+			return err == nil && strings.Contains(string(out), "rollout.argoproj.io/rollout-bluegreen condition met")
+		}).
+		When().
+		PromoteRollout().
+		Then().
+		ExpectRollout("UnPaused", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Paused=False", fmt.Sprintf("rollout/%s", r.Name))
+			return cmd.Run() == nil
+		}).
+		ExpectActiveRevision("2")
 }

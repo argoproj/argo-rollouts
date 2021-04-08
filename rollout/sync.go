@@ -483,34 +483,52 @@ func (c *rolloutContext) cleanupRollouts(oldRSs []*appsv1.ReplicaSet) error {
 // These conditions are needed so that we won't accidentally report lack of progress for resumed rollouts
 // that were paused for longer than progressDeadlineSeconds.
 func (c *rolloutContext) checkPausedConditions() error {
-	cond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
-	pausedCondExists := cond != nil && cond.Reason == conditions.PausedRolloutReason
+	// Progressing condition
+	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
+	progCondPaused := progCond != nil && progCond.Reason == conditions.PausedRolloutReason
 
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
-	var updatedCondition *v1alpha1.RolloutCondition
-	if isPaused && !pausedCondExists {
-		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage)
-	} else if !isPaused && pausedCondExists {
-		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage)
+	abortCondExists := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
+
+	var updatedConditions []*v1alpha1.RolloutCondition
+
+	if (isPaused != progCondPaused) && !abortCondExists {
+		if isPaused {
+			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage))
+		} else {
+			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage))
+		}
 	}
 
-	abortCondExists := cond != nil && cond.Reason == conditions.RolloutAbortedReason
 	if !c.rollout.Status.Abort && abortCondExists {
-		updatedCondition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutRetryReason, conditions.RolloutRetryMessage)
+		updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutRetryReason, conditions.RolloutRetryMessage))
 	}
 
-	if updatedCondition == nil {
+	pauseCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutPaused)
+	pausedCondTrue := pauseCond != nil && pauseCond.Status == corev1.ConditionTrue
+
+	if (isPaused != pausedCondTrue) && !abortCondExists {
+		condStatus := corev1.ConditionFalse
+		if isPaused {
+			condStatus = corev1.ConditionTrue
+		}
+		updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutPaused, condStatus, conditions.PausedRolloutReason, conditions.PausedRolloutMessage))
+	}
+
+	if len(updatedConditions) == 0 {
 		return nil
 	}
 
 	newStatus := c.rollout.Status.DeepCopy()
-	err := c.patchCondition(c.rollout, newStatus, updatedCondition)
+	err := c.patchCondition(c.rollout, newStatus, updatedConditions...)
 	return err
 }
 
-func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, condition *v1alpha1.RolloutCondition) error {
+func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus, conditionList ...*v1alpha1.RolloutCondition) error {
 	ctx := context.TODO()
-	conditions.SetRolloutCondition(newStatus, *condition)
+	for _, condition := range conditionList {
+		conditions.SetRolloutCondition(newStatus, *condition)
+	}
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	logCtx := logutil.WithVersionFields(c.log, r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(

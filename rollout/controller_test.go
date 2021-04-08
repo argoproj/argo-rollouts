@@ -165,6 +165,26 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplica
 	return rs
 }
 
+func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	if !isPaused {
+		status = corev1.ConditionFalse
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            conditions.PausedRolloutMessage,
+		Reason:             conditions.PausedRolloutReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutPaused,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
 func newProgressingCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""
@@ -275,6 +295,16 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 		return fmt.Sprintf("[%s, %s]", availableCondition, progressingCondition)
 	}
 	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
+}
+
+func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, pauseCondition := newPausedCondition(isPaused)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {

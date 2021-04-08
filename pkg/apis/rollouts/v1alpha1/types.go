@@ -639,6 +639,8 @@ const (
 	// RolloutReplicaFailure ReplicaFailure is added in a deployment when one of its pods
 	// fails to be created or deleted.
 	RolloutReplicaFailure RolloutConditionType = "ReplicaFailure"
+	// RolloutPaused means that rollout is in a paused state. It is still progressing at this point.
+	RolloutPaused RolloutConditionType = "Paused"
 )
 
 // RolloutCondition describes the state of a rollout at a certain point.
