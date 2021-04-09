@@ -8,16 +8,16 @@ theme:
   palette:
     primary: teal
 google_analytics:
-- UA-105170809-3
-- auto
+  - UA-105170809-3
+  - auto
 markdown_extensions:
-- codehilite
-- admonition
-- pymdownx.superfences
-- pymdownx.tabbed
-- footnotes
-- toc:
-    permalink: true
+  - codehilite
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - footnotes
+  - toc:
+      permalink: true
 nav:
 - Overview: index.md
 - Installation: installation.md
@@ -28,6 +28,7 @@ nav:
   - NGINX: getting-started/nginx/index.md
   - Istio: getting-started/istio/index.md
   - SMI: getting-started/smi/index.md
+- Dashboard: dashboard.md
 - Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md
@@ -62,6 +63,7 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout.md

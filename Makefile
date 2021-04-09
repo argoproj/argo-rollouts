@@ -18,6 +18,12 @@ E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 1
 
+# go_install,path
+define go_install
+	[ -e ./vendor ] || go mod vendor
+	go install -mod=vendor ./vendor/$(1)
+endef
+
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
   -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \
@@ -48,29 +54,117 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+# protoc,my.proto
+define protoc
+	# protoc $(1)
+    [ -e vendor ] || go mod vendor
+    protoc \
+      -I /usr/local/include \
+      -I . \
+      -I ./vendor \
+      -I ${GOPATH}/src \
+      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.1/gogoproto \
+      -I ${GOPATH}/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.16.0/third_party/googleapis \
+      --gogofast_out=plugins=grpc:${GOPATH}/src \
+      --grpc-gateway_out=logtostderr=true:${GOPATH}/src \
+      --swagger_out=logtostderr=true,fqn_for_swagger_name=true:. \
+      $(1)
+endef
+
+PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
+TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
+
 .PHONY: all
 all: controller image
 
 .PHONY: codegen
-codegen: mocks
+codegen: protogen mocks
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
+
+LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-rollouts
+
+install-codegen-tools: 
+	sudo ./hack/install-codegen-go-tools.sh
+
+.PHONY: ensure-gopath
+ensure-gopath:
+ifneq ("$(PWD)","$(LEGACY_PATH)")
+	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
+	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
+	@exit 1
+endif
+
+UI_PROTOGEN_CMD=yarn --cwd ui run protogen
+.PHONY: protogen
+protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json 
+	rm -Rf vendor
+	go mod tidy
+	${UI_PROTOGEN_CMD}
+
+$(GOPATH)/bin/controller-gen:
+	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen)
+
+$(GOPATH)/bin/go-to-protobuf:
+	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf)
+
+$(GOPATH)/bin/protoc-gen-gogo:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo)
+
+$(GOPATH)/bin/protoc-gen-gogofast:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast)
+
+$(GOPATH)/bin/protoc-gen-grpc-gateway:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
+
+$(GOPATH)/bin/protoc-gen-swagger:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger)
+
+$(GOPATH)/bin/openapi-gen:
+	$(call go_install,k8s.io/kube-openapi/cmd/openapi-gen)
+
+$(GOPATH)/bin/swagger:
+	$(call go_install,github.com/go-swagger/go-swagger/cmd/swagger)
+
+$(GOPATH)/bin/goimports:
+	$(call go_install,golang.org/x/tools/cmd/goimports)
+
+APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
+
+pkg/apis/rollouts/v1alpha1/generated.proto: $(GOPATH)/bin/go-to-protobuf $(PROTO_BINARIES) $(TYPES)
+	[ -e vendor ] || go mod vendor
+	${GOPATH}/bin/go-to-protobuf \
+		--go-header-file=./hack/custom-boilerplate.go.txt \
+		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--apimachinery-packages=${APIMACHINERY_PKGS} \
+		--proto-import $(CURDIR)/vendor
+	touch pkg/apis/rollouts/v1alpha1/generated.proto
+
+pkg/apiclient/rollout/rollout.swagger.json: $(PROTO_BINARIES) $(TYPES) pkg/apiclient/rollout/rollout.proto
+	$(call protoc,pkg/apiclient/rollout/rollout.proto)
 
 .PHONY: controller
 controller: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
 .PHONY: plugin
-plugin:
+plugin: ui/dist
+	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
+ui/dist:
+	yarn --cwd ui install
+	yarn --cwd ui build
+
 .PHONY: plugin-linux
-plugin-linux:
+plugin-linux: ui/dist
+	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-darwin
-plugin-darwin:
+plugin-darwin: ui/dist
+	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-docs

@@ -1,0 +1,33 @@
+@import '../../shared/styles/colors.scss';
+
+.input-container {
+    min-width: 0;
+    box-sizing: border-box;
+    .input {
+        box-sizing: border-box;
+        width: 100%;
+        appearance: none;
+        border-radius: 5px;
+        padding: 7px 10px;
+        background-color: $argo-color-gray-3;
+        border: 1px solid $argo-color-gray-5;
+        color: $argo-color-gray-7;
+        min-width: 0;
+    }
+
+    input::placeholder {
+        color: $argo-color-gray-6;
+    }
+
+    &--dark {
+        .input {
+            background-color: $space;
+            border: 1px solid $silver-lining;
+            color: $shine;
+        }
+
+        input::placeholder {
+            color: $dull-shine;
+        }
+    }
+}

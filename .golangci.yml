@@ -1,5 +1,7 @@
 run:
   deadline: 1m
+  skip-files:
+    - ".*\\.pb\\.go"
   skip-dirs:
     - pkg/client
   modules-download-mode: readonly

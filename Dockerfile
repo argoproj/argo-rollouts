@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.15.8 as builder
+FROM golang:1.16.1 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -24,21 +24,57 @@ RUN cd ${GOPATH}/src/dummy && \
     golangci-lint run
 
 ####################################################################################################
+# UI build stage
+####################################################################################################
+FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
+
+WORKDIR /src
+ADD ["ui/package.json", "ui/yarn.lock", "./"]
+
+RUN yarn install
+
+ADD ["ui/", "."]
+
+ARG ARGO_VERSION=latest
+ENV ARGO_VERSION=$ARGO_VERSION
+RUN NODE_ENV='production' yarn build
+
+####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.15.8 as argo-rollouts-build
-
+FROM golang:1.16.1 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
+
 # Copy only go.mod and go.sum files. This way on subsequent docker builds if the
 # dependencies didn't change it won't re-download the dependencies for nothing.
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Copy UI files for plugin build
+COPY --from=argo-rollouts-ui ./src/dist/app ./ui/dist
+
 # Perform the build
 COPY . .
+
+# stop make from trying to re-build this without yarn installed
+RUN touch ui/dist/node_modules.marker
+RUN mkdir ui/dist/app
+RUN touch ui/dist/app/index.html
+
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
 
+####################################################################################################
+# Kubectl plugin image
+####################################################################################################
+FROM scratch as kubectl-argo-rollouts
+
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
+
+WORKDIR /home/argo-rollouts
+
+ENTRYPOINT ["/bin/kubectl-argo-rollouts", "dashboard"]
 
 ####################################################################################################
 # Final image

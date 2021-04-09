@@ -5,25 +5,19 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
-type PodInfo struct {
-	Metadata
-	Status   string
-	Icon     string
-	Ready    string
-	Restarts int
-}
-
-func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetInfo {
+func addPodInfos(rsInfos []*rollout.ReplicaSetInfo, allPods []*corev1.Pod) []*rollout.ReplicaSetInfo {
 	var uids []types.UID
 	uidToRSInfoIdx := make(map[types.UID]int)
 	for i, rsInfo := range rsInfos {
-		uids = append(uids, rsInfo.UID)
-		uidToRSInfoIdx[rsInfo.UID] = i
+		uids = append(uids, rsInfo.ObjectMeta.UID)
+		uidToRSInfoIdx[rsInfo.ObjectMeta.UID] = i
 	}
 
 	for _, pod := range allPods {
@@ -34,24 +28,24 @@ func addPodInfos(rsInfos []ReplicaSetInfo, allPods []*corev1.Pod) []ReplicaSetIn
 
 		podInfo := newPodInfo(pod)
 		idx := uidToRSInfoIdx[owner.UID]
-		rsInfos[idx].Pods = append(rsInfos[idx].Pods, podInfo)
+		rsInfos[idx].Pods = append(rsInfos[idx].Pods, &podInfo)
 	}
 
 	for _, rsInfo := range rsInfos {
 		sort.Slice(rsInfo.Pods[:], func(i, j int) bool {
-			if rsInfo.Pods[i].CreationTimestamp != rsInfo.Pods[j].CreationTimestamp {
-				return rsInfo.Pods[i].CreationTimestamp.Before(&rsInfo.Pods[j].CreationTimestamp)
+			if rsInfo.Pods[i].ObjectMeta.CreationTimestamp != rsInfo.Pods[j].ObjectMeta.CreationTimestamp {
+				return rsInfo.Pods[i].ObjectMeta.CreationTimestamp.Before(&rsInfo.Pods[j].ObjectMeta.CreationTimestamp)
 			}
-			return rsInfo.Pods[i].Name < rsInfo.Pods[j].Name
+			return rsInfo.Pods[i].ObjectMeta.Name < rsInfo.Pods[j].ObjectMeta.Name
 		})
 	}
 
 	return rsInfos
 }
 
-func newPodInfo(pod *corev1.Pod) PodInfo {
-	podInfo := PodInfo{
-		Metadata: Metadata{
+func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
+	podInfo := rollout.PodInfo{
+		ObjectMeta: &v1.ObjectMeta{
 			Name:              pod.Name,
 			Namespace:         pod.Namespace,
 			CreationTimestamp: pod.CreationTimestamp,
@@ -131,7 +125,7 @@ func newPodInfo(pod *corev1.Pod) PodInfo {
 	podInfo.Status = reason
 	podInfo.Icon = podIcon(podInfo.Status)
 	podInfo.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
-	podInfo.Restarts = restarts
+	podInfo.Restarts = int32(restarts)
 	return podInfo
 }
 

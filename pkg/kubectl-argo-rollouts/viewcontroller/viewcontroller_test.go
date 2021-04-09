@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,7 +41,7 @@ func TestRolloutController(t *testing.T) {
 	cancel()
 	roInfo, err := c.GetRolloutInfo()
 	assert.NoError(t, err)
-	assert.Equal(t, roInfo.Name, "foo")
+	assert.Equal(t, roInfo.ObjectMeta.Name, "foo")
 }
 
 func TestRolloutControllerCallback(t *testing.T) {
@@ -53,9 +53,9 @@ func TestRolloutControllerCallback(t *testing.T) {
 	}
 
 	callbackCalled := false
-	cb := func(roInfo *info.RolloutInfo) {
+	cb := func(roInfo *rollout.RolloutInfo) {
 		callbackCalled = true
-		assert.Equal(t, roInfo.Name, "foo")
+		assert.Equal(t, roInfo.ObjectMeta.Name, "foo")
 	}
 
 	c := newFakeRolloutController(ro.Namespace, ro.Name, ro)
@@ -89,7 +89,7 @@ func TestExperimentController(t *testing.T) {
 	cancel()
 	roInfo, err := c.GetExperimentInfo()
 	assert.NoError(t, err)
-	assert.Equal(t, roInfo.Name, "foo")
+	assert.Equal(t, roInfo.ObjectMeta.Name, "foo")
 }
 
 func TestExperimentControllerCallback(t *testing.T) {
@@ -101,9 +101,9 @@ func TestExperimentControllerCallback(t *testing.T) {
 	}
 
 	callbackCalled := false
-	cb := func(expInfo *info.ExperimentInfo) {
+	cb := func(expInfo *rollout.ExperimentInfo) {
 		callbackCalled = true
-		assert.Equal(t, expInfo.Name, "foo")
+		assert.Equal(t, expInfo.ObjectMeta.Name, "foo")
 	}
 
 	c := newFakeExperimentController(ro.Namespace, ro.Name, ro)

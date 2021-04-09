@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/spf13/cobra"
@@ -60,9 +60,9 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if !statusOptions.Watch {
 				fmt.Fprintln(o.Out, ri.Status)
 			} else {
-				rolloutUpdates := make(chan *info.RolloutInfo)
+				rolloutUpdates := make(chan *rollout.RolloutInfo)
 				defer close(rolloutUpdates)
-				controller.RegisterCallback(func(roInfo *info.RolloutInfo) {
+				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
 				go statusOptions.WatchStatus(ctx.Done(), cancel, statusOptions.Timeout, rolloutUpdates)
@@ -88,9 +88,9 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.CancelFunc, timeoutSeconds int64, rolloutUpdates chan *info.RolloutInfo) {
+func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.CancelFunc, timeoutSeconds int64, rolloutUpdates chan *rollout.RolloutInfo) {
 	timeout := make(chan bool)
-	var roInfo *info.RolloutInfo
+	var roInfo *rollout.RolloutInfo
 	var preventFlicker time.Time
 
 	if timeoutSeconds != 0 {

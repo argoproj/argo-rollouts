@@ -1,0 +1,10 @@
+@import '../../shared/styles/colors.scss';
+
+.spinner {
+    color: $slate;
+    font-size: 25px;
+
+    &--dark {
+        color: white;
+    }
+}

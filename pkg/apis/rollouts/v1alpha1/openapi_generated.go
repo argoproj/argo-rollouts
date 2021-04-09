@@ -1759,14 +1759,14 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 					"marginal": {
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 				},
@@ -3181,7 +3181,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 					"start": {
@@ -3492,7 +3492,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 						SchemaProps: spec.SchemaProps{
 							Description: "TimeoutSeconds is the timeout for the request in seconds (default: 10)",
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"jsonPath": {
