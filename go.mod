@@ -38,9 +38,8 @@ require (
 	google.golang.org/grpc v1.33.1
 	google.golang.org/grpc/examples v0.0.0-20210331235824-f6bb3972ed15 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	k8s.io/api v0.20.4
-	k8s.io/apiextensions-apiserver v0.19.4
+	k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery v0.20.4
 	k8s.io/apiserver v0.20.4
 	k8s.io/cli-runtime v0.20.4
@@ -52,7 +51,7 @@ require (
 	k8s.io/kubectl v0.19.4
 	k8s.io/kubernetes v1.20.4
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
-	sigs.k8s.io/controller-tools v0.4.1
+	sigs.k8s.io/controller-tools v0.5.0
 )
 
 replace (
