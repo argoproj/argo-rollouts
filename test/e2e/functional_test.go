@@ -965,3 +965,55 @@ spec:
 		}).
 		ExpectActiveRevision("2")
 }
+
+func (s *FunctionalSuite) TestWorkloadRef() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: rollout-canary
+  name: rollout-ref-deployment
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+  strategy:
+    canary:
+      steps:
+        - setWeight: 100
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRollout("Resolved template not persisted", func(rollout *v1alpha1.Rollout) bool {
+			return rollout.Spec.Selector == nil && len(rollout.Spec.Template.Spec.Containers) == 0
+		})
+}

@@ -849,6 +849,24 @@
       },
       "title": "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ObjectRef": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "title": "API Version of the referent"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind of the referent"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the referent"
+        }
+      },
+      "title": "ObjectRef holds a references to the Kubernetes object"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PauseCondition": {
       "type": "object",
       "properties": {
@@ -1101,11 +1119,15 @@
         },
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
-          "description": "Label selector for pods. Existing ReplicaSets whose pods are\nselected by this will be the ones affected by this rollout.\nIt must match the pod template's labels."
+          "title": "Label selector for pods. Existing ReplicaSets whose pods are\nselected by this will be the ones affected by this rollout.\nIt must match the pod template's labels.\n+optional"
         },
         "template": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PodTemplateSpec",
-          "description": "Template describes the pods that will be created."
+          "title": "Template describes the pods that will be created.\n+optional"
+        },
+        "workloadRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ObjectRef",
+          "title": "WorkloadRef holds a references to a workload that provides Pod template\n+optional"
         },
         "minReadySeconds": {
           "type": "integer",

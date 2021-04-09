@@ -55,6 +55,10 @@ import (
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
+type TemplateRefResolver interface {
+	Resolve(r *v1alpha1.Rollout) error
+}
+
 // Controller is the controller implementation for Rollout resources
 type Controller struct {
 	reconcilerBase
@@ -82,6 +86,7 @@ type ControllerConfig struct {
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
 	DynamicClientSet                dynamic.Interface
+	RefResolver                     TemplateRefResolver
 	SmiClientSet                    smiclientset.Interface
 	ExperimentInformer              informers.ExperimentInformer
 	AnalysisRunInformer             informers.AnalysisRunInformer
@@ -112,6 +117,8 @@ type reconcilerBase struct {
 	// It is used to interact with TrafficRouting resources
 	dynamicclientset dynamic.Interface
 	smiclientset     smiclientset.Interface
+
+	refResolver TemplateRefResolver
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
@@ -175,6 +182,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
+		refResolver:                   cfg.RefResolver,
 	}
 
 	controller := &Controller{
@@ -343,6 +351,11 @@ func (c *Controller) syncHandler(key string) error {
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
+
+	if err := c.refResolver.Resolve(r); err != nil {
+		return err
+	}
+
 	logCtx := logutil.WithRollout(r)
 	logCtx = logutil.WithVersionFields(logCtx, r)
 	logCtx.Info("Started syncing rollout")

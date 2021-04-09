@@ -91,7 +91,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 			c.log.WithError(err).Error("Error: updating rollout revision")
 			return nil, err
 		}
-		c.rollout = updatedRollout
+		c.rollout = updatedRollout.DeepCopy()
+		if err := c.refResolver.Resolve(c.rollout); err != nil {
+			return nil, err
+		}
 		c.newRollout = updatedRollout
 		c.log.Infof("Updated rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
 	}
@@ -244,6 +247,10 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			return nil, err
 		}
 		c.rollout = updatedRollout
+		if err := c.refResolver.Resolve(c.rollout); err != nil {
+			return nil, err
+		}
+
 		c.log.Infof("Updated rollout revision to %s", c.rollout.Annotations[annotations.RevisionAnnotation])
 	}
 	if !alreadyExists {
@@ -254,7 +261,10 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		c.rollout = updatedRollout
+		c.rollout = updatedRollout.DeepCopy()
+		if err := c.refResolver.Resolve(c.rollout); err != nil {
+			return nil, err
+		}
 		c.newRollout = updatedRollout
 		c.log.Infof("Set rollout condition: %v", condition)
 	}
