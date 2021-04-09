@@ -1628,7 +1628,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatch(true, conditions.NewRSAvailableReason, rs2, true, "")
+	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
