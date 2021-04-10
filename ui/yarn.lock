@@ -9419,10 +9419,10 @@ react-is@^17.0.1:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-17.0.2.tgz#e691d4a8e9c789365655539ab372762b0efb54f0"
   integrity sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==
 
-react-keyhooks@^0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/react-keyhooks/-/react-keyhooks-0.1.2.tgz#528a6da8d31b060cd8560b4f7429b42b542677bf"
-  integrity sha512-4DpTyZQy9Q1cKtVBhllNJjdazaX0DWYuWRmTa2O/nww643q/mcpFhmsUu6dCGx73yO5fmNlVLd3uUhNtUYsWSA==
+react-keyhooks@^0.1.3:
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/react-keyhooks/-/react-keyhooks-0.1.3.tgz#229c0384f11b84924dc995ed18c6fc8a567f3856"
+  integrity sha512-VI9v8zL/PXQ5w6q0FTfQq8P8vM7fjRlKDdPz2fZtKmiy+Ac6SogWsstUeciCRmEFlQXO86NmdFE20Y/2fYpV3A==
   dependencies:
     "@types/react" "^17.0.2"
     react "^17.0.1"

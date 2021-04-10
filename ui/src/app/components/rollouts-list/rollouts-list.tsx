@@ -77,7 +77,7 @@ export const RolloutsList = () => {
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
-                <div className='rollouts-list__toolbar'>
+                <ThemeDiv className='rollouts-list__toolbar'>
                     <div className='rollouts-list__search-container'>
                         <Autocomplete
                             items={rolloutNames}
@@ -90,7 +90,7 @@ export const RolloutsList = () => {
                             {...searchInput}
                         />
                     </div>
-                </div>
+                </ThemeDiv>
                 <div className='rollouts-list__rollouts-container'>
                     {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
                         <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
