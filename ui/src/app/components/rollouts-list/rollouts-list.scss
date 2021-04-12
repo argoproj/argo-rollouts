@@ -47,6 +47,15 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         width: 100%;
         padding-top: 1.5em;
         background-color: white;
+<<<<<<< HEAD
+        border-bottom: 1px solid white;
+
+        &--dark {
+            border-bottom: 1px solid $silver-lining;
+            background-color: $space;
+        }
+=======
+>>>>>>> master
     }
 
     &__widget {
