@@ -78,10 +78,7 @@ TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name
 all: controller image
 
 .PHONY: codegen
-codegen: protogen mocks
-	./hack/update-codegen.sh
-	./hack/update-openapigen.sh
-	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
+codegen: ui-protogen protogen mocks
 
 LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-rollouts
 
@@ -96,9 +93,15 @@ ifneq ("$(PWD)","$(LEGACY_PATH)")
 	@exit 1
 endif
 
-UI_PROTOGEN_CMD=yarn --cwd ui run protogen
 .PHONY: protogen
-protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json 
+protogen:
+	./hack/update-codegen.sh
+	./hack/update-openapigen.sh
+	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
+
+UI_PROTOGEN_CMD=yarn --cwd ui run protogen
+.PHONY: ui-protogen
+ui-protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json
 	rm -Rf vendor
 	go mod tidy
 	${UI_PROTOGEN_CMD}
