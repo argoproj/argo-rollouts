@@ -95,7 +95,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if index != nil {
-		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.rollout.Spec.Strategy.Canary.CheckNewRSOnly)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
 			for i := *index - 1; i >= 0; i-- {

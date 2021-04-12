@@ -461,6 +461,9 @@ spec:
     canary:
       maxSurge: 1
       maxUnavailable: 0
+      checkNewRSOnly: true
+      steps:
+      - setWeight: 50
   selector:
     matchLabels:
       app: bad2good
