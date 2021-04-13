@@ -1,3 +1,5 @@
+import {IconDefinition} from '@fortawesome/fontawesome-common-types';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {ThemeDiv} from '../theme-div/theme-div';
 
@@ -43,9 +45,10 @@ export const useDebounce = (value: string, debouncems: number): string => {
     return val;
 };
 
-export const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & {innerref?: React.MutableRefObject<any>}) => {
+export const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & {innerref?: React.MutableRefObject<any>; icon?: IconDefinition}) => {
     return (
         <ThemeDiv className='input-container'>
+            {props.icon && <FontAwesomeIcon icon={props.icon} className='input-container__icon' />}
             <input {...props} className={props.className ? `${props.className} input` : 'input'} ref={props.innerref} />
         </ThemeDiv>
     );

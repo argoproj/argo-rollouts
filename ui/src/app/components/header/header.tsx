@@ -34,7 +34,7 @@ const Brand = (props: {path?: string}) => {
     );
 };
 
-export const Header = (props: {showHelp: () => void}) => {
+export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void}) => {
     const getNs = React.useCallback(() => new RolloutServiceApi().rolloutServiceGetNamespace(), []);
     const nsData = useServerData<RolloutNamespaceInfo>(getNs);
     const {name} = useParams<{name: string}>();
@@ -51,7 +51,7 @@ export const Header = (props: {showHelp: () => void}) => {
         <header className='rollouts-header'>
             <Brand path={name} />
             <div className='rollouts-header__info'>
-                <ActionButton icon={faQuestion} action={props.showHelp} />
+                {props.pageHasShortcuts && <ActionButton icon={faQuestion} action={props.showHelp} dark />}
                 <span style={{marginRight: '7px'}}>
                     <ThemeToggle />
                 </span>

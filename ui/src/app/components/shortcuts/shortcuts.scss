@@ -16,8 +16,10 @@
     &__key {
         font-weight: 600;
         margin-right: 5px;
+        $padding: 3px;
+        padding: 0 $padding;
         $size: 30px;
-        width: $size;
+        min-width: $size - (2 * $padding);
         height: $size;
         line-height: $size;
         background-color: $argo-color-gray-4;

@@ -25,7 +25,9 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
     useKeybinding(
         [Key.SHIFT, Key.H],
         () => {
-            setShowShortcuts(!showShortcuts);
+            if (props.shortcuts) {
+                setShowShortcuts(!showShortcuts);
+            }
             return false;
         },
         true
@@ -39,7 +41,14 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
             )}
             <Route path={props.path} exact={props.exact}>
                 <React.Fragment>
-                    <Header showHelp={() => setShowShortcuts(true)} />
+                    <Header
+                        pageHasShortcuts={!!props.shortcuts}
+                        showHelp={() => {
+                            if (props.shortcuts) {
+                                setShowShortcuts(true);
+                            }
+                        }}
+                    />
                     {props.component}
                 </React.Fragment>
             </Route>
@@ -64,6 +73,7 @@ const App = () => {
                                     {key: '/', description: 'Search'},
                                     {key: 'TAB', description: 'Search, navigate search items'},
                                     {key: [faArrowLeft, faArrowRight, faArrowUp, faArrowDown], description: 'Navigate rollouts list'},
+                                    {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
                                 ]}
                             />
                             <Page path='/rollout/:name' component={<Rollout />} />

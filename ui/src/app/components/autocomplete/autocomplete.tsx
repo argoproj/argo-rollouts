@@ -4,6 +4,7 @@ import {Input, InputProps, SetInputFxn, useDebounce, useInput} from '../input/in
 import ThemeDiv from '../theme-div/theme-div';
 
 import './autocomplete.scss';
+import {IconDefinition} from '@fortawesome/fontawesome-common-types';
 
 interface AutocompleteProps extends InputProps {
     inputref?: React.MutableRefObject<HTMLInputElement>;
@@ -24,6 +25,7 @@ export const Autocomplete = (
         items: string[];
         inputStyle?: React.CSSProperties;
         onItemClick?: (item: string) => void;
+        icon?: IconDefinition;
         inputref?: React.MutableRefObject<HTMLInputElement>;
     }
 ) => {

@@ -1,4 +1,4 @@
-import {faCircleNotch, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch, faDove, faPalette, faRedoAlt, faSearch, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Link, useHistory} from 'react-router-dom';
@@ -15,6 +15,7 @@ import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
 import {Autocomplete, useAutocomplete} from '../autocomplete/autocomplete';
 import {useClickOutside} from '../../shared/utils/utils';
+import {NamespaceContext} from '../../shared/context/api';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
@@ -88,29 +89,64 @@ export const RolloutsList = () => {
         }
     }, [searchString, rollouts]);
 
+    const namespace = React.useContext(NamespaceContext);
+
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
-                <ThemeDiv className='rollouts-list__toolbar'>
-                    <div className='rollouts-list__search-container'>
-                        <Autocomplete
-                            items={rolloutNames}
-                            className='rollouts-list__search'
-                            placeholder='Search...'
-                            inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
-                            style={{marginBottom: '1.5em'}}
-                            onItemClick={(item) => history.push(`/rollout/${item}`)}
-                            {...searchInput}
-                        />
-                    </div>
-                </ThemeDiv>
-                <div className='rollouts-list__rollouts-container'>
-                    {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
-                        <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
-                    ))}
-                </div>
+                {(rollouts || []).length > 0 ? (
+                    <React.Fragment>
+                        <ThemeDiv className='rollouts-list__toolbar'>
+                            <div className='rollouts-list__search-container'>
+                                <Autocomplete
+                                    items={rolloutNames}
+                                    className='rollouts-list__search'
+                                    placeholder='Search...'
+                                    style={{marginBottom: '1.5em'}}
+                                    onItemClick={(item) => history.push(`/rollout/${item}`)}
+                                    icon={faSearch}
+                                    {...searchInput}
+                                />
+                            </div>
+                        </ThemeDiv>
+                        <div className='rollouts-list__rollouts-container'>
+                            {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                                <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
+                            ))}
+                        </div>
+                    </React.Fragment>
+                ) : (
+                    <EmptyMessage namespace={namespace} />
+                )}
             </WaitFor>
         </div>
+    );
+};
+
+const EmptyMessage = (props: {namespace: string}) => {
+    const CodeLine = (props: {children: string}) => {
+        return <pre onClick={() => navigator.clipboard.writeText(props.children)}>{props.children}</pre>;
+    };
+    return (
+        <ThemeDiv className='rollouts-list__empty-message'>
+            <h1>No Rollouts to display!</h1>
+            <div style={{textAlign: 'center', marginBottom: '1em'}}>
+                <div>Make sure you are running the API server in the correct namespace. Your current namespace is: </div>
+                <div style={{fontSize: '20px'}}>
+                    <b>{props.namespace}</b>
+                </div>
+            </div>
+            <div>
+                To create a new Rollout and Service, run
+                <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml</CodeLine>
+                <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml</CodeLine>
+                or follow the{' '}
+                <a href='https://argoproj.github.io/argo-rollouts/getting-started/' target='_blank' rel='noreferrer'>
+                    Getting Started guide
+                </a>
+                .
+            </div>
+        </ThemeDiv>
     );
 };
 
