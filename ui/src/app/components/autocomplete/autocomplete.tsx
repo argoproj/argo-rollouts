@@ -1,21 +1,35 @@
 import {Key, useKeyListener, useNav} from 'react-keyhooks';
 import * as React from 'react';
-import {Input, useDebounce} from '../input/input';
+import {Input, InputProps, SetInputFxn, useDebounce, useInput} from '../input/input';
 import ThemeDiv from '../theme-div/theme-div';
 
 import './autocomplete.scss';
+
+interface AutocompleteProps extends InputProps {
+    inputref?: React.MutableRefObject<HTMLInputElement>;
+}
+
+export const useAutocomplete = (init: string, callback?: (val: string) => void): [string, SetInputFxn, AutocompleteProps] => {
+    const [state, setState, Input] = useInput(init);
+    const Autocomplete = Input as AutocompleteProps;
+    if (Autocomplete.ref) {
+        Autocomplete.inputref = Input.ref;
+        delete Autocomplete.ref;
+    }
+    return [state, setState, Autocomplete];
+};
 
 export const Autocomplete = (
     props: React.InputHTMLAttributes<HTMLInputElement> & {
         items: string[];
         inputStyle?: React.CSSProperties;
         onItemClick?: (item: string) => void;
-        inputref?: React.MutableRefObject<any>;
+        inputref?: React.MutableRefObject<HTMLInputElement>;
     }
 ) => {
-    const [value, setValue] = React.useState((props.value as string) || '');
     const [curItems, setCurItems] = React.useState(props.items || []);
-    const inputRef = React.useRef(null);
+    const nullInputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = props.inputref || nullInputRef;
     const autocompleteRef = React.useRef(null);
     const [showSuggestions, setShowSuggestions] = React.useState(false);
     const [pos, nav, reset] = useNav(props.items.length);
@@ -31,7 +45,7 @@ export const Autocomplete = (
         return () => document.removeEventListener('mousedown', unfocus);
     }, [autocompleteRef]);
 
-    const debouncedVal = useDebounce(value, 350);
+    const debouncedVal = useDebounce(props.value as string, 350);
 
     React.useEffect(() => {
         const filtered = (props.items || []).filter((i) => {
@@ -56,6 +70,9 @@ export const Autocomplete = (
         if (showSuggestions) {
             reset();
             setShowSuggestions(false);
+            if (inputRef && inputRef.current) {
+                inputRef.current.blur();
+            }
             return true;
         }
         return false;
@@ -89,17 +106,16 @@ export const Autocomplete = (
     const trimmedProps = {...props};
     delete trimmedProps.style;
     delete trimmedProps.inputStyle;
+    delete trimmedProps.onItemClick;
 
     return (
         <div className='autocomplete' ref={autocompleteRef} style={style}>
             <Input
                 {...trimmedProps}
                 style={props.inputStyle}
-                innerref={props.inputref || inputRef}
+                innerref={inputRef}
                 className={(props.className || '') + ' autocomplete__input'}
-                value={value}
                 onChange={(e) => {
-                    setValue(e.target.value);
                     if (props.onChange) {
                         props.onChange(e);
                     }
@@ -114,7 +130,6 @@ export const Autocomplete = (
                             if (props.onItemClick) {
                                 props.onItemClick(i);
                             }
-                            setValue(i);
                             props.onChange({target: {value: i}} as React.ChangeEvent<HTMLInputElement>);
                             setShowSuggestions(false);
                         }}

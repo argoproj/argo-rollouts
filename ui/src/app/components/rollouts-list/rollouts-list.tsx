@@ -7,14 +7,13 @@ import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
-import {Key, useKeyListener, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
-import {Autocomplete} from '../autocomplete/autocomplete';
-import {useInput} from '../input/input';
+import {Autocomplete, useAutocomplete} from '../autocomplete/autocomplete';
 import {useClickOutside} from '../../shared/utils/utils';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
@@ -34,32 +33,47 @@ export const RolloutsList = () => {
     const loading = rolloutsList.loading;
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
-    const [searchString, setSearchString, searchInput] = useInput('');
+    const [searchString, setSearchString, searchInput] = useAutocomplete('');
 
-    const useKeyPress = useKeyListener();
+    const {useKeybinding, keybindingState} = React.useContext(KeybindingContext);
 
-    useKeyPress(Key.RIGHT, () => nav(1));
-    useKeyPress(Key.LEFT, () => nav(-1));
-    useKeyPress(Key.ESCAPE, () => {
+    // ignore H key when typing
+    const hGroup = keybindingState.groupForKey[Key.H];
+    const showHelpMenu = keybindingState.groups[hGroup][Key.H].action;
+    keybindingState.groups[hGroup][Key.H].action = () => {
+        if (searchInput.inputref.current === document.activeElement) {
+            return false;
+        } else {
+            return showHelpMenu();
+        }
+    };
+
+    useKeybinding(Key.RIGHT, () => nav(1));
+    useKeybinding(Key.LEFT, () => nav(-1));
+    useKeybinding(Key.ESCAPE, () => {
         reset();
-        setSearchString('');
-        return true;
+        if (searchString && searchString !== '') {
+            setSearchString('');
+            return true;
+        } else {
+            return false;
+        }
     });
 
     const rolloutNames = useRolloutNames(rollouts);
     const history = useHistory();
 
-    useKeyPress(Key.SLASH, () => {
+    useKeybinding(Key.SLASH, () => {
         if (!searchString) {
-            if (searchInput.ref.current) {
-                searchInput.ref.current.focus();
+            if (searchInput.inputref.current) {
+                searchInput.inputref.current.focus();
             }
             return true;
         }
         return false;
     });
 
-    useKeyPress(Key.ENTER, () => {
+    useKeybinding(Key.ENTER, () => {
         if (pos > -1) {
             history.push(`/rollout/${filteredRollouts[pos].objectMeta?.name}`);
             return true;
@@ -86,7 +100,6 @@ export const RolloutsList = () => {
                             inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
                             style={{marginBottom: '1.5em'}}
                             onItemClick={(item) => history.push(`/rollout/${item}`)}
-                            inputref={searchInput.ref}
                             {...searchInput}
                         />
                     </div>

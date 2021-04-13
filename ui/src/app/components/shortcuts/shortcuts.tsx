@@ -15,20 +15,19 @@ export interface Shortcut {
 export const Shortcuts = (props: {shortcuts: Shortcut[]}) => {
     return (
         <div>
-            {props.shortcuts.map((sc) => {
+            {props.shortcuts.map((sc, i) => {
                 if (!Array.isArray(sc.key)) {
                     sc.key = [sc.key as StringOrIcon];
                 }
-                console.log(sc.key);
                 return (
-                    <div className='shortcuts__shortcut'>
-                        {(sc.key as StringsOrIcons).map((k) => {
+                    <div className='shortcuts__shortcut' key={i}>
+                        {(sc.key as StringsOrIcons).map((k, i) => {
                             let contents: any = k;
                             if (typeof k !== 'string') {
                                 contents = <FontAwesomeIcon icon={k} />;
                             }
                             return (
-                                <div key={`${k}`} className='shortcuts__key'>
+                                <div key={i} className='shortcuts__key'>
                                     {contents}
                                 </div>
                             );

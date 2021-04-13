@@ -9,19 +9,20 @@ import {createBrowserHistory} from 'history';
 import {ThemeProvider} from './shared/context/theme';
 import {ThemeDiv} from './components/theme-div/theme-div';
 import {NamespaceProvider} from './shared/context/api';
-import {Key, useKeyListener} from 'react-keyhooks';
+import {Key} from 'react-keyhooks';
 import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
 import {Modal} from './components/modal/modal';
 import {faArrowDown, faArrowLeft, faArrowRight, faArrowUp} from '@fortawesome/free-solid-svg-icons';
+import {KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 
 const Page = (props: {path: string; component: React.ReactNode; exact?: boolean; shortcuts?: Shortcut[]}) => {
-    const useKeyPress = useKeyListener();
+    const {useKeybinding} = React.useContext(KeybindingContext);
     const [showShortcuts, setShowShortcuts] = React.useState(false);
-    useKeyPress(
+    useKeybinding(
         [Key.SHIFT, Key.H],
         () => {
             setShowShortcuts(!showShortcuts);
@@ -38,7 +39,7 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
             )}
             <Route path={props.path} exact={props.exact}>
                 <React.Fragment>
-                    <Header />
+                    <Header showHelp={() => setShowShortcuts(true)} />
                     {props.component}
                 </React.Fragment>
             </Route>
@@ -50,25 +51,27 @@ const App = () => {
     return (
         <ThemeProvider>
             <NamespaceProvider>
-                <Router history={history}>
-                    <Switch>
-                        <Redirect exact={true} path='/' to='/rollouts' />
+                <KeybindingProvider>
+                    <Router history={history}>
+                        <Switch>
+                            <Redirect exact={true} path='/' to='/rollouts' />
 
-                        <Page
-                            exact
-                            path='/rollouts'
-                            component={<RolloutsList />}
-                            shortcuts={[
-                                {key: '/', description: 'Search'},
-                                {key: 'TAB', description: 'Search, navigate search items'},
-                                {key: [faArrowLeft, faArrowRight, faArrowUp, faArrowDown], description: 'Navigate rollouts list'},
-                            ]}
-                        />
-                        <Page path='/rollout/:name' component={<Rollout />} />
+                            <Page
+                                exact
+                                path='/rollouts'
+                                component={<RolloutsList />}
+                                shortcuts={[
+                                    {key: '/', description: 'Search'},
+                                    {key: 'TAB', description: 'Search, navigate search items'},
+                                    {key: [faArrowLeft, faArrowRight, faArrowUp, faArrowDown], description: 'Navigate rollouts list'},
+                                ]}
+                            />
+                            <Page path='/rollout/:name' component={<Rollout />} />
 
-                        <Redirect path='*' to='/' />
-                    </Switch>
-                </Router>
+                            <Redirect path='*' to='/' />
+                        </Switch>
+                    </Router>
+                </KeybindingProvider>
             </NamespaceProvider>
         </ThemeProvider>
     );
