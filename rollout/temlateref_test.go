@@ -403,6 +403,6 @@ func TestResolveNotRef(t *testing.T) {
 }
 
 func TestRemashalMapFails(t *testing.T) {
-	err := remashalMap(nil, struct{}{})
+	err := remarshalMap(nil, struct{}{})
 	assert.Error(t, err)
 }

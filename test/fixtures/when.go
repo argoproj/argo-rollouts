@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
@@ -182,6 +183,21 @@ func (w *When) ScaleRollout(scale int) *When {
 
 func (w *When) Sleep(d time.Duration) *When {
 	time.Sleep(d)
+	return w
+}
+
+// UpdateResource modifies the specified resource
+func (w *When) UpdateResource(gvr schema.GroupVersionResource, name string, update func(res *unstructured.Unstructured) error) *When {
+	err := retryutil.RetryOnConflict(retryutil.DefaultRetry, func() error {
+		client := w.dynamicClient.Resource(gvr).Namespace(w.namespace)
+		res, err := client.Get(w.Context, name, metav1.GetOptions{})
+		w.CheckError(err)
+		err = update(res)
+		w.CheckError(err)
+		_, err = client.Update(w.Context, res, metav1.UpdateOptions{})
+		return err
+	})
+	w.CheckError(err)
 	return w
 }
 

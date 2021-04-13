@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
@@ -712,7 +713,7 @@ spec:
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
-		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"})
+		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"}, false)
 }
 
 // TestFixInvalidSpec verifies we recover from an InvalidSpec after applying
@@ -969,6 +970,18 @@ spec:
 func (s *FunctionalSuite) TestWorkloadRef() {
 	s.Given().
 		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -987,10 +1000,7 @@ spec:
     spec:
       containers:
         - name: rollouts-demo
-          image: argoproj/rollouts-demo:blue
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8080
+          image: argoproj/rollouts-demo:error
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -998,21 +1008,38 @@ metadata:
   name: rollout-ref-deployment
 spec:
   replicas: 1
+  progressDeadlineSeconds: 5
   revisionHistoryLimit: 2
   workloadRef:
     apiVersion: apps/v1
     kind: Deployment
     name: rollout-ref-deployment
   strategy:
-    canary:
-      steps:
-        - setWeight: 100
+    blueGreen: 
+      activeService: rollout-bluegreen-active
 `).
 		When().
 		ApplyManifests().
-		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Degraded").
+		Then().
+		// verify that existing service is not switched to degraded rollout pods
+		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-bluegreen"}, false).
+		When().
+		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
+			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")
+			if err != nil {
+				return err
+			}
+			containers[0] = map[string]interface{}{
+				"name":  "rollouts-demo",
+				"image": "argoproj/rollouts-demo:green",
+			}
+			return unstructured.SetNestedSlice(res.Object, containers, "spec", "template", "spec", "containers")
+		}).
 		WaitForRolloutStatus("Healthy").
 		Then().
+		// verify that service is switched after rollout is healthy
+		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-bluegreen"}, true).
 		ExpectRollout("Resolved template not persisted", func(rollout *v1alpha1.Rollout) bool {
 			return rollout.Spec.Selector == nil && len(rollout.Spec.Template.Spec.Containers) == 0
 		})

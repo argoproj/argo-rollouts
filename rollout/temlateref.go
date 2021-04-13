@@ -111,7 +111,7 @@ func (r *informerBasedTemplateResolver) Stop() {
 	r.cancelContext = cancelContext
 }
 
-func remashalMap(objMap map[string]interface{}, res interface{}) error {
+func remarshalMap(objMap map[string]interface{}, res interface{}) error {
 	data, err := json.Marshal(objMap)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 
 	if podTemplateSpecMap, ok, _ := unstructured.NestedMap(un.Object, info.TemplatePath...); ok {
 		var template corev1.PodTemplateSpec
-		if err := remashalMap(podTemplateSpecMap, &template); err != nil {
+		if err := remarshalMap(podTemplateSpecMap, &template); err != nil {
 			return err
 		}
 
@@ -157,7 +157,7 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 	if rollout.Spec.Selector == nil && info.SelectorPath != nil {
 		if selectorMap, ok, _ := unstructured.NestedMap(un.Object, info.SelectorPath...); ok {
 			var selector v1.LabelSelector
-			if err := remashalMap(selectorMap, &selector); err != nil {
+			if err := remarshalMap(selectorMap, &selector); err != nil {
 				return err
 			}
 			rollout.Spec.SetResolvedSelector(&selector)

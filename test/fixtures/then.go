@@ -267,10 +267,15 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 	return t
 }
 
-func (t *Then) ExpectServiceSelector(service string, selector map[string]string) *Then {
+func (t *Then) ExpectServiceSelector(service string, selector map[string]string, ensurePodTemplateHash bool) *Then {
 	t.t.Helper()
 	svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(t.Context, service, metav1.GetOptions{})
 	t.CheckError(err)
+	if ensurePodTemplateHash {
+		ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
+		t.CheckError(err)
+		selector[rov1.DefaultRolloutUniqueLabelKey] = ro.Status.CurrentPodHash
+	}
 	if !reflect.DeepEqual(svc.Spec.Selector, selector) {
 		t.t.Fatalf("Expected %s selector: %v. Actual: %v", service, selector, svc.Spec.Selector)
 	}
