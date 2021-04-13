@@ -1,6 +1,6 @@
 import {faCheck, faCircleNotch, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {Key, useKeyListener} from 'react-keyhooks';
+import {Key, KeybindingContext} from 'react-keyhooks';
 import * as React from 'react';
 import {useClickOutside} from '../../shared/utils/utils';
 import {EffectDiv} from '../effect-div/effect-div';
@@ -47,8 +47,8 @@ export const ActionButton = (props: ActionButtonProps) => {
         return () => clearInterval(to);
     }, [loading]);
 
-    const listen = useKeyListener();
-    listen(Key.ESCAPE, () => {
+    const {useKeybinding} = React.useContext(KeybindingContext);
+    useKeybinding(Key.ESCAPE, () => {
         unconfirm();
         return confirmed;
     });

@@ -1,13 +1,13 @@
 import {faTimesCircle} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
-import {Key, useKeyListener} from 'react-keyhooks';
+import {Key, KeybindingContext} from 'react-keyhooks';
 
 import './modal.scss';
 
 export const Modal = (props: {children: React.ReactNode; hide?: () => void}) => {
-    const useKeyPress = useKeyListener();
-    useKeyPress(Key.ESCAPE, () => {
+    const {useKeybinding} = React.useContext(KeybindingContext);
+    useKeybinding(Key.ESCAPE, () => {
         if (props.hide) {
             props.hide();
             return true;

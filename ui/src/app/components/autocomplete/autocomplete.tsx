@@ -1,4 +1,4 @@
-import {Key, useKeyListener, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import * as React from 'react';
 import {Input, InputProps, SetInputFxn, useDebounce, useInput} from '../input/input';
 import ThemeDiv from '../theme-div/theme-div';
@@ -56,8 +56,8 @@ export const Autocomplete = (
         setCurItems(filtered.length > 0 ? filtered : props.items);
     }, [debouncedVal, props.items]);
 
-    const listen = useKeyListener();
-    listen(Key.TAB, (e) => {
+    const {useKeybinding} = React.useContext(KeybindingContext);
+    useKeybinding(Key.TAB, (e) => {
         if (showSuggestions) {
             if (pos === curItems.length - 1) {
                 reset();
@@ -68,7 +68,7 @@ export const Autocomplete = (
         return false;
     });
 
-    listen(Key.ESCAPE, (e) => {
+    useKeybinding(Key.ESCAPE, (e) => {
         if (showSuggestions) {
             reset();
             setShowSuggestions(false);
@@ -80,7 +80,7 @@ export const Autocomplete = (
         return false;
     });
 
-    listen(Key.ENTER, () => {
+    useKeybinding(Key.ENTER, () => {
         if (showSuggestions && props.onItemClick) {
             props.onItemClick(curItems[pos]);
             return true;
@@ -88,7 +88,7 @@ export const Autocomplete = (
         return false;
     });
 
-    listen(Key.UP, () => {
+    useKeybinding(Key.UP, () => {
         if (showSuggestions) {
             nav(-1);
             return false;
@@ -96,7 +96,7 @@ export const Autocomplete = (
         return true;
     });
 
-    listen(Key.DOWN, () => {
+    useKeybinding(Key.DOWN, () => {
         if (showSuggestions) {
             nav(1);
             return false;
