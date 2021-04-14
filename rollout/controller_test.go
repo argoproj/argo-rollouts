@@ -185,9 +185,9 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func newCompletedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
+func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
-	if !isPaused {
+	if !isCompleted {
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{

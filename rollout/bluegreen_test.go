@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -1022,6 +1023,49 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	}`, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, cleanPatch(expectedPatch), patch)
+}
+
+func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r1.Status, completedCondition)
+
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	s := newService("bar", 80, serviceSelector, r2)
+	f.kubeobjects = append(f.kubeobjects, s)
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, true, false)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.serviceLister = append(f.serviceLister, s)
+
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	rolloutPatch := v1alpha1.Rollout{}
+	err := json.Unmarshal([]byte(patch), &rolloutPatch)
+	assert.NoError(t, err)
+
+	index := len(rolloutPatch.Status.Conditions)-1
+	assert.Equal(t, v1alpha1.RolloutCompleted, rolloutPatch.Status.Conditions[index].Type)
+	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }
 
 func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
