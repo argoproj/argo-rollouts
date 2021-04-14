@@ -59,7 +59,7 @@ COPY . .
 
 # stop make from trying to re-build this without yarn installed
 RUN touch ui/dist/node_modules.marker
-RUN mkdir ui/dist/app
+RUN mkdir -p ui/dist/app
 RUN touch ui/dist/app/index.html
 
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
