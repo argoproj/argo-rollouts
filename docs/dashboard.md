@@ -11,4 +11,4 @@ Then visit `localhost:3200` to view the user interface.
 
 ## Individual Rollout view
 
-![Rollouts List](dashboard/rollouts-list.png)
+![Rollouts List](dashboard/rollouts-ui.png)
