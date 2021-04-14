@@ -1,4 +1,4 @@
-import {faQuestion} from '@fortawesome/free-solid-svg-icons';
+import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {RolloutNamespaceInfo, RolloutServiceApi} from '../../../models/rollout/generated';
@@ -7,6 +7,7 @@ import {useServerData} from '../../shared/utils/utils';
 import {ActionButton} from '../action-button/action-button';
 import {InfoItemRow} from '../info-item/info-item';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
+import {Tooltip} from '../tooltip/tooltip';
 
 import './header.scss';
 
@@ -36,7 +37,7 @@ const Brand = (props: {path?: string}) => {
 
 export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void}) => {
     const getNs = React.useCallback(() => new RolloutServiceApi().rolloutServiceGetNamespace(), []);
-    const nsData = useServerData<RolloutNamespaceInfo>(getNs);
+    const namespace = useServerData<RolloutNamespaceInfo>(getNs).namespace || 'Unknown';
     const {name} = useParams<{name: string}>();
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
@@ -51,11 +52,22 @@ export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void})
         <header className='rollouts-header'>
             <Brand path={name} />
             <div className='rollouts-header__info'>
-                {props.pageHasShortcuts && <ActionButton icon={faQuestion} action={props.showHelp} dark />}
+                {props.pageHasShortcuts && (
+                    <Tooltip content='Keyboard Shortcuts' inverted>
+                        <ActionButton icon={faKeyboard} action={props.showHelp} dark />
+                    </Tooltip>
+                )}
+                <Tooltip content='Documentation' inverted>
+                    <a href='https://argoproj.github.io/argo-rollouts/' target='_blank' rel='noreferrer'>
+                        <ActionButton icon={faBook} dark />
+                    </a>
+                </Tooltip>
                 <span style={{marginRight: '7px'}}>
-                    <ThemeToggle />
+                    <Tooltip content='Toggle Dark Mode' inverted>
+                        <ThemeToggle />
+                    </Tooltip>
                 </span>
-                <InfoItemRow label={'NS:'} items={{content: nsData.namespace}} />
+                <InfoItemRow label={'NS:'} items={{content: namespace}} />
                 <div className='rollouts-header__version'>{version}</div>
             </div>
         </header>
