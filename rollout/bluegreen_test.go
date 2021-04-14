@@ -1063,7 +1063,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	err := json.Unmarshal([]byte(patch), &rolloutPatch)
 	assert.NoError(t, err)
 
-	index := len(rolloutPatch.Status.Conditions)-1
+	index := len(rolloutPatch.Status.Conditions) - 1
 	assert.Equal(t, v1alpha1.RolloutCompleted, rolloutPatch.Status.Conditions[index].Type)
 	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }
