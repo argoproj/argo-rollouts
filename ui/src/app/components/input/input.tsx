@@ -1,15 +1,17 @@
+import {IconDefinition} from '@fortawesome/fontawesome-common-types';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {ThemeDiv} from '../theme-div/theme-div';
 
 import './input.scss';
 
-interface InputProps {
+export interface InputProps {
     value: string;
-    ref: React.MutableRefObject<HTMLInputElement>;
+    ref?: React.MutableRefObject<HTMLInputElement>;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-type SetInputFxn = (val: string) => void;
+export type SetInputFxn = (val: string) => void;
 export const FormResetFactory = (setFxns: SetInputFxn[]) => {
     return () => {
         setFxns.forEach((reset) => reset(''));
@@ -20,18 +22,14 @@ export const useInput = (init: string, callback?: (val: string) => void): [strin
     const [state, setState] = React.useState(init);
     const inputRef = React.useRef(null);
 
-    const Input: InputProps = {
-        value: state,
-        ref: inputRef,
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-            setState(e.target.value);
-            if (callback) {
-                callback(e.target.value);
-            }
-        },
+    const changeHandler = (value: string) => {
+        setState(value);
+        if (callback) {
+            callback(value);
+        }
     };
 
-    return [state, setState, Input];
+    return [state, changeHandler, {ref: inputRef, onChange: (e) => changeHandler(e.target.value), value: state}];
 };
 
 export const useDebounce = (value: string, debouncems: number): string => {
@@ -47,8 +45,11 @@ export const useDebounce = (value: string, debouncems: number): string => {
     return val;
 };
 
-export const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & {innerref?: React.MutableRefObject<any>}) => (
-    <ThemeDiv className='input-container'>
-        <input {...props} className={props.className ? `${props.className} input` : 'input'} ref={props.innerref} />
-    </ThemeDiv>
-);
+export const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & {innerref?: React.MutableRefObject<any>; icon?: IconDefinition}) => {
+    return (
+        <ThemeDiv className='input-container'>
+            {props.icon && <FontAwesomeIcon icon={props.icon} className='input-container__icon' />}
+            <input {...props} className={props.className ? `${props.className} input` : 'input'} ref={props.innerref} />
+        </ThemeDiv>
+    );
+};

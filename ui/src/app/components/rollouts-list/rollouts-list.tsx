@@ -1,4 +1,4 @@
-import {faCircleNotch, faDove, faPalette, faRedoAlt, faWeight} from '@fortawesome/free-solid-svg-icons';
+import {faCircleNotch, faDove, faPalette, faRedoAlt, faSearch, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Link, useHistory} from 'react-router-dom';
@@ -7,15 +7,15 @@ import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {Spinner, WaitFor} from '../wait-for/wait-for';
-import {Key, useKeyListener, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import './rollouts-list.scss';
 import {ThemeDiv} from '../theme-div/theme-div';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {EffectDiv} from '../effect-div/effect-div';
-import {Autocomplete} from '../autocomplete/autocomplete';
-import {useInput} from '../input/input';
+import {Autocomplete, useAutocomplete} from '../autocomplete/autocomplete';
 import {useClickOutside} from '../../shared/utils/utils';
+import {NamespaceContext} from '../../shared/context/api';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
@@ -34,32 +34,47 @@ export const RolloutsList = () => {
     const loading = rolloutsList.loading;
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
-    const [searchString, setSearchString, searchInput] = useInput('');
+    const [searchString, setSearchString, searchInput] = useAutocomplete('');
 
-    const useKeyPress = useKeyListener();
+    const {useKeybinding, keybindingState} = React.useContext(KeybindingContext);
 
-    useKeyPress(Key.RIGHT, () => nav(1));
-    useKeyPress(Key.LEFT, () => nav(-1));
-    useKeyPress(Key.ESCAPE, () => {
+    // ignore H key when typing
+    const hGroup = keybindingState.groupForKey[Key.H];
+    const showHelpMenu = keybindingState.groups[hGroup][Key.H].action;
+    keybindingState.groups[hGroup][Key.H].action = () => {
+        if (searchInput.inputref.current === document.activeElement) {
+            return false;
+        } else {
+            return showHelpMenu();
+        }
+    };
+
+    useKeybinding(Key.RIGHT, () => nav(1));
+    useKeybinding(Key.LEFT, () => nav(-1));
+    useKeybinding(Key.ESCAPE, () => {
         reset();
-        setSearchString('');
-        return true;
+        if (searchString && searchString !== '') {
+            setSearchString('');
+            return true;
+        } else {
+            return false;
+        }
     });
 
     const rolloutNames = useRolloutNames(rollouts);
     const history = useHistory();
 
-    useKeyPress(Key.SLASH, () => {
+    useKeybinding(Key.SLASH, () => {
         if (!searchString) {
-            if (searchInput.ref.current) {
-                searchInput.ref.current.focus();
+            if (searchInput.inputref.current) {
+                searchInput.inputref.current.focus();
             }
             return true;
         }
         return false;
     });
 
-    useKeyPress(Key.ENTER, () => {
+    useKeybinding(Key.ENTER, () => {
         if (pos > -1) {
             history.push(`/rollout/${filteredRollouts[pos].objectMeta?.name}`);
             return true;
@@ -74,30 +89,64 @@ export const RolloutsList = () => {
         }
     }, [searchString, rollouts]);
 
+    const namespace = React.useContext(NamespaceContext);
+
     return (
         <div className='rollouts-list'>
             <WaitFor loading={loading}>
-                <div className='rollouts-list__toolbar'>
-                    <div className='rollouts-list__search-container'>
-                        <Autocomplete
-                            items={rolloutNames}
-                            className='rollouts-list__search'
-                            placeholder='Search...'
-                            inputStyle={{paddingTop: '0.75em', paddingBottom: '0.75em'}}
-                            style={{marginBottom: '1.5em'}}
-                            onItemClick={(item) => history.push(`/rollout/${item}`)}
-                            inputref={searchInput.ref}
-                            {...searchInput}
-                        />
-                    </div>
-                </div>
-                <div className='rollouts-list__rollouts-container'>
-                    {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
-                        <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
-                    ))}
-                </div>
+                {(rollouts || []).length > 0 ? (
+                    <React.Fragment>
+                        <ThemeDiv className='rollouts-list__toolbar'>
+                            <div className='rollouts-list__search-container'>
+                                <Autocomplete
+                                    items={rolloutNames}
+                                    className='rollouts-list__search'
+                                    placeholder='Search...'
+                                    style={{marginBottom: '1.5em'}}
+                                    onItemClick={(item) => history.push(`/rollout/${item}`)}
+                                    icon={faSearch}
+                                    {...searchInput}
+                                />
+                            </div>
+                        </ThemeDiv>
+                        <div className='rollouts-list__rollouts-container'>
+                            {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                                <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
+                            ))}
+                        </div>
+                    </React.Fragment>
+                ) : (
+                    <EmptyMessage namespace={namespace} />
+                )}
             </WaitFor>
         </div>
+    );
+};
+
+const EmptyMessage = (props: {namespace: string}) => {
+    const CodeLine = (props: {children: string}) => {
+        return <pre onClick={() => navigator.clipboard.writeText(props.children)}>{props.children}</pre>;
+    };
+    return (
+        <ThemeDiv className='rollouts-list__empty-message'>
+            <h1>No Rollouts to display!</h1>
+            <div style={{textAlign: 'center', marginBottom: '1em'}}>
+                <div>Make sure you are running the API server in the correct namespace. Your current namespace is: </div>
+                <div style={{fontSize: '20px'}}>
+                    <b>{props.namespace}</b>
+                </div>
+            </div>
+            <div>
+                To create a new Rollout and Service, run
+                <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml</CodeLine>
+                <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml</CodeLine>
+                or follow the{' '}
+                <a href='https://argoproj.github.io/argo-rollouts/getting-started/' target='_blank' rel='noreferrer'>
+                    Getting Started guide
+                </a>
+                .
+            </div>
+        </ThemeDiv>
     );
 };
 

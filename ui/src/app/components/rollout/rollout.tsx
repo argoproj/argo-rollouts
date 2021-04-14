@@ -45,7 +45,7 @@ import {Autocomplete} from '../autocomplete/autocomplete';
 import {faChartBar} from '@fortawesome/free-regular-svg-icons';
 import {EffectDiv} from '../effect-div/effect-div';
 import {Tooltip} from '../tooltip/tooltip';
-import {Key, useKeyListener} from 'react-keyhooks';
+import {Key, KeybindingContext} from 'react-keyhooks';
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;
@@ -128,11 +128,11 @@ export const Rollout = () => {
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
     const revisions = ProcessRevisions(rollout);
 
-    const useKeyPress = useKeyListener();
+    const {useKeybinding} = React.useContext(KeybindingContext);
     const [editing, setEditing] = React.useState(false);
     const history = useHistory();
 
-    useKeyPress(Key.L, () => {
+    useKeybinding(Key.L, () => {
         if (editing) {
             return false;
         }

@@ -26,6 +26,10 @@ export const ThemeProvider = (props: {children: React.ReactNode}) => {
 };
 
 export const useTheme = () => {
-    const dmCtx = React.useContext(ThemeContext);
-    return dmCtx.theme;
+    try {
+        const dmCtx = React.useContext(ThemeContext);
+        return dmCtx.theme;
+    } catch {
+        return Theme.Light;
+    }
 };

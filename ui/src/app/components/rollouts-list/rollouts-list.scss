@@ -12,7 +12,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
     flex-wrap: wrap;
 
     &__search-container {
-        width: 60% !important;
+        width: 50% !important;
         margin: 0 auto;
     }
 
@@ -43,10 +43,60 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         }
     }
 
+    &__empty-message {
+        padding-top: 70px;
+        width: 50%;
+        margin: 0 auto;
+        color: $argo-color-gray-7;
+        h1 {
+            margin-bottom: 1em;
+            text-align: center;
+        }
+        div {
+            line-height: 1.5em;
+        }
+        pre {
+            overflow: scroll;
+            cursor: pointer;
+            line-height: 2em;
+            font-size: 15px;
+            padding: 3px 5px;
+            color: $argo-color-gray-8;
+            margin: 0.5em 0;
+            background-color: white;
+        }
+        a {
+            color: $sea;
+            border-bottom: 1px solid $sea;
+        }
+
+        &--dark {
+            color: $shine;
+            a {
+                color: $sky;
+                border-color: $sky;
+            }
+            pre {
+                background-color: $space;
+                color: $shine;
+            }
+        }
+
+        @media screen and (max-width: 2 * $colWidth) {
+            width: 80%;
+        }
+    }
+
     &__toolbar {
         width: 100%;
         padding-top: 1.5em;
         background-color: white;
+        border-bottom: 1px solid white;
+
+        &--dark {
+            border-bottom: 1px solid $silver-lining;
+            background-color: $space;
+        }
     }
 
     &__widget {
