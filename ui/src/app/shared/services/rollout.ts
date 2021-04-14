@@ -6,7 +6,7 @@ import {NamespaceContext, RolloutAPIContext} from '../context/api';
 
 export const useRollouts = (): RolloutInfo[] => {
     const api = React.useContext(RolloutAPIContext);
-    const namespace = React.useContext(NamespaceContext);
+    const namespace = React.useContext(NamespaceContext) || 'unknown';
     const [rollouts, setRollouts] = React.useState([]);
 
     React.useEffect(() => {
