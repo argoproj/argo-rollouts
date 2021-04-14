@@ -7,6 +7,7 @@ import {useServerData} from '../../shared/utils/utils';
 import {ActionButton} from '../action-button/action-button';
 import {InfoItemRow} from '../info-item/info-item';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
+import {Tooltip} from '../tooltip/tooltip';
 
 import './header.scss';
 
@@ -51,12 +52,20 @@ export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void})
         <header className='rollouts-header'>
             <Brand path={name} />
             <div className='rollouts-header__info'>
-                {props.pageHasShortcuts && <ActionButton icon={faKeyboard} action={props.showHelp} dark />}
-                <a href='https://argoproj.github.io/argo-rollouts/' target='_blank' rel='noreferrer'>
-                    <ActionButton icon={faBook} dark />
-                </a>
+                {props.pageHasShortcuts && (
+                    <Tooltip content='Keyboard Shortcuts' inverted>
+                        <ActionButton icon={faKeyboard} action={props.showHelp} dark />
+                    </Tooltip>
+                )}
+                <Tooltip content='Documentation' inverted>
+                    <a href='https://argoproj.github.io/argo-rollouts/' target='_blank' rel='noreferrer'>
+                        <ActionButton icon={faBook} dark />
+                    </a>
+                </Tooltip>
                 <span style={{marginRight: '7px'}}>
-                    <ThemeToggle />
+                    <Tooltip content='Toggle Dark Mode' inverted>
+                        <ThemeToggle />
+                    </Tooltip>
                 </span>
                 <InfoItemRow label={'NS:'} items={{content: namespace}} />
                 <div className='rollouts-header__version'>{version}</div>
