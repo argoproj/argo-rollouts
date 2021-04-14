@@ -21,6 +21,7 @@
     @mixin dark-background {
         border: 1px solid $silver-lining;
         background-color: $fog;
+        color: $silver-lining;
     }
 
     &--dark > &__background {
@@ -31,6 +32,7 @@
         border-radius: 20px;
         border: 1px solid $argo-color-gray-6;
         background-color: $argo-color-gray-6;
+        color: $argo-color-gray-6;
 
         &--dark {
             @include dark-background;
