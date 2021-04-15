@@ -1,7 +1,7 @@
 
 # Argo Rollouts - Progressive Delivery for Kubernetes
 [![codecov](https://codecov.io/gh/argoproj/argo-rollouts/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-rollouts)
-[![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
+[![slack](https://img.shields.io/badge/slack-argo_rollouts-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C01U781DW2E)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/3834/badge)](https://bestpractices.coreinfrastructure.org/projects/3834)
 
 ## What is Argo Rollouts?
