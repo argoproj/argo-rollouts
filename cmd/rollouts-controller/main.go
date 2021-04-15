@@ -27,6 +27,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -56,6 +57,7 @@ func newCommand() *cobra.Command {
 		ingressThreads      int
 		istioVersion        string
 		trafficSplitVersion string
+		ambassadorVersion   string
 		albIngressClasses   []string
 		nginxIngressClasses []string
 		albVerifyWeight     bool
@@ -77,6 +79,7 @@ func newCommand() *cobra.Command {
 
 			alb.SetDefaultVerifyWeight(albVerifyWeight)
 			istio.SetIstioAPIVersion(istioVersion)
+			ambassador.SetAPIVersion(ambassadorVersion)
 			smi.SetSMIAPIVersion(trafficSplitVersion)
 
 			config, err := clientConfig.ClientConfig()
@@ -184,6 +187,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
+	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")

@@ -532,7 +532,7 @@ func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, e
 				return nil, field.Invalid(fldPath, nil, "must provide at least one mapping")
 			}
 			for _, mappingName := range a.Mappings {
-				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR(a.APIVersion)).
+				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR()).
 					Namespace(c.rollout.Namespace).
 					Get(context.Background(), mappingName, metav1.GetOptions{})
 				if err != nil {

@@ -436,42 +436,38 @@ func TestReconciler_SetWeight(t *testing.T) {
 }
 
 func TestGetMappingGVR(t *testing.T) {
+	t.Run("will return default gvr if apiVersion not provided", func(t *testing.T) {
+		// when
+		gvr := ambassador.GetMappingGVR()
+
+		// then
+		assert.Equal(t, "getambassador.io", gvr.Group)
+		assert.Equal(t, "v2", gvr.Version)
+		assert.Equal(t, "mappings", gvr.Resource)
+	})
 	t.Run("will get gvr successfully", func(t *testing.T) {
 		// given
-		t.Parallel()
-		apiVersion := "getambassador.io/v1"
+		ambassador.SetAPIVersion("v1")
 
 		// when
-		gvr := ambassador.GetMappingGVR(apiVersion)
+		gvr := ambassador.GetMappingGVR()
 
 		// then
 		assert.Equal(t, "getambassador.io", gvr.Group)
 		assert.Equal(t, "v1", gvr.Version)
 		assert.Equal(t, "mappings", gvr.Resource)
 	})
-	t.Run("will return default gvr if apiVersion not provided", func(t *testing.T) {
+	t.Run("will get valid gvr even if apiVersion has the wrong domain", func(t *testing.T) {
 		// given
-		t.Parallel()
+		apiVersion := "invalid.com/v1alpha1"
+		ambassador.SetAPIVersion(apiVersion)
 
 		// when
-		gvr := ambassador.GetMappingGVR("")
+		gvr := ambassador.GetMappingGVR()
 
 		// then
 		assert.Equal(t, "getambassador.io", gvr.Group)
-		assert.Equal(t, "v2", gvr.Version)
-		assert.Equal(t, "mappings", gvr.Resource)
-	})
-	t.Run("will return default gvr if apiVersion is malformatted", func(t *testing.T) {
-		// given
-		t.Parallel()
-		malformatted := "bad.api.version"
-
-		// when
-		gvr := ambassador.GetMappingGVR(malformatted)
-
-		// then
-		assert.Equal(t, "getambassador.io", gvr.Group)
-		assert.Equal(t, "v2", gvr.Version)
+		assert.Equal(t, "v1alpha1", gvr.Version)
 		assert.Equal(t, "mappings", gvr.Resource)
 	})
 }

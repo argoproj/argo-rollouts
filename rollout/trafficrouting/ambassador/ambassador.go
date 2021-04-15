@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +25,6 @@ import (
 // Type defines the ambassador traffic routing type.
 const (
 	Type                         = "Ambassador"
-	APIVersionDefault            = "getambassador.io/v2"
 	AmbassadorMappingNotFound    = "AmbassadorMappingNotFound"
 	AmbassadorMappingConfigError = "AmbassadorMappingConfigError"
 	CanaryMappingCleanupError    = "CanaryMappingCleanupError"
@@ -32,6 +32,18 @@ const (
 	CanaryMappingUpdateError     = "CanaryMappingUpdateError"
 	CanaryMappingWeightUpdate    = "CanaryMappingWeightUpdate"
 )
+
+var (
+	ambassadorAPIVersion = defaults.DefaultAmbassadorVersion
+)
+
+func SetAPIVersion(apiVersion string) {
+	ambassadorAPIVersion = apiVersion
+}
+
+func GetAPIVersion() string {
+	return ambassadorAPIVersion
+}
 
 // Reconciler implements a TrafficRoutingReconciler for Ambassador.
 type Reconciler struct {
@@ -52,8 +64,8 @@ type ClientInterface interface {
 
 // NewDynamicClient will initialize a real kubernetes dynamic client to interact
 // with Ambassador CRDs
-func NewDynamicClient(di dynamic.Interface, namespace, apiVersion string) dynamic.ResourceInterface {
-	return di.Resource(GetMappingGVR(apiVersion)).Namespace(namespace)
+func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceInterface {
+	return di.Resource(GetMappingGVR()).Namespace(namespace)
 }
 
 // NewReconciler will build and return an ambassador Reconciler
@@ -267,28 +279,19 @@ func buildCanaryMappingName(name string) string {
 	return fmt.Sprintf("%s-canary", n)
 }
 
-// GetMappingGVR will parse the provided apiVersion string into a GroupVersionResource.
-// If the provided apiVersion is empty or malformated it will use the default value defined
-// in APIVersionDefault.
-func GetMappingGVR(apiVersion string) schema.GroupVersionResource {
-	gvr := toMappingGVR(apiVersion)
-	if gvr == nil {
-		gvr = toMappingGVR(APIVersionDefault)
-	}
-	return *gvr
+// GetMappingGVR will return the Ambassador Mapping GVR to be used. The logic is based on the
+// ambassadorAPIVersion variable that is set with a default value. The default value can be
+// changed by invoking the SetAPIVersion function.
+func GetMappingGVR() schema.GroupVersionResource {
+	return toMappingGVR(ambassadorAPIVersion)
 }
 
-func toMappingGVR(apiVersion string) *schema.GroupVersionResource {
-	if apiVersion == "" {
-		return nil
-	}
+func toMappingGVR(apiVersion string) schema.GroupVersionResource {
 	parts := strings.Split(apiVersion, "/")
-	if len(parts) != 2 {
-		return nil
-	}
-	return &schema.GroupVersionResource{
-		Group:    parts[0],
-		Version:  parts[1],
+	version := parts[len(parts)-1]
+	return schema.GroupVersionResource{
+		Group:    "getambassador.io",
+		Version:  version,
 		Resource: "mappings",
 	}
 }
