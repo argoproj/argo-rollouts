@@ -242,7 +242,7 @@ type RolloutTrafficRouting struct {
 	// SMI holds TrafficSplit specific configuration to route traffic
 	SMI *SMITrafficRouting `json:"smi,omitempty" protobuf:"bytes,4,opt,name=smi"`
 	// Ambassador holds specific configuration to use Ambassador to route traffic
-	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty"`
+	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
@@ -250,7 +250,7 @@ type RolloutTrafficRouting struct {
 type AmbassadorTrafficRouting struct {
 	// Mappings refer to the name of the Ambassador Mappings used to route traffic to the
 	// service
-	Mappings []string `json:"mappings"`
+	Mappings []string `json:"mappings" protobuf:"bytes,1,rep,name=mappings"`
 }
 
 // SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing

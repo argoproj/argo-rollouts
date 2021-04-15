@@ -208,230 +208,286 @@ func TestReconciler_SetWeight(t *testing.T) {
 			},
 		}
 	}
-	t.Run("will create canary mapping and set weight successfully", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
-			{obj: toUnstructured(t, baseMapping)},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
+	t.Run("SetWeight", func(t *testing.T) {
+		t.Run("will create canary mapping and set weight successfully", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+				{obj: toUnstructured(t, baseMapping)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
 
-		// when
-		err := f.reconciler.SetWeight(13)
+			// when
+			err := f.reconciler.SetWeight(13)
 
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
-		assert.Equal(t, 1, len(f.fakeClient.createInvokations))
-		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
-		assert.Equal(t, "canary-service:8080", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+			assert.Equal(t, 1, len(f.fakeClient.createInvokations))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, "canary-service:8080", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will create canary mapping with no service port", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+				{obj: toUnstructured(t, baseMappingNoPort)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(13)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+			assert.Equal(t, 1, len(f.fakeClient.createInvokations))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, "canary-service", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will update canary mapping according to provided weight", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{obj: toUnstructured(t, canaryMapping)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(13)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 1, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will cleanup canary mapping if current weight is zero", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{obj: toUnstructured(t, canaryMappingWithZeroWeight)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(0)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 1, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will return error if base mapping defines the weight", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+				{obj: toUnstructured(t, baseMappingWithWeight)},
+			}
+			f.fakeClient.getReturns = getReturns
+
+			// when
+			err := f.reconciler.SetWeight(20)
+
+			// then
+			assert.Error(t, err)
+			assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will return error if base mapping not found", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "base-mapping")},
+			}
+			f.fakeClient.getReturns = getReturns
+
+			// when
+			err := f.reconciler.SetWeight(20)
+
+			// then
+			assert.Error(t, err)
+			assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will respect kube resource name size when creating the canary mapping", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			providedMappingName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-"
+			expectedName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mappin-canary"
+			f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = []string{providedMappingName}
+
+			getReturns := []*getReturn{
+				{obj: toUnstructured(t, canaryMapping)},
+			}
+			f.fakeClient.getReturns = getReturns
+
+			// when
+			err := f.reconciler.SetWeight(20)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
+			assert.Equal(t, expectedName, f.fakeClient.getInvokations[0].name)
+		})
+		t.Run("will create multiple canary mappings when provided multiple base mappings", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
+			f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
+			getReturns := []*getReturn{
+				{obj: toUnstructured(t, baseMapping)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(13)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 3, len(f.fakeClient.getInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 3, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[0].obj))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[1].obj))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[2].obj))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will return errors from all mapping creations", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
+			f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
+			getReturns := []*getReturn{
+				{err: errors.New("error getting mapping 1")},
+				{err: errors.New("error getting mapping 2")},
+				{err: errors.New("error getting mapping 3")},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(13)
+
+			// then
+			assert.Error(t, err)
+			assert.True(t, strings.Contains(err.Error(), "3 errors found"))
+			assert.Equal(t, 3, len(f.fakeClient.getInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
 	})
-	t.Run("will create canary mapping with no service port", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
-			{obj: toUnstructured(t, baseMappingNoPort)},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
+	t.Run("Type", func(t *testing.T) {
+		t.Run("will validate returned type", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
 
-		// when
-		err := f.reconciler.SetWeight(13)
+			// when
+			tp := f.reconciler.Type()
 
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
-		assert.Equal(t, 1, len(f.fakeClient.createInvokations))
-		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
-		assert.Equal(t, "canary-service", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+			// then
+			assert.Equal(t, ambassador.Type, tp)
+		})
 	})
-	t.Run("will update canary mapping according to provided weight", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{obj: toUnstructured(t, canaryMapping)},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
+	t.Run("VerifyWeight", func(t *testing.T) {
+		t.Run("verify weight will always return true", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
 
-		// when
-		err := f.reconciler.SetWeight(13)
+			// when
+			verified, err := f.reconciler.VerifyWeight(0)
 
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 1, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+			// then
+			assert.Nil(t, err)
+			assert.True(t, verified)
+		})
 	})
-	t.Run("will cleanup canary mapping if current weight is zero", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{obj: toUnstructured(t, canaryMappingWithZeroWeight)},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
+	t.Run("UpdateHash", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
 
-		// when
-		err := f.reconciler.SetWeight(0)
+			// when
+			err := f.reconciler.UpdateHash("", "")
 
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 1, len(f.fakeClient.deleteInvokations))
+			// then
+			assert.Nil(t, err)
+		})
 	})
-	t.Run("will return error if base mapping defines the weight", func(t *testing.T) {
+}
+
+func TestGetMappingService(t *testing.T) {
+	t.Run("will return empty string if service not found", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
-			{obj: toUnstructured(t, baseMappingWithWeight)},
-		}
-		f.fakeClient.getReturns = getReturns
+		manifest := "kind: Deployment"
 
 		// when
-		err := f.reconciler.SetWeight(20)
+		service := ambassador.GetMappingService(toUnstructured(t, manifest))
 
 		// then
-		assert.Error(t, err)
-		assert.Equal(t, 2, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
-	})
-	t.Run("will return error if base mapping not found", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		getReturns := []*getReturn{
-			{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
-			{err: k8serrors.NewNotFound(schema.GroupResource{}, "base-mapping")},
-		}
-		f.fakeClient.getReturns = getReturns
-
-		// when
-		err := f.reconciler.SetWeight(20)
-
-		// then
-		assert.Error(t, err)
-		assert.Equal(t, 2, len(f.fakeClient.getInvokations))
-		assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
-		assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
-	})
-	t.Run("will respect kube resource name size when creating the canary mapping", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		providedMappingName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-"
-		expectedName := "very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mapping-name-very-long-mappin-canary"
-		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = []string{providedMappingName}
-
-		getReturns := []*getReturn{
-			{obj: toUnstructured(t, canaryMapping)},
-		}
-		f.fakeClient.getReturns = getReturns
-
-		// when
-		err := f.reconciler.SetWeight(20)
-
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(f.fakeClient.getInvokations))
-		assert.Equal(t, expectedName, f.fakeClient.getInvokations[0].name)
-	})
-	t.Run("will create multiple canary mappings when provided multiple base mappings", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
-		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
-		getReturns := []*getReturn{
-			{obj: toUnstructured(t, baseMapping)},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
-
-		// when
-		err := f.reconciler.SetWeight(13)
-
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, 3, len(f.fakeClient.getInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 3, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[0].obj))
-		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[1].obj))
-		assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.updateInvokations[2].obj))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
-	})
-	t.Run("will return errors from all mapping creations", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		mappings := []string{"base-mapping-01", "base-mapping-02", "base-mapping-03"}
-		f.rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings = mappings
-		getReturns := []*getReturn{
-			{err: errors.New("error getting mapping 1")},
-			{err: errors.New("error getting mapping 2")},
-			{err: errors.New("error getting mapping 3")},
-		}
-		createReturns := []*createReturn{
-			{nil, nil},
-		}
-		f.fakeClient.getReturns = getReturns
-		f.fakeClient.createReturns = createReturns
-
-		// when
-		err := f.reconciler.SetWeight(13)
-
-		// then
-		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "3 errors found"))
-		assert.Equal(t, 3, len(f.fakeClient.getInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-		assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		assert.Equal(t, "", service)
 	})
 }
 
@@ -469,6 +525,7 @@ func TestGetMappingGVR(t *testing.T) {
 		assert.Equal(t, "getambassador.io", gvr.Group)
 		assert.Equal(t, "v1alpha1", gvr.Version)
 		assert.Equal(t, "mappings", gvr.Resource)
+		assert.Equal(t, apiVersion, ambassador.GetAPIVersion())
 	})
 }
 
