@@ -63,6 +63,7 @@ func (s *IstioSuite) TestIstioHostSplit() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
@@ -73,7 +74,8 @@ func (s *IstioSuite) TestIstioHostSplit() {
 			rs2 := t.GetReplicaSetByRevision("2")
 			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-		})
+		}).
+		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
 }
 
 func (s *IstioSuite) TestIstioSubsetSplit() {
@@ -111,6 +113,7 @@ func (s *IstioSuite) TestIstioSubsetSplit() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
@@ -122,6 +125,7 @@ func (s *IstioSuite) TestIstioSubsetSplit() {
 			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
 			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
 		}).
+		ExpectRevisionPodCount("1", 1). // don't scale down old replicaset since it will be within scaleDownDelay
 		When().
 		// Verify we remove the injections on the DestinationRule when a rollout no longer references it
 		UpdateSpec(`
@@ -130,7 +134,7 @@ spec:
     canary:
       trafficRouting: null
 `).
-		Sleep(2 * time.Second).
+		Sleep(1*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			destrule := t.GetDestinationRule()
@@ -140,5 +144,6 @@ spec:
 			assert.False(s.T(), ok)
 			_, ok = destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			assert.False(s.T(), ok)
-		})
+		}).
+		ExpectRevisionPodCount("1", 0) // since we moved back to basic canary, we should scale down older RSs
 }

@@ -44,7 +44,7 @@ func rs(name string, replicas int, selector map[string]string, timestamp metav1.
 	}
 }
 
-func TestCleanupRollouts(t *testing.T) {
+func TestReconcileRevisionHistoryLimit(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
 
@@ -203,7 +203,7 @@ func TestCleanupRollouts(t *testing.T) {
 					recorder:          &record.FakeRecorder{},
 				},
 			}
-			err := roCtx.cleanupRollouts(test.replicaSets)
+			err := roCtx.reconcileRevisionHistoryLimit(test.replicaSets)
 			assert.Nil(t, err)
 			assert.Equal(t, len(test.expectedDeleted), len(k8sfake.Actions()))
 			for _, action := range k8sfake.Actions() {

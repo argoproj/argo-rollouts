@@ -173,10 +173,13 @@ func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 			return "Progressing", "waiting for analysis to complete"
 		}
 	} else if ro.Spec.Strategy.Canary != nil {
-		if ro.Status.Replicas > ro.Status.UpdatedReplicas {
-			// This check should only be done for canary and not blue-green since blue-green has the
-			// scaleDownDelay feature which leaves the old stack of replicas running for a long time
-			return "Progressing", "old replicas are pending termination"
+		if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+			if ro.Status.Replicas > ro.Status.UpdatedReplicas {
+				// This check should only be done for basic canary and not blue-green or canary with traffic routing
+				// since the latter two have the scaleDownDelay feature which leaves the old stack of replicas
+				// running for a long time
+				return "Progressing", "old replicas are pending termination"
+			}
 		}
 		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
 			return "Progressing", "waiting for all steps to complete"

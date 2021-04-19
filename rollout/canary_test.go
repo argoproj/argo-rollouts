@@ -13,14 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	k8sinformers "k8s.io/client-go/informers"
-
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -1349,11 +1348,13 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, true)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, true)
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-63 * time.Second)}
-	r1.Status.PauseConditions = []v1alpha1.PauseCondition{{
+	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 		StartTime: overAMinuteAgo,
 	}}
@@ -1361,16 +1362,17 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	conditions.SetRolloutCondition(&r1.Status, progressingCondition)
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
-	r1.Spec.Paused = true
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	r2.Spec.Paused = true
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
 
-	patchIndex := f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	_ = f.expectPatchRolloutAction(r2) // this just sets a conditions. ignore for now
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r1, OnlyObservedGenerationPatch), patch)
+	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {

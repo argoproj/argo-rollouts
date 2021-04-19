@@ -245,7 +245,6 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS := rs("foo-old", test.oldReplicas, oldSelector, noTimestamp, nil)
 			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
-			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 			f := newFixture(t)
@@ -260,7 +259,8 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			close(stopCh)
 			roCtx, err := c.newRolloutContext(rollout)
 			assert.NoError(t, err)
-			scaled, err := roCtx.reconcileOldReplicaSets(oldRSs)
+			roCtx.otherRSs = []*appsv1.ReplicaSet{oldRS}
+			scaled, err := roCtx.reconcileOtherReplicaSets()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

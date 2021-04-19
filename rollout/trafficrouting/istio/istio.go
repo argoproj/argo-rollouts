@@ -209,7 +209,9 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 		return err
 	}
 	if modified {
-		r.log.Infof("DestinationRule %s subset updated (%s: %s, %s: %s)", dRuleSpec.Name, dRuleSpec.CanarySubsetName, canaryHash, dRuleSpec.StableSubsetName, stableHash)
+		msg := fmt.Sprintf("DestinationRule %s subset updated (%s: %s, %s: %s)", dRuleSpec.Name, dRuleSpec.CanarySubsetName, canaryHash, dRuleSpec.StableSubsetName, stableHash)
+		r.log.Info(msg)
+		r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatedDestinationRule", msg)
 	}
 	return nil
 }
@@ -331,10 +333,12 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	if !modified {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, desiredWeight)
-	r.log.Info(msg)
-	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
+	if err == nil {
+		msg := fmt.Sprintf("VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+		r.log.Info(msg)
+		r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatedVirtualService", msg)
+	}
 	return err
 }
 

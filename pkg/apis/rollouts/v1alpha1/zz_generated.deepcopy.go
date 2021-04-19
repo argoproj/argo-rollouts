@@ -553,6 +553,16 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(PodTemplateMetadata)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ScaleDownDelaySeconds != nil {
+		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
+	if in.ScaleDownDelayRevisionLimit != nil {
+		in, out := &in.ScaleDownDelayRevisionLimit, &out.ScaleDownDelayRevisionLimit
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

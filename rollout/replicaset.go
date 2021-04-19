@@ -24,21 +24,42 @@ const (
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
 )
 
+// removeScaleDownDelay removes the `scale-down-deadline` annotation from the ReplicaSet (if it exists)
 func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	ctx := context.TODO()
-	c.log.Infof("Removing '%s' annotation on RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	if !replicasetutil.HasScaleDownDeadline(rs) {
+		return nil
+	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err == nil {
+		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	}
 	return err
 }
 
+// addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
+// scaleDownDelaySeconds is zero, removes it if it exists
 func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
+	if rs == nil {
+		return nil
+	}
 	ctx := context.TODO()
-	c.log.Infof("Adding '%s' annotation to RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(c.rollout))
-	now := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
-	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	if scaleDownDelaySeconds == 0 {
+		// If scaledown deadline is zero, it means we need to remove any replicasets with the delay
+		// This might happen if we switch from canary with traffic routing to basic canary
+		if replicasetutil.HasScaleDownDeadline(rs) {
+			return c.removeScaleDownDelay(rs)
+		}
+		return nil
+	}
+	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
+	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err == nil {
+		c.log.Infof("Set '%s' annotation on '%s' to %s (%ds)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+	}
 	return err
 }
 
@@ -70,11 +91,31 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	return cm.ClaimReplicaSets(rsList)
 }
 
+// removeScaleDownDelays removes the scale-down-deadline annotation from the new/stable ReplicaSets,
+// in the event that we moved back to an older revision that is still within its scaleDownDelay.
+func (c *rolloutContext) removeScaleDownDeadlines() error {
+	var toRemove []*appsv1.ReplicaSet
+	if c.newRS != nil {
+		toRemove = append(toRemove, c.newRS)
+	}
+	if c.stableRS != nil {
+		if len(toRemove) == 0 || c.stableRS.Name != c.newRS.Name {
+			toRemove = append(toRemove, c.stableRS)
+		}
+	}
+	for _, rs := range toRemove {
+		err := c.removeScaleDownDelay(rs)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if c.newRS == nil {
 		return false, nil
 	}
-	c.log.Infof("Reconciling new ReplicaSet '%s'", c.newRS.Name)
 	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS)
 	if err != nil {
 		return false, err
@@ -83,38 +124,44 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	return scaled, err
 }
 
-func (c *rolloutContext) reconcileOldReplicaSets(oldRSs []*appsv1.ReplicaSet) (bool, error) {
-	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
+// reconcileOtherReplicaSets reconciles "other" ReplicaSets.
+// Other ReplicaSets are ReplicaSets are neither the new or stable (allRSs - newRS - stableRS)
+func (c *rolloutContext) reconcileOtherReplicaSets() (bool, error) {
+	otherRSs := controller.FilterActiveReplicaSets(c.otherRSs)
+	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(otherRSs)
 	if oldPodsCount == 0 {
 		// Can't scale down further
 		return false, nil
 	}
-	c.log.Infof("Reconciling old replica sets (count: %d)", oldPodsCount)
+	c.log.Infof("Reconciling %d old ReplicaSets (total pods: %d)", len(otherRSs), oldPodsCount)
 
 	var err error
 	hasScaled := false
 	if c.rollout.Spec.Strategy.Canary != nil {
-		// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
-		// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-		oldRSs, hasScaled, err = c.cleanupUnhealthyReplicas(oldRSs)
+		// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
+		scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(otherRSs)
 		if err != nil {
 			return false, nil
 		}
+		//hasScaled = hasScaled || scaledDownCount > 0
+		hasScaled = scaledDownCount > 0
 	}
 
 	// Scale down old replica sets
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(oldRSs)
+		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(otherRSs)
 		if err != nil {
 			return false, nil
 		}
 	}
-
+	if hasScaled {
+		c.log.Infof("Scaled down old RSes")
+	}
 	return hasScaled, nil
 }
 
 // cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) ([]*appsv1.ReplicaSet, bool, error) {
+func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) ([]*appsv1.ReplicaSet, int32, error) {
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
 	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the pods in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
@@ -134,14 +181,14 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 		scaledDownCount := *(targetRS.Spec.Replicas) - targetRS.Status.AvailableReplicas
 		newReplicasCount := targetRS.Status.AvailableReplicas
 		if newReplicasCount > *(targetRS.Spec.Replicas) {
-			return nil, false, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s/%s %d -> %d", targetRS.Namespace, targetRS.Name, *(targetRS.Spec.Replicas), newReplicasCount)
+			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s/%s %d -> %d", targetRS.Namespace, targetRS.Name, *(targetRS.Spec.Replicas), newReplicasCount)
 		}
 		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
 		if err != nil {
-			return nil, totalScaledDown > 0, err
+			return nil, totalScaledDown, err
 		}
 		totalScaledDown += scaledDownCount
 		oldRSs[i] = updatedOldRS
 	}
-	return oldRSs, totalScaledDown > 0, nil
+	return oldRSs, totalScaledDown, nil
 }

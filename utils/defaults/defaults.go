@@ -101,15 +101,21 @@ func GetExperimentProgressDeadlineSecondsOrDefault(e *v1alpha1.Experiment) int32
 }
 
 func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
-	if rollout.Spec.Strategy.BlueGreen == nil {
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds != nil {
+			return *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
+		}
 		return DefaultScaleDownDelaySeconds
 	}
-
-	if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil {
-		return DefaultScaleDownDelaySeconds
+	if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			if rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
+				return *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
+			}
+			return DefaultScaleDownDelaySeconds
+		}
 	}
-
-	return *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
+	return 0
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {

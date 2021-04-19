@@ -421,6 +421,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     stableMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    scaleDownDelaySeconds?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    scaleDownDelayRevisionLimit?: number;
 }
 /**
  * 

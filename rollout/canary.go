@@ -1,13 +1,12 @@
 package rollout
 
 import (
-	"fmt"
 	"sort"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -41,7 +40,7 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	if err := c.cleanupRollouts(c.otherRSs); err != nil {
+	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
 		return err
 	}
 
@@ -85,8 +84,10 @@ func (c *rolloutContext) rolloutCanary() error {
 	return c.syncRolloutStatusCanary()
 }
 
-func (c *rolloutContext) reconcileStableRS() (bool, error) {
+func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 	if !replicasetutil.CheckStableRSExists(c.newRS, c.stableRS) {
+		// we skip this because if they are equal, then it will get reconciled in reconcileNewReplicaSet()
+		// making this redundant
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
@@ -137,33 +138,15 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	return true
 }
 
-func (c *rolloutContext) reconcileOldReplicaSetsCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (bool, error) {
-	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(oldRSs)
-	if oldPodsCount == 0 {
-		// Can't scale down further
-		return false, nil
-	}
-
+// scaleDownOldReplicaSetsForCanary scales down old replica sets when rollout strategy is "canary".
+func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.ReplicaSet) (int32, error) {
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldRSs, cleanedUpRSs, err := c.cleanupUnhealthyReplicas(oldRSs)
+	oldRSs, totalScaledDown, err := c.cleanupUnhealthyReplicas(oldRSs)
 	if err != nil {
-		return false, nil
+		return totalScaledDown, nil
 	}
-
-	// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
-	scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(allRSs, oldRSs)
-	if err != nil {
-		return false, nil
-	}
-	c.log.Infof("Scaled down old RSes by %d", scaledDownCount)
-
-	return cleanedUpRSs || scaledDownCount > 0, nil
-}
-
-// scaleDownOldReplicaSetsForCanary scales down old replica sets when rollout strategy is "canary".
-func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, error) {
-	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(allRSs)
+	availablePodCount := replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	minAvailable := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) - replicasetutil.MaxUnavailable(c.rollout)
 	maxScaleDown := availablePodCount - minAvailable
 	if maxScaleDown <= 0 {
@@ -172,10 +155,17 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 	}
 	c.log.Infof("Found %d available pods, scaling down old RSes (minAvailable: %d, maxScaleDown: %d)", availablePodCount, minAvailable, maxScaleDown)
 
-	sort.Sort(controller.ReplicaSetsByCreationTimestamp(oldRSs))
+	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
-	totalScaledDown := int32(0)
+	annotationedRSs := int32(0)
+	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
+		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
+			// We should technically never get here because we shouldn't be passing a replicaset list
+			// which includes referenced ReplicaSets. But we check just in case
+			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
+			continue
+		}
 		if maxScaleDown <= 0 {
 			break
 		}
@@ -183,16 +173,48 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(allRSs []*appsv1.Repli
 			// cannot scale down this ReplicaSet.
 			continue
 		}
-		// Scale down.
-		newReplicasCount := int32(0)
-		if *(targetRS.Spec.Replicas) > maxScaleDown {
-			newReplicasCount = *(targetRS.Spec.Replicas) - maxScaleDown
+		desiredReplicaCount := int32(0)
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			// For basic canary, we must scale down all other ReplicaSets because existence of
+			// those pods will cause traffic to be served by them
+			if *(targetRS.Spec.Replicas) > maxScaleDown {
+				desiredReplicaCount = *(targetRS.Spec.Replicas) - maxScaleDown
+			}
+		} else {
+			// For traffic shaped canary, we leave the old ReplicaSets up until scaleDownDelaySeconds
+			if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+				annotationedRSs++
+				scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+				scaleDownRevisionLimit := getScaleDownRevisionLimit(c.rollout)
+				if err != nil {
+					c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
+				} else if annotationedRSs > scaleDownRevisionLimit {
+					c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+				} else {
+					now := metav1.Now()
+					scaleDownAt := metav1.NewTime(scaleDownAtTime)
+					if scaleDownAt.After(now.Time) {
+						c.log.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
+						remainingTime := scaleDownAt.Sub(now.Time)
+						if remainingTime < c.resyncPeriod {
+							c.enqueueRolloutAfter(c.rollout, remainingTime)
+						}
+						desiredReplicaCount = rolloutReplicas
+					}
+				}
+			}
+
 		}
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
+		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
+			// at desired account
+			continue
+		}
+		// Scale down.
+		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return totalScaledDown, err
 		}
-		scaleDownCount := *targetRS.Spec.Replicas - newReplicasCount
+		scaleDownCount := *targetRS.Spec.Replicas - desiredReplicaCount
 		maxScaleDown -= scaleDownCount
 		totalScaledDown += scaleDownCount
 	}
@@ -244,37 +266,16 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
+		c.resetRolloutStatus(&newStatus)
 		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
-			if newStatus.CurrentStepIndex != nil {
-				msg := "Skipping all steps because the newRS is the stableRS."
+			if stepCount > 0 {
+				// If we get here, we detected that we've moved back to the stable ReplicaSet
+				msg := "Rollback to stable"
 				c.log.Info(msg)
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(stepCount)
 				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SkipSteps", msg)
+				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
-		c.pauseContext.ClearPauseConditions()
-		c.pauseContext.RemoveAbort()
-		c.SetRestartedAt()
-		newStatus = c.calculateRolloutConditions(newStatus)
-		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
-		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
-		newStatus.PromoteFull = false
-		return c.persistRolloutStatus(&newStatus)
-	}
-
-	if c.stableRS == nil {
-		msg := fmt.Sprintf("Setting StableRS to CurrentPodHash: StableRS hash: %s", newStatus.CurrentPodHash)
-		c.log.Info(msg)
-		newStatus.StableRS = newStatus.CurrentPodHash
-		if stepCount > 0 {
-			if stepCount != *currentStepIndex {
-				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", msg)
-			}
-			newStatus.CurrentStepIndex = &stepCount
-		}
-		c.pauseContext.ClearPauseConditions()
-		c.pauseContext.RemoveAbort()
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
@@ -283,8 +284,17 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		c.pauseContext.ClearPauseConditions()
 		c.pauseContext.RemoveAbort()
 		if stepCount > 0 {
-			currentStepIndex = pointer.Int32Ptr(stepCount)
+			currentStepIndex = &stepCount
 		}
+	}
+
+	if reason := c.shouldFullPromote(newStatus); reason != "" {
+		err := c.promoteStable(&newStatus, reason)
+		if err != nil {
+			return err
+		}
+		newStatus = c.calculateRolloutConditions(newStatus)
+		return c.persistRolloutStatus(&newStatus)
 	}
 
 	if c.pauseContext.IsAborted() {
@@ -299,34 +309,12 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == stepCount) {
-		c.log.Infof("Rollout has executed all %d steps", stepCount)
-		if stepCount > 0 {
-			newStatus.CurrentStepIndex = &stepCount
-		}
-		if c.newRS != nil && c.newRS.Status.AvailableReplicas == defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
-			c.log.Info("New RS has successfully progressed")
-			newStatus.StableRS = newStatus.CurrentPodHash
-			newStatus.PromoteFull = false
-		}
-		c.pauseContext.ClearPauseConditions()
-		newStatus = c.calculateRolloutConditions(newStatus)
-		return c.persistRolloutStatus(&newStatus)
-	}
-
-	completedStep := c.completedCurrentCanaryStep()
-	if completedStep {
+	if c.completedCurrentCanaryStep() {
 		*currentStepIndex++
-		newStatus.CurrentStepIndex = currentStepIndex
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
-		if int(*currentStepIndex) == len(c.rollout.Spec.Strategy.Canary.Steps) {
-			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SettingStableRS", "Completed all steps")
-		}
 		c.log.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
 		c.recorder.Eventf(c.rollout, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
-		newStatus = c.calculateRolloutConditions(newStatus)
-		return c.persistRolloutStatus(&newStatus)
 	}
 
 	newStatus.CurrentStepIndex = currentStepIndex
@@ -335,8 +323,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 }
 
 func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
-	c.log.Info("Reconciling StableRS")
-	scaledStableRS, err := c.reconcileStableRS()
+	err := c.removeScaleDownDeadlines()
+	if err != nil {
+		return false, err
+	}
+	scaledStableRS, err := c.reconcileCanaryStableReplicaSet()
 	if err != nil {
 		return false, err
 	}
@@ -354,13 +345,12 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return true, nil
 	}
 
-	c.log.Info("Reconciling old replica sets")
-	scaledDown, err := c.reconcileOldReplicaSetsCanary(c.allRSs, controller.FilterActiveReplicaSets(c.otherRSs))
+	scaledDown, err := c.reconcileOtherReplicaSets()
 	if err != nil {
 		return false, err
 	}
 	if scaledDown {
-		c.log.Info("Not finished reconciling old replica sets")
+		c.log.Info("Not finished reconciling old ReplicaSets")
 		return true, nil
 	}
 	return false, nil

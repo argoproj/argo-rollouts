@@ -165,7 +165,7 @@ func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithPause() {
 kind: Service
 apiVersion: v1
 metadata:
-  name: rollout-bluegreen-active
+  name: rollout-bluegreen-with-pause
 spec:
   selector:
     app: rollout-bluegreen-with-pause
@@ -204,7 +204,7 @@ spec:
   strategy:
     blueGreen: 
       autoPromotionEnabled: false
-      activeService: rollout-bluegreen-active
+      activeService: rollout-bluegreen-with-pause
 `).
 		When().
 		ApplyManifests().
@@ -226,7 +226,7 @@ func (s *BlueGreenSuite) TestBlueGreenProgressDeadlineExceededWithoutPause() {
 kind: Service
 apiVersion: v1
 metadata:
-  name: rollout-bluegreen-active
+  name: rollout-bluegreen-without-pause
 spec:
   selector:
     app: rollout-bluegreen-without-pause
@@ -265,7 +265,7 @@ spec:
   strategy:
     blueGreen: 
       autoPromotionEnabled: true
-      activeService: rollout-bluegreen-active
+      activeService: rollout-bluegreen-without-pause
 `).
 		When().
 		ApplyManifests().
