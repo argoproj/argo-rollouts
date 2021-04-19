@@ -32,5 +32,5 @@ spec:
 The example shows Istio metrics, but you can use any kind of metric available to your prometheus instance. We suggest
 you validate your [PromQL expression](https://prometheus.io/docs/prometheus/latest/querying/basics/) using the [Prometheus GUI first](https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser).
 
-See the [Analysis Overview page](/features/analysis) for more details on the available options.
+See the [Analysis Overview page](../../features/analysis) for more details on the available options.
 
