@@ -16,7 +16,6 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/jstemmer/go-junit-report v0.9.1
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/newrelic/newrelic-client-go v0.49.0
@@ -32,8 +31,7 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
-	github.com/vektra/mockery/v2 v2.6.0
-	golang.org/x/tools v0.1.0
+	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	google.golang.org/grpc/examples v0.0.0-20210331235824-f6bb3972ed15 // indirect
@@ -46,14 +44,13 @@ require (
 	k8s.io/apiserver v0.20.4
 	k8s.io/cli-runtime v0.20.4
 	k8s.io/client-go v0.20.4
-	k8s.io/code-generator v0.20.4
+	k8s.io/code-generator v0.21.0
 	k8s.io/component-base v0.20.4
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20210216185858-15cd8face8d6
 	k8s.io/kubectl v0.19.4
 	k8s.io/kubernetes v1.20.4
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
-	sigs.k8s.io/controller-tools v0.4.1
 )
 
 replace (
