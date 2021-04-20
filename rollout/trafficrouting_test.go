@@ -2,11 +2,13 @@ package rollout
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
@@ -372,4 +374,92 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		assert.NotNil(t, networkReconciler)
 		assert.Equal(t, smi.Type, networkReconciler.Type())
 	}
+}
+
+// Verifies with a canary using traffic routing, we add a scaledown delay to the old ReplicaSet
+// after promoting desired ReplicaSet to stable
+func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 2, 2, 2, false)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1Patch := f.expectPatchReplicaSetAction(rs1) // adds the annotation
+	patchIndex := f.expectPatchRolloutAction(r2)   // updates the rollout status
+	f.run(getKey(r2, t))
+
+	f.verifyPatchedReplicaSet(rs1Patch, 30)
+	roPatchObj := f.getPatchedRolloutAsObject(patchIndex)
+	assert.Equal(t, rs2PodHash, roPatchObj.Status.StableRS)
+	assert.Nil(t, roPatchObj.Status.CurrentStepIndex)
+}
+
+// Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit
+// after promoting desired ReplicaSet to stable
+func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
+
+	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+	r1.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(1)
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+
+	r3 := bumpVersion(r2)
+	rs3 := newReplicaSetWithStatus(r3, 1, 1)
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r3 = updateCanaryRolloutStatus(r3, rs3PodHash, 2, 2, 2, false)
+
+	r3.Status.ObservedGeneration = strconv.Itoa(int(r3.Generation))
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r3)
+	stableSvc := newService("stable", 80, stableSelector, r3)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+
+	rs1ScaleDownIndex := f.expectUpdateReplicaSetAction(rs1) // scale down ReplicaSet
+	_ = f.expectPatchRolloutAction(r3)                       // updates the rollout status
+	f.run(getKey(r3, t))
+
+	rs1Updated := f.getUpdatedReplicaSet(rs1ScaleDownIndex)
+	assert.Equal(t, int32(0), *rs1Updated.Spec.Replicas)
+	_, ok := rs1Updated.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	assert.False(t, ok, "annotation not removed")
 }

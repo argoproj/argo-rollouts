@@ -13,6 +13,7 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -2300,6 +2301,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2319,6 +2321,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2340,8 +2343,10 @@ spec:
                             threshold:
                               properties:
                                 marginal:
+                                  format: int64
                                   type: integer
                                 pass:
+                                  format: int64
                                   type: integer
                               required:
                               - marginal
@@ -2399,6 +2404,7 @@ spec:
                             jsonPath:
                               type: string
                             timeoutSeconds:
+                              format: int64
                               type: integer
                             url:
                               type: string

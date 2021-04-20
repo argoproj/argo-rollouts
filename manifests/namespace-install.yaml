@@ -14,6 +14,7 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -2301,6 +2302,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2320,6 +2322,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2341,8 +2344,10 @@ spec:
                             threshold:
                               properties:
                                 marginal:
+                                  format: int64
                                   type: integer
                                 pass:
+                                  format: int64
                                   type: integer
                               required:
                               - marginal
@@ -2400,6 +2405,7 @@ spec:
                             jsonPath:
                               type: string
                             timeoutSeconds:
+                              format: int64
                               type: integer
                             url:
                               type: string
@@ -2511,6 +2517,7 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -4793,6 +4800,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -4812,6 +4820,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -4833,8 +4842,10 @@ spec:
                             threshold:
                               properties:
                                 marginal:
+                                  format: int64
                                   type: integer
                                 pass:
+                                  format: int64
                                   type: integer
                               required:
                               - marginal
@@ -4892,6 +4903,7 @@ spec:
                             jsonPath:
                               type: string
                             timeoutSeconds:
+                              format: int64
                               type: integer
                             url:
                               type: string
@@ -4930,6 +4942,7 @@ spec:
     shortNames:
     - cat
     singular: clusteranalysistemplate
+  preserveUnknownFields: false
   scope: Cluster
   versions:
   - name: v1alpha1
@@ -7212,6 +7225,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -7231,6 +7245,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -7252,8 +7267,10 @@ spec:
                             threshold:
                               properties:
                                 marginal:
+                                  format: int64
                                   type: integer
                                 pass:
+                                  format: int64
                                   type: integer
                               required:
                               - marginal
@@ -7311,6 +7328,7 @@ spec:
                             jsonPath:
                               type: string
                             timeoutSeconds:
+                              format: int64
                               type: integer
                             url:
                               type: string
@@ -7349,6 +7367,7 @@ spec:
     shortNames:
     - exp
     singular: experiment
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -9683,6 +9702,7 @@ spec:
     shortNames:
     - ro
     singular: rollout
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -9967,6 +9987,12 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      scaleDownDelayRevisionLimit:
+                        format: int32
+                        type: integer
+                      scaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       stableMetadata:
                         properties:
                           annotations:

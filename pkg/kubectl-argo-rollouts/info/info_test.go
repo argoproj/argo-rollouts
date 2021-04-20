@@ -73,21 +73,20 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 		},
 	}
 }
-
 func TestAge(t *testing.T) {
-	m := Metadata{
+	m := metav1.ObjectMeta{
 		CreationTimestamp: metav1.NewTime(time.Now().Add(-7 * time.Hour * time.Duration(24))),
 	}
-	assert.Equal(t, "7d", m.Age())
+	assert.Equal(t, "7d", Age(m))
 }
 
 func TestCanaryRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
-	assert.Len(t, roInfo.Revisions(), 3)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
+	assert.Len(t, Revisions(roInfo), 3)
 
-	assert.Equal(t, roInfo.Images(), []ImageInfo{
+	assert.Equal(t, Images(roInfo), []ImageInfo{
 		{
 			Image: "argoproj/rollouts-demo:does-not-exist",
 			Tags:  []string{InfoTagCanary},
@@ -103,17 +102,17 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-		assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
-		assert.Len(t, roInfo.Revisions(), 3)
+		assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
+		assert.Len(t, Revisions(roInfo), 3)
 
-		assert.Len(t, roInfo.ReplicaSetsByRevision(11), 1)
-		assert.Len(t, roInfo.ReplicaSetsByRevision(10), 1)
-		assert.Len(t, roInfo.ReplicaSetsByRevision(8), 1)
+		assert.Len(t, ReplicaSetsByRevision(roInfo, 11), 1)
+		assert.Len(t, ReplicaSetsByRevision(roInfo, 10), 1)
+		assert.Len(t, ReplicaSetsByRevision(roInfo, 8), 1)
 
 		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDeadline, "")
-		assert.Equal(t, roInfo.ReplicaSets[0].ScaleDownDelay(), "")
+		assert.Equal(t, ScaleDownDelay(*roInfo.ReplicaSets[0]), "")
 
-		assert.Equal(t, roInfo.Images(), []ImageInfo{
+		assert.Equal(t, Images(roInfo), []ImageInfo{
 			{
 				Image: "argoproj/rollouts-demo:blue",
 				Tags:  []string{InfoTagStable, InfoTagActive},
@@ -131,24 +130,24 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
 
-		assert.Equal(t, roInfo.ReplicaSets[1].UID, delayedRs)
+		assert.Equal(t, roInfo.ReplicaSets[1].ObjectMeta.UID, delayedRs)
 		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDeadline, inFourHours)
-		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDelay(), "3h59m")
+		assert.Equal(t, ScaleDownDelay(*roInfo.ReplicaSets[1]), "3h59m")
 	}
 }
 
 func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewExperimentAnalysisRollout()
 	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
-	assert.Equal(t, roInfo.Name, rolloutObjs.Rollouts[0].Name)
-	assert.Len(t, roInfo.Revisions(), 2)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
+	assert.Len(t, Revisions(roInfo), 2)
 
-	assert.Len(t, roInfo.ReplicaSetsByRevision(1), 1)
-	assert.Len(t, roInfo.ReplicaSetsByRevision(2), 1)
-	assert.Len(t, roInfo.ExperimentsByRevision(2), 1)
-	assert.Len(t, roInfo.AnalysisRunsByRevision(2), 1)
+	assert.Len(t, ReplicaSetsByRevision(roInfo, 1), 1)
+	assert.Len(t, ReplicaSetsByRevision(roInfo, 2), 1)
+	assert.Len(t, ExperimentsByRevision(roInfo, 2), 1)
+	assert.Len(t, AnalysisRunsByRevision(roInfo, 2), 1)
 
-	assert.Equal(t, roInfo.Images(), []ImageInfo{
+	assert.Equal(t, Images(roInfo), []ImageInfo{
 		{
 			Image: "argoproj/rollouts-demo:blue",
 			Tags:  []string{InfoTagStable},
@@ -163,9 +162,9 @@ func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 func TestExperimentInfo(t *testing.T) {
 	rolloutObjs := testdata.NewExperimentAnalysisRollout()
 	expInfo := NewExperimentInfo(rolloutObjs.Experiments[0], rolloutObjs.ReplicaSets, rolloutObjs.AnalysisRuns, rolloutObjs.Pods)
-	assert.Equal(t, expInfo.Name, rolloutObjs.Experiments[0].Name)
+	assert.Equal(t, expInfo.ObjectMeta.Name, rolloutObjs.Experiments[0].Name)
 
-	assert.Equal(t, expInfo.Images(), []ImageInfo{
+	assert.Equal(t, ExperimentImages(expInfo), []ImageInfo{
 		{
 			Image: "argoproj/rollouts-demo:blue",
 		},

@@ -939,6 +939,20 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"),
 						},
 					},
+					"scaleDownDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelaySeconds adds a delay before scaling down the previous ReplicaSet when the canary strategy is used with traffic routing (default 30 seconds). A delay in scaling down the previous ReplicaSet is needed after switching the stable service selector to point to the new ReplicaSet, in order to give time for traffic providers to re-target the new pods. This value is ignored with basic, replica-weighted canary without traffic routing.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"scaleDownDelayRevisionLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
@@ -1759,14 +1773,14 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 					"marginal": {
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 				},
@@ -3181,7 +3195,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 						SchemaProps: spec.SchemaProps{
 							Default: 0,
 							Type:    []string{"integer"},
-							Format:  "int32",
+							Format:  "int64",
 						},
 					},
 					"start": {
@@ -3492,7 +3506,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 						SchemaProps: spec.SchemaProps{
 							Description: "TimeoutSeconds is the timeout for the request in seconds (default: 10)",
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"jsonPath": {

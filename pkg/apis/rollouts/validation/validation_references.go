@@ -65,7 +65,7 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 		allErrs = append(allErrs, ValidateService(service, rollout)...)
 	}
 	for _, template := range referencedResources.AnalysisTemplateWithType {
-		allErrs = append(allErrs, ValidateAnalysisTemplateWithType(template)...)
+		allErrs = append(allErrs, ValidateAnalysisTemplateWithType(rollout, template)...)
 	}
 	for _, ingress := range referencedResources.Ingresses {
 		allErrs = append(allErrs, ValidateIngress(rollout, ingress)...)
@@ -92,7 +92,7 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 	return allErrs
 }
 
-func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.ErrorList {
+func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template AnalysisTemplateWithType) field.ErrorList {
 	allErrs := field.ErrorList{}
 	fldPath := GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex)
 	if fldPath == nil {
@@ -101,11 +101,20 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
+	var args []v1alpha1.Argument
+
 	if template.ClusterAnalysisTemplate != nil {
-		templateName, templateSpec = template.ClusterAnalysisTemplate.Name, template.ClusterAnalysisTemplate.Spec
+		templateName, templateSpec, args = template.ClusterAnalysisTemplate.Name, template.ClusterAnalysisTemplate.Spec, template.ClusterAnalysisTemplate.Spec.Args
 	} else if template.AnalysisTemplate != nil {
-		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
+		templateName, templateSpec, args = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec, template.AnalysisTemplate.Spec.Args
 	}
+
+	err := analysisutil.ResolveArgs(args)
+	if err != nil {
+		msg := fmt.Sprintf("AnalysisTemplate %s has invalid arguments: %v", templateName, err)
+		allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+	}
+
 	if template.TemplateType != BackgroundAnalysis {
 		setArgValuePlaceHolder(templateSpec.Args)
 		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
@@ -121,7 +130,29 @@ func ValidateAnalysisTemplateWithType(template AnalysisTemplateWithType) field.E
 				}
 			}
 		}
+	} else if template.TemplateType == BackgroundAnalysis && len(templateSpec.Args) > 0 {
+		for _, arg := range templateSpec.Args {
+			if arg.Value != nil || arg.ValueFrom != nil {
+				continue
+			}
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.Args == nil {
+				allErrs = append(allErrs, field.Invalid(fldPath, templateName, "missing analysis arguments in rollout spec"))
+				continue
+			}
+
+			foundArg := false
+			for _, rolloutArg := range rollout.Spec.Strategy.Canary.Analysis.Args {
+				if arg.Name == rolloutArg.Name {
+					foundArg = true
+					break
+				}
+			}
+			if !foundArg {
+				allErrs = append(allErrs, field.Invalid(fldPath, templateName, arg.Name))
+			}
+		}
 	}
+
 	return allErrs
 }
 

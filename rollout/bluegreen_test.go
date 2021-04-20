@@ -892,8 +892,6 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
 		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 		rs1 := newReplicaSetWithStatus(r1, 5, 5)
-		now := metav1.Now().Add(10 * time.Second)
-		rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = now.UTC().Format(time.RFC3339)
 		r2 := bumpVersion(r1)
 
 		rs2 := newReplicaSetWithStatus(r2, 5, 5)
@@ -1215,7 +1213,7 @@ func TestFastRollback(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-func TestScaleDownLimit(t *testing.T) {
+func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -1272,10 +1270,6 @@ func TestBlueGreenAbort(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	//Setting the scaleDownAt time
-	inTheFuture := metav1.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 
 	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	s := newService("bar", 80, serviceSelector, r2)

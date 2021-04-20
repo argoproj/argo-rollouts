@@ -13,6 +13,7 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -2295,6 +2296,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2314,6 +2316,7 @@ spec:
                                       start:
                                         type: string
                                       step:
+                                        format: int64
                                         type: integer
                                     required:
                                     - end
@@ -2335,8 +2338,10 @@ spec:
                             threshold:
                               properties:
                                 marginal:
+                                  format: int64
                                   type: integer
                                 pass:
+                                  format: int64
                                   type: integer
                               required:
                               - marginal
@@ -2394,6 +2399,7 @@ spec:
                             jsonPath:
                               type: string
                             timeoutSeconds:
+                              format: int64
                               type: integer
                             url:
                               type: string

@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
@@ -85,7 +87,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 }
 
 // TestRolloutScalingWhenPaused verifies behavior when scaling a rollout up/down when paused
-func (s *FunctionalSuite) TestRolloutScalingWhenPaused() {
+func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 	s.Given().
 		RolloutObjects(`@functional/rollout-basic.yaml`).
 		SetSteps(`
@@ -406,4 +408,68 @@ spec:
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy")
+}
+
+// TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
+// and verifies the annotation is properly managed
+func (s *CanarySuite) TestCanaryScaleDownDelay() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledowndelay.yaml`).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // update to revision 2
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(1), *rs1.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		}).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: three`). // update to revision 3
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			time.Sleep(time.Second)
+			// rs1 should be scaled down now because of scaleDownRevisionLimit
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(0), *rs1.Spec.Replicas)
+			assert.Empty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Equal(s.T(), int32(1), *rs2.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		}).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // go back to revision 2
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			time.Sleep(time.Second)
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(0), *rs1.Spec.Replicas)
+			assert.Empty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs4 := t.GetReplicaSetByRevision("4")
+			assert.Equal(s.T(), int32(1), *rs4.Spec.Replicas)
+			assert.Empty(s.T(), rs4.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs3 := t.GetReplicaSetByRevision("3")
+			assert.Equal(s.T(), int32(1), *rs3.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs3.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		})
 }

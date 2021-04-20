@@ -268,3 +268,47 @@ func TestHasMultipleStepsType(t *testing.T) {
 	allErrs = hasMultipleStepsType(step, field.NewPath(""))
 	assert.Equal(t, InvalidStepMessage, allErrs[0].Detail)
 }
+
+func TestCanaryScaleDownDelaySeconds(t *testing.T) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService:         "stable",
+					CanaryService:         "canary",
+					ScaleDownDelaySeconds: pointer.Int32Ptr(60),
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Resources: corev1.ResourceRequirements{},
+						Image:     "foo",
+						Name:      "image-name",
+					}},
+				},
+			},
+		},
+	}
+	t.Run("scaleDownDelaySeconds with basic canary", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		allErrs := ValidateRollout(ro)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.scaleDownDelaySeconds: Invalid value: 60: %s", InvalidCanaryScaleDownDelay))
+	})
+	t.Run("scaleDownDelaySeconds with traffic weight canary", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.Empty(t, allErrs)
+	})
+
+}
