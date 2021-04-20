@@ -14,6 +14,7 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -2516,6 +2517,7 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -4940,6 +4942,7 @@ spec:
     shortNames:
     - cat
     singular: clusteranalysistemplate
+  preserveUnknownFields: false
   scope: Cluster
   versions:
   - name: v1alpha1
@@ -7364,6 +7367,7 @@ spec:
     shortNames:
     - exp
     singular: experiment
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -9698,6 +9702,7 @@ spec:
     shortNames:
     - ro
     singular: rollout
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -9709,11 +9714,13 @@ spec:
       jsonPath: .status.replicas
       name: Current
       type: integer
-    - description: Total number of non-terminated pods targeted by this rollout that have the desired template spec
+    - description: Total number of non-terminated pods targeted by this rollout that
+        have the desired template spec
       jsonPath: .status.updatedReplicas
       name: Up-to-date
       type: integer
-    - description: Total number of available pods (ready for at least minReadySeconds) targeted by this rollout
+    - description: Total number of available pods (ready for at least minReadySeconds)
+        targeted by this rollout
       jsonPath: .status.availableReplicas
       name: Available
       type: integer
@@ -9980,6 +9987,12 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      scaleDownDelayRevisionLimit:
+                        format: int32
+                        type: integer
+                      scaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       stableMetadata:
                         properties:
                           annotations:
