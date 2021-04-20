@@ -45,7 +45,6 @@ spec:
       canaryService: someapp-canary
       trafficRouting:
         ambassador:
-          apiVersion: getambassador.io/v2
           mappings:
             - stable-mapping
       steps:
@@ -57,7 +56,6 @@ spec:
 
 Under `spec.strategy.canary.trafficRouting.ambassador` there are 2 possible attributes:
 
-- `apiVersion`: Optional. If you are using an older version of Ambassador you can specify its `apiVersion` (e.g.: `getambassador.io/v1`). If not provided, Argo-Rollouts will use the default value as `getambassador.io/v2`
 - `mappings`: Required. At least one Ambassador mapping must be provided for Argo-Rollouts to be able to manage the canary deployment. Multiple mappings are also supported in case there are multiple routes to the service (e.g., your service has multiple ports, or can be accessed via different URLs). If no mapping is provided Argo-Rollouts will send an error event and the rollout will be aborted. 
 
 When Ambassador is configured in the `trafficRouting` attribute of the manifest, the Rollout controller will:
