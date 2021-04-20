@@ -278,4 +278,4 @@ release-plugins:
 	./hack/build-release-plugins.sh
 
 .PHONY: release
-release: release-precheck precheckin image release-plugins
+release: release-precheck precheckin image plugin-image release-plugins
