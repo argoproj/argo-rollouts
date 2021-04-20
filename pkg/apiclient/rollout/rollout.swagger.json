@@ -519,6 +519,19 @@
       },
       "title": "ALBTrafficRouting configuration for ALB ingress controller to control traffic routing"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AmbassadorTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "mappings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Mappings refer to the name of the Ambassador Mappings used to route traffic to the\nservice"
+        }
+      },
+      "title": "AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic\nrouter"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunArgument": {
       "type": "object",
       "properties": {
@@ -1259,6 +1272,10 @@
         "smi": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SMITrafficRouting",
           "title": "SMI holds TrafficSplit specific configuration to route traffic"
+        },
+        "ambassador": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AmbassadorTrafficRouting",
+          "title": "Ambassador holds specific configuration to use Ambassador to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

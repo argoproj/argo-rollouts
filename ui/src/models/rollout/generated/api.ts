@@ -111,6 +111,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficR
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting
+     */
+    mappings?: Array<string>;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument {
@@ -1098,6 +1111,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     smi?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    ambassador?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting;
 }
 /**
  * 

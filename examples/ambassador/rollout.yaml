@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: echo-rollout
+spec:
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+    spec:
+      containers:
+        - image: hashicorp/http-echo
+          args:
+            - "-text=VERSION 1"
+            - -listen=:8080
+          imagePullPolicy: Always
+          name: echo-v1
+          ports:
+            - containerPort: 8080
+  strategy:
+    canary:
+      stableService: echo-stable
+      canaryService: echo-canary
+      trafficRouting:
+        ambassador:
+          mappings:
+            - echo
+      steps:
+      - setWeight: 30
+      - pause: {duration: 30s}
+      - setWeight: 60
+      - pause: {duration: 30s}
+      - setWeight: 100
+      - pause: {duration: 10}

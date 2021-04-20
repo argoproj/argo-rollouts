@@ -147,3 +147,14 @@ rules:
   - get
   - update
   - patch
+- apiGroups:
+  - getambassador.io
+  resources:
+  - mappings
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete

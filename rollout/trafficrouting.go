@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
@@ -64,6 +65,10 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 		})
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
+		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
+		return ambassador.NewReconciler(rollout, ac, c.recorder), nil
 	}
 	return nil, nil
 }

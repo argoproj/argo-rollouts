@@ -489,6 +489,15 @@ spec:
                             - ingress
                             - servicePort
                             type: object
+                          ambassador:
+                            properties:
+                              mappings:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - mappings
+                            type: object
                           istio:
                             properties:
                               destinationRule:

@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 )
 
@@ -57,6 +58,7 @@ type ReferencedResources struct {
 	Ingresses                []v1beta1.Ingress
 	ServiceWithType          []ServiceWithType
 	VirtualServices          []unstructured.Unstructured
+	AmbassadorMappings       []unstructured.Unstructured
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
@@ -72,6 +74,9 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	}
 	for _, vsvc := range referencedResources.VirtualServices {
 		allErrs = append(allErrs, ValidateVirtualService(rollout, vsvc)...)
+	}
+	for _, mapping := range referencedResources.AmbassadorMappings {
+		allErrs = append(allErrs, ValidateAmbassadorMapping(mapping)...)
 	}
 	return allErrs
 }
@@ -211,6 +216,17 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	if err != nil {
 		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
 		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+	}
+	return allErrs
+}
+
+func ValidateAmbassadorMapping(obj unstructured.Unstructured) field.ErrorList {
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "weight")
+	weight := ambassador.GetMappingWeight(&obj)
+	if weight != 0 {
+		msg := fmt.Sprintf("Ambassador mapping %q can not define weight", obj.GetName())
+		allErrs = append(allErrs, field.Invalid(fldPath, obj.GetName(), msg))
 	}
 	return allErrs
 }
