@@ -87,6 +87,8 @@ const (
 	// within the given deadline (progressDeadlineSeconds).
 	ReplicaSetTimeOutMessage = "ReplicaSet %q has timed out progressing."
 
+	// RolloutCompletedReason is added in a rollout when it is completed.
+	RolloutCompletedReason = "RolloutCompleted"
 	// RolloutCompletedMessage is added when the rollout is completed
 	RolloutCompletedMessage = "Rollout %q has successfully progressed."
 	// ReplicaSetCompletedMessage is added when the rollout is completed

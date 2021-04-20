@@ -904,3 +904,64 @@ spec:
 		}).
 		ExpectActiveRevision("2")
 }
+
+func (s *FunctionalSuite) TestKubectlWaitForCompleted() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-bluegreen
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bluegreen
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+      autoPromotionEnabled: true
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutReplicas(1).
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		Then().
+		ExpectRollout("Completed", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=False", fmt.Sprintf("rollout/%s", r.Name))
+			return cmd.Run() == nil
+		}).
+		When().
+		PromoteRollout().
+		Then().
+		ExpectRollout("Completed", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=True", fmt.Sprintf("rollout/%s", r.Name))
+			return cmd.Run() == nil
+		}).
+		ExpectActiveRevision("2")
+}

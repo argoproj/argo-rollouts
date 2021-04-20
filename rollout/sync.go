@@ -563,7 +563,20 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
-	if len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused {
+	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
+
+	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutCompleted)
+	if !isPaused && conditions.RolloutComplete(c.rollout, &newStatus) {
+		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+	} else {
+		if completeCond != nil {
+			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+			conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+		}
+	}
+
+	if isPaused {
 		return newStatus
 	}
 
@@ -571,6 +584,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this rollout.
 	currentCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
+
 	isCompleteRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason
 	// Check for progress only if the latest rollout hasn't completed yet.
 	if !isCompleteRollout {
@@ -590,8 +604,8 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, c.newRS.Name)
 			}
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
-			conditions.SetRolloutCondition(&newStatus, *condition)
+			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
 		case conditions.RolloutProgressing(c.rollout, &newStatus):
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.

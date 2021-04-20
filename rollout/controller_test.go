@@ -185,6 +185,26 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
+func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	if !isCompleted {
+		status = corev1.ConditionFalse
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		Message:            conditions.RolloutCompletedReason,
+		Reason:             conditions.RolloutCompletedReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutCompleted,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
 func newProgressingCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""
@@ -305,6 +325,16 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
 	}
 	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
+}
+
+func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completeCondition := newCompletedCondition(isCompleted)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
