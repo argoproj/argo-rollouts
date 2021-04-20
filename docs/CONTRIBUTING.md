@@ -11,7 +11,10 @@ Install:
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
-Argo Rollout additionally uses `golangci-lint` to lint the project.
+Argo Rollout additionally uses the following tools
+* `golangci-lint` to lint the project.
+* `protoc` and `swagger-codegen` to generate proto related files
+* `yarn` to build the UI
 
 Run the following commands to install them:
 
@@ -26,7 +29,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 Brew users can quickly install the lot:
     
 ```bash
-brew install go kubectl kustomize
+brew install go kubectl kustomize golangci-lint protobuf swagger-codegen
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
@@ -43,24 +46,23 @@ go get -u github.com/argoproj/argo-rollouts
 cd ~/go/src/github.com/argoproj/argo-rollouts
 ```
 
-Run the following command to download all the dependencies:
-
-```
-go mod download
-```
-
-
 ## Building
 
 `go.mod` is used, so the `go build/test` commands automatically install the needed dependencies
 
-
 The `make controller` command will build the controller.
 
-* `make codegen` - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go 
-and modifies the open-api spec. This command fails if the user has not run `go mod download` to download all the 
-dependencies of the project. 
+* `make codegen` - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.
 
+
+## Running Controller Locally
+
+It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.
+
+```bash
+cd ~/go/src/github.com/argoproj/argo-rollouts
+go run ./cmd/rollouts-controller/main.go
+```
 
 ## Running Unit Tests
 
@@ -104,7 +106,7 @@ make test-e2e E2E_TEST_OPTIONS="-testify.m ^TestRolloutRestart$"
 3. The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
 delays. However, it is often desired to artificially slow down the tests for debugging purposes,
 as well as to understand what the test is doing. To delay startup and termination of pods, set the 
-`E2E_POD_DELAY` to a integer value in seconds. This environment variable is often coupled with 
+`E2E_POD_DELAY` to an integer value in seconds. This environment variable is often coupled with 
 `E2E_TEST_OPTIONS` to debug and slow down a specific test.
 
 ```shell
@@ -137,14 +139,6 @@ Alternatively, the e2e tests can be run against the system controller (i.e. with
 make start-e2e E2E_INSTANCE_ID=''
 ```
 
-## Running Locally
-
-It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.
-
-```bash
-cd ~/go/src/github.com/argoproj/argo-rollouts
-go run ./cmd/rollouts-controller/main.go
-```
 
 ## Running Local Containers
 
