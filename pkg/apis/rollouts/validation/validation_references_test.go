@@ -182,7 +182,8 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template := getAnalysisTemplateWithType()
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
-				Name: "service-name",
+				Name:  "service-name",
+				Value: pointer.StringPtr("service-name"),
 			},
 		}
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
@@ -240,7 +241,8 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
-				Name: "service-name",
+				Name:  "service-name",
+				Value: pointer.StringPtr("service-name"),
 			},
 		}
 		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
