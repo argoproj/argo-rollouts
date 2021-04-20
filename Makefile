@@ -33,8 +33,10 @@ override LDFLAGS += \
 # docker image publishing options
 DOCKER_PUSH=false
 IMAGE_TAG=latest
+PLUGIN_IMAGE_TAG=latest
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
+PLUGIN_IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 ifneq (${IMAGE_NAMESPACE},)
@@ -209,6 +211,11 @@ else
 	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
+
+.PHONY: plugin-image
+plugin-image:
+	docker build --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(PLUGIN_IMAGE_TAG) .
+	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(PLUGIN_IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:

@@ -74,7 +74,9 @@ COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/k
 
 WORKDIR /home/argo-rollouts
 
-ENTRYPOINT ["/bin/kubectl-argo-rollouts", "dashboard"]
+ENTRYPOINT ["/bin/kubectl-argo-rollouts"]
+
+CMD ["dashboard"]
 
 ####################################################################################################
 # Final image
