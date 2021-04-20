@@ -1,6 +1,7 @@
 PACKAGE=github.com/argoproj/argo-rollouts
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
+PATH := $(DIST_DIR):$(PATH)
 PLUGIN_CLI_NAME?=kubectl-argo-rollouts
 TEST_TARGET ?= ./...
 
@@ -20,8 +21,7 @@ E2E_PARALLEL ?= 1
 
 # go_install,path
 define go_install
-	[ -e ./vendor ] || go mod vendor
-	go install -mod=vendor ./vendor/$(1)
+	cd /tmp && GOBIN=${DIST_DIR} go get $(1)
 endef
 
 override LDFLAGS += \
@@ -57,8 +57,7 @@ endif
 # protoc,my.proto
 define protoc
 	# protoc $(1)
-    [ -e vendor ] || go mod vendor
-    protoc \
+    PATH=${DIST_DIR}:$$PATH protoc \
       -I /usr/local/include \
       -I . \
       -I ./vendor \
@@ -71,81 +70,106 @@ define protoc
       $(1)
 endef
 
-PROTO_BINARIES := $(GOPATH)/bin/protoc-gen-gogo $(GOPATH)/bin/protoc-gen-gogofast $(GOPATH)/bin/goimports $(GOPATH)/bin/protoc-gen-grpc-gateway $(GOPATH)/bin/protoc-gen-swagger
-TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
-
 .PHONY: all
 all: controller image
 
-.PHONY: codegen
-codegen: protogen mocks
-	./hack/update-codegen.sh
-	./hack/update-openapigen.sh
-	PATH=${DIST_DIR}:$$PATH go run ./hack/gen-crd-spec/main.go
-
-LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-rollouts
-
-install-codegen-tools: 
-	sudo ./hack/install-codegen-go-tools.sh
-
-.PHONY: ensure-gopath
-ensure-gopath:
-ifneq ("$(PWD)","$(LEGACY_PATH)")
-	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
-	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
-	@exit 1
-endif
-
-UI_PROTOGEN_CMD=yarn --cwd ui run protogen
-.PHONY: protogen
-protogen: pkg/apis/rollouts/v1alpha1/generated.proto pkg/apiclient/rollout/rollout.swagger.json 
-	rm -Rf vendor
+# downloads vendor files needed by tools.go (i.e. gen-k8scodegen)
+.PHONY: go-mod-vendor
+go-mod-vendor:
 	go mod tidy
-	${UI_PROTOGEN_CMD}
+	go mod vendor
 
-$(GOPATH)/bin/controller-gen:
-	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen)
+.PHONY: $(DIST_DIR)/controller-gen
+$(DIST_DIR)/controller-gen:
+	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
-$(GOPATH)/bin/go-to-protobuf:
-	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf)
+.PHONY: $(DIST_DIR)/go-to-protobuf
+$(DIST_DIR)/go-to-protobuf:
+	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf@v0.20.5-rc.0)
 
-$(GOPATH)/bin/protoc-gen-gogo:
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo)
+.PHONY: $(DIST_DIR)/protoc-gen-gogo
+$(DIST_DIR)/protoc-gen-gogo:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo@v1.3.1)
 
-$(GOPATH)/bin/protoc-gen-gogofast:
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast)
+.PHONY: $(DIST_DIR)/protoc-gen-gogofast
+$(DIST_DIR)/protoc-gen-gogofast:
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast@v1.3.1)
 
-$(GOPATH)/bin/protoc-gen-grpc-gateway:
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
+.PHONY: $(DIST_DIR)/protoc-gen-grpc-gateway
+$(DIST_DIR)/protoc-gen-grpc-gateway:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.16.0)
 
-$(GOPATH)/bin/protoc-gen-swagger:
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger)
+.PHONY: $(DIST_DIR)/protoc-gen-swagger
+$(DIST_DIR)/protoc-gen-swagger:
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.16.0)
 
-$(GOPATH)/bin/openapi-gen:
+.PHONY: $(DIST_DIR)/openapi-gen
+$(DIST_DIR)/openapi-gen:
 	$(call go_install,k8s.io/kube-openapi/cmd/openapi-gen)
 
-$(GOPATH)/bin/swagger:
-	$(call go_install,github.com/go-swagger/go-swagger/cmd/swagger)
+.PHONY: $(DIST_DIR)/mockery
+$(DIST_DIR)/mockery:
+	$(call go_install,github.com/vektra/mockery/v2@v2.6.0)
 
-$(GOPATH)/bin/goimports:
-	$(call go_install,golang.org/x/tools/cmd/goimports)
-
+TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
 
-pkg/apis/rollouts/v1alpha1/generated.proto: $(GOPATH)/bin/go-to-protobuf $(PROTO_BINARIES) $(TYPES)
-	[ -e vendor ] || go mod vendor
-	${GOPATH}/bin/go-to-protobuf \
+.PHONY: install-toolchain
+install-toolchain: $(DIST_DIR)/controller-gen $(DIST_DIR)/go-to-protobuf $(DIST_DIR)/protoc-gen-gogo $(DIST_DIR)/protoc-gen-gogofast $(DIST_DIR)/protoc-gen-grpc-gateway $(DIST_DIR)/protoc-gen-swagger
+
+# generates all auto-generated code
+.PHONY: codegen
+codegen: gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests
+
+# generates all files related to proto files
+.PHONY: gen-proto
+protogen: k8s-proto rollout-proto ui-proto
+
+# generates the .proto files affected by changes to types.go
+.PHONY: k8s-proto
+k8s-proto: go-mod-vendor install-toolchain $(TYPES)
+	PATH=${DIST_DIR}:$$PATH go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
 		--proto-import $(CURDIR)/vendor
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
 
-pkg/apiclient/rollout/rollout.swagger.json: $(PROTO_BINARIES) $(TYPES) pkg/apiclient/rollout/rollout.proto
+# generates *.pb.go, *.pb.gw.go, swagger from .proto files
+.PHONY: api-proto
+api-proto: go-mod-vendor install-toolchain k8s-proto
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
 
+# generates ui related proto files
+.PHONY: ui-proto
+	yarn --cwd ui run protogen
+
+# generates k8s client, informer, lister, deepcopy from types.go
+.PHONY: gen-k8scodegen
+gen-k8scodegen: go-mod-vendor
+	./hack/update-codegen.sh
+
+# generates ./manifests/crds/
+.PHONY: gen-crd
+gen-crd: $(DIST_DIR)/controller-gen
+	go run ./hack/gen-crd-spec/main.go
+
+# generates mock files from interfaces
+.PHONY: gen-mocks
+gen-mocks: $(DIST_DIR)/mockery
+	./hack/update-mocks.sh
+
+# generates openapi_generated.go
+.PHONY: gen-openapi
+gen-openapi: $(DIST_DIR)/openapi-gen
+	PATH=${DIST_DIR}:$$PATH openapi-gen \
+		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
+		--input-dirs github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--output-package github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--report-filename pkg/apis/api-rules/violation_exceptions.list
+
 .PHONY: controller
-controller: clean-debug
+controller:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
 .PHONY: plugin
@@ -211,22 +235,14 @@ coverage: test
 	go tool cover -html=coverage.out -o coverage.html
 	open coverage.html
 
-.PHONY: mocks
-mocks:
-	./hack/update-mocks.sh
-
 .PHONY: manifests
 manifests:
 	./hack/update-manifests.sh
 
-# Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
-.PHONY: clean-debug
-clean-debug:
-	-find ${CURRENT_DIR} -name debug.test | xargs rm -f
-
 .PHONY: clean
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
+	-rm -rf ${CURRENT_DIR}/ui/dist
 
 .PHONY: precheckin
 precheckin: test lint
