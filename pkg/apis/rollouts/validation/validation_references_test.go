@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -180,7 +182,8 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template := getAnalysisTemplateWithType()
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
-				Name: "service-name",
+				Name:  "service-name",
+				Value: pointer.StringPtr("service-name"),
 			},
 		}
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
@@ -238,7 +241,8 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
 			{
-				Name: "service-name",
+				Name:  "service-name",
+				Value: pointer.StringPtr("service-name"),
 			},
 		}
 		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -264,6 +268,26 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Empty(t, allErrs)
 	})
+}
+
+func TestValidateAnalysisTemplateWithTypeResolveArgs(t *testing.T) {
+	rollout := getRollout()
+	template := getAnalysisTemplateWithType()
+	template.AnalysisTemplate.Spec.Args = append(template.AnalysisTemplate.Spec.Args, v1alpha1.Argument{Name: "invalid"})
+
+	t.Run("failure", func(t *testing.T) {
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		assert.Len(t, allErrs, 1)
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates[0].templateName: Invalid value: \"analysis-template-name\": AnalysisTemplate analysis-template-name has invalid arguments: args.invalid was not resolved")
+		assert.Equal(t, msg, allErrs[0].Error())
+	})
+
+	t.Run("success", func(t *testing.T) {
+		template.AnalysisTemplate.Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		assert.Empty(t, allErrs)
+	})
+
 }
 
 func TestValidateIngress(t *testing.T) {

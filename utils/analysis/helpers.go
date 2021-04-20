@@ -162,6 +162,15 @@ func findArg(name string, args []v1alpha1.Argument) int {
 	return -1
 }
 
+func ResolveArgs(args []v1alpha1.Argument) error {
+	for _, arg := range args {
+		if arg.Value == nil && arg.ValueFrom == nil {
+			return fmt.Errorf("args.%s was not resolved", arg.Name)
+		}
+	}
+	return nil
+}
+
 // MergeArgs merges two lists of arguments, the incoming and the templates. If there are any
 // unresolved arguments that have no value, raises an error.
 func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argument, error) {
@@ -176,10 +185,9 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 			}
 		}
 	}
-	for _, arg := range newArgs {
-		if arg.Value == nil && arg.ValueFrom == nil {
-			return nil, fmt.Errorf("args.%s was not resolved", arg.Name)
-		}
+	err := ResolveArgs(newArgs)
+	if err != nil {
+		return nil, err
 	}
 	return newArgs, nil
 }

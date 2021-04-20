@@ -101,11 +101,20 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template Analys
 
 	var templateSpec v1alpha1.AnalysisTemplateSpec
 	var templateName string
+	var args []v1alpha1.Argument
+
 	if template.ClusterAnalysisTemplate != nil {
-		templateName, templateSpec = template.ClusterAnalysisTemplate.Name, template.ClusterAnalysisTemplate.Spec
+		templateName, templateSpec, args = template.ClusterAnalysisTemplate.Name, template.ClusterAnalysisTemplate.Spec, template.ClusterAnalysisTemplate.Spec.Args
 	} else if template.AnalysisTemplate != nil {
-		templateName, templateSpec = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec
+		templateName, templateSpec, args = template.AnalysisTemplate.Name, template.AnalysisTemplate.Spec, template.AnalysisTemplate.Spec.Args
 	}
+
+	err := analysisutil.ResolveArgs(args)
+	if err != nil {
+		msg := fmt.Sprintf("AnalysisTemplate %s has invalid arguments: %v", templateName, err)
+		allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
+	}
+
 	if template.TemplateType != BackgroundAnalysis {
 		setArgValuePlaceHolder(templateSpec.Args)
 		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
@@ -143,6 +152,7 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template Analys
 			}
 		}
 	}
+
 	return allErrs
 }
 
