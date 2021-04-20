@@ -276,7 +276,7 @@ func TestValidateAnalysisTemplateWithTypeResolveArgs(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates[0].templateName: Invalid value: \"analysis-template-name\": args.invalid was not resolved")
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates[0].templateName: Invalid value: \"analysis-template-name\": AnalysisTemplate analysis-template-name has invalid arguments: args.invalid was not resolved")
 		assert.Equal(t, msg, allErrs[0].Error())
 	})
 

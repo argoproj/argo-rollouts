@@ -111,7 +111,8 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template Analys
 
 	err := analysisutil.ResolveArgs(args)
 	if err != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, templateName, err.Error()))
+		msg := fmt.Sprintf("AnalysisTemplate %s has invalid arguments: %v", templateName, err)
+		allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
 	}
 
 	if template.TemplateType != BackgroundAnalysis {
