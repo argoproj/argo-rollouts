@@ -1280,6 +1280,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-controller-locally" class="md-nav__link">
+    Running Controller Locally
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-unit-tests" class="md-nav__link">
     Running Unit Tests
   </a>
@@ -1303,13 +1310,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-locally" class="md-nav__link">
-    Running Locally
-  </a>
   
 </li>
       
@@ -1452,6 +1452,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-controller-locally" class="md-nav__link">
+    Running Controller Locally
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-unit-tests" class="md-nav__link">
     Running Unit Tests
   </a>
@@ -1475,13 +1482,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running-locally" class="md-nav__link">
-    Running Locally
-  </a>
   
 </li>
       
@@ -1535,7 +1535,10 @@
 <li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
-<p>Argo Rollout additionally uses <code>golangci-lint</code> to lint the project.</p>
+<p>Argo Rollout additionally uses the following tools
+* <code>golangci-lint</code> to lint the project.
+* <code>protoc</code> and <code>swagger-codegen</code> to generate proto related files
+* <code>yarn</code> to build the UI</p>
 <p>Run the following commands to install them:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># macOS</span>
 brew install golangci-lint
@@ -1544,7 +1547,7 @@ brew install golangci-lint
 go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 </code></pre></div>
 <p>Brew users can quickly install the lot:</p>
-<div class="highlight"><pre><span></span><code>brew install go kubectl kustomize
+<div class="highlight"><pre><span></span><code>brew install go kubectl kustomize golangci-lint protobuf swagger-codegen
 </code></pre></div>
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
@@ -1554,17 +1557,17 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 <div class="highlight"><pre><span></span><code>go get -u github.com/argoproj/argo-rollouts
 <span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
 </code></pre></div>
-<p>Run the following command to download all the dependencies:</p>
-<div class="highlight"><pre><span></span><code>go mod download
-</code></pre></div>
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
 <ul>
-<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go 
-and modifies the open-api spec. This command fails if the user has not run <code>go mod download</code> to download all the 
-dependencies of the project. </li>
+<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</li>
 </ul>
+<h2 id="running-controller-locally">Running Controller Locally<a class="headerlink" href="#running-controller-locally" title="Permanent link">&para;</a></h2>
+<p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
+go run ./cmd/rollouts-controller/main.go
+</code></pre></div>
 <h2 id="running-unit-tests">Running Unit Tests<a class="headerlink" href="#running-unit-tests" title="Permanent link">&para;</a></h2>
 <p>To run unit tests:</p>
 <div class="highlight"><pre><span></span><code>make <span class="nb">test</span>
@@ -1594,7 +1597,7 @@ running. The rollout controller can be started with the command: </p>
 <li>The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
 delays. However, it is often desired to artificially slow down the tests for debugging purposes,
 as well as to understand what the test is doing. To delay startup and termination of pods, set the 
-<code>E2E_POD_DELAY</code> to a integer value in seconds. This environment variable is often coupled with 
+<code>E2E_POD_DELAY</code> to an integer value in seconds. This environment variable is often coupled with 
 <code>E2E_TEST_OPTIONS</code> to debug and slow down a specific test.</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_POD_DELAY</span><span class="o">=</span><span class="m">10</span>
@@ -1618,11 +1621,6 @@ make test-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
 </code></pre></div>
 <p>Alternatively, the e2e tests can be run against the system controller (i.e. without an instance id):</p>
 <div class="highlight"><pre><span></span><code>make start-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
-</code></pre></div>
-<h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
-<p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
-<div class="highlight"><pre><span></span><code><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
-go run ./cmd/rollouts-controller/main.go
 </code></pre></div>
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
