@@ -19,11 +19,6 @@ E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 1
 
-# go_install,path
-define go_install
-	cd /tmp && GOBIN=${DIST_DIR} go get $(1)
-endef
-
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
   -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \
@@ -73,49 +68,65 @@ endef
 .PHONY: all
 all: controller image
 
-# downloads vendor files needed by tools.go (i.e. gen-k8scodegen)
+# downloads vendor files needed by tools.go (i.e. go_install)
 .PHONY: go-mod-vendor
 go-mod-vendor:
 	go mod tidy
 	go mod vendor
 
+# go_get,path
+# use go_get to install a toolchain binary for a package which is *not* vendored in go.mod
+define go_get
+	cd /tmp && GOBIN=${DIST_DIR} go get $(1)
+endef
+
+# go_install,path
+# use go_install to install a toolchain binary for a package which *is* vendored in go.mod
+define go_install
+	GOBIN=${DIST_DIR} go install -mod=vendor ./vendor/$(1)
+endef
+
 .PHONY: $(DIST_DIR)/controller-gen
 $(DIST_DIR)/controller-gen:
-	$(call go_install,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+	$(call go_get,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0)
+
+.PHONY: $(DIST_DIR)/bin/goimports
+$(DIST_DIR)/bin/goimports:
+	$(call go_get,golang.org/x/tools/cmd/goimports)
 
 .PHONY: $(DIST_DIR)/go-to-protobuf
-$(DIST_DIR)/go-to-protobuf:
-	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf@v0.20.5-rc.0)
+$(DIST_DIR)/go-to-protobuf: go-mod-vendor
+	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf)
 
 .PHONY: $(DIST_DIR)/protoc-gen-gogo
-$(DIST_DIR)/protoc-gen-gogo:
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo@v1.3.1)
+$(DIST_DIR)/protoc-gen-gogo: go-mod-vendor
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo)
 
 .PHONY: $(DIST_DIR)/protoc-gen-gogofast
 $(DIST_DIR)/protoc-gen-gogofast:
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast@v1.3.1)
+	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast)
 
 .PHONY: $(DIST_DIR)/protoc-gen-grpc-gateway
-$(DIST_DIR)/protoc-gen-grpc-gateway:
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.16.0)
+$(DIST_DIR)/protoc-gen-grpc-gateway: go-mod-vendor
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
 
 .PHONY: $(DIST_DIR)/protoc-gen-swagger
-$(DIST_DIR)/protoc-gen-swagger:
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.16.0)
+$(DIST_DIR)/protoc-gen-swagger: go-mod-vendor
+	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger)
 
 .PHONY: $(DIST_DIR)/openapi-gen
-$(DIST_DIR)/openapi-gen:
+$(DIST_DIR)/openapi-gen: go-mod-vendor
 	$(call go_install,k8s.io/kube-openapi/cmd/openapi-gen)
 
 .PHONY: $(DIST_DIR)/mockery
 $(DIST_DIR)/mockery:
-	$(call go_install,github.com/vektra/mockery/v2@v2.6.0)
+	$(call go_get,github.com/vektra/mockery/v2@v2.6.0)
 
 TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
 
 .PHONY: install-toolchain
-install-toolchain: $(DIST_DIR)/controller-gen $(DIST_DIR)/go-to-protobuf $(DIST_DIR)/protoc-gen-gogo $(DIST_DIR)/protoc-gen-gogofast $(DIST_DIR)/protoc-gen-grpc-gateway $(DIST_DIR)/protoc-gen-swagger
+install-toolchain: go-mod-vendor $(DIST_DIR)/controller-gen $(DIST_DIR)/bin/goimports $(DIST_DIR)/go-to-protobuf $(DIST_DIR)/protoc-gen-gogo $(DIST_DIR)/protoc-gen-gogofast $(DIST_DIR)/protoc-gen-grpc-gateway $(DIST_DIR)/protoc-gen-swagger $(DIST_DIR)/openapi-gen $(DIST_DIR)/mockery
 
 # generates all auto-generated code
 .PHONY: codegen
@@ -123,7 +134,7 @@ codegen: gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests
 
 # generates all files related to proto files
 .PHONY: gen-proto
-protogen: k8s-proto rollout-proto ui-proto
+gen-proto: k8s-proto api-proto ui-proto
 
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
@@ -240,7 +251,7 @@ manifests:
 	./hack/update-manifests.sh
 
 .PHONY: clean
-clean: clean-debug
+clean:
 	-rm -rf ${CURRENT_DIR}/dist
 	-rm -rf ${CURRENT_DIR}/ui/dist
 

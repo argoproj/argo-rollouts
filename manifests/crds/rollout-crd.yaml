@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
   name: rollouts.argoproj.io
 spec:
   group: argoproj.io
@@ -25,11 +25,13 @@ spec:
       jsonPath: .status.replicas
       name: Current
       type: integer
-    - description: Total number of non-terminated pods targeted by this rollout that have the desired template spec
+    - description: Total number of non-terminated pods targeted by this rollout that
+        have the desired template spec
       jsonPath: .status.updatedReplicas
       name: Up-to-date
       type: integer
-    - description: Total number of available pods (ready for at least minReadySeconds) targeted by this rollout
+    - description: Total number of available pods (ready for at least minReadySeconds)
+        targeted by this rollout
       jsonPath: .status.availableReplicas
       name: Available
       type: integer

@@ -30,6 +30,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting":                               schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting":                        schema_pkg_apis_rollouts_v1alpha1_AmbassadorTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                                     schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":                             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":                                 schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
@@ -142,6 +143,35 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"ingress", "servicePort"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AmbassadorTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic router",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"mappings": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Mappings refer to the name of the Ambassador Mappings used to route traffic to the service",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"mappings"},
 			},
 		},
 	}
@@ -3136,11 +3166,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"),
 						},
 					},
+					"ambassador": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ambassador holds specific configuration to use Ambassador to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
 	}
 }
 
