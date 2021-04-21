@@ -152,10 +152,6 @@ func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
 		case conditions.RolloutAbortedReason, conditions.TimedOutReason:
 			return "Degraded", fmt.Sprintf("%s: %s", cond.Reason, cond.Message)
 		}
-
-		if cond.Status == corev1.ConditionFalse && cond.Reason == conditions.RolloutCompletedReason {
-			return "Degraded", fmt.Sprintf("%s: %s", cond.Reason, "rollout coompleted, but analysis failed")
-		}
 	}
 	if ro.Spec.Paused {
 		return "Paused", "manually paused"

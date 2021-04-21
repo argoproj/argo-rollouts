@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -176,28 +175,15 @@ func TestExperimentInfo(t *testing.T) {
 }
 
 func TestRolloutStatusDegraded(t *testing.T) {
-	{
-		ro := newCanaryRollout()
-		ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
-			Type:    v1alpha1.RolloutProgressing,
-			Reason:  "ProgressDeadlineExceeded",
-			Message: "timed out",
-		})
-		status, message := RolloutStatusString(ro)
-		assert.Equal(t, "Degraded", status)
-		assert.Equal(t, "ProgressDeadlineExceeded: timed out", message)
-	}
-	{
-		ro := newCanaryRollout()
-		ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
-			Type:   v1alpha1.RolloutProgressing,
-			Status: corev1.ConditionFalse,
-			Reason: "RolloutCompleted",
-		})
-		status, message := RolloutStatusString(ro)
-		assert.Equal(t, "Degraded", status)
-		assert.Equal(t, "RolloutCompleted: rollout coompleted, but analysis failed", message)
-	}
+	ro := newCanaryRollout()
+	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
+		Type:    v1alpha1.RolloutProgressing,
+		Reason:  "ProgressDeadlineExceeded",
+		Message: "timed out",
+	})
+	status, message := RolloutStatusString(ro)
+	assert.Equal(t, "Degraded", status)
+	assert.Equal(t, "ProgressDeadlineExceeded: timed out", message)
 }
 
 func TestRolloutStatusInvalidSpec(t *testing.T) {
