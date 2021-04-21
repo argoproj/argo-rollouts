@@ -47,6 +47,14 @@ message ALBTrafficRouting {
   optional string annotationPrefix = 4;
 }
 
+// AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
+// router
+message AmbassadorTrafficRouting {
+  // Mappings refer to the name of the Ambassador Mappings used to route traffic to the
+  // service
+  repeated string mappings = 1;
+}
+
 // AnalysisRun is an instantiation of an AnalysisTemplate
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1083,6 +1091,9 @@ message RolloutTrafficRouting {
 
   // SMI holds TrafficSplit specific configuration to route traffic
   optional SMITrafficRouting smi = 4;
+
+  // Ambassador holds specific configuration to use Ambassador to route traffic
+  optional AmbassadorTrafficRouting ambassador = 5;
 }
 
 // SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing
