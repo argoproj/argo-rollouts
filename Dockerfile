@@ -31,7 +31,7 @@ FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
 
-RUN yarn install
+RUN yarn install --network-timeout 300000
 
 ADD ["ui/", "."]
 
@@ -74,7 +74,9 @@ COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/k
 
 WORKDIR /home/argo-rollouts
 
-ENTRYPOINT ["/bin/kubectl-argo-rollouts", "dashboard"]
+ENTRYPOINT ["/bin/kubectl-argo-rollouts"]
+
+CMD ["dashboard"]
 
 ####################################################################################################
 # Final image

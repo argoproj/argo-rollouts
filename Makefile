@@ -210,6 +210,11 @@ else
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
+.PHONY: plugin-image
+plugin-image:
+	docker build --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
+	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) ; fi
+
 .PHONY: lint
 lint:
 	golangci-lint run --fix
@@ -271,4 +276,4 @@ release-plugins:
 	./hack/build-release-plugins.sh
 
 .PHONY: release
-release: release-precheck precheckin image release-plugins
+release: release-precheck precheckin image plugin-image release-plugins
