@@ -26,7 +26,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spaceapegames/go-wavefront v1.8.1
-	github.com/spf13/cobra v1.1.1
+	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/tj/assert v0.0.3
 	github.com/undefinedlabs/go-mpatch v1.0.6
