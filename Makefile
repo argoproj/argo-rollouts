@@ -41,7 +41,7 @@ endif
 
 ifeq (${DOCKER_PUSH},true)
 ifndef IMAGE_NAMESPACE
-$(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
+$(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=quay.io/argoproj))
 endif
 endif
 

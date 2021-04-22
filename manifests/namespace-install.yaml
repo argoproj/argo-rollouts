@@ -12812,7 +12812,7 @@ spec:
       containers:
       - args:
         - --namespaced
-        image: argoproj/argo-rollouts:latest
+        image: quay.io/argoproj/argo-rollouts:latest
         imagePullPolicy: Always
         name: argo-rollouts
         ports:
