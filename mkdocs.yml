@@ -24,9 +24,10 @@ nav:
 - Concepts: concepts.md
 - Getting Started:
   - Basic Usage: getting-started.md
-  - ALB: getting-started/alb/index.md
-  - NGINX: getting-started/nginx/index.md
+  - Ambassador: getting-started/ambassador/index.md
+  - AWS ALB: getting-started/alb/index.md
   - Istio: getting-started/istio/index.md
+  - NGINX: getting-started/nginx/index.md
   - SMI: getting-started/smi/index.md
 - Dashboard: dashboard.md
 - Rollout:
@@ -42,9 +43,10 @@ nav:
   - Controller Metrics: features/controller-metrics.md
 - Traffic Management:
   - Overview: features/traffic-management/index.md
+  - Ambassador: features/traffic-management/ambassador.md
+  - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
-  - AWS ALB: features/traffic-management/alb.md
   - SMI: features/traffic-management/smi.md
 - Analysis:
   - Overview: features/analysis.md
