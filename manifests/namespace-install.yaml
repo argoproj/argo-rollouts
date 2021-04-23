@@ -12350,9 +12350,15 @@ spec:
                     - containers
                     type: object
                 type: object
-            required:
-            - selector
-            - template
+              workloadRef:
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                type: object
             type: object
           status:
             properties:
@@ -12579,6 +12585,16 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - ""
+  - apps
+  resources:
+  - deployments
+  - podtemplates
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:

@@ -756,6 +756,18 @@ message NginxTrafficRouting {
   map<string, string> additionalIngressAnnotations = 3;
 }
 
+// ObjectRef holds a references to the Kubernetes object
+message ObjectRef {
+  // API Version of the referent
+  optional string apiVersion = 1;
+
+  // Kind of the referent
+  optional string kind = 2;
+
+  // Name of the referent
+  optional string name = 3;
+}
+
 // PauseCondition the reason for a pause and when it started
 message PauseCondition {
   optional string reason = 1;
@@ -944,10 +956,16 @@ message RolloutSpec {
   // Label selector for pods. Existing ReplicaSets whose pods are
   // selected by this will be the ones affected by this rollout.
   // It must match the pod template's labels.
+  // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 2;
 
   // Template describes the pods that will be created.
+  // +optional
   optional k8s.io.api.core.v1.PodTemplateSpec template = 3;
+
+  // WorkloadRef holds a references to a workload that provides Pod template
+  // +optional
+  optional ObjectRef workloadRef = 10;
 
   // Minimum number of seconds for which a newly created pod should be ready
   // without any of its container crashing, for it to be considered available.

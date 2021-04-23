@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
@@ -100,6 +101,8 @@ func newCommand() *cobra.Command {
 			checkError(err)
 			dynamicClient, err := dynamic.NewForConfig(config)
 			checkError(err)
+			discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+			checkError(err)
 			smiClient, err := smiclientset.NewForConfig(config)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
@@ -133,6 +136,7 @@ func newCommand() *cobra.Command {
 				rolloutClient,
 				dynamicClient,
 				smiClient,
+				discoveryClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
 				kubeInformerFactory.Extensions().V1beta1().Ingresses(),

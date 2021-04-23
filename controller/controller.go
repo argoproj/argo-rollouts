@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
@@ -85,6 +86,8 @@ type Manager struct {
 	experimentWorkqueue  workqueue.RateLimitingInterface
 	analysisRunWorkqueue workqueue.RateLimitingInterface
 
+	refResolver rollout.TemplateRefResolver
+
 	dynamicClientSet dynamic.Interface
 
 	namespace string
@@ -97,6 +100,7 @@ func NewManager(
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
 	smiclientset smiclientset.Interface,
+	discoveryClient discovery.DiscoveryInterface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
 	ingressesInformer extensionsinformers.IngressInformer,
@@ -141,11 +145,14 @@ func NewManager(
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
+	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, rolloutWorkqueue, rolloutsInformer.Informer())
+
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
 		Namespace:                       namespace,
 		KubeClientSet:                   kubeclientset,
 		ArgoProjClientset:               argoprojclientset,
 		DynamicClientSet:                dynamicclientset,
+		RefResolver:                     refResolver,
 		SmiClientSet:                    smiclientset,
 		ExperimentInformer:              experimentsInformer,
 		AnalysisRunInformer:             analysisRunInformer,
@@ -238,6 +245,7 @@ func NewManager(
 		experimentController:          experimentController,
 		analysisController:            analysisController,
 		dynamicClientSet:              dynamicclientset,
+		refResolver:                   refResolver,
 		namespace:                     namespace,
 	}
 
@@ -255,6 +263,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.rolloutWorkqueue.ShutDown()
 	defer c.experimentWorkqueue.ShutDown()
 	defer c.analysisRunWorkqueue.ShutDown()
+
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced); !ok {

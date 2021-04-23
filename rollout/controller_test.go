@@ -61,6 +61,17 @@ const (
 	}`
 )
 
+type FakeWorkloadRefResolver struct {
+}
+
+func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
+	return nil
+}
+
+func (f *FakeWorkloadRefResolver) Init() error {
+	return nil
+}
+
 type FakeEventRecorder struct {
 	Events chan string
 }
@@ -509,6 +520,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        &FakeEventRecorder{},
+		RefResolver:                     &FakeWorkloadRefResolver{},
 	})
 
 	var enqueuedObjectsLock sync.Mutex
