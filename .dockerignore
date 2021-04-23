@@ -7,3 +7,4 @@ dist/
 cmd/**/debug
 debug.test
 coverage.*
+ui/node_modules
