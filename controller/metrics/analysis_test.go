@@ -52,7 +52,7 @@ status:
 )
 const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about analysis run.
 # TYPE analysis_run_info gauge
-analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test"} 1
+analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
 analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="WebMetric"} 1
@@ -64,7 +64,7 @@ analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",na
 # HELP analysis_run_metric_type Information on the type of a specific metric in the Analysis Runs
 # TYPE analysis_run_metric_type gauge
 analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="WebMetric"} 1
-# HELP analysis_run_phase Information on the state of the Analysis Run
+# HELP analysis_run_phase Information on the state of the Analysis Run (DEPRECATED - use analysis_run_info)
 # TYPE analysis_run_phase gauge
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed"} 0
@@ -72,7 +72,6 @@ analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending"} 0
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running"} 0
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful"} 0
-
 `
 
 func newFakeAnalysisRun(fakeAnalysisRun string) *v1alpha1.AnalysisRun {

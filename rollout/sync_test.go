@@ -11,13 +11,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -200,7 +200,7 @@ func TestReconcileRevisionHistoryLimit(t *testing.T) {
 				reconcilerBase: reconcilerBase{
 					argoprojclientset: &fake,
 					kubeclientset:     &k8sfake,
-					recorder:          &record.FakeRecorder{},
+					recorder:          record.NewFakeEventRecorder(),
 				},
 			}
 			err := roCtx.reconcileRevisionHistoryLimit(test.replicaSets)

@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	//noExperiments  = ""
 	fakeExperiment = `
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
@@ -96,16 +95,19 @@ status:
     updatedReplicas: 0
 `
 )
-const expectedExperimentResponse = `# HELP experiment_info Information about Experiment.
+
+const expectedExperimentResponse = `
+# HELP experiment_info Information about Experiment.
 # TYPE experiment_info gauge
-experiment_info{name="experiment-with-analysis",namespace="argo-rollouts"} 1
-# HELP experiment_phase Information on the state of the experiment
+experiment_info{name="experiment-with-analysis",namespace="argo-rollouts",phase="Successful"} 1
+# HELP experiment_phase Information on the state of the experiment (DEPRECATED - use experiment_info)
 # TYPE experiment_phase gauge
 experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Error"} 0
 experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Inconclusive"} 0
 experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Pending"} 0
 experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Running"} 0
-experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Successful"} 1`
+experiment_phase{name="experiment-with-analysis",namespace="argo-rollouts",phase="Successful"} 1
+`
 
 func newFakeExperiment(fakeExperiment string) *v1alpha1.Experiment {
 	var experiment v1alpha1.Experiment

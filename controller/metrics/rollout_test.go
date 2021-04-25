@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	//noRollouts  = ""
 	fakeRollout = `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -52,18 +51,19 @@ status:
   availableReplicas: 1
 `
 )
-const expectedResponse = `# HELP rollout_info Information about rollout.
+const expectedResponse = `
+# HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1
+rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen"} 1
 # HELP rollout_info_replicas_available The number of available replicas per rollout.
 # TYPE rollout_info_replicas_available gauge
-rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1
-# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
-# TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 0
+rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_desired The number of desired replicas per rollout.
 # TYPE rollout_info_replicas_desired gauge
-rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default",strategy="blueGreen"} 1`
+rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`
 
 func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
 	var rollout v1alpha1.Rollout
@@ -113,16 +113,18 @@ func testRolloutDescribe(t *testing.T, fakeRollout string, expectedResponse stri
 }
 
 func TestIncRolloutReconcile(t *testing.T) {
-	expectedResponse := `# HELP rollout_reconcile Rollout reconciliation performance.
+	expectedResponse := `
+# HELP rollout_reconcile Rollout reconciliation performance.
 # TYPE rollout_reconcile histogram
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="0.01"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="0.15"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="0.25"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="0.5"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="1"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed",le="+Inf"} 1
-rollout_reconcile_sum{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed"} 0.001
-rollout_reconcile_count{name="ro-test",namespace="ro-namespace",strategy="No Strategy listed"} 1`
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.01"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.15"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.25"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.5"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="1"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="+Inf"} 1
+rollout_reconcile_sum{name="ro-test",namespace="ro-namespace"} 0.001
+rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
+`
 
 	provider := &K8sRequestsCountProvider{}
 
@@ -140,4 +142,31 @@ rollout_reconcile_count{name="ro-test",namespace="ro-namespace",strategy="No Str
 	}
 	metricsServ.IncRolloutReconcile(ro, time.Millisecond)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
+
+func TestGetStrategyType(t *testing.T) {
+	bgRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, "blueGreen", getStrategyType(bgRollout))
+
+	canaryRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	assert.Equal(t, "canary", getStrategyType(canaryRollout))
+
+	noStrategyRollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{},
+		},
+	}
+	assert.Equal(t, "none", getStrategyType(noStrategyRollout))
 }

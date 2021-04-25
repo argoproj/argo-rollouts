@@ -11,6 +11,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
@@ -61,8 +62,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 		return err
 	}
 	msg := fmt.Sprintf("Switched selector for service '%s' from '%s' to '%s'", service.Name, oldPodHash, newRolloutUniqueLabelValue)
-	c.log.Info(msg)
-	c.recorder.Event(r, corev1.EventTypeNormal, "SwitchService", msg)
+	c.recorder.Eventf(r, record.EventOptions{EventReason: "SwitchService"}, msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
 	return err
 }

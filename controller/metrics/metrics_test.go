@@ -16,6 +16,7 @@ import (
 )
 
 func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string) {
+	t.Helper()
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()

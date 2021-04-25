@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func TestWithUnstructured(t *testing.T) {
+func TestWithUnstructuredObject(t *testing.T) {
 	buf := bytes.NewBufferString("")
 	logger := log.New()
 	logger.SetOutput(buf)
@@ -30,7 +30,28 @@ func TestWithUnstructured(t *testing.T) {
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ro)
 	un := unstructured.Unstructured{Object: obj}
 	assert.NoError(t, err)
-	logCtx := WithUnstructured(&un)
+	logCtx := WithObject(&un)
+	logCtx.Logger = logger
+	logCtx.Info("Test")
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
+}
+
+func TestWithObject(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	logger := log.New()
+	logger.SetOutput(buf)
+	ro := v1alpha1.Rollout{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Rollout",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	logCtx := WithObject(&ro)
 	logCtx.Logger = logger
 	logCtx.Info("Test")
 	logMessage := buf.String()

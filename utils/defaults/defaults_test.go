@@ -95,33 +95,6 @@ func TestGetCanaryIngressAnnotationPrefixOrDefault(t *testing.T) {
 	assert.Equal(t, "nginx.ingress.kubernetes.io", GetCanaryIngressAnnotationPrefixOrDefault(rolloutDefaultValue))
 }
 
-func TestGetStrategyType(t *testing.T) {
-	bgRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreen: &v1alpha1.BlueGreenStrategy{},
-			},
-		},
-	}
-	assert.Equal(t, "blueGreen", GetStrategyType(bgRollout))
-
-	canaryRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{},
-			},
-		},
-	}
-	assert.Equal(t, "canary", GetStrategyType(canaryRollout))
-
-	noStrategyRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{},
-		},
-	}
-	assert.Equal(t, "No Strategy listed", GetStrategyType(noStrategyRollout))
-}
-
 func TestGetProgressDeadlineSecondsOrDefault(t *testing.T) {
 	seconds := int32(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{

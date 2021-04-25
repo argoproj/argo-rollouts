@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
@@ -50,6 +49,7 @@ import (
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -151,7 +151,7 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
-		Recorder:   cfg.Recorder,
+		Recorder:   cfg.Recorder.K8sRecorder(),
 	}
 
 	podRestarter := RolloutPodRestarter{

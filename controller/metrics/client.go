@@ -17,21 +17,9 @@ type K8sRequestsCountProvider struct {
 }
 
 func (f *K8sRequestsCountProvider) MustRegister(registerer prometheus.Registerer) {
-	f.k8sRequestsCount = k8sRequestsCount
+	f.k8sRequestsCount = MetricK8sRequestTotal
 	registerer.MustRegister(f.k8sRequestsCount)
 }
-
-var (
-	// Custom events metric
-	k8sRequestsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: clientsetMetricsNamespace,
-			Name:      "k8s_request_total",
-			Help:      "Number of kubernetes requests executed during application reconciliation.",
-		},
-		[]string{"kind", "namespace", "name", "verb", "status_code"},
-	)
-)
 
 // IncKubernetesRequest increments the kubernetes client counter
 func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) {

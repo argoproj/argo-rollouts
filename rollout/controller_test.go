@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 var (
@@ -520,7 +521,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
-		Recorder:                        &FakeEventRecorder{},
+		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 	})
 

@@ -5,13 +5,13 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -260,7 +260,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
-	_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
@@ -270,9 +270,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
 			if stepCount > 0 {
 				// If we get here, we detected that we've moved back to the stable ReplicaSet
-				msg := "Rollback to stable"
-				c.log.Info(msg)
-				c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SkipSteps", msg)
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable")
 				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
@@ -310,10 +308,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	}
 
 	if c.completedCurrentCanaryStep() {
+		stepStr := v1alpha1.CanaryStepString(*currentStep)
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
-		c.log.Infof("Incrementing the Current Step Index to %d", *currentStepIndex)
-		c.recorder.Eventf(c.rollout, corev1.EventTypeNormal, "SetStepIndex", "Set Step Index to %d", int(*currentStepIndex))
+
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutStepCompletedReason}, conditions.RolloutStepCompletedMessage, int(*currentStepIndex), stepCount, stepStr)
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
 	}
 

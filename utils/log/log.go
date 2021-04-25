@@ -4,7 +4,8 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -24,15 +25,14 @@ const (
 	NamespaceKey = "namespace"
 )
 
-// WithUnstructured returns an logging context for an unstructured object
-func WithUnstructured(un *unstructured.Unstructured) *log.Entry {
+// WithObject returns a logging context for an object which includes <kind>=<name> and namespace=<namespace>
+func WithObject(obj runtime.Object) *log.Entry {
 	logCtx := log.NewEntry(log.StandardLogger())
-	kind, _, _ := unstructured.NestedString(un.Object, "kind")
-	if name, ok, _ := unstructured.NestedString(un.Object, "metadata", "name"); ok {
-		logCtx = logCtx.WithField(strings.ToLower(kind), name)
-	}
-	if namespace, ok, _ := unstructured.NestedString(un.Object, "metadata", "namespace"); ok {
-		logCtx = logCtx.WithField("namespace", namespace)
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	objectMeta, err := meta.Accessor(obj)
+	if err == nil {
+		logCtx = logCtx.WithField("namespace", objectMeta.GetNamespace())
+		logCtx = logCtx.WithField(strings.ToLower(gvk.Kind), objectMeta.GetName())
 	}
 	return logCtx
 }

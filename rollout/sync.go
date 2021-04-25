@@ -16,6 +16,7 @@ import (
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -24,6 +25,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -85,18 +87,8 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
-	if annotations.SetRolloutRevision(c.rollout, rsCopy.Annotations[annotations.RevisionAnnotation]) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
-		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
-			return nil, err
-		}
-		c.rollout = updatedRollout.DeepCopy()
-		if err := c.refResolver.Resolve(c.rollout); err != nil {
-			return nil, err
-		}
-		c.newRollout = updatedRollout
-		c.log.Infof("Updated rollout revision annotation to %s", rsCopy.Annotations[annotations.RevisionAnnotation])
+	if err := c.setRolloutRevision(rsCopy.Annotations[annotations.RevisionAnnotation]); err != nil {
+		return nil, err
 	}
 
 	// If no other Progressing condition has been recorded and we need to estimate the progress
@@ -117,6 +109,23 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		c.log.Infof("Initialized Progressing condition: %v", condition)
 	}
 	return rsCopy, nil
+}
+
+func (c *rolloutContext) setRolloutRevision(revision string) error {
+	if annotations.SetRolloutRevision(c.rollout, revision) {
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		if err != nil {
+			c.log.WithError(err).Error("Error: updating rollout revision")
+			return err
+		}
+		c.rollout = updatedRollout.DeepCopy()
+		if err := c.refResolver.Resolve(c.rollout); err != nil {
+			return err
+		}
+		c.newRollout = updatedRollout
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason, PrometheusCounter: metrics.MetricRolloutUpdatedTotal}, conditions.RolloutUpdatedMessage, revision)
+	}
+	return nil
 }
 
 func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
@@ -225,7 +234,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		return nil, err
 	case err != nil:
 		msg := fmt.Sprintf(conditions.FailedRSCreateMessage, newRS.Name, err)
-		c.recorder.Event(c.rollout, corev1.EventTypeWarning, conditions.FailedRSCreateReason, msg)
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.FailedRSCreateReason}, msg)
 		newStatus := c.rollout.Status.DeepCopy()
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
 		patchErr := c.patchCondition(c.rollout, newStatus, cond)
@@ -238,21 +247,13 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	}
 
 	if !alreadyExists && newReplicasCount > 0 {
-		c.recorder.Eventf(c.rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
-	if annotations.SetRolloutRevision(c.rollout, newRevision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(ctx, c.rollout, metav1.UpdateOptions{})
-		if err != nil {
-			return nil, err
-		}
-		c.rollout = updatedRollout
-		if err := c.refResolver.Resolve(c.rollout); err != nil {
-			return nil, err
-		}
-
-		c.log.Infof("Updated rollout revision to %s", c.rollout.Annotations[annotations.RevisionAnnotation])
+	if err := c.setRolloutRevision(newRevision); err != nil {
+		return nil, err
 	}
+
 	if !alreadyExists {
 		msg := fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewReplicaSetReason, msg)
@@ -394,7 +395,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
-			c.recorder.Eventf(rollout, corev1.EventTypeNormal, "ScalingReplicaSet", "Scaled %s replica set %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
+			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s replica set %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
 		}
 	}
 	return scaled, rs, err
@@ -600,20 +601,23 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	if !isCompleteRollout {
 		switch {
 		case c.pauseContext.IsAborted():
-			var condition *v1alpha1.RolloutCondition
+			revision, _ := replicasetutil.Revision(c.rollout)
+			message := fmt.Sprintf(conditions.RolloutAbortedMessage, revision)
 			if c.pauseContext.abortMessage != "" {
-				condition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, c.pauseContext.abortMessage)
-			} else {
-				condition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, conditions.RolloutAbortedMessage)
+				message = fmt.Sprintf("%s: %s", message, c.pauseContext.abortMessage)
 			}
-			conditions.SetRolloutCondition(&newStatus, *condition)
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
+			if conditions.SetRolloutCondition(&newStatus, *condition) {
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason, PrometheusCounter: metrics.MetricRolloutAbortedTotal}, message)
+			}
 		case conditions.RolloutComplete(c.rollout, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
-			msg := fmt.Sprintf(conditions.RolloutCompletedMessage, c.rollout.Name)
+			rsName := ""
 			if c.newRS != nil {
-				msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, c.newRS.Name)
+				rsName = c.newRS.Name
 			}
+			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
 		case conditions.RolloutProgressing(c.rollout, &newStatus):
@@ -877,9 +881,9 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
 		newStatus.StableRS = newStatus.CurrentPodHash
-		msg := fmt.Sprintf("Set stable to revision %s (%s): %s", c.rollout.Annotations[annotations.RevisionAnnotation], newStatus.CurrentPodHash, reason)
-		c.log.Info(msg)
-		c.recorder.Event(c.rollout, corev1.EventTypeNormal, "SetStable", msg)
+		revision, _ := replicasetutil.Revision(c.rollout)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason, PrometheusCounter: metrics.MetricRolloutCompletedTotal},
+			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 		// Now that we've marked the desired RS as stable, start the scale-down countdown on the previous stable RS
 		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, previousStableHash)
 		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousStableRS}) > 0 {

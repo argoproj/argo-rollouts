@@ -20,8 +20,8 @@ require (
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/newrelic/newrelic-client-go v0.49.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0
-	github.com/prometheus/common v0.18.0
+	github.com/prometheus/client_golang v1.10.0
+	github.com/prometheus/common v0.21.0
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/soheilhy/cmux v0.1.4

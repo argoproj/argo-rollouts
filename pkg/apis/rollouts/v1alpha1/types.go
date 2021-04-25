@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	fmt "fmt"
 	"strconv"
 	"time"
 
@@ -440,6 +441,36 @@ type CanaryStep struct {
 	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
+}
+
+// CanaryStepString returns a string representation of a canary step
+func CanaryStepString(c CanaryStep) string {
+	if c.SetWeight != nil {
+		return fmt.Sprintf("setWeight: %d", *c.SetWeight)
+	}
+	if c.Pause != nil {
+		str := "pause"
+		if c.Pause.Duration != nil {
+			str = fmt.Sprintf("%s: %s", str, *c.Pause.Duration)
+		}
+		return str
+	}
+	if c.Experiment != nil {
+		return "experiment"
+	}
+	if c.Analysis != nil {
+		return "analysis"
+	}
+	if c.SetCanaryScale != nil {
+		if c.SetCanaryScale.Weight != nil {
+			return fmt.Sprintf("setCanaryScale{weight: %d}", c.SetCanaryScale.Weight)
+		} else if c.SetCanaryScale.MatchTrafficWeight {
+			return "setCanaryScale{matchTrafficWeight: true}"
+		} else if c.SetCanaryScale.Replicas != nil {
+			return fmt.Sprintf("setCanaryScale{Replicas: %d}", *c.SetCanaryScale.Replicas)
+		}
+	}
+	return "invalid"
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight
