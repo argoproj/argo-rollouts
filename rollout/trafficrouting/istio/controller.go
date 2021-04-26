@@ -182,10 +182,15 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 			var vsvc *unstructured.Unstructured
 			var err error
 			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
+			vsvcNameSpace := canary.TrafficRouting.Istio.VirtualService.Namespace
+			namespace := ro.Namespace
+			if vsvcNameSpace != "" {
+				namespace = vsvcNameSpace
+			}
 			if c.VirtualServiceInformer.HasSynced() {
-				vsvc, err = c.VirtualServiceLister.Namespace(ro.Namespace).Get(vsvcName)
+				vsvc, err = c.VirtualServiceLister.Namespace(namespace).Get(vsvcName)
 			} else {
-				vsvc, err = c.DynamicClientSet.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(ctx, vsvcName, metav1.GetOptions{})
+				vsvc, err = c.DynamicClientSet.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace).Get(ctx, vsvcName, metav1.GetOptions{})
 			}
 
 			if k8serrors.IsNotFound(err) {

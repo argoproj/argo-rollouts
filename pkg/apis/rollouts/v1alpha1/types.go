@@ -342,6 +342,8 @@ type IstioTrafficRouting struct {
 type IstioVirtualService struct {
 	// Name holds the name of the VirtualService
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Namespace holds the namespace of the VirtualService
+	Namespace string `json:"namespace,omitempty"`
 	// Routes list of routes within VirtualService to edit
 	Routes []string `json:"routes" protobuf:"bytes,2,rep,name=routes"`
 }

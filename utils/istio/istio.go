@@ -54,7 +54,11 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil || canary.TrafficRouting.Istio.VirtualService.Name == "" {
 		return []string{}
 	}
-	return []string{fmt.Sprintf("%s/%s", ro.Namespace, canary.TrafficRouting.Istio.VirtualService.Name)}
+	namespace := ro.Namespace
+	if ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace != "" {
+		namespace = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	}
+	return []string{fmt.Sprintf("%s/%s", namespace, canary.TrafficRouting.Istio.VirtualService.Name)}
 }
 
 // GetRolloutDesinationRuleKeys gets the referenced DestinationRule and its namespace from a Rollout

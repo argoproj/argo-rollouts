@@ -70,6 +70,11 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	keys := GetRolloutVirtualServiceKeys(ro)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, keys[0], "default/test")
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace = "test-namespace"
+	keys = GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, keys[0], "test-namespace/test")
 }
 
 func TestGetRolloutDesinationRuleKeys(t *testing.T) {

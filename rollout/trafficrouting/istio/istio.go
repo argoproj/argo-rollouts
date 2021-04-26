@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	log "github.com/sirupsen/logrus"
@@ -101,7 +102,14 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 		}
 		for j := range route.Route {
 			destination := httpRoutes[i].Route[j]
-			host := destination.Destination.Host
+
+			var host string
+			if idx := strings.Index(destination.Destination.Host, "."); idx > 0 {
+				host = destination.Destination.Host[:idx]
+			} else if idx < 0 {
+				host = destination.Destination.Host
+			}
+
 			subset := destination.Destination.Subset
 			weight := destination.Weight
 			if (host != "" && host == canarySvc) || (subset != "" && subset == canarySubset) {
@@ -313,9 +321,13 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	var vsvc *unstructured.Unstructured
 	var err error
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
-	client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace)
+	namespace := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	if namespace == "" {
+		namespace = r.rollout.Namespace
+	}
+	client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 	if r.virtualServiceLister != nil {
-		vsvc, err = r.virtualServiceLister.Namespace(r.rollout.Namespace).Get(vsvcName)
+		vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
 	} else {
 		vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
 	}
@@ -388,10 +400,18 @@ func validateVirtualServiceHTTPRouteDestinations(hr VirtualServiceHTTPRoute, sta
 	hasStableSubset := false
 	hasCanarySubset := false
 	for _, r := range hr.Route {
-		if stableSvc != "" && r.Destination.Host == stableSvc {
+		host := ""
+		if idx := strings.Index(r.Destination.Host, "."); idx > 0 {
+			host = r.Destination.Host[:idx]
+		} else if idx < 0 {
+			host = r.Destination.Host
+		}
+
+		if stableSvc != "" && host == stableSvc {
 			hasStableSvc = true
 		}
-		if canarySvc != "" && r.Destination.Host == canarySvc {
+
+		if canarySvc != "" && host == canarySvc {
 			hasCanarySvc = true
 		}
 		if dRule != nil {

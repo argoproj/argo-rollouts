@@ -519,6 +519,8 @@ spec:
                                 properties:
                                   name:
                                     type: string
+                                  namespace:
+                                    type: string
                                   routes:
                                     items:
                                       type: string
