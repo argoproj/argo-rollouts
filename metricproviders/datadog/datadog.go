@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -26,6 +28,9 @@ const (
 	//ProviderType indicates the provider is datadog
 	ProviderType            = "Datadog"
 	DatadogTokensSecretName = "datadog"
+	DatadogApiKey           = "api-key"
+	DatadogAppKey           = "app-key"
+	DatadogAddress          = "address"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -165,18 +170,40 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
+func lookupKeysInEnv(keys []string) map[string]string {
+	valuesByKey := make(map[string]string)
+	for i := range keys {
+		key := keys[i]
+		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+		if value, ok := os.LookupEnv(fmt.Sprintf("DD_%s", formattedKey)); ok {
+			valuesByKey[key] = value
+		}
+	}
+	return valuesByKey
+}
+
 func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
 	ns := defaults.Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
 
-	apiKey := string(secret.Data["api-key"])
-	appKey := string(secret.Data["app-key"])
+	apiKey := ""
+	appKey := ""
 	address := ""
-	if _, hasAddress := secret.Data["address"]; hasAddress {
-		address = string(secret.Data["address"])
+	secretKeys := []string{DatadogApiKey, DatadogAppKey, DatadogAddress}
+	envValuesByKey := lookupKeysInEnv(secretKeys)
+	if len(envValuesByKey) == len(secretKeys) {
+		apiKey = envValuesByKey[DatadogApiKey]
+		appKey = envValuesByKey[DatadogAppKey]
+		address = envValuesByKey[DatadogAddress]
+	} else {
+		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		apiKey = string(secret.Data[DatadogApiKey])
+		appKey = string(secret.Data[DatadogAppKey])
+		if _, hasAddress := secret.Data[DatadogAddress]; hasAddress {
+			address = string(secret.Data[DatadogAddress])
+		}
 	}
 
 	if apiKey != "" && appKey != "" {
