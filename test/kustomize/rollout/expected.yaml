@@ -16,7 +16,7 @@ metadata:
     foo: bar
   labels:
     foo: bar
-  name: my-guestbook-cm-bt8kmct6gk
+  name: my-guestbook-cm-m2mg5mb749
 ---
 apiVersion: v1
 data:
@@ -27,7 +27,7 @@ metadata:
     foo: bar
   labels:
     foo: bar
-  name: my-guestbook-secret-t95h96m85d
+  name: my-guestbook-secret-ccbkcc9264
 type: Opaque
 ---
 apiVersion: v1
@@ -64,6 +64,33 @@ spec:
     app: guestbook
     foo: bar
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+      foo: bar
+  template:
+    metadata:
+      annotations:
+        foo: bar
+      labels:
+        app: nginx
+        foo: bar
+    spec:
+      containers:
+      - image: nginx:1.14.2
+        name: nginx
+        ports:
+        - containerPort: 80
+---
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -92,11 +119,11 @@ spec:
               serviceAccountName: my-robot
               volumes:
               - configMap:
-                  name: my-guestbook-cm-bt8kmct6gk
+                  name: my-guestbook-cm-m2mg5mb749
                 name: config-volume
               - name: secret-volume
                 secret:
-                  secretName: my-guestbook-secret-t95h96m85d
+                  secretName: my-guestbook-secret-ccbkcc9264
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
@@ -125,11 +152,11 @@ spec:
         serviceAccountName: my-robot
         volumes:
         - configMap:
-            name: my-guestbook-cm-bt8kmct6gk
+            name: my-guestbook-cm-m2mg5mb749
           name: config-volume
         - name: secret-volume
           secret:
-            secretName: my-guestbook-secret-t95h96m85d
+            secretName: my-guestbook-secret-ccbkcc9264
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -166,7 +193,12 @@ spec:
       trafficRouting:
         alb:
           ingress: my-networking-ingress
+        ambassador:
+          mappings:
+          - my-mapping
         istio:
+          destinationRule:
+            name: my-guestbook-destrule
           virtualService:
             name: my-guestbook-vsvc
             routes:
@@ -197,12 +229,12 @@ spec:
           valueFrom:
             secretKeyRef:
               key: password
-              name: my-guestbook-secret-t95h96m85d
+              name: my-guestbook-secret-ccbkcc9264
         - name: FOO
           valueFrom:
             configMapKeyRef:
               key: FOO
-              name: my-guestbook-cm-bt8kmct6gk
+              name: my-guestbook-cm-m2mg5mb749
         image: guestbook:v2
         name: guestbook
         ports:
@@ -217,11 +249,15 @@ spec:
       serviceAccountName: my-robot
       volumes:
       - configMap:
-          name: my-guestbook-cm-bt8kmct6gk
+          name: my-guestbook-cm-m2mg5mb749
         name: config-volume
       - name: secret-volume
         secret:
-          secretName: my-guestbook-secret-t95h96m85d
+          secretName: my-guestbook-secret-ccbkcc9264
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-deployment
 ---
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
@@ -260,6 +296,37 @@ spec:
       - backend:
           serviceName: website
           servicePort: 80
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-mapping
+spec:
+  prefix: /someapp
+  rewrite: /
+  service: someapp-stable:80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  annotations:
+    foo: bar
+  labels:
+    foo: bar
+  name: my-guestbook-destrule
+spec:
+  host: guestbook
+  subsets:
+  - labels:
+      app: guestbook
+    name: canary
+  - labels:
+      app: guestbook
+    name: stable
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

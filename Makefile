@@ -231,7 +231,7 @@ lint:
 	golangci-lint run --fix
 
 .PHONY: test
-test:
+test: test-kustomize
 	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
 
 .PHONY: test-kustomize
