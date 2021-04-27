@@ -22,6 +22,7 @@ nav:
 - Overview: index.md
 - Installation: installation.md
 - Concepts: concepts.md
+- Architecture: architecture.md
 - Getting Started:
   - Basic Usage: getting-started.md
   - Ambassador: getting-started/ambassador/index.md
