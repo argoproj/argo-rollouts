@@ -511,7 +511,7 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	if err != nil {
 		return nil, err
 	}
-	refResources.AnalysisTemplateWithType = *analysisTemplates
+	refResources.AnalysisTemplatesWithType = *analysisTemplates
 
 	ingresses, err := c.getReferencedIngresses()
 	if err != nil {
@@ -625,8 +625,8 @@ func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType,
 	return &services, nil
 }
 
-func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplateWithType, error) {
-	analysisTemplates := []validation.AnalysisTemplateWithType{}
+func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplatesWithType, error) {
+	analysisTemplates := make([]validation.AnalysisTemplatesWithType, 0)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		blueGreen := c.rollout.Spec.Strategy.BlueGreen
 		if blueGreen.PrePromotionAnalysis != nil {
@@ -635,7 +635,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 
 		if blueGreen.PostPromotionAnalysis != nil {
@@ -644,7 +644,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		canary := c.rollout.Spec.Strategy.Canary
@@ -654,7 +654,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 				if err != nil {
 					return nil, err
 				}
-				analysisTemplates = append(analysisTemplates, templates...)
+				analysisTemplates = append(analysisTemplates, *templates)
 			}
 		}
 		if canary.Analysis != nil {
@@ -662,56 +662,88 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	}
 	return &analysisTemplates, nil
 }
 
-func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
-	analysisTemplates := []validation.AnalysisTemplateWithType{}
-	if rolloutAnalysis.Templates != nil {
-		for i, template := range rolloutAnalysis.Templates {
-			analysisTemplate, err := c.getReferencedAnalysisTemplate(template, templateType, i, canaryStepIndex)
+func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) (*validation.AnalysisTemplatesWithType, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, canaryStepIndex)
+
+	for _, templateRef := range rolloutAnalysis.Templates {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, template.Name, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
 				return nil, err
 			}
-			if analysisTemplate != nil {
-				analysisTemplates = append(analysisTemplates, *analysisTemplate)
+			clusterTemplates = append(clusterTemplates, template)
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, template.Name, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, err
 			}
+			templates = append(templates, template)
 		}
 	}
-	return analysisTemplates, nil
+
+	return &validation.AnalysisTemplatesWithType{
+		AnalysisTemplates:        templates,
+		ClusterAnalysisTemplates: clusterTemplates,
+		TemplateType:             templateType,
+		CanaryStepIndex:          canaryStepIndex,
+	}, nil
+	//analysisTemplates := []validation.AnalysisTemplateWithType{}
+	//if rolloutAnalysis.Templates != nil {
+	//	for i, template := range rolloutAnalysis.Templates {
+	//		analysisTemplate, err := c.getReferencedAnalysisTemplate(template, templateType, i, canaryStepIndex)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		if analysisTemplate != nil {
+	//			analysisTemplates = append(analysisTemplates, *analysisTemplate)
+	//		}
+	//	}
+	//}
+	//return analysisTemplates, nil
 }
 
-func (c *rolloutContext) getReferencedAnalysisTemplate(template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
-	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
-	if template.ClusterScope {
-		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-		if k8serrors.IsNotFound(err) {
-			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &validation.AnalysisTemplateWithType{
-			ClusterAnalysisTemplate: clusterAnalysisTemplate,
-			TemplateType:            templateType,
-			AnalysisIndex:           analysisIndex,
-		}, nil
-	}
-	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(template.TemplateName)
-	if k8serrors.IsNotFound(err) {
-		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &validation.AnalysisTemplateWithType{
-		AnalysisTemplate: analysisTemplate,
-		TemplateType:     templateType,
-	}, nil
-}
+//func (c *rolloutContext) getReferencedAnalysisTemplate(template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
+//	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
+//	if template.ClusterScope {
+//		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
+//		if k8serrors.IsNotFound(err) {
+//			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
+//		}
+//		if err != nil {
+//			return nil, err
+//		}
+//		return &validation.AnalysisTemplateWithType{
+//			ClusterAnalysisTemplate: clusterAnalysisTemplate,
+//			TemplateType:            templateType,
+//			AnalysisIndex:           analysisIndex,
+//		}, nil
+//	}
+//	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(template.TemplateName)
+//	if k8serrors.IsNotFound(err) {
+//		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
+//	}
+//	if err != nil {
+//		return nil, err
+//	}
+//	return &validation.AnalysisTemplateWithType{
+//		AnalysisTemplate: analysisTemplate,
+//		TemplateType:     templateType,
+//	}, nil
+//}
 
 func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 	ingresses := []v1beta1.Ingress{}
