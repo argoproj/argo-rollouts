@@ -282,6 +282,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-the-cli-with-docker" class="md-nav__link">
+    Using the CLI  with Docker
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1459,6 +1466,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-the-cli-with-docker" class="md-nav__link">
+    Using the CLI  with Docker
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1521,6 +1535,11 @@ command line.</p>
 </ol>
 <p>Test to ensure the version you installed is up-to-date:</p>
 <div class="highlight"><pre><span></span><code>kubectl argo rollouts version
+</code></pre></div>
+<h2 id="using-the-cli-with-docker">Using the CLI  with Docker<a class="headerlink" href="#using-the-cli-with-docker" title="Permanent link">&para;</a></h2>
+<p>The CLI is also available as a container image at <a href="https://quay.io/repository/argoproj/kubectl-argo-rollouts">https://quay.io/repository/argoproj/kubectl-argo-rollouts</a></p>
+<p>You can run it like any other Docker image or use it in any CI platform that supports Docker images.</p>
+<div class="highlight"><pre><span></span><code>docker run quay.io/argoproj/kubectl-argo-rollouts:master version
 </code></pre></div>
                 
               
