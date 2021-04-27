@@ -218,6 +218,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
+	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
 	right.Metrics[0].Name = "foo"
 	assert.False(t, IsSemanticallyEqual(*left, *right))
@@ -355,8 +356,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Nil(t, template.Spec.Args)
 		assert.Len(t, template.Spec.Metrics, 2)
-		assert.Contains(t, template.Spec.Metrics, fooMetric)
-		assert.Contains(t, template.Spec.Metrics, barMetric)
+		assert.Equal(t, fooMetric, template.Spec.Metrics[0])
+		assert.Equal(t, barMetric, template.Spec.Metrics[1])
 	})
 	t.Run("Merge analysis templates and cluster templates successfully", func(t *testing.T) {
 		fooMetric := metric("foo", "true")
@@ -379,8 +380,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Nil(t, template.Spec.Args)
 		assert.Len(t, template.Spec.Metrics, 2)
-		assert.Contains(t, template.Spec.Metrics, fooMetric)
-		assert.Contains(t, template.Spec.Metrics, barMetric)
+		assert.Equal(t, fooMetric, template.Spec.Metrics[0])
+		assert.Equal(t, barMetric, template.Spec.Metrics[1])
 	})
 	t.Run(" Merge fail with name collision", func(t *testing.T) {
 		fooMetric := metric("foo", "true")
@@ -418,8 +419,8 @@ func TestFlattenTemplates(t *testing.T) {
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, err)
 		assert.Len(t, template.Spec.Args, 2)
-		assert.Contains(t, template.Spec.Args, fooArgs)
-		assert.Contains(t, template.Spec.Args, barArgs)
+		assert.Equal(t, fooArgs, template.Spec.Args[0])
+		assert.Equal(t, barArgs, template.Spec.Args[1])
 	})
 	t.Run(" Merge args with same name but only one has value", func(t *testing.T) {
 		fooArgsValue := arg("foo", pointer.StringPtr("true"))
@@ -457,7 +458,7 @@ func TestFlattenTemplates(t *testing.T) {
 				},
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
-		assert.Equal(t, fmt.Errorf("two args with the same name have the different values: arg foo"), err)
+		assert.Equal(t, fmt.Errorf("Argument `foo` specified multiple times with different values: 'true', 'false'"), err)
 		assert.Nil(t, template)
 	})
 }

@@ -508,3 +508,93 @@ spec:
 		ExpectRevisionPodCount("1", 2).
 		ExpectReplicaCounts(2, 4, 2, 2, 2)
 }
+
+// TestMultipleAnalysis verifies we merge analysis templates properly when multiple are specified
+func (s *AnalysisSuite) TestMultipleAnalysis() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: template-a
+spec:
+  args:
+  - name: host
+    value: SHOULD-NOT-USE
+  - name: repo
+  metrics:
+  - name: metric-1
+    count: 1
+    provider:
+      web:
+        url: https://{{args.host}}/repos/{{args.repo}}
+  - name: metric-2
+    count: 1
+    provider:
+      web:
+        url: https://{{args.host}}/repos/{{args.repo}}`).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: template-b
+spec:
+  args:
+  - name: host
+  - name: repo
+    value: SHOULD-NOT-USE
+  metrics:
+  - name: metric-3
+    count: 1
+    provider:
+      web:
+        url: https://{{args.host}}/repos/{{args.repo}}
+  - name: metric-4
+    count: 1
+    provider:
+      web:
+        url: https://{{args.host}}/repos/{{args.repo}}`).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: multi-analysis
+spec:
+  selector:
+    matchLabels:
+      app: multi-analysis
+  strategy:
+    canary:
+      steps:
+      - analysis:
+          templates:
+          - templateName: template-a
+          - templateName: template-b
+          args:
+          - name: host
+            value: api.github.com
+          - name: repo
+            value: argoproj/argo-rollouts
+  template:
+    metadata:
+      labels:
+        app: multi-analysis
+    spec:
+      containers:
+      - name: multi-analysis
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(1)
+}

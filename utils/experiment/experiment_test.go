@@ -363,6 +363,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
+	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
 	right.Templates[0].Replicas = pointer.Int32Ptr(1)
 	assert.False(t, IsSemanticallyEqual(*left, *right))
