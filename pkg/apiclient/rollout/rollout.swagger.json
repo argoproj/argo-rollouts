@@ -818,10 +818,6 @@
           "type": "string",
           "title": "Name holds the name of the VirtualService"
         },
-        "namespace": {
-          "type": "string",
-          "title": "Namespace holds the namespace of the VirtualService"
-        },
         "routes": {
           "type": "array",
           "items": {

@@ -320,8 +320,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
-	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
-	namespace := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+
+	namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)
 	if namespace == "" {
 		namespace = r.rollout.Namespace
 	}

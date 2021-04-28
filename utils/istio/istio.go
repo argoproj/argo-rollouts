@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,17 +49,33 @@ func GetIstioDestinationRuleGVR() schema.GroupVersionResource {
 	}
 }
 
+func GetVirtualServiceNamespaceName(vsv string) (string, string) {
+	namespace := ""
+	name := ""
+
+	if idx := strings.Index(vsv, "."); idx > 0 {
+		name = vsv[:idx]
+		namespace = vsv[idx+1:]
+	} else {
+		name = vsv
+	}
+
+	return namespace, name
+}
+
 // GetRolloutVirtualServiceKeys gets the referenced VirtualService and its namespace from a Rollout
 func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	canary := ro.Spec.Strategy.Canary
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil || canary.TrafficRouting.Istio.VirtualService.Name == "" {
 		return []string{}
 	}
-	namespace := ro.Namespace
-	if ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace != "" {
-		namespace = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+
+	namespace, name := GetVirtualServiceNamespaceName(canary.TrafficRouting.Istio.VirtualService.Name)
+	if namespace == "" {
+		namespace = ro.Namespace
 	}
-	return []string{fmt.Sprintf("%s/%s", namespace, canary.TrafficRouting.Istio.VirtualService.Name)}
+
+	return []string{fmt.Sprintf("%s/%s", namespace, name)}
 }
 
 // GetRolloutDesinationRuleKeys gets the referenced DestinationRule and its namespace from a Rollout

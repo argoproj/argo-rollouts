@@ -76,14 +76,6 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
-
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace = "istio-name-space"
-	t.Run("get referenced virtualService in different namespace - fail", func(t *testing.T) {
-		c := NewFakeIstioController()
-		_, err := c.GetReferencedVirtualServices(&ro)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
-	})
 }
 
 func TestSyncDestinationRule(t *testing.T) {
