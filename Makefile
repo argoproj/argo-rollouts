@@ -5,12 +5,16 @@ PATH := $(DIST_DIR):$(PATH)
 PLUGIN_CLI_NAME?=kubectl-argo-rollouts
 TEST_TARGET ?= ./...
 
-VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 GIT_REMOTE_REPO=upstream
+VERSION=$(shell if [ ! -z "${GIT_TAG}" ] ; then echo "${GIT_TAG}" | sed -e "s/^v//"  ; else cat VERSION ; fi)
+
+# docker image publishing options
+DOCKER_PUSH=false
+IMAGE_TAG=latest
 # build development images
 DEV_IMAGE=false
 
@@ -25,18 +29,9 @@ override LDFLAGS += \
   -X ${PACKAGE}/utils/version.gitCommit=${GIT_COMMIT} \
   -X ${PACKAGE}/utils/version.gitTreeState=${GIT_TREE_STATE}
 
-# docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
-LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
-endif
-ifneq (${IMAGE_NAMESPACE},)
-override LDFLAGS += -X ${PACKAGE}/install.imageNamespace=${IMAGE_NAMESPACE}
-endif
-ifneq (${IMAGE_TAG},)
-override LDFLAGS += -X ${PACKAGE}/install.imageTag=${IMAGE_TAG}
+override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 
 ifeq (${DOCKER_PUSH},true)
@@ -185,21 +180,19 @@ controller:
 
 .PHONY: plugin
 plugin: ui/dist
-	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
 ui/dist:
 	yarn --cwd ui install
 	yarn --cwd ui build
+	cp -r ui/dist/app/* server/static
 
 .PHONY: plugin-linux
 plugin-linux: ui/dist
-	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-darwin
 plugin-darwin: ui/dist
-	cp -r ui/dist/app server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-docs

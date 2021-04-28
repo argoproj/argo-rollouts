@@ -1,5 +1,86 @@
 # Changelog
 
+# v1.0.0
+
+## Notable Features
+* New Argo Rollouts UI available in `kubectl argo rollouts dashboard`
+* Ability to reference existing Deployment workloads instead of inlining a PodTemplate at spec.template
+* Support for Ambassador as a canary traffic router
+* Support canarying using Istio DestinationRule subsets
+
+## Upgrade Notes
+
+### Installation Manifests
+
+Installation manifests are now attached as GitHub Release artifacts (as opposed to raw files checked into git)
+and can be installed with the release download URL. e.g.:
+
+```
+kubectl apply -f https://github.com/argoproj/argo-rollouts/releases/download/v1.0.0/install.yaml
+```
+
+### Argo CD OutOfSync status on Rollout v1.0.0 CRDs:
+
+Argo Rollouts v1.0 now vends apiextensions.k8s.io/v1 CustomResourceDefinitions (previously apiextensions.k8s.io/v1beta1).
+Kubernetes v1 CRDs no longer supports the preservation of unknown fields in objects, and rejects
+attempts to set `spec.preserveUnknownFields: true`. In order to support a smooth upgrade from 
+Argo Rollouts v0.10 to v1.0, `spec.preserveUnknownFields` is explicitly set to `false` in the manifests,
+despite `false` being the default, and only option in v1 CRDs. However this causes diffing tools
+(such as Argo CD) to report the manifest as OutOfSync (since K8s drops the false field).
+
+More information:
+* https://github.com/kubernetes-sigs/controller-tools/issues/476
+* https://github.com/argoproj/argo-rollouts/pull/1069
+
+To avoid the Argo CD OutOfSync conditions, you can remove `spec.preserveUnknownFields` from the manifests
+entirely *after upgrading from v0.10*.
+
+## Changes since v0.10
+
+### Controller
+* feat: support reference model for workloads (#676) (#1072)
+* feat: Implement Ambassador to be used as traffic router for canary deployments (#1025)
+* feat: support canarying using Istio DestinationRule subsets (#985)
+* feat: istio virtualservice and rollout in different namespaces
+* feat: add ability to verify canary weights before advancing steps (#957)
+* feat: support scaleDownDelaySeconds in canary w/ traffic routing (#1056)
+* feat: Add ability to restart maxUnavailable pods to BlueGreen strategy (#937)
+* feat(controller): Add support for ephemeral metadata on BlueGreen rollouts. Fixes #973 (#974)
+* feat: Allow user to handle NaN result in Analysis (#977)
+* feat: Wait for canary RS to have ready replicas before shifting labels (#1022)
+* feat: Create RolloutPaused condition (#1054)
+* feat: Add RolloutCompleted condition (#1074) 
+* fix: Fixes the regression of dropping resources from argo-rollouts crds. Fixes #1043 (#1044)
+* fix: Set Canary Strategy default maxUnavailable to 25% (#981)
+* fix: blue-green rollouts could pause prematurely during prePromotionAnalysis (#1007)
+* fix: Clear ProgressDeadlineExceeded Condition in paused BlueGreen Rollout (#1002)
+* fix: analysis template arguments validate (#1038)
+* fix: calculate scale down count. (#1047)
+* fix: verify analysis arguments name with those in the rollout (#1071)
+* fix: rollout status always in progressing if analysis fails (#1099)
+
+### Analysis
+* feat: metric fields can be parameterized by analysis arguments (#901)
+* feat: support a custom base URL for the new relic provider (#1053)
+* feat: Allow Datadog API and APP keys to be consumed from env vars (#1073)
+* fix: Improve validation for AnalysisTemplates referenced by RO (#1094)
+* fix: wavefront queries would return no datapoints. surface evaluate errors
+* fix: metrics which errored did not retry at error interval
+
+### Plugin
+* feat: Argo Rollouts api-server and UI (#1015)
+* feat: Implement rollout status command. Fixes #596 (#1001)
+* fix: get rollout always return not found except default namespace (#961)
+* fix: create command not support namespace in yaml file (#962)
+* fix: kubectl argo create panic: runtime error: invalid memory address or nil pointer dereference
+
+### Misc
+* chore: publish plugin image automatically. migrate to quay.io (#1102)
+* feat: support ARM builds, remove unused components in Dockerfile (#889)
+* chore: update k8s dependencies to v1.20. improve logging (#994) 
+* fix: add informational exposed ports to deployment (#1066)
+
+
 # v0.10.2
 
 ## Changes since v0.10.1

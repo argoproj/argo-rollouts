@@ -36,6 +36,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
+	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 const (
@@ -74,6 +75,7 @@ func newCommand() *cobra.Command {
 			}
 			log.SetFormatter(formatter)
 			setGLogLevel(glogLevel)
+			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
 			stopCh := signals.SetupSignalHandler()
