@@ -1627,8 +1627,9 @@ Nginx). Using this approach, the user is required to deploy the following resour
 </code></pre></div>
 <p>The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
 two route destinations with <code>host</code> values that match the <code>canaryService</code> and <code>stableService</code> 
-referenced in the Rollout. Note that Istio require that all weights add to 100, so the initial
-weights can be be 100% to stable, and 0% to canary.</p>
+referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
+its name should be <code>rollout-vsvc.&lt;vsvc namespace name&gt;</code>. Note that Istio requires that all weights add to
+100, so the initial weights can be be 100% to stable, and 0% to canary.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1649,7 +1650,8 @@ weights can be be 100% to stable, and 0% to canary.</p>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
 </code></pre></div>
 <p>Finally, a canary and stable Service should be deployed. The selector of these Services will be
-modified by the Rollout during an update to target the canary and stable ReplicaSet pods.</p>
+modified by the Rollout during an update to target the canary and stable ReplicaSet pods.
+Note that if virtualservice and destionation host reside in different namespaces (e.g., virtualservice and rollout are not in the same namespace), we should use FQDN as the destination host like <code>stable-svc.&lt;namespace&gt;</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Service</span>
 <span class="nt">metadata</span><span class="p">:</span>
