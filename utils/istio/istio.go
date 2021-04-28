@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,13 +49,34 @@ func GetIstioDestinationRuleGVR() schema.GroupVersionResource {
 	}
 }
 
+func GetVirtualServiceNamespaceName(vsv string) (string, string) {
+	namespace := ""
+	name := ""
+
+	fields := strings.Split(vsv, ".")
+	if len(fields) >= 2 {
+		name = fields[0]
+		namespace = fields[1]
+	} else if len(fields) == 1 {
+		name = fields[0]
+	}
+
+	return namespace, name
+}
+
 // GetRolloutVirtualServiceKeys gets the referenced VirtualService and its namespace from a Rollout
 func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	canary := ro.Spec.Strategy.Canary
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil || canary.TrafficRouting.Istio.VirtualService.Name == "" {
 		return []string{}
 	}
-	return []string{fmt.Sprintf("%s/%s", ro.Namespace, canary.TrafficRouting.Istio.VirtualService.Name)}
+
+	namespace, name := GetVirtualServiceNamespaceName(canary.TrafficRouting.Istio.VirtualService.Name)
+	if namespace == "" {
+		namespace = ro.Namespace
+	}
+
+	return []string{fmt.Sprintf("%s/%s", namespace, name)}
 }
 
 // GetRolloutDesinationRuleKeys gets the referenced DestinationRule and its namespace from a Rollout
