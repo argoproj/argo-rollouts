@@ -1,4 +1,5 @@
 # BlueGreen Deployment Strategy
+
 A Blue Green Deployment allows users to reduce the amount of time multiple versions running at the same time.
 
 ## Overview
@@ -104,18 +105,19 @@ after the AnalysisRun completes (with a minimum of 30 seconds).
 Defaults to nil
 
 ### previewService
-The PreviewService field references a Service that will be modified to send traffic to the new replicaset before the new one is promoted to receiving traffic from the active service. Once the new replicaset start receives traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.
+The PreviewService field references a Service that will be modified to send traffic to the new ReplicaSet before the new one is promoted to receiving traffic from the active service. Once the new ReplicaSet starts receiving traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.
 
 This feature is used to provide an endpoint that can be used to test a new version of an application.
 
 Defaults to an empty string
 
 ### previewReplicaCount
-The PreviewReplicaCount will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
+The PreviewReplicaCount field will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
 
 This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.
 
-If omitted, preview ReplicaSet stack will be scaled to 100% of the replicas.
+If omitted, the preview ReplicaSet stack will be scaled to 100% of the replicas.
+
 ### scaleDownDelaySeconds
 The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.
 
