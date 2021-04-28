@@ -53,11 +53,12 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 	namespace := ""
 	name := ""
 
-	if idx := strings.Index(vsv, "."); idx > 0 {
-		name = vsv[:idx]
-		namespace = vsv[idx+1:]
-	} else {
-		name = vsv
+	fields := strings.Split(vsv, ".")
+	if len(fields) >= 2 {
+		name = fields[0]
+		namespace = fields[1]
+	} else if len(fields) == 1 {
+		name = fields[0]
 	}
 
 	return namespace, name
