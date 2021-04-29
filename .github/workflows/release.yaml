@@ -1,21 +1,21 @@
-name: Docker
+name: Release
 
 on:
-  push:
-    branches:
-      - master
-      - release-*
-
-  # Run tests for any PRs.
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to build release from
+        required: true
 
 jobs:
-  docker:
+  release-images:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -30,6 +30,11 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+
+      - name: Print Disk Usage
+        run: |
+          df -ah
+          docker buildx du
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -55,7 +60,7 @@ jobs:
             quay.io/argoproj/argo-rollouts
             ghcr.io/argoproj/argo-rollouts
           tags: |
-            type=ref,event=branch
+            type=semver,pattern={{version}}
 
       - name: Docker meta (plugin)
         id: plugin-meta
@@ -65,23 +70,13 @@ jobs:
             quay.io/argoproj/kubectl-argo-rollouts
             ghcr.io/argoproj/kubectl-argo-rollouts
           tags: |
-            type=ref,event=branch
-
-      # avoid building linux/arm64 for PRs since it takes so long
-      - name: Set Platform Matrix
-        id: platform-matrix
-        run: |
-          PLATFORM_MATRIX=linux/amd64
-          if [ ${{ github.event_name != 'pull_request' }} = true ]; then
-            PLATFORM_MATRIX=$PLATFORM_MATRIX,linux/arm64
-          fi
-          echo "::set-output name=platform-matrix::$PLATFORM_MATRIX"
+            type=semver,pattern={{version}}
 
       - name: Build and push (controller-image)
         uses: docker/build-push-action@v2
         with:
-          platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.controller-meta.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
@@ -90,8 +85,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           target: kubectl-argo-rollouts
-          platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.plugin-meta.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
@@ -103,3 +98,30 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  release-artifacts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: Generate release artifacts
+        run: |
+          make release-plugins
+          make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
+
+      - name: Draft release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          draft: true
+          files: |
+            dist/kubectl-argo-rollouts-linux-amd64
+            dist/kubectl-argo-rollouts-darwin-amd64
+            manifests/install.yaml
+            manifests/namespace-install.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

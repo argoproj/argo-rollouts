@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.16.1 as builder
+FROM golang:1.16.3 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -42,7 +42,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.16.1 as argo-rollouts-build
+FROM golang:1.16.3 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -52,15 +52,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy UI files for plugin build
-COPY --from=argo-rollouts-ui ./src/dist/app ./ui/dist
+COPY --from=argo-rollouts-ui /src/dist/app ./ui/dist/app
 
 # Perform the build
 COPY . .
 
 # stop make from trying to re-build this without yarn installed
-RUN touch ui/dist/node_modules.marker
-RUN mkdir -p ui/dist/app
-RUN touch ui/dist/app/index.html
+RUN touch ui/dist/node_modules.marker && \
+    mkdir -p ui/dist/app && \
+    touch ui/dist/app/index.html && \
+    find ui/dist
 
 ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
 RUN make ${MAKE_TARGET}
