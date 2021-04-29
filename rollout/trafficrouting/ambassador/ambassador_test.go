@@ -310,8 +310,8 @@ func TestReconciler_SetWeight(t *testing.T) {
 			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
 			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
 			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
-			assert.Equal(t, 1, len(f.fakeClient.deleteInvokations))
+			assert.Equal(t, 1, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
 		})
 		t.Run("will return error if base mapping defines the weight", func(t *testing.T) {
 			// given
