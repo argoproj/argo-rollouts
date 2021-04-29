@@ -60,7 +60,7 @@ jobs:
             quay.io/argoproj/argo-rollouts
             ghcr.io/argoproj/argo-rollouts
           tags: |
-            type=semver,pattern={{version}}
+            type=semver,pattern={{version}},value=${{ github.event.inputs.tag }}
 
       - name: Docker meta (plugin)
         id: plugin-meta
@@ -70,7 +70,7 @@ jobs:
             quay.io/argoproj/kubectl-argo-rollouts
             ghcr.io/argoproj/kubectl-argo-rollouts
           tags: |
-            type=semver,pattern={{version}}
+            type=semver,pattern={{version}},value=${{ github.event.inputs.tag }}
 
       - name: Build and push (controller-image)
         uses: docker/build-push-action@v2
