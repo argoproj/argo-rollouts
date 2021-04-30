@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -150,8 +151,17 @@ func (r *Reconciler) handleCanaryMapping(ctx context.Context, baseMappingName st
 	}
 
 	if desiredWeight == 0 {
-		r.Log.Infof("deleting canary mapping %q", canaryMapping.GetName())
-		return r.deleteCanaryMapping(ctx, canaryMapping, desiredWeight, r.Client)
+		go func() {
+			// The deletion of the canary mapping needs to happen moments after
+			// updating the weight to zero to prevent traffic to reach the older
+			// version at the end of the rollout
+			time.Sleep(5 * time.Second)
+			r.Log.Infof("deleting canary mapping %q", canaryMapping.GetName())
+			err := r.deleteCanaryMapping(ctx, canaryMapping, desiredWeight, r.Client)
+			if err != nil {
+				r.Log.Errorf("error deleting canary mapping: %s", err)
+			}
+		}()
 	}
 
 	r.Log.Infof("updating canary mapping %q weight to %d", canaryMapping.GetName(), desiredWeight)
