@@ -204,7 +204,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
                 </WaitFor>
                 <div className='rollouts-list__widget__actions'>
                     <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
-                    <RolloutActionButton action={RolloutAction.PromoteFull} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+                    <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
                 </div>
             </Link>
         </EffectDiv>
