@@ -271,6 +271,50 @@
         ]
       }
     },
+    "/api/v1/rollouts/{namespace}/{name}/promotefull": {
+      "put": {
+        "operationId": "RolloutService_PromoteFullRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/rollout.PromoteFullRolloutRequest"
+            }
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollouts/{namespace}/{name}/restart": {
       "put": {
         "operationId": "RolloutService_RestartRollout",
@@ -4143,6 +4187,17 @@
         "restarts": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "rollout.PromoteFullRolloutRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
         }
       }
     },

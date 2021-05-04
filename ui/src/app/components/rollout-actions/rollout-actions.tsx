@@ -1,4 +1,4 @@
-import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
+import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
@@ -10,6 +10,7 @@ export enum RolloutAction {
     Restart = 'Restart',
     Retry = 'Retry',
     Abort = 'Abort',
+    Promote = 'Promote',
     PromoteFull = 'PromoteFull',
 }
 
@@ -49,11 +50,21 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             },
         ],
         [
+            RolloutAction.Promote,
+            {
+                label: 'PROMOTE',
+                icon: faChevronCircleUp,
+                action: api.rolloutServicePromoteRollout,
+                disabled: props.rollout.status !== RolloutStatus.Paused,
+                shouldConfirm: true,
+            },
+        ],
+        [
             RolloutAction.PromoteFull,
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
-                action: api.rolloutServicePromoteRollout,
+                action: api.rolloutServicePromoteFullRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,
                 shouldConfirm: true,
             },

@@ -381,6 +381,11 @@ func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.Prom
 	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
 }
 
+func (s *ArgoRolloutsServer) PromoteFullRollout(ctx context.Context, q *rollout.PromoteFullRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, true)
+}
+
 func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*v1alpha1.Rollout, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	return abort.AbortRollout(rolloutIf, q.GetName())

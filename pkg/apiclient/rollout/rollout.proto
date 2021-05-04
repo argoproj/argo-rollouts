@@ -41,6 +41,11 @@ message PromoteRolloutRequest {
     string namespace = 2;
 }
 
+message PromoteFullRolloutRequest {
+    string name = 1;
+    string namespace = 2;
+}
+
 message AbortRolloutRequest {
     string name = 1;
     string namespace = 2;
@@ -185,6 +190,13 @@ service RolloutService {
     rpc PromoteRollout(PromoteRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
         option (google.api.http) = {
             put: "/api/v1/rollouts/{namespace}/{name}/promote"
+            body: "*"
+        };
+    }
+
+    rpc PromoteFullRollout(PromoteFullRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/promotefull"
             body: "*"
         };
     }
