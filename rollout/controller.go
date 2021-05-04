@@ -353,6 +353,12 @@ func (c *Controller) syncHandler(key string) error {
 	r := remarshalRollout(rollout)
 
 	if err := c.refResolver.Resolve(r); err != nil {
+		invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, err.Error())
+		cr := r.DeepCopy()
+		cr.Status.Conditions = append(cr.Status.Conditions, *invalidSpecCond)
+		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
+			context.TODO(), cr, metav1.UpdateOptions{},
+		)
 		return err
 	}
 
