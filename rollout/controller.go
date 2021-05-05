@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -329,6 +330,25 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
+// updateInvalidRolloutRefConditions returns a copy of rollout with
+// a new condition of invalid reference (e.g., deployment does not exist)
+// If the errmsg is the same as in the last condition, it returns nil
+func (c *Controller) updateInvalidRolloutRefConditions(r *v1alpha1.Rollout, errmsg string) *v1alpha1.Rollout {
+	var lastCondition *v1alpha1.RolloutCondition
+	var cr *v1alpha1.Rollout
+
+	if len(r.Status.Conditions) > 0 {
+		lastCondition = &r.Status.Conditions[len(r.Status.Conditions)-1]
+	}
+
+	if lastCondition == nil || (strings.Compare(lastCondition.Message, errmsg) != 0 && lastCondition.Status == corev1.ConditionTrue) {
+		invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+		cr = r.DeepCopy()
+		cr.Status.Conditions = append(cr.Status.Conditions, *invalidSpecCond)
+	}
+	return cr
+}
+
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
@@ -353,12 +373,14 @@ func (c *Controller) syncHandler(key string) error {
 	r := remarshalRollout(rollout)
 
 	if err := c.refResolver.Resolve(r); err != nil {
-		invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, err.Error())
-		cr := r.DeepCopy()
-		cr.Status.Conditions = append(cr.Status.Conditions, *invalidSpecCond)
-		_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
-			context.TODO(), cr, metav1.UpdateOptions{},
-		)
+		if cr := c.updateInvalidRolloutRefConditions(r, err.Error()); cr != nil {
+			_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
+				context.TODO(), cr, metav1.UpdateOptions{},
+			)
+			if err != nil {
+				return err
+			}
+		}
 		return err
 	}
 

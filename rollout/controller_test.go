@@ -1617,3 +1617,26 @@ func TestWriteBackToInformer(t *testing.T) {
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }
+
+func TestUpdateInvalidRolloutRefConditions(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	rollout := &v1alpha1.Rollout{}
+
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg")
+	assert.Equal(t, 1, len(rollout.Status.Conditions))
+
+	assert.Nil(t, c.updateInvalidRolloutRefConditions(rollout, "error ref msg"))
+
+	availableCond := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableMessage, "")
+	rollout.Status.Conditions = append(rollout.Status.Conditions, *availableCond)
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg")
+	assert.Equal(t, 3, len(rollout.Status.Conditions))
+	lastCondition := rollout.Status.Conditions[2]
+	assert.Equal(t, "error ref msg", lastCondition.Message)
+
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg due to changed deployment")
+	assert.Equal(t, 4, len(rollout.Status.Conditions))
+}
