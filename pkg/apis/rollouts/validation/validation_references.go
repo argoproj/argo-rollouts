@@ -104,7 +104,8 @@ func ValidateAnalysisTemplatesWithType(rollout *v1alpha1.Rollout, templates Anal
 	}
 
 	flattenedTemplate, err := analysisutil.FlattenTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates)
-	value := GetAnalysisObjectFromType(rollout, templates.TemplateType, templates.CanaryStepIndex)
+	templateNames := GetAnalysisTemplateNames(templates)
+	value := fmt.Sprintf("templateNames: %s", templateNames)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
 		return allErrs
@@ -264,19 +265,15 @@ func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {
 	return fldPath
 }
 
-func GetAnalysisObjectFromType(rollout *v1alpha1.Rollout, templateType AnalysisTemplateType, canaryStepIndex int) interface{} {
-	switch templateType {
-	case PrePromotionAnalysis:
-		return rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis
-	case PostPromotionAnalysis:
-		return rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis
-	case InlineAnalysis:
-		return rollout.Spec.Strategy.Canary.Steps[canaryStepIndex].Analysis
-	case BackgroundAnalysis:
-		return rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis
-	default:
-		return nil
+func GetAnalysisTemplateNames(templates AnalysisTemplatesWithType) []string {
+	templateNames := make([]string, 0)
+	for _, template := range templates.AnalysisTemplates {
+		templateNames = append(templateNames, template.Name)
 	}
+	for _, clusterTemplate := range templates.ClusterAnalysisTemplates {
+		templateNames = append(templateNames, clusterTemplate.Name)
+	}
+	return templateNames
 }
 
 func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, canaryStepIndex int) *field.Path {
@@ -294,6 +291,5 @@ func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, can
 		// No path specified
 		return nil
 	}
-	fldPath = fldPath.Child("templateName")
 	return fldPath
 }

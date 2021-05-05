@@ -313,7 +313,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 		}
 	}`
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates.templateName: Invalid value: \"missing\": ClusterAnalysisTemplate 'missing' not found")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"missing\": ClusterAnalysisTemplate 'missing' not found")
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
 
@@ -583,6 +583,131 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 		}
 	}`
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: "bad-template",
+				},
+			},
+		},
+	}}
+
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'")
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}
+
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: "bad-template",
+				},
+			},
+		},
+	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'")
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}
+
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				}, {
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s]
+		}
+	}`
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template bad-template]\": two metrics have the same name 'example'")
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T) {
