@@ -3,12 +3,13 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"reflect"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
