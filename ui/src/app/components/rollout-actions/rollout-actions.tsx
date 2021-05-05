@@ -20,7 +20,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
 
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
 
-    const actionMap = new Map<RolloutAction, ActionButtonProps>([
+    const actionMap = new Map<RolloutAction, ActionButtonProps & {body?: any}>([
         [
             RolloutAction.Restart,
             {
@@ -55,6 +55,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'PROMOTE',
                 icon: faChevronCircleUp,
                 action: api.rolloutServicePromoteRollout,
+                body: {full: false},
                 disabled: props.rollout.status !== RolloutStatus.Paused,
                 shouldConfirm: true,
             },
@@ -64,7 +65,8 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
-                action: api.rolloutServicePromoteFullRollout,
+                body: {full: true},
+                action: api.rolloutServicePromoteRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,
                 shouldConfirm: true,
             },
@@ -77,7 +79,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
         <ActionButton
             {...ap}
             action={() => {
-                ap.action({}, namespace, props.rollout.objectMeta?.name || '');
+                ap.action(ap.body || {}, namespace, props.rollout.objectMeta?.name || '');
                 if (props.callback) {
                     props.callback();
                 }

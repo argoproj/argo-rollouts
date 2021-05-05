@@ -4863,25 +4863,6 @@ export interface RolloutPodInfo {
 /**
  * 
  * @export
- * @interface RolloutPromoteFullRolloutRequest
- */
-export interface RolloutPromoteFullRolloutRequest {
-    /**
-     * 
-     * @type {string}
-     * @memberof RolloutPromoteFullRolloutRequest
-     */
-    name?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RolloutPromoteFullRolloutRequest
-     */
-    namespace?: string;
-}
-/**
- * 
- * @export
  * @interface RolloutPromoteRolloutRequest
  */
 export interface RolloutPromoteRolloutRequest {
@@ -4897,6 +4878,12 @@ export interface RolloutPromoteRolloutRequest {
      * @memberof RolloutPromoteRolloutRequest
      */
     namespace?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RolloutPromoteRolloutRequest
+     */
+    full?: boolean;
 }
 /**
  * 
@@ -5434,49 +5421,6 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
         },
         /**
          * 
-         * @param {RolloutPromoteFullRolloutRequest} body 
-         * @param {string} namespace 
-         * @param {string} name 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        rolloutServicePromoteFullRollout(body: RolloutPromoteFullRolloutRequest, namespace: string, name: string, options: any = {}): FetchArgs {
-            // verify required parameter 'body' is not null or undefined
-            if (body === null || body === undefined) {
-                throw new RequiredError('body','Required parameter body was null or undefined when calling rolloutServicePromoteFullRollout.');
-            }
-            // verify required parameter 'namespace' is not null or undefined
-            if (namespace === null || namespace === undefined) {
-                throw new RequiredError('namespace','Required parameter namespace was null or undefined when calling rolloutServicePromoteFullRollout.');
-            }
-            // verify required parameter 'name' is not null or undefined
-            if (name === null || name === undefined) {
-                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServicePromoteFullRollout.');
-            }
-            const localVarPath = `/api/v1/rollouts/{namespace}/{name}/promotefull`
-                .replace(`{${"namespace"}}`, encodeURIComponent(String(namespace)))
-                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
-            const localVarUrlObj = url.parse(localVarPath, true);
-            const localVarRequestOptions = Object.assign({ method: 'PUT' }, options);
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
-            // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
-            localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
-            const needsSerialization = (<any>"RolloutPromoteFullRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
-            localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
-
-            return {
-                url: url.format(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -5883,26 +5827,6 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @param {RolloutPromoteFullRolloutRequest} body 
-         * @param {string} namespace 
-         * @param {string} name 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        rolloutServicePromoteFullRollout(body: RolloutPromoteFullRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
-            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePromoteFullRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
-                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
-                    if (response.status >= 200 && response.status < 300) {
-                        return response.json();
-                    } else {
-                        throw response;
-                    }
-                });
-            };
-        },
-        /**
-         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -6108,17 +6032,6 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
         },
         /**
          * 
-         * @param {RolloutPromoteFullRolloutRequest} body 
-         * @param {string} namespace 
-         * @param {string} name 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        rolloutServicePromoteFullRollout(body: RolloutPromoteFullRolloutRequest, namespace: string, name: string, options?: any) {
-            return RolloutServiceApiFp(configuration).rolloutServicePromoteFullRollout(body, namespace, name, options)(fetch, basePath);
-        },
-        /**
-         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -6257,19 +6170,6 @@ export class RolloutServiceApi extends BaseAPI {
      */
     public rolloutServiceListRolloutInfos(namespace: string, options?: any) {
         return RolloutServiceApiFp(this.configuration).rolloutServiceListRolloutInfos(namespace, options)(this.fetch, this.basePath);
-    }
-
-    /**
-     * 
-     * @param {RolloutPromoteFullRolloutRequest} body 
-     * @param {string} namespace 
-     * @param {string} name 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof RolloutServiceApi
-     */
-    public rolloutServicePromoteFullRollout(body: RolloutPromoteFullRolloutRequest, namespace: string, name: string, options?: any) {
-        return RolloutServiceApiFp(this.configuration).rolloutServicePromoteFullRollout(body, namespace, name, options)(this.fetch, this.basePath);
     }
 
     /**
