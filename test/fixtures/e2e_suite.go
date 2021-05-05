@@ -55,6 +55,12 @@ var (
 	// All e2e tests will be labeled with their test name
 	E2ELabelKeyTestName = "e2e-test-name"
 
+	deploymentGVR = schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+
 	serviceGVR = schema.GroupVersionResource{
 		Version:  "v1",
 		Resource: "services",
@@ -185,6 +191,7 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		rov1.AnalysisTemplateGVR,
 		rov1.ClusterAnalysisTemplateGVR,
 		rov1.ExperimentGVR,
+		deploymentGVR,
 		serviceGVR,
 		ingressGVR,
 		pdbGVR,

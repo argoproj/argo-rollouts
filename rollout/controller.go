@@ -345,6 +345,7 @@ func (c *Controller) updateInvalidRolloutRefConditions(r *v1alpha1.Rollout, errm
 		invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 		cr = r.DeepCopy()
 		cr.Status.Conditions = append(cr.Status.Conditions, *invalidSpecCond)
+		cr.Status.ObservedGeneration = strconv.Itoa(int(cr.Generation))
 	}
 	return cr
 }
@@ -374,7 +375,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	if err := c.refResolver.Resolve(r); err != nil {
 		if cr := c.updateInvalidRolloutRefConditions(r, err.Error()); cr != nil {
-			_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
+			_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
 				context.TODO(), cr, metav1.UpdateOptions{},
 			)
 			if err != nil {
