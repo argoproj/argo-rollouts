@@ -149,9 +149,9 @@ func getServiceWithType() ServiceWithType {
 func TestValidateRolloutReferencedResources(t *testing.T) {
 	refResources := ReferencedResources{
 		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplateWithType()},
-		Ingresses:                []v1beta1.Ingress{getIngress()},
-		ServiceWithType:          []ServiceWithType{getServiceWithType()},
-		VirtualServices:          nil,
+		Ingresses:                 []v1beta1.Ingress{getIngress()},
+		ServiceWithType:           []ServiceWithType{getServiceWithType()},
+		VirtualServices:           nil,
 	}
 	allErrs := ValidateRolloutReferencedResources(getRollout(), refResources)
 	assert.Empty(t, allErrs)
