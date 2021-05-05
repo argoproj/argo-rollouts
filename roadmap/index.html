@@ -1410,11 +1410,6 @@ For some use cases (e.g. east-west canarying intra-cluster), this pattern not de
 splitting should be achieved using two
 Istio <a href="https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset">DestinationRule Subsets</a>
 instead.</p>
-<h1 id="v11">v1.1+<a class="headerlink" href="#v11" title="Permanent link">&para;</a></h1>
-<h2 id="webhook-notifications">Webhook Notifications<a class="headerlink" href="#webhook-notifications" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/argoproj/argo-rollouts/issues/369">Issue #369</a></p>
-<p>When a rollout transitions state, such as an aborted rollout due to failed analysis, there is no mechanism to notify an external system about the failure. Instead, users must currently put in place something to monitor the rollout, and notice the condition to take action. Monitoring a rollout is not always an option, since it requires that the external system have access to the Kubernetes API server.</p>
-<p>A webhook notification feature of Rollouts would allow a push-based model where the Rollout controller itself would push an event to an external system, in the form of a webhook/cloud event.</p>
 <h2 id="workload-referencing">Workload Referencing<a class="headerlink" href="#workload-referencing" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/argoproj/argo-rollouts/issues/676">Issue #676</a></p>
 <p>Currently, the Rollout spec contains both the deployment strategy (e.g. blueGreen/canary),
@@ -1439,6 +1434,7 @@ could be separated from the workload definition. This is motivated by the follow
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
   <span class="nt">workloadRef</span><span class="p">:</span>
+    <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
     <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
     <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
   <span class="nt">strategy</span><span class="p">:</span>
@@ -1453,6 +1449,11 @@ could be separated from the workload definition. This is motivated by the follow
       <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span> <span class="nv">1h</span><span class="p p-Indicator">}</span>
 </code></pre></div>
+<h1 id="v11">v1.1+<a class="headerlink" href="#v11" title="Permanent link">&para;</a></h1>
+<h2 id="webhook-notifications">Webhook Notifications<a class="headerlink" href="#webhook-notifications" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/argoproj/argo-rollouts/issues/369">Issue #369</a></p>
+<p>When a rollout transitions state, such as an aborted rollout due to failed analysis, there is no mechanism to notify an external system about the failure. Instead, users must currently put in place something to monitor the rollout, and notice the condition to take action. Monitoring a rollout is not always an option, since it requires that the external system have access to the Kubernetes API server.</p>
+<p>A webhook notification feature of Rollouts would allow a push-based model where the Rollout controller itself would push an event to an external system, in the form of a webhook/cloud event.</p>
 <h2 id="rollback-windows">Rollback Windows<a class="headerlink" href="#rollback-windows" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/argoproj/argo-rollouts/issues/574">Issue #574</a></p>
 <p>Currently, when an older Rollout manifest is re-applied, the controller treats it the same as a spec change, and will execute the full list of steps, and perform analysis too. There are two exceptions to this rule:
