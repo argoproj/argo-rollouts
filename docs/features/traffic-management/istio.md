@@ -58,8 +58,9 @@ spec:
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
 two route destinations with `host` values that match the `canaryService` and `stableService` 
-referenced in the Rollout. Note that Istio require that all weights add to 100, so the initial
-weights can be be 100% to stable, and 0% to canary.
+referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
+its name should be `rollout-vsvc.<vsvc namespace name>`. Note that Istio requires that all weights add to
+100, so the initial weights can be be 100% to stable, and 0% to canary.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -84,6 +85,7 @@ spec:
 
 Finally, a canary and stable Service should be deployed. The selector of these Services will be
 modified by the Rollout during an update to target the canary and stable ReplicaSet pods.
+Note that if virtualservice and destionation host reside in different namespaces (e.g., virtualservice and rollout are not in the same namespace), we should use FQDN as the destination host like `stable-svc.<namespace>`.
 
 ```yaml
 apiVersion: v1

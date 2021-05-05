@@ -58,3 +58,14 @@ Test to ensure the version you installed is up-to-date:
 ```shell
 kubectl argo rollouts version
 ```
+
+## Using the CLI  with Docker
+
+The CLI is also available as a container image at [https://quay.io/repository/argoproj/kubectl-argo-rollouts](https://quay.io/repository/argoproj/kubectl-argo-rollouts)
+
+You can run it like any other Docker image or use it in any CI platform that supports Docker images.
+
+```shell
+docker run quay.io/argoproj/kubectl-argo-rollouts:master version
+```
+

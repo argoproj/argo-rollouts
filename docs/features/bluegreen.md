@@ -1,4 +1,5 @@
 # BlueGreen Deployment Strategy
+
 A Blue Green Deployment allows users to reduce the amount of time multiple versions running at the same time.
 
 ## Overview
@@ -104,18 +105,28 @@ after the AnalysisRun completes (with a minimum of 30 seconds).
 Defaults to nil
 
 ### previewService
-The PreviewService field references a Service that will be modified to send traffic to the new replicaset before the new one is promoted to receiving traffic from the active service. Once the new replicaset start receives traffic from the active service, the preview service will be modified to send traffic to no ReplicaSets. The Rollout always makes sure that the preview service is sending traffic to the new ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to the new version.
+The PreviewService field references a Service that will be modified to send traffic to the new ReplicaSet before the new one is promoted to receiving traffic from the active service. Once the new ReplicaSet starts receiving traffic from the active service, the preview service will also be modified to send traffic to the new ReplicaSet as well. The Rollout always makes sure that the preview service is sending traffic to the newest ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to that brand new version.
 
 This feature is used to provide an endpoint that can be used to test a new version of an application.
 
 Defaults to an empty string
 
+Here is a timeline of how the active and preview services work (if you use a preview service):
+
+1. During the Initial deployment there is only one ReplicaSet. Both active and preview services point to it. This is the **old** version of the application.
+1. A change happens in the Rollout resource. A new ReplicaSet is created. This is the **new** version of the application. The preview service is modified to point to the new ReplicaSet. The active service still points to the old version.
+1. The blue/green deployment is "promoted". Both active and preview services are pointing to the new version. The old version is still there but no service is pointing at it.
+1. Once the the blue/green deployment is scaled down (see the `scaleDownDelaySeconds` field) the old ReplicaSet is has 0 replicas and we are back to the initial state. Both active and preview services point to the new version (which is the only one present anyway)
+
+
+
 ### previewReplicaCount
-The PreviewReplicaCount will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
+The PreviewReplicaCount field will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
 
 This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.
 
-If omitted, preview ReplicaSet stack will be scaled to 100% of the replicas.
+If omitted, the preview ReplicaSet stack will be scaled to 100% of the replicas.
+
 ### scaleDownDelaySeconds
 The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet.
 

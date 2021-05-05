@@ -40,17 +40,6 @@ Istio [DestinationRule Subsets](https://istio.io/latest/docs/reference/config/ne
 instead.
 
 
-# v1.1+
-
-## Webhook Notifications
-
-[Issue #369](https://github.com/argoproj/argo-rollouts/issues/369)
-
-When a rollout transitions state, such as an aborted rollout due to failed analysis, there is no mechanism to notify an external system about the failure. Instead, users must currently put in place something to monitor the rollout, and notice the condition to take action. Monitoring a rollout is not always an option, since it requires that the external system have access to the Kubernetes API server.
-
-A webhook notification feature of Rollouts would allow a push-based model where the Rollout controller itself would push an event to an external system, in the form of a webhook/cloud event.
-
-
 ## Workload Referencing
 
 [Issue #676](https://github.com/argoproj/argo-rollouts/issues/676)
@@ -79,6 +68,7 @@ metadata:
 spec:
   replicas: 5
   workloadRef:
+    apiVersion: apps/v1
     kind: Deployment
     name: guestbook
   strategy:
@@ -94,6 +84,15 @@ spec:
       - pause: {duration: 1h}
 ```
 
+# v1.1+
+
+## Webhook Notifications
+
+[Issue #369](https://github.com/argoproj/argo-rollouts/issues/369)
+
+When a rollout transitions state, such as an aborted rollout due to failed analysis, there is no mechanism to notify an external system about the failure. Instead, users must currently put in place something to monitor the rollout, and notice the condition to take action. Monitoring a rollout is not always an option, since it requires that the external system have access to the Kubernetes API server.
+
+A webhook notification feature of Rollouts would allow a push-based model where the Rollout controller itself would push an event to an external system, in the form of a webhook/cloud event.
 
 ## Rollback Windows
 

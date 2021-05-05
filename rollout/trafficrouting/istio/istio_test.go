@@ -290,6 +290,18 @@ func TestValidateHosts(t *testing.T) {
 
 	err = validateVirtualServiceHTTPRouteDestinations(hr, "stable", "not-found-canary", nil)
 	assert.Equal(t, fmt.Errorf("Canary Service 'not-found-canary' not found in route"), err)
+
+	hr.Route = []VirtualServiceHTTPRouteDestination{{
+		Destination: VirtualServiceDestination{
+			Host: "stable.namespace",
+		},
+	}, {
+		Destination: VirtualServiceDestination{
+			Host: "canary.namespace",
+		},
+	}}
+	err = validateVirtualServiceHTTPRouteDestinations(hr, "stable", "canary", nil)
+	assert.Nil(t, err)
 }
 
 func TestValidateHTTPRoutesSubsets(t *testing.T) {

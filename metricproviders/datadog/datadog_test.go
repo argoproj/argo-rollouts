@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"testing"
 
@@ -33,6 +34,7 @@ func TestRunSuite(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
+		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
 		{
@@ -52,6 +54,27 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+		// Same test as above, but derive DD keys from env var instead of k8s secret
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query:    "avg:kubernetes.cpu.user.total{*}",
+						Interval: "10m",
+					},
+				},
+			},
+			expectedIntervalSeconds: 600,
+			expectedValue:           "0.0003332881882246533",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        true,
 		},
 		// When last value of time series does not match condition then fail.
 		{
@@ -70,6 +93,7 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			useEnvVarForKeys:        false,
 		},
 		// Error if the request is invalid
 		{
@@ -88,6 +112,7 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
+			useEnvVarForKeys:        false,
 		},
 		// Error if there is an authentication issue
 		{
@@ -106,6 +131,7 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
+			useEnvVarForKeys:        false,
 		},
 		// Error if datadog doesn't return any datapoints
 		{
@@ -124,6 +150,7 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "Datadog returned no value: {\"status\":\"ok\",\"series\":[{\"pointlist\":[]}]}",
+			useEnvVarForKeys:        false,
 		},
 
 		// Error if datadog doesn't return any datapoints
@@ -143,6 +170,7 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponse.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
+			useEnvVarForKeys:        false,
 		},
 	}
 
@@ -205,10 +233,23 @@ func TestRunSuite(t *testing.T) {
 			},
 		}
 
+		if test.useEnvVarForKeys {
+			os.Setenv("DD_API_KEY", expectedApiKey)
+			os.Setenv("DD_APP_KEY", expectedAppKey)
+			os.Setenv("DD_ADDRESS", server.URL)
+		} else {
+			os.Unsetenv("DD_API_KEY")
+			os.Unsetenv("DD_APP_KEY")
+			os.Unsetenv("DD_ADDRESS")
+		}
+
 		logCtx := log.WithField("test", "test")
 
 		fakeClient := k8sfake.NewSimpleClientset()
 		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if test.useEnvVarForKeys {
+				return true, nil, nil
+			}
 			return true, tokenSecret, nil
 		})
 

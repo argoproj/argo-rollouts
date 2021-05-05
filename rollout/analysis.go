@@ -68,14 +68,11 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 }
 
 func (c *rolloutContext) reconcileAnalysisRuns() error {
-	if c.pauseContext.IsAborted() || c.rollout.Status.PromoteFull {
-		allArs := append(c.currentArs.ToArray(), c.otherArs...)
-		c.SetCurrentAnalysisRuns(c.currentArs)
-		return c.cancelAnalysisRuns(allArs)
-	}
-
-	if replicasetutil.HasScaleDownDeadline(c.newRS) {
-		c.log.Infof("Skipping analysis: detected rollback to ReplicaSet '%s' within scaleDownDelay", c.newRS.Name)
+	isAborted := c.pauseContext.IsAborted()
+	rollbackToScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
+	initialDeploy := c.rollout.Status.StableRS == ""
+	if isAborted || c.rollout.Status.PromoteFull || rollbackToScaleDownDelay || initialDeploy {
+		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, rollbackToScaleDownDelay: %v, initialDeploy: %v", isAborted, c.rollout.Status.PromoteFull, rollbackToScaleDownDelay, initialDeploy)
 		allArs := append(c.currentArs.ToArray(), c.otherArs...)
 		c.SetCurrentAnalysisRuns(c.currentArs)
 		return c.cancelAnalysisRuns(allArs)
