@@ -976,7 +976,7 @@ metadata:
   name: rollout-bluegreen-active
 spec:
   selector:
-    app: rollout-bluegreen
+    app: rollout-ref-deployment
   ports:
   - protocol: TCP
     port: 80
@@ -1023,7 +1023,7 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		Then().
 		// verify that existing service is not switched to degraded rollout pods
-		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-bluegreen"}, false).
+		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, false).
 		When().
 		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
 			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")
@@ -1039,7 +1039,7 @@ spec:
 		WaitForRolloutStatus("Healthy").
 		Then().
 		// verify that service is switched after rollout is healthy
-		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-bluegreen"}, true).
+		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, true).
 		ExpectRollout("Resolved template not persisted", func(rollout *v1alpha1.Rollout) bool {
 			return rollout.Spec.Selector == nil && len(rollout.Spec.Template.Spec.Containers) == 0
 		})
