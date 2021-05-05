@@ -146,16 +146,16 @@ func getServiceWithType() ServiceWithType {
 	}
 }
 
-//func TestValidateRolloutReferencedResources(t *testing.T) {
-//	refResources := ReferencedResources{
-//		AnalysisTemplateWithType: []AnalysisTemplateWithType{getAnalysisTemplateWithType()},
-//		Ingresses:                []v1beta1.Ingress{getIngress()},
-//		ServiceWithType:          []ServiceWithType{getServiceWithType()},
-//		VirtualServices:          nil,
-//	}
-//	allErrs := ValidateRolloutReferencedResources(getRollout(), refResources)
-//	assert.Empty(t, allErrs)
-//}
+func TestValidateRolloutReferencedResources(t *testing.T) {
+	refResources := ReferencedResources{
+		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplateWithType()},
+		Ingresses:                []v1beta1.Ingress{getIngress()},
+		ServiceWithType:          []ServiceWithType{getServiceWithType()},
+		VirtualServices:          nil,
+	}
+	allErrs := ValidateRolloutReferencedResources(getRollout(), refResources)
+	assert.Empty(t, allErrs)
+}
 
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate analysisTemplate - success", func(t *testing.T) {
