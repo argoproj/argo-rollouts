@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"reflect"
 	"strconv"
 	"sync"
@@ -1437,30 +1438,32 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
-	//r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
-	//roAnalysisTemplate := v1alpha1.RolloutAnalysisTemplate{
-	//	TemplateName: "cluster-analysis-template-name",
-	//	ClusterScope: true,
-	//}
+	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			TemplateName: "cluster-analysis-template-name",
+			ClusterScope: true,
+		}},
+	}
 	defer f.Close()
 
-	//t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
-	//	c, _, _ := f.newController(noResyncPeriodFunc)
-	//	roCtx, err := c.newRolloutContext(r)
-	//	assert.NoError(t, err)
-	//	_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
-	//	expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0, 0), roAnalysisTemplate.TemplateName, "clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found")
-	//	assert.Equal(t, expectedErr.Error(), err.Error())
-	//})
+	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0), roAnalysisTemplate.Templates[0].TemplateName, "ClusterAnalysisTemplate 'cluster-analysis-template-name' not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
 
-	//t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
-	//	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
-	//	c, _, _ := f.newController(noResyncPeriodFunc)
-	//	roCtx, err := c.newRolloutContext(r)
-	//	assert.NoError(t, err)
-	//	_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
-	//	assert.NoError(t, err)
-	//})
+	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGetReferencedIngressesALB(t *testing.T) {

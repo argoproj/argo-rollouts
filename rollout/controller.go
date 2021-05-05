@@ -678,7 +678,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, template.Name, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
+					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
 				}
 				return nil, err
 			}
@@ -687,7 +687,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, template.Name, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
+					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
 				}
 				return nil, err
 			}
