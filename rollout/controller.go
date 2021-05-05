@@ -701,49 +701,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 		TemplateType:             templateType,
 		CanaryStepIndex:          canaryStepIndex,
 	}, nil
-	//analysisTemplates := []validation.AnalysisTemplateWithType{}
-	//if rolloutAnalysis.Templates != nil {
-	//	for i, template := range rolloutAnalysis.Templates {
-	//		analysisTemplate, err := c.getReferencedAnalysisTemplate(template, templateType, i, canaryStepIndex)
-	//		if err != nil {
-	//			return nil, err
-	//		}
-	//		if analysisTemplate != nil {
-	//			analysisTemplates = append(analysisTemplates, *analysisTemplate)
-	//		}
-	//	}
-	//}
-	//return analysisTemplates, nil
 }
-
-//func (c *rolloutContext) getReferencedAnalysisTemplate(template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
-//	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
-//	if template.ClusterScope {
-//		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-//		if k8serrors.IsNotFound(err) {
-//			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-//		}
-//		if err != nil {
-//			return nil, err
-//		}
-//		return &validation.AnalysisTemplateWithType{
-//			ClusterAnalysisTemplate: clusterAnalysisTemplate,
-//			TemplateType:            templateType,
-//			AnalysisIndex:           analysisIndex,
-//		}, nil
-//	}
-//	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(template.TemplateName)
-//	if k8serrors.IsNotFound(err) {
-//		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-//	}
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &validation.AnalysisTemplateWithType{
-//		AnalysisTemplate: analysisTemplate,
-//		TemplateType:     templateType,
-//	}, nil
-//}
 
 func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 	ingresses := []v1beta1.Ingress{}
