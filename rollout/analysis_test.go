@@ -1228,7 +1228,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, ar.Status.Message)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+ar.Status.Message)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
 }

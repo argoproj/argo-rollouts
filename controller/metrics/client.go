@@ -5,7 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
+	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
 const (
@@ -22,7 +22,7 @@ func (f *K8sRequestsCountProvider) MustRegister(registerer prometheus.Registerer
 }
 
 // IncKubernetesRequest increments the kubernetes client counter
-func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) {
+func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) error {
 	name := resourceInfo.Name
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
@@ -37,4 +37,5 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	}
 
 	m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
+	return nil
 }

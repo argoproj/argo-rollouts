@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -38,25 +39,32 @@ func TestWithUnstructuredObject(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
 }
 
-func TestWithObject(t *testing.T) {
+func TestWithRolloutObject(t *testing.T) {
 	buf := bytes.NewBufferString("")
 	logger := log.New()
 	logger.SetOutput(buf)
-	ro := v1alpha1.Rollout{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Rollout",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-name",
-			Namespace: "test-ns",
-		},
+	var tests = []struct {
+		obj  runtime.Object
+		kind string
+	}{
+		// extracts kind from type casting
+		{&v1alpha1.Rollout{ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "rollout"},
+		{&v1alpha1.AnalysisRun{ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "analysisrun"},
+		{&v1alpha1.AnalysisTemplate{ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "analysistemplate"},
+		{&v1alpha1.ClusterAnalysisTemplate{ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "clusteranalysistemplate"},
+		{&v1alpha1.Experiment{ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "experiment"},
+		// extracts kind from TypeMeta and lowercases it
+		{&v1alpha1.Rollout{TypeMeta: metav1.TypeMeta{Kind: "Foo"}, ObjectMeta: metav1.ObjectMeta{Name: "test-name", Namespace: "test-ns"}}, "foo"},
 	}
-	logCtx := WithObject(&ro)
-	logCtx.Logger = logger
-	logCtx.Info("Test")
-	logMessage := buf.String()
-	assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
-	assert.True(t, strings.Contains(logMessage, "rollout=test-name"))
+	for _, test := range tests {
+		logCtx := WithObject(test.obj)
+		logCtx.Logger = logger
+		logCtx.Info("Test")
+		logMessage := buf.String()
+		assert.True(t, strings.Contains(logMessage, "namespace=test-ns"))
+		assert.True(t, strings.Contains(logMessage, fmt.Sprintf("%s=test-name", test.kind)))
+	}
+
 }
 
 func TestWithRollout(t *testing.T) {

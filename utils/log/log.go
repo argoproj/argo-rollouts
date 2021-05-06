@@ -29,10 +29,26 @@ const (
 func WithObject(obj runtime.Object) *log.Entry {
 	logCtx := log.NewEntry(log.StandardLogger())
 	gvk := obj.GetObjectKind().GroupVersionKind()
+	kind := gvk.Kind
+	if kind == "" {
+		// it's possible for kind can be empty
+		switch obj.(type) {
+		case *v1alpha1.Rollout:
+			kind = "rollout"
+		case *v1alpha1.AnalysisRun:
+			kind = "analysisrun"
+		case *v1alpha1.AnalysisTemplate:
+			kind = "analysistemplate"
+		case *v1alpha1.ClusterAnalysisTemplate:
+			kind = "clusteranalysistemplate"
+		case *v1alpha1.Experiment:
+			kind = "experiment"
+		}
+	}
 	objectMeta, err := meta.Accessor(obj)
 	if err == nil {
 		logCtx = logCtx.WithField("namespace", objectMeta.GetNamespace())
-		logCtx = logCtx.WithField(strings.ToLower(gvk.Kind), objectMeta.GetName())
+		logCtx = logCtx.WithField(strings.ToLower(kind), objectMeta.GetName())
 	}
 	return logCtx
 }

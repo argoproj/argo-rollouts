@@ -34,9 +34,9 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/istio"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
 	"github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
 const (

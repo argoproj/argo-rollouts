@@ -6,13 +6,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
 
+	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
+
+func init() {
+	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
+}
 
 const controllerAgentName = "rollouts-controller"
 
@@ -60,26 +66,29 @@ func NewFakeEventRecorder() EventRecorder {
 }
 
 func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) error {
+	if opts.EventType == "" {
+		opts.EventType = corev1.EventTypeNormal
+	}
 	return e.eventf(object, opts.EventType == corev1.EventTypeWarning, opts, messageFmt, args...)
 }
 
 func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) error {
+	opts.EventType = corev1.EventTypeWarning
 	return e.eventf(object, false, opts, messageFmt, args...)
 }
 
 func (e *EventRecorderAdapter) eventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) error {
 	logCtx := logutil.WithObject(object)
-	eventType := corev1.EventTypeNormal
-	if warn {
-		eventType = corev1.EventTypeWarning
-		logCtx.Warnf(messageFmt, args...)
-	} else {
-		logCtx.Infof(messageFmt, args...)
-	}
-
 	if opts.EventReason != "" {
-		e.Recorder.Eventf(object, eventType, opts.EventReason, messageFmt, args...)
+		logCtx = logCtx.WithField("event_reason", opts.EventReason)
+		e.Recorder.Eventf(object, opts.EventType, opts.EventReason, messageFmt, args...)
 	}
+	logFn := logCtx.Infof
+	if warn {
+		logFn = logCtx.Warnf
+	}
+	logFn(messageFmt, args...)
+
 	if opts.PrometheusCounter != nil {
 		objectMeta, err := meta.Accessor(object)
 		if err != nil {

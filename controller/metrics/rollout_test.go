@@ -1,14 +1,11 @@
 package metrics
 
 import (
-	"bytes"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -87,26 +84,10 @@ func TestCollectRollouts(t *testing.T) {
 	}
 }
 
-func TestCollectRolloutsListFails(t *testing.T) {
-	buf := bytes.NewBufferString("")
-	logrus.SetOutput(buf)
-	registry := prometheus.NewRegistry()
-	fakeLister := fakeRolloutLister{
-		error: fmt.Errorf("Error with lister"),
-	}
-	registry.MustRegister(NewRolloutCollector(fakeLister))
-	mux := http.NewServeMux()
-	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, "")
-	assert.Contains(t, buf.String(), "Error with lister")
-}
-
 func testRolloutDescribe(t *testing.T, fakeRollout string, expectedResponse string) {
 	registry := prometheus.NewRegistry()
-	fakeLister := fakeRolloutLister{
-		rollouts: []*v1alpha1.Rollout{newFakeRollout(fakeRollout)},
-	}
-	registry.MustRegister(NewRolloutCollector(fakeLister))
+	config := newFakeServerConfig(newFakeRollout(fakeRollout))
+	registry.MustRegister(NewRolloutCollector(config.RolloutLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	testHttpResponse(t, mux, expectedResponse)
@@ -126,14 +107,7 @@ rollout_reconcile_sum{name="ro-test",namespace="ro-namespace"} 0.001
 rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 `
 
-	provider := &K8sRequestsCountProvider{}
-
-	metricsServ := NewMetricsServer(ServerConfig{
-		RolloutLister:      fakeRolloutLister{},
-		ExperimentLister:   fakeExperimentLister{},
-		AnalysisRunLister:  fakeAnalysisRunLister{},
-		K8SRequestProvider: provider,
-	})
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ro-test",

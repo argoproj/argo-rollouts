@@ -49,6 +49,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 var (
@@ -240,7 +241,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
 		}
 		if reason == conditions.RolloutAbortedReason {
-			msg = conditions.RolloutAbortedMessage
+			rev, _ := replicasetutil.Revision(resourceObj)
+			msg = fmt.Sprintf(conditions.RolloutAbortedMessage, rev)
 			status = corev1.ConditionFalse
 		}
 		if reason == conditions.RolloutExperimentFailedReason {

@@ -451,7 +451,7 @@ func CanaryStepString(c CanaryStep) string {
 	if c.Pause != nil {
 		str := "pause"
 		if c.Pause.Duration != nil {
-			str = fmt.Sprintf("%s: %s", str, *c.Pause.Duration)
+			str = fmt.Sprintf("%s: %s", str, c.Pause.Duration.String())
 		}
 		return str
 	}
