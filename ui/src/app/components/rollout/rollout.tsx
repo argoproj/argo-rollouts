@@ -119,7 +119,7 @@ export const Rollout = () => {
     const images = parseImages(rollout.replicaSets || []);
 
     for (const img of images) {
-        for (const container of rollout.containers) {
+        for (const container of rollout.containers || []) {
             if (img.image === container.image) {
                 img.color = ImageColor.Blue;
             }
