@@ -4878,6 +4878,12 @@ export interface RolloutPromoteRolloutRequest {
      * @memberof RolloutPromoteRolloutRequest
      */
     namespace?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RolloutPromoteRolloutRequest
+     */
+    full?: boolean;
 }
 /**
  * 

@@ -378,7 +378,7 @@ func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (
 
 func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*v1alpha1.Rollout, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
-	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, false)
+	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, q.GetFull())
 }
 
 func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*v1alpha1.Rollout, error) {

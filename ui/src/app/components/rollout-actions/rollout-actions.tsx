@@ -1,4 +1,4 @@
-import {faArrowCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
+import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
@@ -10,6 +10,7 @@ export enum RolloutAction {
     Restart = 'Restart',
     Retry = 'Retry',
     Abort = 'Abort',
+    Promote = 'Promote',
     PromoteFull = 'PromoteFull',
 }
 
@@ -19,7 +20,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
 
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
 
-    const actionMap = new Map<RolloutAction, ActionButtonProps>([
+    const actionMap = new Map<RolloutAction, ActionButtonProps & {body?: any}>([
         [
             RolloutAction.Restart,
             {
@@ -49,10 +50,22 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             },
         ],
         [
+            RolloutAction.Promote,
+            {
+                label: 'PROMOTE',
+                icon: faChevronCircleUp,
+                action: api.rolloutServicePromoteRollout,
+                body: {full: false},
+                disabled: props.rollout.status !== RolloutStatus.Paused,
+                shouldConfirm: true,
+            },
+        ],
+        [
             RolloutAction.PromoteFull,
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
+                body: {full: true},
                 action: api.rolloutServicePromoteRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,
                 shouldConfirm: true,
@@ -66,7 +79,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
         <ActionButton
             {...ap}
             action={() => {
-                ap.action({}, namespace, props.rollout.objectMeta?.name || '');
+                ap.action(ap.body || {}, namespace, props.rollout.objectMeta?.name || '');
                 if (props.callback) {
                     props.callback();
                 }

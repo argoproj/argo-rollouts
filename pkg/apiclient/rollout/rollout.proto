@@ -39,6 +39,7 @@ message RestartRolloutRequest {
 message PromoteRolloutRequest {
     string name = 1;
     string namespace = 2;
+    bool full = 3;
 }
 
 message AbortRolloutRequest {
