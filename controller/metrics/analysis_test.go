@@ -95,8 +95,6 @@ func TestCollectAnalysisRuns(t *testing.T) {
 func testAnalysisRunDescribe(t *testing.T, fakeAnalysisRun string, expectedResponse string) {
 	registry := prometheus.NewRegistry()
 	serverCfg := newFakeServerConfig(newFakeAnalysisRun(fakeAnalysisRun))
-	// ars, _ := ar.List(labels.NewSelector())
-	// logrus.Info(ars)
 	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))

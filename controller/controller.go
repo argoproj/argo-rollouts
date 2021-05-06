@@ -177,7 +177,7 @@ func NewManager(
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ExperimentWorkQueue:             experimentWorkqueue,
 		MetricsServer:                   metricsServer,
-		Recorder:                        recorder.K8sRecorder(), // TODO: switch to rollouts recorder
+		Recorder:                        recorder,
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
@@ -188,7 +188,7 @@ func NewManager(
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
-		Recorder:             recorder.K8sRecorder(), // TODO: switch to rollouts recorder
+		Recorder:             recorder,
 	})
 
 	serviceController := service.NewController(service.ControllerConfig{

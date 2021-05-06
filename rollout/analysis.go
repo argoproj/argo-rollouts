@@ -185,7 +185,7 @@ func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.Rollo
 				eventType = corev1.EventTypeWarning
 			}
 			msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRunStatusChange"}, msg)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
 		}
 	}
 }

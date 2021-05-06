@@ -64,45 +64,6 @@ type testCombination struct {
 	expectedResponse string
 }
 
-// type fakeRolloutLister struct {
-// 	rollouts []*v1alpha1.Rollout
-// 	error    error
-// }
-
-// func (f fakeRolloutLister) List(selector labels.Selector) ([]*v1alpha1.Rollout, error) {
-// 	return f.rollouts, f.error
-// }
-
-// func (f fakeRolloutLister) Rollouts(namespace string) lister.RolloutNamespaceLister {
-// 	return nil
-// }
-
-// type fakeExperimentLister struct {
-// 	experiments []*v1alpha1.Experiment
-// 	error       error
-// }
-
-// func (f fakeExperimentLister) List(selector labels.Selector) (exp []*v1alpha1.Experiment, err error) {
-// 	return f.experiments, f.error
-// }
-
-// func (f fakeExperimentLister) Experiments(namespace string) lister.ExperimentNamespaceLister {
-// 	return nil
-// }
-
-// type fakeAnalysisRunLister struct {
-// 	analysisRuns []*v1alpha1.AnalysisRun
-// 	error        error
-// }
-
-// func (f fakeAnalysisRunLister) List(selector labels.Selector) (ars []*v1alpha1.AnalysisRun, err error) {
-// 	return f.analysisRuns, f.error
-// }
-
-// func (f fakeAnalysisRunLister) AnalysisRuns(namespace string) lister.AnalysisRunNamespaceLister {
-// 	return nil
-// }
-
 func TestIncError(t *testing.T) {
 	expectedResponse := `# HELP analysis_run_reconcile_error Error occurring during the analysis run
 # TYPE analysis_run_reconcile_error counter

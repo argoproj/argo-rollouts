@@ -165,7 +165,7 @@ func (c *rolloutContext) reconcileExperiments() error {
 			if err != nil {
 				return err
 			}
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "CreateExperiment"}, "Created Experiment '%s'", currentEx.Name)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "ExperimentCreated"}, "Created Experiment '%s'", currentEx.Name)
 		}
 		switch currentEx.Status.Phase {
 		case v1alpha1.AnalysisPhaseInconclusive:

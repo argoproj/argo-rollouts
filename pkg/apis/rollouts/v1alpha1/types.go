@@ -2,7 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	fmt "fmt"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -467,7 +467,7 @@ func CanaryStepString(c CanaryStep) string {
 		} else if c.SetCanaryScale.MatchTrafficWeight {
 			return "setCanaryScale{matchTrafficWeight: true}"
 		} else if c.SetCanaryScale.Replicas != nil {
-			return fmt.Sprintf("setCanaryScale{Replicas: %d}", *c.SetCanaryScale.Replicas)
+			return fmt.Sprintf("setCanaryScale{replicas: %d}", *c.SetCanaryScale.Replicas)
 		}
 	}
 	return "invalid"

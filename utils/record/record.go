@@ -17,6 +17,8 @@ import (
 )
 
 func init() {
+	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
+	// logged for argo-rollouts types.
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 }
 
