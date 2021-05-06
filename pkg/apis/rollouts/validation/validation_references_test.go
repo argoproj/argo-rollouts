@@ -308,7 +308,6 @@ func TestValidateAnalysisTemplateWithTypeFlattenMetricsAndResolveArgs(t *testing
 		assert.Empty(t, allErrs)
 	})
 
-
 }
 
 func TestValidateIngress(t *testing.T) {
