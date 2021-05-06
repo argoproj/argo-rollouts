@@ -83,7 +83,19 @@ func getAnalysisTemplateWithType() AnalysisTemplatesWithType {
 			},
 			Spec: v1alpha1.AnalysisTemplateSpec{
 				Metrics: []v1alpha1.Metric{{
-					Name:     "metric-name",
+					Name:     "metric1-name",
+					Interval: "1m",
+					Count:    &count,
+				}},
+			},
+		}},
+		ClusterAnalysisTemplates: []*v1alpha1.ClusterAnalysisTemplate{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cluster-analysis-template-name",
+			},
+			Spec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{{
+					Name:     "metric2-name",
 					Interval: "1m",
 					Count:    &count,
 				}},
@@ -172,7 +184,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template.AnalysisTemplates[0].Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric-name", count.String())
+		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric1-name", count.String())
 		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex), template.AnalysisTemplates[0].Name, msg)
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
 	})
@@ -278,7 +290,7 @@ func TestValidateAnalysisTemplateWithTypeResolveArgs(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, template)
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name]\": args.invalid was not resolved")
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved")
 		assert.Equal(t, msg, allErrs[0].Error())
 	})
 
