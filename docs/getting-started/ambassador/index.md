@@ -234,4 +234,4 @@ while true; do curl -k https://$AMBASSADOR_LB_ENDPOINT/echo/; sleep 0.2; done
 
 This will display a running list of responses from the service that will gradually transition from VERSION 1 strings to VERSION 2 strings.
 
-For more details about the Ambassador and Argo-Rollouts integration, see the [Ambassador Argo documentation](https://deploy-preview-508--datawire-ambassador.netlify.app/docs/pre-release/argo/).
+For more details about the Ambassador and Argo-Rollouts integration, see the [Ambassador Argo documentation](https://www.getambassador.io/docs/argo/latest/quick-start/).
