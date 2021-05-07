@@ -64,11 +64,16 @@ func newCommand() *cobra.Command {
 		nginxIngressClasses []string
 		albVerifyWeight     bool
 		namespaced          bool
+		printVersion        bool
 	)
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "argo-rollouts is a controller to operate on rollout CRD",
 		RunE: func(c *cobra.Command, args []string) error {
+			if printVersion {
+				fmt.Println(version.GetVersion())
+				return nil
+			}
 			setLogLevel(logLevel)
 			formatter := &log.TextFormatter{
 				FullTimestamp: true,
@@ -198,6 +203,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	command.Flags().BoolVar(&albVerifyWeight, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
+	command.Flags().BoolVar(&printVersion, "version", false, "Print version")
 	return &command
 }
 
