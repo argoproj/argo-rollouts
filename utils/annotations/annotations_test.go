@@ -246,6 +246,13 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
+	t.Run("GetDesiredReplicasAnnotationOutOfInt32Value", func(t *testing.T) {
+		cRS := tRS.DeepCopy()
+		cRS.Annotations[DesiredReplicasAnnotation] = "20000000000"
+		_, ok := GetDesiredReplicasAnnotation(cRS)
+		assert.Equal(t, false, ok, "Should be an error as 20M value does not fit into int32")
+	})
+
 	//Check if annotations reflect rollouts state
 	tRS.Annotations[DesiredReplicasAnnotation] = "1"
 	tRS.Status.AvailableReplicas = 1

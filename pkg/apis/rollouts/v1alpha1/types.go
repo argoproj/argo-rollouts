@@ -543,7 +543,7 @@ type RolloutPause struct {
 func (p RolloutPause) DurationSeconds() int32 {
 	if p.Duration != nil {
 		if p.Duration.Type == intstr.String {
-			s, err := strconv.Atoi(p.Duration.StrVal)
+			s, err := strconv.ParseInt(p.Duration.StrVal, 10, 32)
 			if err != nil {
 				d, err := time.ParseDuration(p.Duration.StrVal)
 				if err != nil {

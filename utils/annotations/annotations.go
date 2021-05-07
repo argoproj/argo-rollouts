@@ -40,7 +40,7 @@ func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, b
 	if !ok {
 		return int32(0), false
 	}
-	intValue, err := strconv.Atoi(annotationValue)
+	intValue, err := strconv.ParseInt(annotationValue, 10, 32)
 	if err != nil {
 		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
 		return int32(0), false
@@ -186,7 +186,7 @@ func IsSaturated(rollout *v1alpha1.Rollout, rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	desiredString := rs.Annotations[DesiredReplicasAnnotation]
-	desired, err := strconv.Atoi(desiredString)
+	desired, err := strconv.ParseInt(desiredString, 10, 32)
 	if err != nil {
 		return false
 	}
