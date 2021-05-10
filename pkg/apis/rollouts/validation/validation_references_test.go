@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/unstructured"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 const successCaseVsvc = `apiVersion: networking.istio.io/v1alpha3
@@ -74,23 +74,34 @@ spec:
         host: canary
       weight: 0`
 
-func getAnalysisTemplateWithType() AnalysisTemplateWithType {
+func getAnalysisTemplateWithType() AnalysisTemplatesWithType {
 	count := intstr.FromInt(1)
-	return AnalysisTemplateWithType{
-		AnalysisTemplate: &v1alpha1.AnalysisTemplate{
+	return AnalysisTemplatesWithType{
+		AnalysisTemplates: []*v1alpha1.AnalysisTemplate{{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "analysis-template-name",
 			},
 			Spec: v1alpha1.AnalysisTemplateSpec{
 				Metrics: []v1alpha1.Metric{{
-					Name:     "metric-name",
+					Name:     "metric1-name",
 					Interval: "1m",
 					Count:    &count,
 				}},
 			},
-		},
+		}},
+		ClusterAnalysisTemplates: []*v1alpha1.ClusterAnalysisTemplate{{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cluster-analysis-template-name",
+			},
+			Spec: v1alpha1.AnalysisTemplateSpec{
+				Metrics: []v1alpha1.Metric{{
+					Name:     "metric2-name",
+					Interval: "1m",
+					Count:    &count,
+				}},
+			},
+		}},
 		TemplateType:    InlineAnalysis,
-		AnalysisIndex:   0,
 		CanaryStepIndex: 0,
 	}
 }
@@ -149,10 +160,10 @@ func getServiceWithType() ServiceWithType {
 
 func TestValidateRolloutReferencedResources(t *testing.T) {
 	refResources := ReferencedResources{
-		AnalysisTemplateWithType: []AnalysisTemplateWithType{getAnalysisTemplateWithType()},
-		Ingresses:                []v1beta1.Ingress{getIngress()},
-		ServiceWithType:          []ServiceWithType{getServiceWithType()},
-		VirtualServices:          nil,
+		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplateWithType()},
+		Ingresses:                 []v1beta1.Ingress{getIngress()},
+		ServiceWithType:           []ServiceWithType{getServiceWithType()},
+		VirtualServices:           nil,
 	}
 	allErrs := ValidateRolloutReferencedResources(getRollout(), refResources)
 	assert.Empty(t, allErrs)
@@ -162,32 +173,32 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate analysisTemplate - success", func(t *testing.T) {
 		rollout := getRollout()
 		template := getAnalysisTemplateWithType()
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
-	t.Run("validate inline analysisTemplate - failure", func(t *testing.T) {
+	t.Run("validate inline clusterAnalysisTemplate - failure", func(t *testing.T) {
 		rollout := getRollout()
 		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
-		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		template.ClusterAnalysisTemplates[0].Spec.Metrics[0].Count = &count
+		allErrs := ValidateAnalysisTemplateWithType(rollout, nil, template.ClusterAnalysisTemplates[0], template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "analysis-template-name", "metric-name", count.String())
-		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.AnalysisIndex, template.CanaryStepIndex), template.AnalysisTemplate.Name, msg)
+		msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", "cluster-analysis-template-name", "metric2-name", count.String())
+		expectedError := field.Invalid(GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex), template.ClusterAnalysisTemplates[0].Name, msg)
 		assert.Equal(t, expectedError.Error(), allErrs[0].Error())
 	})
 
 	t.Run("validate inline analysisTemplate argument - success", func(t *testing.T) {
 		rollout := getRollout()
 		template := getAnalysisTemplateWithType()
-		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
 				Value: pointer.StringPtr("service-name"),
 			},
 		}
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
@@ -195,12 +206,12 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		rollout := getRollout()
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
-		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name: "service-name",
 			},
 		}
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.NotEmpty(t, allErrs)
 
 		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -212,11 +223,11 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 				},
 			},
 		}
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.NotEmpty(t, allErrs)
 
-		template.AnalysisTemplate.Spec.Args = append(template.AnalysisTemplate.Spec.Args, v1alpha1.Argument{Name: "second-service-name"})
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "second-service-name"})
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.NotEmpty(t, allErrs)
 	})
 
@@ -226,21 +237,21 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 
 		// default value should be fine
 		defaultValue := "value-name"
-		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
 				Value: &defaultValue,
 			},
 		}
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 
-		template.AnalysisTemplate.Spec.Args = []v1alpha1.Argument{
+		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
 				Value: pointer.StringPtr("service-name"),
@@ -255,7 +266,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 				},
 			},
 		}
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template)
+		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
@@ -265,29 +276,35 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		count := intstr.FromInt(0)
 		template := getAnalysisTemplateWithType()
 		template.TemplateType = BackgroundAnalysis
-		template.AnalysisTemplate.Spec.Metrics[0].Count = &count
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		template.AnalysisTemplates[0].Spec.Metrics[0].Count = &count
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 }
 
-func TestValidateAnalysisTemplateWithTypeResolveArgs(t *testing.T) {
-
+func TestValidateAnalysisTemplateWithTypeFlattenMetricsAndResolveArgs(t *testing.T) {
 	rollout := getRollout()
 	template := getAnalysisTemplateWithType()
-	template.AnalysisTemplate.Spec.Args = append(template.AnalysisTemplate.Spec.Args, v1alpha1.Argument{Name: "invalid"})
 
-	t.Run("failure", func(t *testing.T) {
-		t.SkipNow()
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+	t.Run("failure - invalid argument", func(t *testing.T) {
+		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, template)
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates[0].templateName: Invalid value: \"analysis-template-name\": AnalysisTemplate analysis-template-name has invalid arguments: args.invalid was not resolved")
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved")
 		assert.Equal(t, msg, allErrs[0].Error())
 	})
 
 	t.Run("success", func(t *testing.T) {
-		template.AnalysisTemplate.Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template)
+		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
+		template.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("failure - duplicate metrics", func(t *testing.T) {
+		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
+		template.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
@@ -367,25 +384,25 @@ func TestValidateVirtualService(t *testing.T) {
 
 func TestGetAnalysisTemplateWithTypeFieldPath(t *testing.T) {
 	t.Run("get fieldPath for analysisTemplateType PrePromotionAnalysis", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath(PrePromotionAnalysis, 0, 0)
-		expectedFldPath := field.NewPath("spec", "strategy", "blueGreen", "prePromotionAnalysis", "templates").Index(0).Child("templateName")
+		fldPath := GetAnalysisTemplateWithTypeFieldPath(PrePromotionAnalysis, 0)
+		expectedFldPath := field.NewPath("spec", "strategy", "blueGreen", "prePromotionAnalysis", "templates")
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})
 
 	t.Run("get fieldPath for analysisTemplateType PostPromotionAnalysis", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath(PostPromotionAnalysis, 0, 0)
-		expectedFldPath := field.NewPath("spec", "strategy", "blueGreen", "postPromotionAnalysis", "templates").Index(0).Child("templateName")
+		fldPath := GetAnalysisTemplateWithTypeFieldPath(PostPromotionAnalysis, 0)
+		expectedFldPath := field.NewPath("spec", "strategy", "blueGreen", "postPromotionAnalysis", "templates")
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})
 
 	t.Run("get fieldPath for analysisTemplateType CanaryStep", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath(InlineAnalysis, 0, 0)
-		expectedFldPath := field.NewPath("spec", "strategy", "canary", "steps").Index(0).Child("analysis", "templates").Index(0).Child("templateName")
+		fldPath := GetAnalysisTemplateWithTypeFieldPath(InlineAnalysis, 0)
+		expectedFldPath := field.NewPath("spec", "strategy", "canary", "steps").Index(0).Child("analysis", "templates")
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})
 
 	t.Run("get fieldPath for analysisTemplateType that does not exist", func(t *testing.T) {
-		fldPath := GetAnalysisTemplateWithTypeFieldPath("DoesNotExist", 0, 0)
+		fldPath := GetAnalysisTemplateWithTypeFieldPath("DoesNotExist", 0)
 		assert.Nil(t, fldPath)
 	})
 }

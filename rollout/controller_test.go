@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +41,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
@@ -1439,9 +1440,11 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
-	roAnalysisTemplate := v1alpha1.RolloutAnalysisTemplate{
-		TemplateName: "cluster-analysis-template-name",
-		ClusterScope: true,
+	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			TemplateName: "cluster-analysis-template-name",
+			ClusterScope: true,
+		}},
 	}
 	defer f.Close()
 
@@ -1449,8 +1452,8 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
-		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0, 0), roAnalysisTemplate.TemplateName, "clusteranalysistemplate.argoproj.io \"cluster-analysis-template-name\" not found")
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0), roAnalysisTemplate.Templates[0].TemplateName, "ClusterAnalysisTemplate 'cluster-analysis-template-name' not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 
@@ -1459,7 +1462,7 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedAnalysisTemplate(roAnalysisTemplate, validation.PrePromotionAnalysis, 0, 0)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		assert.NoError(t, err)
 	})
 }

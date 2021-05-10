@@ -322,7 +322,7 @@ func flattenMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*
 	metricMap := map[string]bool{}
 	for _, metric := range combinedMetrics {
 		if _, ok := metricMap[metric.Name]; ok {
-			return nil, fmt.Errorf("two metrics have the same name %s", metric.Name)
+			return nil, fmt.Errorf("two metrics have the same name '%s'", metric.Name)
 		}
 		metricMap[metric.Name] = true
 	}
