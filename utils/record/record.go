@@ -76,7 +76,7 @@ func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, 
 
 func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) error {
 	opts.EventType = corev1.EventTypeWarning
-	return e.eventf(object, false, opts, messageFmt, args...)
+	return e.eventf(object, true, opts, messageFmt, args...)
 }
 
 func (e *EventRecorderAdapter) eventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) error {

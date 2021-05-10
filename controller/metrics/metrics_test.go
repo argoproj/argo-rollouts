@@ -26,15 +26,22 @@ func newFakeServerConfig(objs ...runtime.Object) ServerConfig {
 	catInformer := factory.Argoproj().V1alpha1().ClusterAnalysisTemplates()
 	exInformer := factory.Argoproj().V1alpha1().Experiments()
 	ctx, cancel := context.WithCancel(context.TODO())
-	go factory.Start(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(),
-		roInformer.Informer().HasSynced,
-		arInformer.Informer().HasSynced,
-		atInformer.Informer().HasSynced,
-		catInformer.Informer().HasSynced,
-		exInformer.Informer().HasSynced,
-	)
+
+	var hasSyncedFuncs = make([]cache.InformerSynced, 0)
+	for _, inf := range []cache.SharedIndexInformer{
+		roInformer.Informer(),
+		arInformer.Informer(),
+		atInformer.Informer(),
+		catInformer.Informer(),
+		exInformer.Informer(),
+	} {
+		go inf.Run(ctx.Done())
+		hasSyncedFuncs = append(hasSyncedFuncs, inf.HasSynced)
+
+	}
+	cache.WaitForCacheSync(ctx.Done(), hasSyncedFuncs...)
 	cancel()
+
 	return ServerConfig{
 		RolloutLister:                 roInformer.Lister(),
 		AnalysisRunLister:             arInformer.Lister(),

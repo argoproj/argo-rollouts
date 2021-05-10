@@ -3,7 +3,6 @@ package fixtures
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -23,11 +22,11 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 const (
@@ -42,6 +41,8 @@ const (
 	EnvVarE2EDebug = "E2E_DEBUG"
 	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
 	EnvVarE2EALBIngressAnnotations = "E2E_ALB_INGESS_ANNOTATIONS"
+	// E2E_KLOG_LEVEL controls the kuberntes klog level for e2e tests
+	EnvVarE2EKLogLevel = "E2E_KLOG_LEVEL"
 )
 
 var (
@@ -111,6 +112,12 @@ type E2ESuite struct {
 }
 
 func (s *E2ESuite) SetupSuite() {
+	if level := os.Getenv(EnvVarE2EKLogLevel); level != "" {
+		if s, err := strconv.ParseInt(level, 10, 32); err == nil {
+			logutil.SetKLogLevel(int(s))
+		}
+	}
+
 	var err error
 	s.Common.t = s.Suite.T()
 	s.Common.Context = context.TODO()
@@ -130,13 +137,6 @@ func (s *E2ESuite) SetupSuite() {
 	s.rolloutClient, err = clientset.NewForConfig(restConfig)
 	s.CheckError(err)
 	s.log = log.NewEntry(log.StandardLogger())
-
-	if !flag.Parsed() {
-		klog.InitFlags(nil)
-		_ = flag.Set("logtostderr", "true")
-		_ = flag.Set("v", strconv.Itoa(7))
-		flag.Parse()
-	}
 
 	if istioutil.DoesIstioExist(s.dynamicClient, s.namespace) {
 		s.IstioEnabled = true

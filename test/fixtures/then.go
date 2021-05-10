@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/stretchr/testify/assert"
 )
 
 type Then struct {
@@ -318,6 +319,13 @@ func (t *Then) ExpectExperimentByRevisionPhase(revision string, phase string) *T
 			return string(run.Status.Phase) == phase
 		},
 	)
+}
+
+func (t *Then) ExpectRolloutEvents(reasons []string) *Then {
+	t.t.Helper()
+	eventReasons := t.GetRolloutEventReasons()
+	assert.Equal(t.Common.t, reasons, eventReasons)
+	return t
 }
 
 func (t *Then) When() *When {

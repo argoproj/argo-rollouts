@@ -53,7 +53,22 @@ func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 		RetryRollout().
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
-		WaitForRolloutStatus("Healthy")
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRolloutEvents([]string{
+			"RolloutUpdated",       // Rollout updated to revision 1
+			"ScalingReplicaSet",    // Scaled up replica set basic-695bcc74ff to 1
+			"RolloutCompleted",     // Rollout completed update to revision 1 (695bcc74ff): Initial deploy
+			"RolloutUpdated",       // Rollout updated to revision 2
+			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc to 1
+			"ScalingReplicaSet",    // Scaled down replica set basic-5b9b4d54cc from 1 to 0
+			"RolloutAborted",       // Rollout aborted update to revision 2
+			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc from 0 to 1
+			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
+			"RolloutStepCompleted", // Rollout step 2/2 completed (pause)
+			"ScalingReplicaSet",    // Scaled down replica set basic-695bcc74ff from 1 to 0
+			"RolloutCompleted",     // Rollout completed update to revision 2 (5b9b4d54cc): Completed all 2 canary steps
+		})
 }
 
 // TestCanaryPromoteFull verifies behavior when performing full promotion with a canary strategy

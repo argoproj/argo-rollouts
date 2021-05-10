@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	//noAnalysisRuns  = ""
 	fakeAnalysisRun = `
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisRun
@@ -44,6 +43,39 @@ status:
     phase: Error
   phase: Error
   startedAt: "2020-03-16T20:02:15Z"
+`
+
+	fakeAnalysisTemplate = `
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  creationTimestamp: "2020-03-16T20:01:13Z"
+  name: http-benchmark-test
+  namespace: jesse-test
+spec:
+  metrics:
+  - name: webmetric
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.google.com
+    successCondition: "true"
+`
+
+	fakeClusterAnalysisTemplate = `
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  creationTimestamp: "2020-03-16T20:01:13Z"
+  name: http-benchmark-test
+spec:
+  metrics:
+  - name: webmetric
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.google.com
+    successCondition: "true"
 `
 )
 const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about analysis run.
@@ -77,6 +109,24 @@ func newFakeAnalysisRun(fakeAnalysisRun string) *v1alpha1.AnalysisRun {
 		panic(err)
 	}
 	return &ar
+}
+
+func newFakeAnalysisTemplate(yamlStr string) *v1alpha1.AnalysisTemplate {
+	var at v1alpha1.AnalysisTemplate
+	err := yaml.Unmarshal([]byte(yamlStr), &at)
+	if err != nil {
+		panic(err)
+	}
+	return &at
+}
+
+func newFakeClusterAnalysisTemplate(yamlStr string) *v1alpha1.ClusterAnalysisTemplate {
+	var at v1alpha1.ClusterAnalysisTemplate
+	err := yaml.Unmarshal([]byte(yamlStr), &at)
+	if err != nil {
+		panic(err)
+	}
+	return &at
 }
 
 func TestCollectAnalysisRuns(t *testing.T) {
@@ -121,4 +171,23 @@ analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
 	}
 	metricsServ.IncAnalysisRunReconcile(ar, time.Millisecond)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
+
+func TestAnalysisTemplateDescribe(t *testing.T) {
+	expectedResponse := `# TYPE analysis_template_info gauge
+analysis_template_info{name="http-benchmark-test",namespace=""} 1
+analysis_template_info{name="http-benchmark-test",namespace="jesse-test"} 1
+# HELP analysis_template_metric_info Information on metrics in analysis templates.
+# TYPE analysis_template_metric_info gauge
+analysis_template_metric_info{name="http-benchmark-test",namespace="",type="Web"} 1
+analysis_template_metric_info{name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+`
+	registry := prometheus.NewRegistry()
+	at := newFakeAnalysisTemplate(fakeAnalysisTemplate)
+	cat := newFakeClusterAnalysisTemplate(fakeClusterAnalysisTemplate)
+	serverCfg := newFakeServerConfig(at, cat)
+	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
+	mux := http.NewServeMux()
+	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	testHttpResponse(t, mux, expectedResponse)
 }

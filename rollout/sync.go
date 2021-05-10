@@ -246,12 +246,12 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		c.log.Infof("Created ReplicaSet %s", createdRS.Name)
 	}
 
-	if !alreadyExists && newReplicasCount > 0 {
-		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
-	}
-
 	if err := c.setRolloutRevision(newRevision); err != nil {
 		return nil, err
+	}
+
+	if !alreadyExists && newReplicasCount > 0 {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
 	if !alreadyExists {

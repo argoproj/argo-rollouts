@@ -1,11 +1,14 @@
 package log
 
 import (
+	"flag"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -24,6 +27,13 @@ const (
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )
+
+// SetKLogLevel set the klog level for the k8s go-client
+func SetKLogLevel(klogLevel int) {
+	klog.InitFlags(nil)
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("v", strconv.Itoa(klogLevel))
+}
 
 // WithObject returns a logging context for an object which includes <kind>=<name> and namespace=<namespace>
 func WithObject(obj runtime.Object) *log.Entry {

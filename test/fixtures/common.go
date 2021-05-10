@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
@@ -465,4 +466,19 @@ func (c *Common) GetDestinationRule() *istio.DestinationRule {
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(destRuleUn.Object, &destRule)
 	c.CheckError(err)
 	return &destRule
+}
+
+func (c *Common) GetRolloutEventReasons() []string {
+	ro, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.namespace).Get(c.Context, c.rollout.GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	eventsIf := c.kubeClient.CoreV1().Events(c.namespace)
+	events, err := eventsIf.List(c.Context, metav1.ListOptions{
+		FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ro.UID)).String(),
+	})
+	c.CheckError(err)
+	var reasons []string
+	for _, event := range events.Items {
+		reasons = append(reasons, event.Reason)
+	}
+	return reasons
 }
