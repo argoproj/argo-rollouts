@@ -185,7 +185,10 @@ func (pCtx *pauseContext) CompletedCanaryPauseStep(pause v1alpha1.RolloutPause) 
 	rollout := pCtx.rollout
 	pauseCondition := getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep)
 
-	if pause.Duration != nil {
+	if rollout.Status.ControllerPause && pauseCondition == nil {
+		pCtx.log.Info("Rollout has been unpaused")
+		return true
+	} else if pause.Duration != nil {
 		now := metav1.Now()
 		if pauseCondition != nil {
 			expiredTime := pauseCondition.StartTime.Add(time.Duration(pause.DurationSeconds()) * time.Second)
@@ -194,9 +197,6 @@ func (pCtx *pauseContext) CompletedCanaryPauseStep(pause v1alpha1.RolloutPause) 
 				return true
 			}
 		}
-	} else if rollout.Status.ControllerPause && pauseCondition == nil {
-		pCtx.log.Info("Rollout has been unpaused")
-		return true
 	}
 	return false
 }

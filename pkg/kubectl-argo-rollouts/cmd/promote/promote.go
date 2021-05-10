@@ -21,10 +21,7 @@ const (
 	%[1]s promote guestbook
 
 	# Fully promote a rollout to desired version, skipping analysis, pauses, and steps
-	%[1]s promote guestbook --full
-	
-	# Skip currently running canary step of a rollout
-	%[1]s promote guestbook --skip-current-step`
+	%[1]s promote guestbook --full`
 
 	promoteUsage = `Promote a rollout
 
@@ -81,6 +78,8 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&skipCurrentStep, "skip-current-step", "c", false, "Skip currently running canary step")
 	cmd.Flags().BoolVarP(&skipAllSteps, "skip-all-steps", "a", false, "Skip remaining steps")
+	cmd.Flags().MarkDeprecated("skip-current-step", "use without the flag instead ex: promote ROLLOUT_NAME")
+	cmd.Flags().MarkShorthandDeprecated("c", "use without the flag instead ex: promote ROLLOUT_NAME")
 	cmd.Flags().MarkDeprecated("skip-all-steps", "use --full instead")
 	cmd.Flags().MarkShorthandDeprecated("a", "use --full instead")
 	cmd.Flags().BoolVar(&full, "full", false, "Perform a full promotion, skipping analysis, pauses, and steps")
@@ -150,13 +149,24 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			statusPatch = []byte(promoteFullPatch)
 		}
 	default:
-		if rollout.Spec.Paused {
-			specPatch = []byte(unpausePatch)
+		if rollout.Spec.Strategy.BlueGreen != nil || rollout.Spec.Paused || len(rollout.Status.PauseConditions) > 0 {
+			if rollout.Spec.Paused {
+				specPatch = []byte(unpausePatch)
+			}
+			if len(rollout.Status.PauseConditions) > 0 {
+				statusPatch = []byte(clearPauseConditionsPatch)
+			}
+			unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
+		} else {
+			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
+			// the index is not set in the rollout
+			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+				*index++
+			}
+			statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+			unifiedPatch = statusPatch
 		}
-		if len(rollout.Status.PauseConditions) > 0 {
-			statusPatch = []byte(clearPauseConditionsPatch)
-		}
-		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 	}
 	return specPatch, statusPatch, unifiedPatch
 }
