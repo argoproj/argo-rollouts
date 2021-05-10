@@ -252,10 +252,9 @@ func NewManager(
 	return cm
 }
 
-// Run will set up the event handlers for types we are interested in, as well
-// as syncing informer caches and starting workers. It will block until stopCh
+// Run will sync informer caches and start controllers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
+// controllers to finish processing their current work items.
 func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
