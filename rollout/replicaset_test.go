@@ -125,6 +125,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		rolloutReplicas     int
 		newReplicas         int
 		scaleExpected       bool
+		ScaleDownOnAbort    bool
 		expectedNewReplicas int
 	}{
 		{
@@ -147,6 +148,14 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			scaleExpected:       true,
 			expectedNewReplicas: 10,
 		},
+		{
+			name:                "New Replica scaled down to 0: scale down on abort",
+			rolloutReplicas:     10,
+			newReplicas:         10,
+			ScaleDownOnAbort:    true,
+			scaleExpected:       true,
+			expectedNewReplicas: 0,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -166,6 +175,14 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 					recorder:          record.NewFakeEventRecorder(),
 				},
 			}
+			if test.ScaleDownOnAbort {
+				roCtx.pauseContext = &pauseContext{
+					rollout: rollout,
+				}
+				rollout.Status.Abort = true
+				rollout.Spec.ScaleDownOnAbort = true
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)

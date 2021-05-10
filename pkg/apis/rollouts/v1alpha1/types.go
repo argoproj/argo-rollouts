@@ -71,6 +71,8 @@ type RolloutSpec struct {
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,8,opt,name=progressDeadlineSeconds"`
 	// RestartAt indicates when all the pods of a Rollout should be restarted
 	RestartAt *metav1.Time `json:"restartAt,omitempty" protobuf:"bytes,9,opt,name=restartAt"`
+	// ScaleDownOnAbort scales down
+	ScaleDownOnAbort bool `json:"scaleDownOnAbort,omitempty" protobuf:"varint,11,opt,name=scaleDownOnAbort"`
 }
 
 func (s *RolloutSpec) SetResolvedSelector(selector *metav1.LabelSelector) {

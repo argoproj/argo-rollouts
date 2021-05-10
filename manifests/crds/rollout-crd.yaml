@@ -64,6 +64,8 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
+              scaleDownOnAbort:
+                type: boolean
               selector:
                 properties:
                   matchExpressions:

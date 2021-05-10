@@ -1155,6 +1155,10 @@
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
+        },
+        "scaleDownOnAbort": {
+          "type": "boolean",
+          "title": "ScaleDownOnAbort scales down"
         }
       },
       "title": "RolloutSpec is the spec for a Rollout resource"
