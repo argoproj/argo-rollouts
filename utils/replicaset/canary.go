@@ -297,6 +297,10 @@ func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
 		return nil, 100
 	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
+		if rollout.Status.Abort && rollout.Spec.ScaleDownOnAbort {
+			return nil, 0
+		}
+
 		if scs.Replicas != nil {
 			return scs.Replicas, 0
 		} else if scs.Weight != nil {

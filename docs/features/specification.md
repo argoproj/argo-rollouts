@@ -58,6 +58,11 @@ spec:
   # than or equal to this value.
   restartAt: "2020-03-30T21:19:35Z"
 
+  # Scale down the preview replicasets or canary replicasets (if
+  # canary's setCanaryScale.replicas is set) on aborted update
+  # Defaults to false
+  scaleDownOnAbort: false
+
   strategy:
 
     # Blue-green update strategy

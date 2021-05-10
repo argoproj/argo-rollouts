@@ -120,6 +120,12 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.ScaleDownOnAbort {
+		c.log.Info("scale down on abort")
+		newReplicasCount = int32(0)
+	}
+
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
 	return scaled, err
 }
