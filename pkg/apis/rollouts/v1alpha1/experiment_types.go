@@ -67,6 +67,13 @@ type TemplateSpec struct {
 	Selector *metav1.LabelSelector `json:"selector" protobuf:"bytes,4,opt,name=selector"`
 	// Template describes the pods that will be created.
 	Template corev1.PodTemplateSpec `json:"template" protobuf:"bytes,5,opt,name=template"`
+	// ScaleDownDelaySeconds adds a delay before scaling down the Experiment.
+	// If omitted, the Experiment waits 30 seconds before scaling down.
+	// A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
+	// a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for
+	// more information
+	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,7,opt,name=scaleDownDelaySeconds"`
 }
 
 type TemplateStatusCode string
@@ -111,6 +118,10 @@ type TemplateStatus struct {
 	// LastTransitionTime is the last time the replicaset transitioned, which resets the countdown
 	// on the ProgressDeadlineSeconds check.
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,9,opt,name=lastTransitionTime"`
+	// ServiceName is the name of the service which corresponds to this experiment
+	ServiceName string `json:"serviceName,omitempty" protobuf:"bytes,10,opt,name=serviceName"`
+	// PodTemplateHash is the
+	PodTemplateHash string `json:"podTemplateHash,omitempty" protobuf:"bytes,11,opt,name=podTemplateHash"`
 }
 
 // ExperimentStatus is the status for a Experiment resource

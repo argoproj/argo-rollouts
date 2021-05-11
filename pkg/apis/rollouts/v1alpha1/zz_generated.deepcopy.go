@@ -1505,6 +1505,11 @@ func (in *RolloutExperimentTemplate) DeepCopyInto(out *RolloutExperimentTemplate
 		*out = new(v1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Weight != nil {
+		in, out := &in.Weight, &out.Weight
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -1824,6 +1829,11 @@ func (in *TemplateSpec) DeepCopyInto(out *TemplateSpec) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.ScaleDownDelaySeconds != nil {
+		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

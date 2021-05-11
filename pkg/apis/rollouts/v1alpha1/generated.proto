@@ -930,6 +930,9 @@ message RolloutExperimentTemplate {
   // use the same selector as the Rollout
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 5;
+
+  // Weight
+  optional int32 weight = 6;
 }
 
 // RolloutList is a list of Rollout resources
@@ -1182,6 +1185,14 @@ message TemplateSpec {
 
   // Template describes the pods that will be created.
   optional k8s.io.api.core.v1.PodTemplateSpec template = 5;
+
+  // ScaleDownDelaySeconds adds a delay before scaling down the Experiment.
+  // If omitted, the Experiment waits 30 seconds before scaling down.
+  // A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
+  // a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for
+  // more information
+  // +optional
+  optional int32 scaleDownDelaySeconds = 7;
 }
 
 // TemplateStatus is the status of a specific template of an Experiment
@@ -1216,6 +1227,12 @@ message TemplateStatus {
   // LastTransitionTime is the last time the replicaset transitioned, which resets the countdown
   // on the ProgressDeadlineSeconds check.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 9;
+
+  // ServiceName is the name of the service which corresponds to this experiment
+  optional string serviceName = 10;
+
+  // PodTemplateHash is the
+  optional string podTemplateHash = 11;
 }
 
 message ValueFrom {
