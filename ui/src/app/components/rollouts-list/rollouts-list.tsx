@@ -1,21 +1,17 @@
 import {faCircleNotch, faDove, faPalette, faRedoAlt, faSearch, faWeight} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {Autocomplete, EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, useAutocomplete, WaitFor} from 'argo-ux';
 import * as React from 'react';
+import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
 import {RolloutInfo} from '../../../models/rollout/rollout';
-import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
-import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
-import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
-import {Spinner, WaitFor} from '../wait-for/wait-for';
-import {Key, KeybindingContext, useNav} from 'react-keyhooks';
-import './rollouts-list.scss';
-import {ThemeDiv} from '../theme-div/theme-div';
-import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
-import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
-import {EffectDiv} from '../effect-div/effect-div';
-import {Autocomplete, useAutocomplete} from '../autocomplete/autocomplete';
-import {useClickOutside} from '../../shared/utils/utils';
 import {NamespaceContext} from '../../shared/context/api';
+import {useWatchRollout, useWatchRollouts} from '../../shared/services/rollout';
+import {useClickOutside} from '../../shared/utils/utils';
+import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
+import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
+import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
+import './rollouts-list.scss';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
