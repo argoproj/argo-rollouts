@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubectl-argo-rollouts
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubectl-argo-rollouts
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubectl-argo-rollouts
+    spec:
+      containers:
+      - name: argocd-server
+        image: quay.io/argoproj/kubectl-argo-rollouts:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3100
