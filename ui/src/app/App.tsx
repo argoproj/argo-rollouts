@@ -1,19 +1,17 @@
-import * as React from 'react';
-
-import './App.scss';
-import {Header} from './components/header/header';
-import {RolloutsList} from './components/rollouts-list/rollouts-list';
-import {Redirect, Route, Router, Switch} from 'react-router-dom';
-import {Rollout} from './components/rollout/rollout';
-import {createBrowserHistory} from 'history';
-import {ThemeProvider} from './shared/context/theme';
-import {ThemeDiv} from './components/theme-div/theme-div';
-import {NamespaceProvider} from './shared/context/api';
-import {Key} from 'react-keyhooks';
-import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
-import {Modal} from './components/modal/modal';
 import {faArrowDown, faArrowLeft, faArrowRight, faArrowUp} from '@fortawesome/free-solid-svg-icons';
-import {KeybindingContext, KeybindingProvider} from 'react-keyhooks';
+import {ThemeDiv} from 'argo-ux';
+import {Header} from './components/header/header';
+import {createBrowserHistory} from 'history';
+import * as React from 'react';
+import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
+import {Redirect, Route, Router, Switch} from 'react-router-dom';
+import './App.scss';
+import {Modal} from './components/modal/modal';
+import {Rollout} from './components/rollout/rollout';
+import {RolloutsList} from './components/rollouts-list/rollouts-list';
+import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
+import {NamespaceProvider} from './shared/context/api';
+import {ThemeProvider} from 'argo-ux';
 
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
