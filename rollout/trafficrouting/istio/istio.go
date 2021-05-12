@@ -153,7 +153,10 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 	}
 
 	patches := r.generateVirtualServicePatches(httpRoutes, int64(desiredWeight))
-	patches.patchVirtualService(httpRoutesI)
+	err = patches.patchVirtualService(httpRoutesI)
+	if err != nil {
+		return nil, false, err
+	}
 
 	err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", "http")
 	return newObj, len(patches) > 0, err
