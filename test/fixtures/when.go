@@ -32,7 +32,7 @@ import (
 )
 
 type When struct {
-	Common
+	*Common
 }
 
 func (w *When) ApplyManifests(yaml ...string) *When {
@@ -106,7 +106,7 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	}
 	var patchBytes []byte
 	if len(texts) == 0 {
-		nowStr := time.Now().Format(time.RFC3339)
+		nowStr := time.Now().Format(time.RFC3339Nano)
 		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
 		w.log.Infof("Updated rollout pod spec: %s", nowStr)
 	} else {

@@ -88,43 +88,43 @@ func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 	return phase
 }
 
-func getStrategyType(rollout *v1alpha1.Rollout) string {
+func getStrategyAndTrafficRouter(rollout *v1alpha1.Rollout) (string, string) {
+	strategy := "none"
+	trafficRouter := ""
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		return "blueGreen"
-	}
-	if rollout.Spec.Strategy.Canary != nil {
-		strategy := "canary"
+		strategy = "blueGreen"
+	} else if rollout.Spec.Strategy.Canary != nil {
+		strategy = "canary"
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 			if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
-				strategy += "-alb"
+				trafficRouter = "ALB"
 			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
-				strategy += "-ambassador"
+				trafficRouter = "Ambassador"
 			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
-				strategy += "-istio"
+				trafficRouter = "Istio"
 			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
-				strategy += "-nginx"
+				trafficRouter = "Nginx"
 			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
-				strategy += "-smi"
+				trafficRouter = "SMI"
 			}
 		}
-		return strategy
 	}
-	return "none"
+	return strategy, trafficRouter
 }
 
 func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
-	strategyType := getStrategyType(rollout)
+	strategyType, trafficRouter := getStrategyAndTrafficRouter(rollout)
 	calculatedPhase := calculatePhase(rollout)
 
 	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
 		lv = append([]string{rollout.Namespace, rollout.Name}, lv...)
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
-	addGauge(MetricRolloutInfo, 1, strategyType, string(calculatedPhase))
+	addGauge(MetricRolloutInfo, 1, strategyType, trafficRouter, string(calculatedPhase))
 	addGauge(MetricRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasUnavailable, float64(rollout.Status.Replicas-rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasDesired, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)))

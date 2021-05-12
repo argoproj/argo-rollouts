@@ -3,18 +3,22 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
@@ -40,7 +44,10 @@ func countReplicaSets(count int) fixtures.ReplicaSetExpectation {
 }
 
 func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 	s.Given().
+		StartEventWatch(ctx).
 		HealthyRollout(`@functional/rollout-basic.yaml`).
 		When().
 		UpdateSpec().
@@ -61,6 +68,7 @@ func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 			"RolloutCompleted",     // Rollout completed update to revision 1 (695bcc74ff): Initial deploy
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc to 1
+			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
 			"ScalingReplicaSet",    // Scaled down replica set basic-5b9b4d54cc from 1 to 0
 			"RolloutAborted",       // Rollout aborted update to revision 2
 			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc from 0 to 1
@@ -1058,4 +1066,11 @@ spec:
 		ExpectRollout("Resolved template not persisted", func(rollout *v1alpha1.Rollout) bool {
 			return rollout.Spec.Selector == nil && len(rollout.Spec.Template.Spec.Containers) == 0
 		})
+}
+
+// TestControllerMetrics is a basic test to verify prometheus /metrics endpoint is functional
+func (s *FunctionalSuite) TestControllerMetrics() {
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", controller.DefaultMetricsPort))
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 }

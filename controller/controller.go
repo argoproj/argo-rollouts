@@ -138,7 +138,7 @@ func NewManager(
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, rolloutWorkqueue, rolloutsInformer.Informer())
 
-	recorder := record.NewEventRecorder(kubeclientset)
+	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal)
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
 		Namespace:                       namespace,
@@ -283,7 +283,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		err := c.metricsServer.ListenAndServe()
 		if err != nil {
 			err = errors.Wrap(err, "Starting Metric Server")
-			log.Fatal(err)
+			log.Error(err)
 		}
 	}()
 	<-stopCh

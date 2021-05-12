@@ -64,17 +64,11 @@ func TestIncCounter(t *testing.T) {
 		},
 	}
 	rec := NewFakeEventRecorder()
-	counter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "my_counter",
-		},
-		[]string{"name", "namespace"},
-	)
 	for i := 0; i < 3; i++ {
-		rec.Eventf(&r, EventOptions{EventReason: "FooReason", PrometheusCounter: counter}, "something happened")
+		rec.Eventf(&r, EventOptions{EventReason: "FooReason"}, "something happened")
 	}
 	ch := make(chan prometheus.Metric, 1)
-	counter.Collect(ch)
+	rec.(*EventRecorderAdapter).RolloutEventCounter.Collect(ch)
 	m := <-ch
 	buf := dto.Metric{}
 	m.Write(&buf)

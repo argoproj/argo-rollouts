@@ -17,7 +17,7 @@ import (
 )
 
 type Then struct {
-	Common
+	*Common
 }
 
 func (t *Then) Assert(assertFunc func(t *Then)) *Then {

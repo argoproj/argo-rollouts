@@ -5,7 +5,7 @@ import "github.com/prometheus/client_golang/prometheus"
 // Follow Prometheus naming practices
 // https://prometheus.io/docs/practices/naming/
 var (
-	nameNamespaceLabels = []string{"namespace", "name"}
+	namespaceNameLabels = []string{"namespace", "name"}
 )
 
 // Rollout metrics
@@ -16,7 +16,7 @@ var (
 			Help:    "Rollout reconciliation performance.",
 			Buckets: []float64{0.01, 0.15, .25, .5, 1},
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 
 	MetricRolloutReconcileError = prometheus.NewCounterVec(
@@ -24,66 +24,50 @@ var (
 			Name: "rollout_reconcile_error",
 			Help: "Error occurring during the rollout",
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 
 	MetricRolloutInfo = prometheus.NewDesc(
 		"rollout_info",
 		"Information about rollout.",
-		append(nameNamespaceLabels, "strategy", "phase"),
+		append(namespaceNameLabels, "strategy", "traffic_router", "phase"),
 		nil,
 	)
 
 	MetricRolloutInfoReplicasAvailable = prometheus.NewDesc(
 		"rollout_info_replicas_available",
 		"The number of available replicas per rollout.",
-		nameNamespaceLabels,
+		namespaceNameLabels,
 		nil,
 	)
 
 	MetricRolloutInfoReplicasUnavailable = prometheus.NewDesc(
 		"rollout_info_replicas_unavailable",
 		"The number of unavailable replicas per rollout.",
-		nameNamespaceLabels,
+		namespaceNameLabels,
 		nil,
 	)
 
 	MetricRolloutInfoReplicasDesired = prometheus.NewDesc(
 		"rollout_info_replicas_desired",
 		"The number of desired replicas per rollout.",
-		nameNamespaceLabels,
+		namespaceNameLabels,
 		nil,
 	)
 
-	MetricRolloutUpdatedTotal = prometheus.NewCounterVec(
+	MetricRolloutEventsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "rollout_updated_total",
-			Help: "Count of rollout updates",
+			Name: "rollout_events_total",
+			Help: "Count of rollout events",
 		},
-		nameNamespaceLabels,
-	)
-
-	MetricRolloutAbortedTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rollout_aborted_total",
-			Help: "Count of rollout aborts",
-		},
-		nameNamespaceLabels,
-	)
-
-	MetricRolloutCompletedTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rollout_completed_total",
-			Help: "Count of rollout successfully completed updates",
-		},
-		nameNamespaceLabels,
+		append(namespaceNameLabels, "type", "reason"),
 	)
 
 	// DEPRECATED in favor of rollout_info
 	MetricRolloutPhase = prometheus.NewDesc(
 		"rollout_phase",
 		"Information on the state of the rollout (DEPRECATED - use rollout_info)",
-		append(nameNamespaceLabels, "strategy", "phase"),
+		append(namespaceNameLabels, "strategy", "phase"),
 		nil,
 	)
 )
@@ -96,7 +80,7 @@ var (
 			Help:    "Analysis Run reconciliation performance.",
 			Buckets: []float64{0.01, 0.15, .25, .5, 1},
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 
 	MetricAnalysisRunReconcileError = prometheus.NewCounterVec(
@@ -104,12 +88,12 @@ var (
 			Name: "analysis_run_reconcile_error",
 			Help: "Error occurring during the analysis run",
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 	MetricAnalysisRunInfo = prometheus.NewDesc(
 		"analysis_run_info",
 		"Information about analysis run.",
-		append(nameNamespaceLabels, "phase"),
+		append(namespaceNameLabels, "phase"),
 		nil,
 	)
 
@@ -117,21 +101,21 @@ var (
 	MetricAnalysisRunPhase = prometheus.NewDesc(
 		"analysis_run_phase",
 		"Information on the state of the Analysis Run (DEPRECATED - use analysis_run_info)",
-		append(nameNamespaceLabels, "phase"),
+		append(namespaceNameLabels, "phase"),
 		nil,
 	)
 
 	MetricAnalysisRunMetricType = prometheus.NewDesc(
 		"analysis_run_metric_type",
 		"Information on the type of a specific metric in the Analysis Runs",
-		append(nameNamespaceLabels, "metric", "type"),
+		append(namespaceNameLabels, "metric", "type"),
 		nil,
 	)
 
 	MetricAnalysisRunMetricPhase = prometheus.NewDesc(
 		"analysis_run_metric_phase",
 		"Information on the duration of a specific metric in the Analysis Run",
-		append(nameNamespaceLabels, "metric", "type", "phase"),
+		append(namespaceNameLabels, "metric", "type", "phase"),
 		nil,
 	)
 )
@@ -141,14 +125,14 @@ var (
 	MetricAnalysisTemplateInfo = prometheus.NewDesc(
 		"analysis_template_info",
 		"Information about analysis templates.",
-		append(nameNamespaceLabels),
+		append(namespaceNameLabels),
 		nil,
 	)
 
 	MetricAnalysisTemplateMetricInfo = prometheus.NewDesc(
 		"analysis_template_metric_info",
 		"Information on metrics in analysis templates.",
-		append(nameNamespaceLabels, "type"),
+		append(namespaceNameLabels, "type"),
 		nil,
 	)
 )
@@ -161,7 +145,7 @@ var (
 			Help:    "Experiments reconciliation performance.",
 			Buckets: []float64{0.01, 0.15, .25, .5, 1},
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 
 	MetricExperimentReconcileError = prometheus.NewCounterVec(
@@ -169,13 +153,13 @@ var (
 			Name: "experiment_reconcile_error",
 			Help: "Error occurring during the experiment",
 		},
-		nameNamespaceLabels,
+		namespaceNameLabels,
 	)
 
 	MetricExperimentInfo = prometheus.NewDesc(
 		"experiment_info",
 		"Information about Experiment.",
-		append(nameNamespaceLabels, "phase"),
+		append(namespaceNameLabels, "phase"),
 		nil,
 	)
 
@@ -183,7 +167,7 @@ var (
 	MetricExperimentPhase = prometheus.NewDesc(
 		"experiment_phase",
 		"Information on the state of the experiment (DEPRECATED - use experiment_info)",
-		append(nameNamespaceLabels, "phase"),
+		append(namespaceNameLabels, "phase"),
 		nil,
 	)
 )

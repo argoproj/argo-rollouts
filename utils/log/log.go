@@ -63,6 +63,28 @@ func WithObject(obj runtime.Object) *log.Entry {
 	return logCtx
 }
 
+// KindNamespaceName is a helper to get kind, namespace, name from a logging context
+// This is an optimization that callers can use to avoid inferring this again from a runtime.Object
+func KindNamespaceName(logCtx *log.Entry) (string, string, string) {
+	var kind string
+	var nameIf interface{}
+	var ok bool
+	if nameIf, ok = logCtx.Data["rollout"]; ok {
+		kind = "Rollout"
+	} else if nameIf, ok = logCtx.Data["analysisrun"]; ok {
+		kind = "AnalysisRun"
+	} else if nameIf, ok = logCtx.Data["analysistemplate"]; ok {
+		kind = "AnalysisTemplate"
+	} else if nameIf, ok = logCtx.Data["experiment"]; ok {
+		kind = "Experiment"
+	} else if nameIf, ok = logCtx.Data["clusteranalysistemplate"]; ok {
+		kind = "ClusterAnalysisTemplate"
+	}
+	name, _ := nameIf.(string)
+	namespace, _ := logCtx.Data["namespace"].(string)
+	return kind, namespace, name
+}
+
 // WithRollout returns a logging context for Rollouts
 func WithRollout(rollout *v1alpha1.Rollout) *log.Entry {
 	return log.WithField(RolloutKey, rollout.Name).WithField(NamespaceKey, rollout.Namespace)

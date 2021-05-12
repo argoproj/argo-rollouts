@@ -16,7 +16,6 @@ import (
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -123,7 +122,7 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 			return err
 		}
 		c.newRollout = updatedRollout
-		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason, PrometheusCounter: metrics.MetricRolloutUpdatedTotal}, conditions.RolloutUpdatedMessage, revision)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason}, conditions.RolloutUpdatedMessage, revision)
 	}
 	return nil
 }
@@ -608,7 +607,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
 			if conditions.SetRolloutCondition(&newStatus, *condition) {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason, PrometheusCounter: metrics.MetricRolloutAbortedTotal}, message)
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 			}
 		case conditions.RolloutComplete(c.rollout, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
@@ -882,7 +881,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		// only emit this event when we switched stable
 		newStatus.StableRS = newStatus.CurrentPodHash
 		revision, _ := replicasetutil.Revision(c.rollout)
-		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason, PrometheusCounter: metrics.MetricRolloutCompletedTotal},
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 		// Now that we've marked the desired RS as stable, start the scale-down countdown on the previous stable RS
 		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, previousStableHash)

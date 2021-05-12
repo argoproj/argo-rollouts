@@ -282,6 +282,6 @@ func (s *E2ESuite) Given() *Given {
 	// makes sure every Given object has a T() unique to the test and not testsuite
 	c.t = s.T()
 	return &Given{
-		Common: c,
+		Common: &c,
 	}
 }

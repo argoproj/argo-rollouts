@@ -7,6 +7,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -33,8 +34,7 @@ spec:
     spec:
       containers:
       - name: guestbook
-        # The image below can be flip from 0.1 to 0.2
-        image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        image: argoproj/rollouts-demo:blue
         ports:
         - containerPort: 80
   minReadySeconds: 30
@@ -47,11 +47,10 @@ status:
   replicas: 1
   availableReplicas: 1
 `
-)
-const expectedResponse = `
+	expectedResponse = `
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen"} 1
+rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen",traffic_router=""} 1
 # HELP rollout_info_replicas_available The number of available replicas per rollout.
 # TYPE rollout_info_replicas_available gauge
 rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
@@ -61,6 +60,53 @@ rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
 rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`
+
+	fakeCanaryRollout = `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook-canary
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+      - name: guestbook
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - containerPort: 80
+  minReadySeconds: 30
+  revisionHistoryLimit: 3
+  strategy:
+    canary:
+      trafficRouting:
+        smi: {}
+status:
+  replicas: 1
+  availableReplicas: 1
+`
+
+	expectedCanaryResponse = `
+# HELP rollout_info Information about rollout.
+# TYPE rollout_info gauge
+rollout_info{name="guestbook-canary",namespace="default",phase="Progressing",strategy="canary",traffic_router="SMI"} 1
+# HELP rollout_info_replicas_available The number of available replicas per rollout.
+# TYPE rollout_info_replicas_available gauge
+rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1
+# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
+# TYPE rollout_info_replicas_desired gauge
+rollout_info_replicas_desired{name="guestbook-canary",namespace="default"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`
+)
 
 func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
 	var rollout v1alpha1.Rollout
@@ -76,6 +122,10 @@ func TestCollectRollouts(t *testing.T) {
 		{
 			resource:         fakeRollout,
 			expectedResponse: expectedResponse,
+		},
+		{
+			resource:         fakeCanaryRollout,
+			expectedResponse: expectedCanaryResponse,
 		},
 	}
 
@@ -118,29 +168,113 @@ rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
 
-func TestGetStrategyType(t *testing.T) {
-	bgRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
+func TestGetStrategyAndTrafficRouter(t *testing.T) {
+	var tests = []struct {
+		strategy              v1alpha1.RolloutStrategy
+		expectedStrategy      string
+		expectedTrafficRouter string
+	}{
+		{
+			strategy: v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
+			expectedStrategy:      "blueGreen",
+			expectedTrafficRouter: "",
 		},
-	}
-	assert.Equal(t, "blueGreen", getStrategyType(bgRollout))
-
-	canaryRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
+		{
+			strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{},
 			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "",
+		},
+		{
+			strategy:              v1alpha1.RolloutStrategy{},
+			expectedStrategy:      "none",
+			expectedTrafficRouter: "",
+		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						SMI: &v1alpha1.SMITrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "SMI",
+		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "Istio",
+		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "ALB",
+		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Ambassador: &v1alpha1.AmbassadorTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "Ambassador",
+		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Nginx: &v1alpha1.NginxTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "Nginx",
 		},
 	}
-	assert.Equal(t, "canary", getStrategyType(canaryRollout))
 
-	noStrategyRollout := &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{},
-		},
+	for _, test := range tests {
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: test.strategy,
+			},
+		}
+		strategy, trafficRouter := getStrategyAndTrafficRouter(ro)
+		assert.Equal(t, test.expectedStrategy, strategy)
+		assert.Equal(t, test.expectedTrafficRouter, trafficRouter)
 	}
-	assert.Equal(t, "none", getStrategyType(noStrategyRollout))
+}
+
+func TestIncRolloutEvents(t *testing.T) {
+	expectedResponse := `
+# HELP rollout_events_total Count of rollout events
+# TYPE rollout_events_total counter
+rollout_events_total{name="ro-test-1",namespace="ro-namespace",reason="BarEvent",type="Normal"} 1
+rollout_events_total{name="ro-test-1",namespace="ro-namespace",reason="FooEvent",type="Normal"} 1
+rollout_events_total{name="ro-test-2",namespace="ro-namespace",reason="BazEvent",type="Warning"} 2
+`
+
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "FooEvent").Inc()
+	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "BarEvent").Inc()
+	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
+	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
+	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }

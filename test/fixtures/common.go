@@ -20,7 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
@@ -52,6 +51,8 @@ type Common struct {
 
 	rollout *unstructured.Unstructured
 	objects []*unstructured.Unstructured
+
+	events []corev1.Event
 }
 
 func (c *Common) CheckError(err error) {
@@ -468,17 +469,38 @@ func (c *Common) GetDestinationRule() *istio.DestinationRule {
 	return &destRule
 }
 
+func (c *Common) StartEventWatch(ctx context.Context) {
+	watchEventsIf, err := c.kubeClient.CoreV1().Events(c.namespace).Watch(ctx, metav1.ListOptions{})
+	c.events = nil
+	c.CheckError(err)
+	c.log.Infof("Event watcher started")
+
+	go func() {
+		for {
+			select {
+			case watchEvent := <-watchEventsIf.ResultChan():
+				event, ok := watchEvent.Object.(*corev1.Event)
+				if ok {
+					c.events = append(c.events, *event)
+				} else {
+					c.t.Fatalf("received non-event from event watch: %v", watchEvent)
+				}
+			case <-ctx.Done():
+				c.log.Infof("Event watcher stopped")
+				return
+			}
+		}
+	}()
+}
+
 func (c *Common) GetRolloutEventReasons() []string {
 	ro, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.namespace).Get(c.Context, c.rollout.GetName(), metav1.GetOptions{})
 	c.CheckError(err)
-	eventsIf := c.kubeClient.CoreV1().Events(c.namespace)
-	events, err := eventsIf.List(c.Context, metav1.ListOptions{
-		FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ro.UID)).String(),
-	})
-	c.CheckError(err)
 	var reasons []string
-	for _, event := range events.Items {
-		reasons = append(reasons, event.Reason)
+	for _, event := range c.events {
+		if event.InvolvedObject.UID == ro.UID {
+			reasons = append(reasons, event.Reason)
+		}
 	}
 	return reasons
 }
