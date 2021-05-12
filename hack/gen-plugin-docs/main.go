@@ -113,9 +113,12 @@ func GenMarkdownTree(cmd *cobra.Command, dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
 	if err := GenMarkdown(cmd, f); err != nil {
+		return nil, err
+	}
+	err = f.Close()
+	if err != nil {
 		return nil, err
 	}
 	files = append(files, filename)
