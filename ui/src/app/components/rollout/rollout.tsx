@@ -1,13 +1,4 @@
-import * as React from 'react';
-import {useHistory, useParams} from 'react-router-dom';
-import {Helmet} from 'react-helmet';
-
-import './rollout.scss';
-import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
-import {ThemeDiv} from '../theme-div/theme-div';
-import {useWatchRollout} from '../../shared/services/rollout';
-import {InfoItem, InfoItemKind, InfoItemProps, InfoItemRow} from '../info-item/info-item';
-import {RolloutInfo} from '../../../models/rollout/rollout';
+import {faChartBar} from '@fortawesome/free-regular-svg-icons';
 import {
     faBalanceScale,
     faBalanceScaleRight,
@@ -27,25 +18,27 @@ import {
     faWeight,
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
-import {ReplicaSets} from '../pods/pods';
-import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
-import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
-import {useInput} from '../input/input';
-import {ActionButton} from '../action-button/action-button';
-import {Spinner, WaitFor} from '../wait-for/wait-for';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {ActionButton, Autocomplete, EffectDiv, InfoItem, InfoItemKind, InfoItemProps, InfoItemRow, Spinner, ThemeDiv, Tooltip, useInput, WaitFor} from 'argo-ux';
+import * as React from 'react';
+import {Helmet} from 'react-helmet';
+import {Key, KeybindingContext} from 'react-keyhooks';
+import {useHistory, useParams} from 'react-router-dom';
 import {
-    RolloutAnalysisRunInfo,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
+    RolloutAnalysisRunInfo,
     RolloutContainerInfo,
     RolloutExperimentInfo,
     RolloutReplicaSetInfo,
 } from '../../../models/rollout/generated';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {Autocomplete} from '../autocomplete/autocomplete';
-import {faChartBar} from '@fortawesome/free-regular-svg-icons';
-import {EffectDiv} from '../effect-div/effect-div';
-import {Tooltip} from '../tooltip/tooltip';
-import {Key, KeybindingContext} from 'react-keyhooks';
+import {RolloutInfo} from '../../../models/rollout/rollout';
+import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
+import {useWatchRollout} from '../../shared/services/rollout';
+import {formatTimestamp, IconForTag, ImageTag} from '../../shared/utils/utils';
+import {ReplicaSets} from '../pods/pods';
+import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
+import './rollout.scss';
+
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 interface ImageInfo {
     image: string;

@@ -3,7 +3,7 @@ import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
-import {ActionButton, ActionButtonProps} from '../action-button/action-button';
+import {ActionButton, ActionButtonProps} from 'argo-ux';
 import {RolloutStatus} from '../status-icon/status-icon';
 
 export enum RolloutAction {

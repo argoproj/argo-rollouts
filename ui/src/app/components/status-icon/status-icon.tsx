@@ -1,11 +1,9 @@
-import * as React from 'react';
-
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faArrowAltCircleDown, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
-
+import {faArrowAltCircleDown, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {Tooltip} from 'argo-ux';
+import * as React from 'react';
 import './status-icon.scss';
-import {Tooltip} from '../tooltip/tooltip';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
