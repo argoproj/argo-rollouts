@@ -30,7 +30,4 @@ module.exports = merge(common, {
             },
         },
     },
-    resolve: {
-        alias: {react: require.resolve('react')},
-    },
 });
