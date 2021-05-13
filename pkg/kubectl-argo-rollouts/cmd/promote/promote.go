@@ -30,11 +30,11 @@ To skip analysis, pauses and steps entirely, use '--full' to fully promote the r
 )
 
 const (
-	setCurrentStepIndex                 = `{"status":{"currentStepIndex":%d}}`
-	unpausePatch                        = `{"spec":{"paused":false}}`
-	clearPauseConditionsPatch           = `{"status":{"pauseConditions":null}}`
-	unpauseAndClearPauseConditionsPatch = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
-	promoteFullPatch                    = `{"status":{"promoteFull":true}}`
+	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
+	unpausePatch                                = `{"spec":{"paused":false}}`
+	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
+	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
+	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
 	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 
