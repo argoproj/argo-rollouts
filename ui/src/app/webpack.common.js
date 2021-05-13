@@ -19,6 +19,7 @@ const config = {
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json', '.ttf'],
+        alias: {react: require.resolve('react')},
     },
 
     module: {
