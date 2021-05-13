@@ -36,7 +36,7 @@ As a starting point you can find an existing dashboard at [https://github.com/ar
 
 [![Example Grafana Dashboard](controller-metrics-assets/argo-rollouts-metrics.png)](controller-metrics-assets/argo-rollouts-metrics.png)
 
-You can import this Dashboard in your Grafana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard). 
+You can import this Dashboard in your Grafana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard).
 
 
 ## Available metrics for Rollout Objects
@@ -80,4 +80,4 @@ The controller also publishes the following Prometheus metrics to describe the c
 | `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running |
 | `workqueue_retries_total`                     | Total number of retries handled by workqueue |
 
-In addition, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
+In addition, the Argo-rollouts offers metrics on CPU, memory and file descriptor usage as well as the process start time and memory stats of current Go processes.
