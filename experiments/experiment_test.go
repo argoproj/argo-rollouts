@@ -15,13 +15,13 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experimentContext {
@@ -54,7 +54,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		analysisTemplateLister,
 		clusterAnalysisTemplateLister,
 		analysisRunLister,
-		&record.FakeRecorder{},
+		record.NewFakeEventRecorder(),
 		func(obj interface{}, duration time.Duration) {},
 	)
 }

@@ -9,18 +9,17 @@ import (
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (
@@ -206,12 +205,9 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 		// Create new Traffic Split
 		err = r.createTrafficSplit(trafficSplits)
 		if err == nil {
-			msg := fmt.Sprintf("Traffic Split `%s` created", trafficSplitName)
-			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitCreated", msg)
-			r.log.Info(msg)
+			r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "TrafficSplitCreated"}, "TrafficSplit `%s` created", trafficSplitName)
 		} else {
-			msg := fmt.Sprintf("Unable to create Traffic Split `%s`", trafficSplitName)
-			r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeWarning, "TrafficSplitNotCreated", msg)
+			r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "TrafficSplitNotCreated"}, "TrafficSplit `%s` failed creation: %v", trafficSplitName, err)
 		}
 		return err
 	}
@@ -227,9 +223,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	}
 	err = r.patchTrafficSplit(existingTrafficSplit, trafficSplits)
 	if err == nil {
-		msg := fmt.Sprintf("Traffic Split `%s` modified", trafficSplitName)
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "TrafficSplitModified", msg)
-		r.log.Info(msg)
+		r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "TrafficSplitModified"}, "TrafficSplit `%s` modified", trafficSplitName)
 	}
 	return err
 }

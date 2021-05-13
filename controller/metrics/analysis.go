@@ -11,102 +11,101 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
-var (
-	descAnalysisRunInfo = prometheus.NewDesc(
-		"analysis_run_info",
-		"Information about analysis run.",
-		descDefaultLabels,
-		nil,
-	)
-
-	descAnalysisRunPhaseLabels = append(descDefaultLabels, "phase")
-
-	descAnalysisRunMetricLabels = append(descDefaultLabels, "metric", "type")
-
-	descAnalysisRunMetricPhase = append(descAnalysisRunMetricLabels, "phase")
-
-	descAnalysisRunPhase = prometheus.NewDesc(
-		"analysis_run_phase",
-		"Information on the state of the Analysis Run",
-		descAnalysisRunPhaseLabels,
-		nil,
-	)
-
-	descMetricType = prometheus.NewDesc(
-		"analysis_run_metric_type",
-		"Information on the type of a specific metric in the Analysis Runs",
-		descAnalysisRunMetricLabels,
-		nil,
-	)
-
-	descMetricPhase = prometheus.NewDesc(
-		"analysis_run_metric_phase",
-		"Information on the duration of a specific metric in the Analysis Run",
-		descAnalysisRunMetricPhase,
-		nil,
-	)
-)
-
 type analysisRunCollector struct {
-	store rolloutlister.AnalysisRunLister
+	runs             rolloutlister.AnalysisRunLister
+	templates        rolloutlister.AnalysisTemplateLister
+	clusterTemplates rolloutlister.ClusterAnalysisTemplateLister
 }
 
 // NewAnalysisRunCollector returns a prometheus collector for AnalysisRun metrics
-func NewAnalysisRunCollector(analysisRunLister rolloutlister.AnalysisRunLister) prometheus.Collector {
+func NewAnalysisRunCollector(
+	analysisRunLister rolloutlister.AnalysisRunLister,
+	analysisTemplateLister rolloutlister.AnalysisTemplateLister,
+	clusterAnalysisTemplateLister rolloutlister.ClusterAnalysisTemplateLister,
+) prometheus.Collector {
 	return &analysisRunCollector{
-		store: analysisRunLister,
+		runs:             analysisRunLister,
+		templates:        analysisTemplateLister,
+		clusterTemplates: clusterAnalysisTemplateLister,
 	}
 }
 
 // Describe implements the prometheus.Collector interface
 func (c *analysisRunCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- descAnalysisRunInfo
+	ch <- MetricAnalysisRunInfo
 }
 
 // Collect implements the prometheus.Collector interface
 func (c *analysisRunCollector) Collect(ch chan<- prometheus.Metric) {
-	analysisRuns, err := c.store.List(labels.NewSelector())
+	analysisRuns, err := c.runs.List(labels.NewSelector())
 	if err != nil {
-		log.Warnf("Failed to collect analysisRuns: %v", err)
-		return
+		log.Warnf("Failed to collect analysis runs: %v", err)
+	} else {
+		for _, ar := range analysisRuns {
+			collectAnalysisRuns(ch, ar)
+		}
 	}
-	for _, ar := range analysisRuns {
-		collectAnalysisRuns(ch, ar)
+	analysisTemplates, err := c.templates.List(labels.NewSelector())
+	if err != nil {
+		log.Warnf("Failed to collect analysis templates: %v", err)
+	} else {
+		for _, at := range analysisTemplates {
+			collectAnalysisTemplate(ch, at.Namespace, at.Name, &at.Spec)
+		}
+	}
+	clusterAnalysisTemplates, err := c.clusterTemplates.List(labels.NewSelector())
+	if err != nil {
+		log.Warnf("Failed to collect cluster analysis templates: %v", err)
+	} else {
+		for _, at := range clusterAnalysisTemplates {
+			collectAnalysisTemplate(ch, at.Namespace, at.Name, &at.Spec)
+		}
 	}
 }
 
 func collectAnalysisRuns(ch chan<- prometheus.Metric, ar *v1alpha1.AnalysisRun) {
-
-	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		lv = append([]string{ar.Namespace, ar.Name}, lv...)
-		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
-	}
 	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
-		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
+		lv = append([]string{ar.Namespace, ar.Name}, lv...)
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
-
-	addGauge(descAnalysisRunInfo, 1)
-
 	calculatedPhase := ar.Status.Phase
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string(v1alpha1.AnalysisPhasePending))
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), string(v1alpha1.AnalysisPhaseError))
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), string(v1alpha1.AnalysisPhaseFailed))
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), string(v1alpha1.AnalysisPhaseSuccessful))
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), string(v1alpha1.AnalysisPhaseRunning))
-	addGauge(descAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), string(v1alpha1.AnalysisPhaseInconclusive))
+
+	addGauge(MetricAnalysisRunInfo, 1, string(calculatedPhase))
+
+	// DEPRECATED
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string(v1alpha1.AnalysisPhasePending))
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), string(v1alpha1.AnalysisPhaseError))
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), string(v1alpha1.AnalysisPhaseFailed))
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), string(v1alpha1.AnalysisPhaseSuccessful))
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), string(v1alpha1.AnalysisPhaseRunning))
+	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), string(v1alpha1.AnalysisPhaseInconclusive))
+
 	for _, metric := range ar.Spec.Metrics {
 		metricType := metricproviders.Type(metric)
 		metricResult := analysis.GetResult(ar, metric.Name)
-		addGauge(descMetricType, 1, metric.Name, metricType)
+		addGauge(MetricAnalysisRunMetricType, 1, metric.Name, metricType)
 		calculatedPhase := v1alpha1.AnalysisPhase("")
 		if metricResult != nil {
 			calculatedPhase = metricResult.Phase
 		}
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, string(v1alpha1.AnalysisPhasePending))
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, string(v1alpha1.AnalysisPhaseError))
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, string(v1alpha1.AnalysisPhaseFailed))
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, string(v1alpha1.AnalysisPhaseSuccessful))
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, string(v1alpha1.AnalysisPhaseRunning))
-		addGauge(descMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, string(v1alpha1.AnalysisPhaseInconclusive))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, string(v1alpha1.AnalysisPhasePending))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, string(v1alpha1.AnalysisPhaseError))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, string(v1alpha1.AnalysisPhaseFailed))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, string(v1alpha1.AnalysisPhaseSuccessful))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, string(v1alpha1.AnalysisPhaseRunning))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, string(v1alpha1.AnalysisPhaseInconclusive))
+	}
+}
+
+func collectAnalysisTemplate(ch chan<- prometheus.Metric, namespace, name string, at *v1alpha1.AnalysisTemplateSpec) {
+	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
+		lv = append([]string{namespace, name}, lv...)
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
+	}
+	addGauge(MetricAnalysisTemplateInfo, 1)
+
+	for _, metric := range at.Metrics {
+		metricType := metricproviders.Type(metric)
+		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType)
 	}
 }

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -20,7 +18,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -34,9 +31,10 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/istio"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
 	"github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
 const (
@@ -49,7 +47,7 @@ func newCommand() *cobra.Command {
 		clientConfig        clientcmd.ClientConfig
 		rolloutResyncPeriod int64
 		logLevel            string
-		glogLevel           int
+		klogLevel           int
 		metricsPort         int
 		instanceID          string
 		rolloutThreads      int
@@ -79,7 +77,7 @@ func newCommand() *cobra.Command {
 				FullTimestamp: true,
 			}
 			log.SetFormatter(formatter)
-			setGLogLevel(glogLevel)
+			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
@@ -189,7 +187,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().BoolVar(&namespaced, "namespaced", false, "runs controller in namespaced mode (does not require cluster RBAC)")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
@@ -231,13 +229,6 @@ func setLogLevel(logLevel string) {
 		log.Fatal(err)
 	}
 	log.SetLevel(level)
-}
-
-// setGLogLevel set the glog level for the k8s go-client
-func setGLogLevel(glogLevel int) {
-	klog.InitFlags(nil)
-	_ = flag.Set("logtostderr", "true")
-	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
 
 func checkError(err error) {

@@ -18,6 +18,7 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -184,7 +185,7 @@ func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.Rollo
 				eventType = corev1.EventTypeWarning
 			}
 			msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-			c.recorder.Event(c.rollout, eventType, "AnalysisRunStatusChange", msg)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
 		}
 	}
 }

@@ -77,15 +77,6 @@ func GetCanaryIngressAnnotationPrefixOrDefault(rollout *v1alpha1.Rollout) string
 	}
 	return "nginx.ingress.kubernetes.io"
 }
-func GetStrategyType(rollout *v1alpha1.Rollout) string {
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		return "blueGreen"
-	}
-	if rollout.Spec.Strategy.Canary != nil {
-		return "canary"
-	}
-	return "No Strategy listed"
-}
 
 func GetProgressDeadlineSecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.ProgressDeadlineSeconds != nil {

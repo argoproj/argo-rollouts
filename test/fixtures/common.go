@@ -51,6 +51,8 @@ type Common struct {
 
 	rollout *unstructured.Unstructured
 	objects []*unstructured.Unstructured
+
+	events []corev1.Event
 }
 
 func (c *Common) CheckError(err error) {
@@ -465,4 +467,40 @@ func (c *Common) GetDestinationRule() *istio.DestinationRule {
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(destRuleUn.Object, &destRule)
 	c.CheckError(err)
 	return &destRule
+}
+
+func (c *Common) StartEventWatch(ctx context.Context) {
+	watchEventsIf, err := c.kubeClient.CoreV1().Events(c.namespace).Watch(ctx, metav1.ListOptions{})
+	c.events = nil
+	c.CheckError(err)
+	c.log.Infof("Event watcher started")
+
+	go func() {
+		for {
+			select {
+			case watchEvent := <-watchEventsIf.ResultChan():
+				event, ok := watchEvent.Object.(*corev1.Event)
+				if ok {
+					c.events = append(c.events, *event)
+				} else {
+					c.t.Fatalf("received non-event from event watch: %v", watchEvent)
+				}
+			case <-ctx.Done():
+				c.log.Infof("Event watcher stopped")
+				return
+			}
+		}
+	}()
+}
+
+func (c *Common) GetRolloutEventReasons() []string {
+	ro, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.namespace).Get(c.Context, c.rollout.GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	var reasons []string
+	for _, event := range c.events {
+		if event.InvolvedObject.UID == ro.UID {
+			reasons = append(reasons, event.Reason)
+		}
+	}
+	return reasons
 }
