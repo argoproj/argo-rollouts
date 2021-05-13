@@ -35,6 +35,8 @@ const (
 	clearPauseConditionsPatch           = `{"status":{"pauseConditions":null}}`
 	unpauseAndClearPauseConditionsPatch = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
 	promoteFullPatch                    = `{"status":{"promoteFull":true}}`
+	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
@@ -149,23 +151,23 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			statusPatch = []byte(promoteFullPatch)
 		}
 	default:
-		if rollout.Spec.Strategy.BlueGreen != nil || rollout.Spec.Paused || len(rollout.Status.PauseConditions) > 0 {
-			if rollout.Spec.Paused {
-				specPatch = []byte(unpausePatch)
-			}
-			if len(rollout.Status.PauseConditions) > 0 {
-				statusPatch = []byte(clearPauseConditionsPatch)
-			}
-			unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
-		} else {
+		if rollout.Spec.Paused {
+			specPatch = []byte(unpausePatch)
+		}
+		if len(rollout.Status.PauseConditions) > 0 {
+			statusPatch = []byte(clearPauseConditionsPatch)
+		}
+		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
+
+		if rollout.Spec.Strategy.Canary != nil {
 			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 			// the index is not set in the rollout
 			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
 				*index++
 			}
-			statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
-			unifiedPatch = statusPatch
+			statusPatch = []byte(fmt.Sprintf(clearPauseConditionsPatchWithStep, *index))
+			unifiedPatch = []byte(fmt.Sprintf(unpauseAndClearPauseConditionsPatchWithStep, *index))
 		}
 	}
 	return specPatch, statusPatch, unifiedPatch
