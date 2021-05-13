@@ -159,7 +159,7 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		}
 		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 
-		if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary != nil && !rollout.Status.ControllerPause {
 			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 			// the index is not set in the rollout
