@@ -9,24 +9,6 @@ import (
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 )
 
-var (
-	descExperimentInfo = prometheus.NewDesc(
-		"experiment_info",
-		"Information about Experiment.",
-		descDefaultLabels,
-		nil,
-	)
-
-	descExperimentPhaseLabels = append(descDefaultLabels, "phase")
-
-	descExperimentPhase = prometheus.NewDesc(
-		"experiment_phase",
-		"Information on the state of the experiment",
-		descExperimentPhaseLabels,
-		nil,
-	)
-)
-
 type experimentCollector struct {
 	store rolloutlister.ExperimentLister
 }
@@ -40,7 +22,7 @@ func NewExperimentCollector(experimentLister rolloutlister.ExperimentLister) pro
 
 // Describe implements the prometheus.Collector interface
 func (c *experimentCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- descExperimentInfo
+	ch <- MetricExperimentInfo
 }
 
 // Collect implements the prometheus.Collector interface
@@ -56,21 +38,18 @@ func (c *experimentCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func collectExperiments(ch chan<- prometheus.Metric, ex *v1alpha1.Experiment) {
-
-	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		lv = append([]string{ex.Namespace, ex.Name}, lv...)
-		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
-	}
 	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
-		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
+		lv = append([]string{ex.Namespace, ex.Name}, lv...)
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
-
-	addGauge(descExperimentInfo, 1)
-
 	calculatedPhase := ex.Status.Phase
-	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string("Pending"))
-	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), string("Error"))
-	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), string("Successful"))
-	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), string("Running"))
-	addGauge(descExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), string("Inconclusive"))
+
+	addGauge(MetricExperimentInfo, 1, string(calculatedPhase))
+
+	// DEPRECATED
+	addGauge(MetricExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), string("Pending"))
+	addGauge(MetricExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), string("Error"))
+	addGauge(MetricExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), string("Successful"))
+	addGauge(MetricExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), string("Running"))
+	addGauge(MetricExperimentPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), string("Inconclusive"))
 }

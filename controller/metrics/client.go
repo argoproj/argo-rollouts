@@ -5,7 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	kubeclientmetrics "github.com/argoproj/argo-rollouts/utils/kubeclientmetrics"
+	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
 const (
@@ -17,24 +17,12 @@ type K8sRequestsCountProvider struct {
 }
 
 func (f *K8sRequestsCountProvider) MustRegister(registerer prometheus.Registerer) {
-	f.k8sRequestsCount = k8sRequestsCount
+	f.k8sRequestsCount = MetricK8sRequestTotal
 	registerer.MustRegister(f.k8sRequestsCount)
 }
 
-var (
-	// Custom events metric
-	k8sRequestsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: clientsetMetricsNamespace,
-			Name:      "k8s_request_total",
-			Help:      "Number of kubernetes requests executed during application reconciliation.",
-		},
-		[]string{"kind", "namespace", "name", "verb", "status_code"},
-	)
-)
-
 // IncKubernetesRequest increments the kubernetes client counter
-func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) {
+func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientmetrics.ResourceInfo) error {
 	name := resourceInfo.Name
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
@@ -49,4 +37,5 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	}
 
 	m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
+	return nil
 }

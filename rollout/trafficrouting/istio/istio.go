@@ -8,17 +8,16 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const Type = "Istio"
@@ -153,7 +152,10 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 	}
 
 	patches := r.generateVirtualServicePatches(httpRoutes, int64(desiredWeight))
-	patches.patchVirtualService(httpRoutesI)
+	err = patches.patchVirtualService(httpRoutesI)
+	if err != nil {
+		return nil, false, err
+	}
 
 	err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", "http")
 	return newObj, len(patches) > 0, err
@@ -177,8 +179,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			msg := fmt.Sprintf("DestinationRule `%s` not found", dRuleSpec.Name)
-			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "DestinationRuleNotFound", msg)
+			r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "DestinationRuleNotFound"}, "DestinationRule `%s` not found", dRuleSpec.Name)
 		}
 		return err
 	}
@@ -217,9 +218,8 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 		return err
 	}
 	if modified {
-		msg := fmt.Sprintf("DestinationRule %s subset updated (%s: %s, %s: %s)", dRuleSpec.Name, dRuleSpec.CanarySubsetName, canaryHash, dRuleSpec.StableSubsetName, stableHash)
-		r.log.Info(msg)
-		r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatedDestinationRule", msg)
+		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedDestinationRule"},
+			"DestinationRule %s subset updated (%s: %s, %s: %s)", dRuleSpec.Name, dRuleSpec.CanarySubsetName, canaryHash, dRuleSpec.StableSubsetName, stableHash)
 	}
 	return nil
 }
@@ -333,8 +333,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	}
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			msg := fmt.Sprintf("VirtualService `%s` not found", vsvcName)
-			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "VirtualServiceNotFound", msg)
+			r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "VirtualServiceNotFound"}, "VirtualService `%s` not found", vsvcName)
 		}
 		return err
 	}
@@ -347,9 +346,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	}
 	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
 	if err == nil {
-		msg := fmt.Sprintf("VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
-		r.log.Info(msg)
-		r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatedVirtualService", msg)
+		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
 	}
 	return err
 }

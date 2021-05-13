@@ -15,6 +15,7 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (
@@ -24,12 +25,6 @@ const (
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval time.Duration = 10 * time.Second
-)
-
-// Event reasons for analysis events
-const (
-	EventReasonStatusFailed    = "Failed"
-	EventReasonStatusCompleted = "Complete"
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -52,7 +47,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		log.Warn(message)
 		run.Status.Phase = v1alpha1.AnalysisPhaseError
 		run.Status.Message = message
-		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+		c.recordAnalysisRunCompletionEvent(run)
 		return run
 	}
 	run.Spec.Metrics = metrics
@@ -65,7 +60,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 			log.Warn(message)
 			run.Status.Phase = v1alpha1.AnalysisPhaseError
 			run.Status.Message = message
-			c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+			c.recordAnalysisRunCompletionEvent(run)
 			return run
 		}
 	}
@@ -78,24 +73,17 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		log.Warn(message)
 		run.Status.Phase = v1alpha1.AnalysisPhaseError
 		run.Status.Message = message
-		c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", run.Status.Phase)
+		c.recordAnalysisRunCompletionEvent(run)
 		return run
 	}
 
 	newStatus, newMessage := c.assessRunStatus(run)
 	if newStatus != run.Status.Phase {
-		message := fmt.Sprintf("analysis transitioned from %s -> %s", run.Status.Phase, newStatus)
-		if newStatus.Completed() {
-			switch newStatus {
-			case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-				c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "analysis completed %s", newStatus)
-			default:
-				c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "analysis completed %s", newStatus)
-			}
-		}
-		log.Info(message)
 		run.Status.Phase = newStatus
 		run.Status.Message = newMessage
+		if newStatus.Completed() {
+			c.recordAnalysisRunCompletionEvent(run)
+		}
 	}
 
 	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
@@ -114,6 +102,15 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
+}
+
+func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun) {
+	eventType := corev1.EventTypeNormal
+	switch run.Status.Phase {
+	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+		eventType = corev1.EventTypeWarning
+	}
+	c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(run.Status.Phase)}, "analysis completed %s", run.Status.Phase)
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -381,12 +378,12 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 			if result.Phase != metricStatus {
 				log.Infof("metric transitioned from %s -> %s", result.Phase, metricStatus)
 				if metricStatus.Completed() {
+					eventType := corev1.EventTypeNormal
 					switch metricStatus {
 					case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-						c.recorder.Eventf(run, corev1.EventTypeWarning, EventReasonStatusFailed, "metric '%s' completed %s", metric.Name, metricStatus)
-					default:
-						c.recorder.Eventf(run, corev1.EventTypeNormal, EventReasonStatusCompleted, "metric '%s' completed %s", metric.Name, metricStatus)
+						eventType = corev1.EventTypeWarning
 					}
+					c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "Metric" + string(metricStatus)}, "metric '%s' completed %s", metric.Name, metricStatus)
 				}
 				if lastMeasurement := analysisutil.LastMeasurement(run, metric.Name); lastMeasurement != nil {
 					result.Message = lastMeasurement.Message

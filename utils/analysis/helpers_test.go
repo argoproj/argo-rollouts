@@ -399,7 +399,7 @@ func TestFlattenTemplates(t *testing.T) {
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, template)
-		assert.Equal(t, err, fmt.Errorf("two metrics have the same name foo"))
+		assert.Equal(t, err, fmt.Errorf("two metrics have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
 		fooArgs := arg("foo", pointer.StringPtr("true"))
@@ -531,7 +531,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	templates = append(templates, matchingMetric)
 	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
-	assert.Equal(t, fmt.Errorf("two metrics have the same name success-rate"), err)
+	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
 
 func TestMergeArgs(t *testing.T) {

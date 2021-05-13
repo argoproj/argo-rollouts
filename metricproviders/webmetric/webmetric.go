@@ -22,7 +22,7 @@ import (
 
 const (
 	// ProviderType indicates the provider is a web metric
-	ProviderType = "WebMetric"
+	ProviderType = "Web"
 )
 
 // Provider contains all the required components to run a WebMetric query

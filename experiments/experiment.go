@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -20,6 +19,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 )
@@ -198,13 +198,12 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		if templateStatus.Message != "" {
 			msg = msg + ": " + templateStatus.Message
 		}
-		ec.log.Info(msg)
+		eventType := corev1.EventTypeNormal
 		switch templateStatus.Status {
 		case v1alpha1.TemplateStatusFailed, v1alpha1.TemplateStatusError:
-			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(templateStatus.Status), msg)
-		default:
-			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(templateStatus.Status), msg)
+			eventType = corev1.EventTypeWarning
 		}
+		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Template" + string(templateStatus.Status)}, msg)
 	}
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
 }
@@ -266,18 +265,17 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	// 1. update the runStatus
 	// 2. log a message and emit an event on status changes
 	defer func() {
-		if prevStatus.Phase != newStatus.Phase {
-			msg := fmt.Sprintf("Analysis '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Phase, newStatus.Phase)
+		if prevStatus.Phase != newStatus.Phase && newStatus.Phase != "" {
+			msg := fmt.Sprintf("AnalysisRun '%s' transitioned from %s -> %s", analysis.Name, prevStatus.Phase, newStatus.Phase)
 			if newStatus.Message != "" {
 				msg = msg + ": " + newStatus.Message
 			}
-			ec.log.Info(msg)
+			eventType := corev1.EventTypeNormal
 			switch newStatus.Phase {
 			case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
-				ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(newStatus.Phase), msg)
-			default:
-				ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(newStatus.Phase), msg)
+				eventType = corev1.EventTypeWarning
 			}
+			ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
 	}()
@@ -337,9 +335,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	if ec.isTerminating {
 		if !run.Status.Phase.Completed() && !run.Spec.Terminate {
-			msg := fmt.Sprintf("Terminating %s (%s)", analysis.Name, run.Name)
-			logCtx.Warnf(msg)
-			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, "Terminate", msg)
+			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: "AnalysisRunTerminating"}, "Terminating %s (%s)", analysis.Name, run.Name)
 			analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 			err := analysisutil.TerminateRun(analysisRunIf, run.Name)
 			if err != nil {
@@ -433,14 +429,12 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 	}
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
 	if prevStatus.Phase != ec.newStatus.Phase {
-		msg := fmt.Sprintf("Experiment transitioned from %s -> %s", prevStatus.Phase, ec.newStatus.Phase)
-		ec.log.Info(msg)
+		eventType := corev1.EventTypeNormal
 		switch ec.newStatus.Phase {
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
-			ec.recorder.Event(ec.ex, corev1.EventTypeWarning, string(ec.newStatus.Phase), msg)
-		default:
-			ec.recorder.Event(ec.ex, corev1.EventTypeNormal, string(ec.newStatus.Phase), msg)
+			eventType = corev1.EventTypeWarning
 		}
+		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Experiment" + string(ec.newStatus.Phase)}, "Experiment transitioned from %s -> %s", prevStatus.Phase, ec.newStatus.Phase)
 	}
 	return ec.newStatus
 }

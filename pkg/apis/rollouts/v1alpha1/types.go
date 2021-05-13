@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -442,6 +443,36 @@ type CanaryStep struct {
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
 }
 
+// CanaryStepString returns a string representation of a canary step
+func CanaryStepString(c CanaryStep) string {
+	if c.SetWeight != nil {
+		return fmt.Sprintf("setWeight: %d", *c.SetWeight)
+	}
+	if c.Pause != nil {
+		str := "pause"
+		if c.Pause.Duration != nil {
+			str = fmt.Sprintf("%s: %s", str, c.Pause.Duration.String())
+		}
+		return str
+	}
+	if c.Experiment != nil {
+		return "experiment"
+	}
+	if c.Analysis != nil {
+		return "analysis"
+	}
+	if c.SetCanaryScale != nil {
+		if c.SetCanaryScale.Weight != nil {
+			return fmt.Sprintf("setCanaryScale{weight: %d}", c.SetCanaryScale.Weight)
+		} else if c.SetCanaryScale.MatchTrafficWeight {
+			return "setCanaryScale{matchTrafficWeight: true}"
+		} else if c.SetCanaryScale.Replicas != nil {
+			return fmt.Sprintf("setCanaryScale{replicas: %d}", *c.SetCanaryScale.Replicas)
+		}
+	}
+	return "invalid"
+}
+
 // SetCanaryScale defines how to scale the newRS without changing traffic weight
 type SetCanaryScale struct {
 	// Weight sets the percentage of replicas the newRS should have
@@ -543,7 +574,7 @@ type RolloutPause struct {
 func (p RolloutPause) DurationSeconds() int32 {
 	if p.Duration != nil {
 		if p.Duration.Type == intstr.String {
-			s, err := strconv.Atoi(p.Duration.StrVal)
+			s, err := strconv.ParseInt(p.Duration.StrVal, 10, 32)
 			if err != nil {
 				d, err := time.ParseDuration(p.Duration.StrVal)
 				if err != nil {

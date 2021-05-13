@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -105,7 +106,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 		reconcilerBase: reconcilerBase{
 			argoprojclientset: &fake,
 			kubeclientset:     &k8sfake,
-			recorder:          &FakeEventRecorder{},
+			recorder:          record.NewFakeEventRecorder(),
 		},
 	}
 	stepResult := roCtx.reconcileCanaryPause()
@@ -120,7 +121,7 @@ func TestReconcileCanaryStepsHandleBaseCases(t *testing.T) {
 		reconcilerBase: reconcilerBase{
 			argoprojclientset: &fake,
 			kubeclientset:     &k8sfake,
-			recorder:          &FakeEventRecorder{},
+			recorder:          record.NewFakeEventRecorder(),
 		},
 	}
 	stepResult = roCtx2.reconcileCanaryPause()
@@ -1110,7 +1111,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 			reconcilerBase: reconcilerBase{
 				servicesLister: servicesLister,
 				kubeclientset:  kubeclient,
-				recorder:       &FakeEventRecorder{},
+				recorder:       record.NewFakeEventRecorder(),
 			},
 			rollout: rollout,
 			newRS: &v1.ReplicaSet{

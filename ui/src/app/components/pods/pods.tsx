@@ -1,15 +1,11 @@
 import {faQuestionCircle} from '@fortawesome/free-regular-svg-icons';
 import {faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {Menu, ThemeDiv, Tooltip, WaitFor} from 'argo-ux';
 import * as React from 'react';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
-import {Menu} from '../menu/menu';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
-import {ThemeDiv} from '../theme-div/theme-div';
-import {Tooltip} from '../tooltip/tooltip';
-import {WaitFor} from '../wait-for/wait-for';
-
 import './pods.scss';
 
 export enum PodStatus {

@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"context"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -11,7 +12,7 @@ import (
 )
 
 type Given struct {
-	Common
+	*Common
 }
 
 // RolloutObjects sets up the rollout objects for the test environment given a YAML string or file path:
@@ -61,6 +62,11 @@ func (g *Given) HealthyRollout(text string) *Given {
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		Given()
+}
+
+func (g *Given) StartEventWatch(ctx context.Context) *Given {
+	g.Common.StartEventWatch(ctx)
+	return g
 }
 
 func (g *Given) When() *When {

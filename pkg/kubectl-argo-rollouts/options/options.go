@@ -13,7 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	roclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 )

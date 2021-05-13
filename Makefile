@@ -222,7 +222,7 @@ plugin-image:
 	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
-lint:
+lint: go-mod-vendor
 	golangci-lint run --fix
 
 .PHONY: test
