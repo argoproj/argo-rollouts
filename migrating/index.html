@@ -1487,6 +1487,7 @@ tested before deleting the original Deployment.</p>
 <li>Create a Rollout resource.</li>
 <li>Reference an existing Deployment using <code>workloadRef</code> field.</li>
 <li>Scale-down existing Deployment by changing <code>replicas</code> field of an existing Deployment to zero.</li>
+<li>To perform an update, the change should be made to the Pod template field of the Deployment.</li>
 </ol>
 <p>Below is an example of a Rollout resource referencing a Deployment.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>               <span class="c1"># Create a rollout resource</span>
