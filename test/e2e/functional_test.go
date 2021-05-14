@@ -1005,26 +1005,6 @@ spec:
     port: 80
     targetPort: 8080
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/instance: rollout-canary
-  name: rollout-ref-deployment
-spec:
-  replicas: 0
-  selector:
-    matchLabels:
-      app: rollout-ref-deployment
-  template:
-    metadata:
-      labels:
-        app: rollout-ref-deployment
-    spec:
-      containers:
-        - name: rollouts-demo
-          image: argoproj/rollouts-demo:error
----
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -1048,6 +1028,32 @@ spec:
 		// verify that existing service is not switched to degraded rollout pods
 		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, false).
 		When().
+		ApplyManifests(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: rollout-canary
+  name: rollout-ref-deployment
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:green
+    `).
+		WaitForRolloutStatus("Healthy").
+		Then().
+		// verify that service is switched after rollout is healthy
+		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, true).
+		When().
 		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
 			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")
 			if err != nil {
@@ -1055,10 +1061,40 @@ spec:
 			}
 			containers[0] = map[string]interface{}{
 				"name":  "rollouts-demo",
-				"image": "argoproj/rollouts-demo:green",
+				"image": "argoproj/rollouts-demo:error",
 			}
 			return unstructured.SetNestedSlice(res.Object, containers, "spec", "template", "spec", "containers")
 		}).
+		WaitForRolloutStatus("Degraded").
+		Then().
+		When().
+		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
+			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")
+			if err != nil {
+				return err
+			}
+			containers[0] = map[string]interface{}{
+				"name":  "rollouts-demo",
+				"image": "argoproj/rollouts-demo:blue",
+			}
+			return unstructured.SetNestedSlice(res.Object, containers, "spec", "template", "spec", "containers")
+		}).
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec(`
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: non-existent-deploy
+`).
+		WaitForRolloutStatus("Degraded").
+		UpdateSpec(`
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+`).
 		WaitForRolloutStatus("Healthy").
 		Then().
 		// verify that service is switched after rollout is healthy
