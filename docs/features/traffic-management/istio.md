@@ -120,6 +120,7 @@ spec:
 ```
 
 During the lifecycle of a Rollout update, Argo Rollouts will continuously:
+
 * modify the canary Service `spec.selector` to contain the `rollouts-pod-template-hash` label of the canary ReplicaSet
 * modify the stable Service `spec.selector` to contain the `rollouts-pod-template-hash` label of the stable ReplicaSet
 * modify the VirtualService `spec.http[].route[].weight` to match the current desired canary weight
@@ -239,6 +240,7 @@ spec:
 ```
 
 During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:
+
 * modify the VirtualService `spec.http[].route[].weight` to match the current desired canary weight
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
