@@ -27,16 +27,16 @@ You can always see if the controller is reached successfully in the Prometheus "
 
 Once the controller metrics are read by your Prometheus instance, you can use them like any other Prometheus data source.
 
-## Creating Graphana Dashboards
+## Creating Grafana Dashboards
 
-You can easily visualize the metrics from the controller using [Graphana](https://grafana.com/) dashboards. [Install Graphana](https://grafana.com/docs/grafana/latest/installation/kubernetes/) in your cluster and [connect it your Prometheus instance](https://prometheus.io/docs/visualization/grafana/).
+You can easily visualize the metrics from the controller using [Grafana](https://grafana.com/) dashboards. [Install Grafana](https://grafana.com/docs/grafana/latest/installation/kubernetes/) in your cluster and [connect it your Prometheus instance](https://prometheus.io/docs/visualization/grafana/).
 Then you can create any dashboard by using the available metrics (described in detail in the next sections).
 
 As a starting point you can find an existing dashboard at [https://github.com/argoproj/argo-rollouts/blob/master/examples/dashboard.json](https://github.com/argoproj/argo-rollouts/blob/master/examples/dashboard.json)
 
-[![Example Graphana Dashboard](controller-metrics-assets/argo-rollouts-metrics.png)](controller-metrics-assets/argo-rollouts-metrics.png)
+[![Example Grafana Dashboard](controller-metrics-assets/argo-rollouts-metrics.png)](controller-metrics-assets/argo-rollouts-metrics.png)
 
-You can import this Dashboard in your Graphana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard). 
+You can import this Dashboard in your Grafana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard).
 
 
 ## Available metrics for Rollout Objects
@@ -80,4 +80,4 @@ The controller also publishes the following Prometheus metrics to describe the c
 | `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running |
 | `workqueue_retries_total`                     | Total number of retries handled by workqueue |
 
-In addition, the Argo Rollouts controllers offers metrics on CPU, memory and file descriptor usage as well as the process start time and current Go processes including memory stats.
+In addition, the Argo-rollouts offers metrics on CPU, memory and file descriptor usage as well as the process start time and memory stats of current Go processes.
