@@ -12473,6 +12473,8 @@ spec:
               currentStepIndex:
                 format: int32
                 type: integer
+              message:
+                type: string
               observedGeneration:
                 type: string
               pauseConditions:
@@ -12488,6 +12490,8 @@ spec:
                   - startTime
                   type: object
                 type: array
+              phase:
+                type: string
               promoteFull:
                 type: boolean
               readyReplicas:

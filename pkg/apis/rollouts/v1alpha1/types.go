@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -443,36 +442,6 @@ type CanaryStep struct {
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
 }
 
-// CanaryStepString returns a string representation of a canary step
-func CanaryStepString(c CanaryStep) string {
-	if c.SetWeight != nil {
-		return fmt.Sprintf("setWeight: %d", *c.SetWeight)
-	}
-	if c.Pause != nil {
-		str := "pause"
-		if c.Pause.Duration != nil {
-			str = fmt.Sprintf("%s: %s", str, c.Pause.Duration.String())
-		}
-		return str
-	}
-	if c.Experiment != nil {
-		return "experiment"
-	}
-	if c.Analysis != nil {
-		return "analysis"
-	}
-	if c.SetCanaryScale != nil {
-		if c.SetCanaryScale.Weight != nil {
-			return fmt.Sprintf("setCanaryScale{weight: %d}", c.SetCanaryScale.Weight)
-		} else if c.SetCanaryScale.MatchTrafficWeight {
-			return "setCanaryScale{matchTrafficWeight: true}"
-		} else if c.SetCanaryScale.Replicas != nil {
-			return fmt.Sprintf("setCanaryScale{replicas: %d}", *c.SetCanaryScale.Replicas)
-		}
-	}
-	return "invalid"
-}
-
 // SetCanaryScale defines how to scale the newRS without changing traffic weight
 type SetCanaryScale struct {
 	// Weight sets the percentage of replicas the newRS should have
@@ -623,6 +592,20 @@ type PauseCondition struct {
 	StartTime metav1.Time `json:"startTime" protobuf:"bytes,2,opt,name=startTime"`
 }
 
+// RolloutPhase are a set of phases that this rollout
+type RolloutPhase string
+
+const (
+	// RolloutPhaseHealthy indicates a rollout is healthy
+	RolloutPhaseHealthy RolloutPhase = "Healthy"
+	// RolloutPhaseDegraded indicates a rollout is degraded (e.g. pod unavailability, misconfiguration)
+	RolloutPhaseDegraded RolloutPhase = "Degraded"
+	// RolloutPhaseProgressing indicates a rollout is not yet healthy but still making progress towards a healthy state
+	RolloutPhaseProgressing RolloutPhase = "Progressing"
+	// RolloutPhasePaused indicates a rollout is not yet healthy and will not make progress until unpaused
+	RolloutPhasePaused RolloutPhase = "Paused"
+)
+
 // RolloutStatus is the status for a Rollout resource
 type RolloutStatus struct {
 	// Abort cancel the current rollout progression
@@ -668,7 +651,7 @@ type RolloutStatus struct {
 	// newest ReplicaSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,12,opt,name=collisionCount"`
-	// The generation observed by the rollout controller by taking a hash of the spec.
+	// The generation observed by the rollout controller from metadata.generation
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty" protobuf:"bytes,13,opt,name=observedGeneration"`
 	// Conditions a list of conditions a rollout can have.
@@ -693,6 +676,10 @@ type RolloutStatus struct {
 	RestartedAt *metav1.Time `json:"restartedAt,omitempty" protobuf:"bytes,20,opt,name=restartedAt"`
 	// PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
 	PromoteFull bool `json:"promoteFull,omitempty" protobuf:"varint,21,opt,name=promoteFull"`
+	// Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation
+	Phase RolloutPhase `json:"phase,omitempty" protobuf:"bytes,22,opt,name=phase,casttype=RolloutPhase"`
+	// Message provides details on why the rollout is in its current phase
+	Message string `json:"message,omitempty" protobuf:"bytes,23,opt,name=message"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

@@ -10,9 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,8 +41,8 @@ func (t *Then) ExpectRollout(expectation string, expectFunc RolloutExpectation) 
 func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
-	status, _ := info.RolloutStatusString(ro)
-	if status != expectedStatus {
+	status, _ := rolloututil.GetRolloutPhase(ro)
+	if string(status) != expectedStatus {
 		t.log.Errorf("Rollout status expected to be '%s'. actual: %s", expectedStatus, status)
 		t.t.FailNow()
 	}

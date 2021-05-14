@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func NewRolloutInfo(
@@ -70,7 +71,9 @@ func NewRolloutInfo(
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		roInfo.Strategy = "BlueGreen"
 	}
-	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
+	phase, message := rolloututil.GetRolloutPhase(ro)
+	roInfo.Status = string(phase)
+	roInfo.Message = message
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []*rollout.ContainerInfo{}
 	for c := range ro.Spec.Template.Spec.Containers {

@@ -8,11 +8,11 @@ import (
 	fmt "fmt"
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	proto "github.com/gogo/protobuf/proto"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	io "io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	math "math"
@@ -1595,14 +1595,14 @@ type RolloutServiceClient interface {
 	WatchRolloutInfo(ctx context.Context, in *RolloutInfoQuery, opts ...grpc.CallOption) (RolloutService_WatchRolloutInfoClient, error)
 	ListRolloutInfos(ctx context.Context, in *RolloutInfoListQuery, opts ...grpc.CallOption) (*RolloutInfoList, error)
 	WatchRolloutInfos(ctx context.Context, in *RolloutInfoListQuery, opts ...grpc.CallOption) (RolloutService_WatchRolloutInfosClient, error)
-	GetNamespace(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*NamespaceInfo, error)
+	GetNamespace(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*NamespaceInfo, error)
 	RestartRollout(ctx context.Context, in *RestartRolloutRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
 	PromoteRollout(ctx context.Context, in *PromoteRolloutRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
 	AbortRollout(ctx context.Context, in *AbortRolloutRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
 	SetRolloutImage(ctx context.Context, in *SetImageRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
 	UndoRollout(ctx context.Context, in *UndoRolloutRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
 	RetryRollout(ctx context.Context, in *RetryRolloutRequest, opts ...grpc.CallOption) (*v1alpha1.Rollout, error)
-	Version(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*VersionInfo, error)
+	Version(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionInfo, error)
 }
 
 type rolloutServiceClient struct {
@@ -1695,7 +1695,7 @@ func (x *rolloutServiceWatchRolloutInfosClient) Recv() (*RolloutWatchEvent, erro
 	return m, nil
 }
 
-func (c *rolloutServiceClient) GetNamespace(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*NamespaceInfo, error) {
+func (c *rolloutServiceClient) GetNamespace(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*NamespaceInfo, error) {
 	out := new(NamespaceInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/GetNamespace", in, out, opts...)
 	if err != nil {
@@ -1758,7 +1758,7 @@ func (c *rolloutServiceClient) RetryRollout(ctx context.Context, in *RetryRollou
 	return out, nil
 }
 
-func (c *rolloutServiceClient) Version(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*VersionInfo, error) {
+func (c *rolloutServiceClient) Version(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionInfo, error) {
 	out := new(VersionInfo)
 	err := c.cc.Invoke(ctx, "/rollout.RolloutService/Version", in, out, opts...)
 	if err != nil {
@@ -1773,14 +1773,14 @@ type RolloutServiceServer interface {
 	WatchRolloutInfo(*RolloutInfoQuery, RolloutService_WatchRolloutInfoServer) error
 	ListRolloutInfos(context.Context, *RolloutInfoListQuery) (*RolloutInfoList, error)
 	WatchRolloutInfos(*RolloutInfoListQuery, RolloutService_WatchRolloutInfosServer) error
-	GetNamespace(context.Context, *empty.Empty) (*NamespaceInfo, error)
+	GetNamespace(context.Context, *emptypb.Empty) (*NamespaceInfo, error)
 	RestartRollout(context.Context, *RestartRolloutRequest) (*v1alpha1.Rollout, error)
 	PromoteRollout(context.Context, *PromoteRolloutRequest) (*v1alpha1.Rollout, error)
 	AbortRollout(context.Context, *AbortRolloutRequest) (*v1alpha1.Rollout, error)
 	SetRolloutImage(context.Context, *SetImageRequest) (*v1alpha1.Rollout, error)
 	UndoRollout(context.Context, *UndoRolloutRequest) (*v1alpha1.Rollout, error)
 	RetryRollout(context.Context, *RetryRolloutRequest) (*v1alpha1.Rollout, error)
-	Version(context.Context, *empty.Empty) (*VersionInfo, error)
+	Version(context.Context, *emptypb.Empty) (*VersionInfo, error)
 }
 
 // UnimplementedRolloutServiceServer can be embedded to have forward compatible implementations.
@@ -1799,7 +1799,7 @@ func (*UnimplementedRolloutServiceServer) ListRolloutInfos(ctx context.Context, 
 func (*UnimplementedRolloutServiceServer) WatchRolloutInfos(req *RolloutInfoListQuery, srv RolloutService_WatchRolloutInfosServer) error {
 	return status.Errorf(codes.Unimplemented, "method WatchRolloutInfos not implemented")
 }
-func (*UnimplementedRolloutServiceServer) GetNamespace(ctx context.Context, req *empty.Empty) (*NamespaceInfo, error) {
+func (*UnimplementedRolloutServiceServer) GetNamespace(ctx context.Context, req *emptypb.Empty) (*NamespaceInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNamespace not implemented")
 }
 func (*UnimplementedRolloutServiceServer) RestartRollout(ctx context.Context, req *RestartRolloutRequest) (*v1alpha1.Rollout, error) {
@@ -1820,7 +1820,7 @@ func (*UnimplementedRolloutServiceServer) UndoRollout(ctx context.Context, req *
 func (*UnimplementedRolloutServiceServer) RetryRollout(ctx context.Context, req *RetryRolloutRequest) (*v1alpha1.Rollout, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetryRollout not implemented")
 }
-func (*UnimplementedRolloutServiceServer) Version(ctx context.Context, req *empty.Empty) (*VersionInfo, error) {
+func (*UnimplementedRolloutServiceServer) Version(ctx context.Context, req *emptypb.Empty) (*VersionInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
 }
 
@@ -1907,7 +1907,7 @@ func (x *rolloutServiceWatchRolloutInfosServer) Send(m *RolloutWatchEvent) error
 }
 
 func _RolloutService_GetNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1919,7 +1919,7 @@ func _RolloutService_GetNamespace_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: "/rollout.RolloutService/GetNamespace",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).GetNamespace(ctx, req.(*empty.Empty))
+		return srv.(RolloutServiceServer).GetNamespace(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2033,7 +2033,7 @@ func _RolloutService_RetryRollout_Handler(srv interface{}, ctx context.Context, 
 }
 
 func _RolloutService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -2045,7 +2045,7 @@ func _RolloutService_Version_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: "/rollout.RolloutService/Version",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RolloutServiceServer).Version(ctx, req.(*empty.Empty))
+		return srv.(RolloutServiceServer).Version(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
