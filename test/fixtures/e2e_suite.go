@@ -168,6 +168,7 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 		for _, ro := range roList.Items {
 			s.PrintRollout(ro.Name)
 			s.PrintRolloutYAML(&ro)
+			s.PrintRolloutEvents(&ro)
 		}
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {

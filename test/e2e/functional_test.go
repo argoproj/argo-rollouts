@@ -37,45 +37,74 @@ func (s *FunctionalSuite) SetupSuite() {
 	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
 }
 
-func countReplicaSets(count int) fixtures.ReplicaSetExpectation {
-	return func(rsets *appsv1.ReplicaSetList) bool {
-		return len(rsets.Items) == count
-	}
-}
-
 func (s *FunctionalSuite) TestRolloutAbortRetryPromote() {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 	s.Given().
 		StartEventWatch(ctx).
-		HealthyRollout(`@functional/rollout-basic.yaml`).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: abort-retry-promote
+spec:
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 50
+      - pause: {duration: 3s}
+  selector:
+    matchLabels:
+      app: abort-retry-promote
+  template:
+    metadata:
+      labels:
+        app: abort-retry-promote
+    spec:
+      containers:
+      - name: abort-retry-promote
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectReplicaSets("two replicasets", countReplicaSets(2)).
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 1).
 		When().
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		RetryRollout().
 		WaitForRolloutStatus("Paused").
-		PromoteRollout().
-		WaitForRolloutStatus("Healthy").
 		Then().
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 1).
+		When().
+		WaitForRolloutStatus("Healthy"). // will auto-promote after `pause: {duration: 3s}` step
+		Then().
+		ExpectRevisionPodCount("1", 0).
+		ExpectRevisionPodCount("2", 1).
 		ExpectRolloutEvents([]string{
 			"RolloutUpdated",       // Rollout updated to revision 1
-			"ScalingReplicaSet",    // Scaled up replica set basic-695bcc74ff to 1
-			"RolloutCompleted",     // Rollout completed update to revision 1 (695bcc74ff): Initial deploy
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) with size 1
+			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
 			"RolloutUpdated",       // Rollout updated to revision 2
-			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc to 1
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) with size 1
 			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
-			"ScalingReplicaSet",    // Scaled down replica set basic-5b9b4d54cc from 1 to 0
+			"RolloutPaused",        // Rollout is paused (CanaryPauseStep)
+			"ScalingReplicaSet",    // Scaled down ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 1 to 0
 			"RolloutAborted",       // Rollout aborted update to revision 2
-			"ScalingReplicaSet",    // Scaled up replica set basic-5b9b4d54cc from 0 to 1
+			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 0 to 1
 			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
-			"RolloutStepCompleted", // Rollout step 2/2 completed (pause)
-			"ScalingReplicaSet",    // Scaled down replica set basic-695bcc74ff from 1 to 0
-			"RolloutCompleted",     // Rollout completed update to revision 2 (5b9b4d54cc): Completed all 2 canary steps
+			"RolloutPaused",        // Rollout is paused (CanaryPauseStep)
+			"RolloutStepCompleted", // Rollout step 2/2 completed (pause: 3s)
+			"RolloutResumed",       // Rollout is resumed
+			"ScalingReplicaSet",    // Scaled down ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 1 to 0
+			"RolloutCompleted",     // Rollout completed update to revision 2 (75dcb5ddd6): Completed all 2 canary steps
 		})
 }
 
@@ -620,7 +649,10 @@ spec:
 
 // TestBlueGreenUpdate
 func (s *FunctionalSuite) TestBlueGreenUpdate() {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 	s.Given().
+		StartEventWatch(ctx).
 		HealthyRollout("@functional/rollout-bluegreen.yaml").
 		When().
 		Then().
@@ -634,7 +666,17 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		When().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectReplicaCounts(3, 6, 3, 3, 3)
+		ExpectReplicaCounts(3, 6, 3, 3, 3).
+		ExpectRolloutEvents([]string{
+			"RolloutUpdated",       // Rollout updated to revision 1
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1) with size 3
+			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
+			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
+			"RolloutUpdated",       // Rollout updated to revision 2
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2) with size 3
+			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
+			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
+		})
 }
 
 // TestBlueGreenPreviewReplicaCount verifies the previewReplicaCount feature

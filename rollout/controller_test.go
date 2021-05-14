@@ -187,8 +187,8 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
-		Message:            conditions.PausedRolloutMessage,
-		Reason:             conditions.PausedRolloutReason,
+		Message:            conditions.RolloutPausedMessage,
+		Reason:             conditions.RolloutPausedReason,
 		Status:             status,
 		Type:               v1alpha1.RolloutPaused,
 	}
@@ -274,12 +274,12 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		}
 	}
 
-	if reason == conditions.PausedRolloutReason {
-		msg = conditions.PausedRolloutMessage
+	if reason == conditions.RolloutPausedReason {
+		msg = conditions.RolloutPausedMessage
 		status = corev1.ConditionUnknown
 	}
-	if reason == conditions.ResumedRolloutReason {
-		msg = conditions.ResumeRolloutMessage
+	if reason == conditions.RolloutResumedReason {
+		msg = conditions.RolloutResumedMessage
 		status = corev1.ConditionUnknown
 	}
 

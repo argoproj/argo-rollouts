@@ -68,9 +68,10 @@ func TestIncCounter(t *testing.T) {
 		rec.Eventf(&r, EventOptions{EventReason: "FooReason"}, "something happened")
 	}
 	ch := make(chan prometheus.Metric, 1)
-	rec.(*EventRecorderAdapter).RolloutEventCounter.Collect(ch)
+	rec.RolloutEventCounter.Collect(ch)
 	m := <-ch
 	buf := dto.Metric{}
 	m.Write(&buf)
 	assert.Equal(t, float64(3), *buf.Counter.Value)
+	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events)
 }

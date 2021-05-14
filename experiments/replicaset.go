@@ -140,7 +140,7 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 	}
 
 	if !alreadyExists && newReplicasCount > int32(0) {
-		ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
+		ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.NewReplicaSetReason}, conditions.NewReplicaSetMessage+" with size %d", createdRS.Name, newReplicasCount)
 	}
 
 	return createdRS, nil
@@ -223,7 +223,8 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 
 func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
 	ctx := context.TODO()
-	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
+	oldScale := *(rs.Spec.Replicas)
+	sizeNeedsUpdate := oldScale != newScale
 	scaled := false
 	var err error
 	if sizeNeedsUpdate {
@@ -232,7 +233,7 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
-			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s replica set %s to %d", scalingOperation, rs.Name, newScale)
+			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
 		}
 	}
 	return scaled, rs, err

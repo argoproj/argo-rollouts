@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -20,11 +21,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
@@ -469,6 +472,9 @@ func (c *Common) GetDestinationRule() *istio.DestinationRule {
 	return &destRule
 }
 
+// We use a watch to collect events (as opposed to listing them after-the-fact), because:
+// 1. the kubernetes event recorder can dedupe multiple events into one Event object
+// 2. listing events may return events out-of-order from when they were produced
 func (c *Common) StartEventWatch(ctx context.Context) {
 	watchEventsIf, err := c.kubeClient.CoreV1().Events(c.namespace).Watch(ctx, metav1.ListOptions{})
 	c.events = nil
@@ -503,4 +509,25 @@ func (c *Common) GetRolloutEventReasons() []string {
 		}
 	}
 	return reasons
+}
+
+// PrintRolloutEvents prints all Kubernetes events associated with the given rollout.
+// Note that events may be deduplicated, or printed out-of-order from when they were emitted,
+// so this function should only be used to assist with debugging and not correctness.
+func (c *Common) PrintRolloutEvents(ro *v1alpha1.Rollout) {
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ro.UID)).String()}
+	events, err := c.kubeClient.CoreV1().Events(c.namespace).List(c.Context, opts)
+	c.CheckError(err)
+	buf := bytes.NewBufferString("")
+
+	w := tabwriter.NewWriter(buf, 0, 0, 4, ' ', 0)
+	for _, event := range events.Items {
+		timestamp := event.LastTimestamp.Format(time.RFC3339)
+		if event.Count > 1 {
+			timestamp = fmt.Sprintf("%s (x%d)", timestamp, event.Count)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", timestamp, event.Type, event.Reason, event.Message)
+	}
+	w.Flush()
+	fmt.Fprintln(logrus.StandardLogger().Out, buf.String())
 }

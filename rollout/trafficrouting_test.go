@@ -134,7 +134,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
 	r2.Spec.Strategy.Canary.StableService = "stable"
 
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)

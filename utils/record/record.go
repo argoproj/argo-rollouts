@@ -46,6 +46,8 @@ type EventRecorderAdapter struct {
 	Recorder record.EventRecorder
 	// RolloutEventCounter is a counter to increment on events
 	RolloutEventCounter *prometheus.CounterVec
+
+	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
 }
 
 func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec) EventRecorder {
@@ -55,15 +57,24 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(log.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
-	return &EventRecorderAdapter{
-		Recorder:            recorder,
+	k8srecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
+	recorder := &EventRecorderAdapter{
+		Recorder:            k8srecorder,
 		RolloutEventCounter: rolloutEventCounter,
 	}
+	recorder.eventf = recorder.defaultEventf
+	return recorder
 }
 
-func NewFakeEventRecorder() EventRecorder {
-	return NewEventRecorder(
+// FakeEventRecorder wraps EventRecorderAdapter but with a convenience function to get all the event
+// reasons which were emitted
+type FakeEventRecorder struct {
+	EventRecorderAdapter
+	Events []string
+}
+
+func NewFakeEventRecorder() *FakeEventRecorder {
+	recorder := NewEventRecorder(
 		k8sfake.NewSimpleClientset(),
 		prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -71,7 +82,14 @@ func NewFakeEventRecorder() EventRecorder {
 			},
 			[]string{"name", "namespace", "type", "reason"},
 		),
-	)
+	).(*EventRecorderAdapter)
+	fakeRecorder := &FakeEventRecorder{}
+	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+		recorder.defaultEventf(object, warn, opts, messageFmt, args...)
+		fakeRecorder.Events = append(fakeRecorder.Events, opts.EventReason)
+	}
+	fakeRecorder.EventRecorderAdapter = *recorder
+	return fakeRecorder
 }
 
 func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) {
@@ -86,7 +104,9 @@ func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, m
 	e.eventf(object, true, opts, messageFmt, args...)
 }
 
-func (e *EventRecorderAdapter) eventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+// defaultEventf is the default implementation of eventf, which is able to be overwritten for
+// test purposes
+func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
 	logCtx := logutil.WithObject(object)
 
 	if opts.EventReason != "" {

@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/stretchr/testify/assert"
@@ -321,4 +322,60 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.BlueGreen.ActiveSelector)
 	assert.False(t, patchedRollout.Status.PromoteFull)
+}
+
+// TestSendStateChangeEvents verifies we emit appropriate events on rollout state changes
+func TestSendStateChangeEvents(t *testing.T) {
+	now := metav1.Now()
+	tests := []struct {
+		prevStatus           v1alpha1.RolloutStatus
+		newStatus            v1alpha1.RolloutStatus
+		expectedEventReasons []string
+	}{
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: now},
+				},
+			},
+			newStatus: v1alpha1.RolloutStatus{
+				PauseConditions: nil,
+			},
+			expectedEventReasons: []string{conditions.RolloutResumedReason},
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PauseConditions: nil,
+			},
+			newStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: now},
+				},
+			},
+			expectedEventReasons: []string{conditions.RolloutPausedReason},
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: now},
+				},
+			},
+			newStatus: v1alpha1.RolloutStatus{
+				PauseConditions: nil,
+				AbortedAt:       &now,
+			},
+			expectedEventReasons: nil,
+		},
+	}
+	for _, test := range tests {
+		roCtx := &rolloutContext{}
+		roCtx.rollout = &v1alpha1.Rollout{ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		}}
+		recorder := record.NewFakeEventRecorder()
+		roCtx.recorder = recorder
+		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
+		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+	}
 }

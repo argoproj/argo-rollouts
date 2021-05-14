@@ -51,6 +51,8 @@ const (
 	NewReplicaSetReason = "NewReplicaSetCreated"
 	//NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
 	NewReplicaSetMessage = "Created new replica set %q"
+	// NewReplicaSetDetailedMessage is a more detailed format message
+	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d) with size %d"
 
 	// FoundNewRSReason is added in a rollout when it adopts an existing replica set.
 	FoundNewRSReason = "FoundNewReplicaSet"
@@ -77,19 +79,19 @@ const (
 	// RolloutRetryMessage indicates that the rollout is retrying after being aborted
 	RolloutRetryMessage = "Retrying Rollout after abort"
 
-	// PausedRolloutReason is added in a rollout when it is paused. Lack of progress shouldn't be
+	// RolloutPausedReason is added in a rollout when it is paused. Lack of progress shouldn't be
 	// estimated once a rollout is paused.
-	PausedRolloutReason = "RolloutPaused"
-	// PausedRolloutMessage is added in a rollout when it is paused. Lack of progress shouldn't be
+	RolloutPausedReason = "RolloutPaused"
+	// RolloutPausedMessage is added in a rollout when it is paused. Lack of progress shouldn't be
 	// estimated once a rollout is paused.
-	PausedRolloutMessage = "Rollout is paused"
+	RolloutPausedMessage = "Rollout is paused"
 
-	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
+	// RolloutResumedReason is added in a rollout when it is resumed. Useful for not failing accidentally
 	// rollout that paused amidst a rollout and are bounded by a deadline.
-	ResumedRolloutReason = "RolloutResumed"
-	// ResumeRolloutMessage is added in a rollout when it is resumed. Useful for not failing accidentally
+	RolloutResumedReason = "RolloutResumed"
+	// RolloutResumedMessage is added in a rollout when it is resumed. Useful for not failing accidentally
 	// rollout that paused amidst a rollout and are bounded by a deadline.
-	ResumeRolloutMessage = "Rollout is resumed"
+	RolloutResumedMessage = "Rollout is resumed"
 
 	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
 	// rollout that paused amidst a rollout and are bounded by a deadline.
@@ -121,7 +123,7 @@ const (
 	RolloutTimeOutMessage = "Rollout %q has timed out progressing."
 
 	ScalingReplicaSetReason  = "ScalingReplicaSet"
-	ScalingReplicaSetMessage = "Scaled %s replica set %s (revision %d) from %d to %d"
+	ScalingReplicaSetMessage = "Scaled %s ReplicaSet %s (revision %d) from %d to %d"
 
 	// ReplicaSetTimeOutMessage is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
