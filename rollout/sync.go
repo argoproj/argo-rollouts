@@ -250,7 +250,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	}
 
 	if !alreadyExists && newReplicasCount > 0 {
-		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
+		revision, _ := replicasetutil.Revision(createdRS)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.NewReplicaSetReason}, conditions.NewReplicaSetDetailedMessage, createdRS.Name, revision, newReplicasCount)
 	}
 
 	if !alreadyExists {
@@ -394,7 +395,8 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
-			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s replica set %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
+			revision, _ := replicasetutil.Revision(rs)
+			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
 		}
 	}
 	return scaled, rs, err
@@ -495,7 +497,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 func (c *rolloutContext) checkPausedConditions() error {
 	// Progressing condition
 	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
-	progCondPaused := progCond != nil && progCond.Reason == conditions.PausedRolloutReason
+	progCondPaused := progCond != nil && progCond.Reason == conditions.RolloutPausedReason
 
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	abortCondExists := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
@@ -504,9 +506,9 @@ func (c *rolloutContext) checkPausedConditions() error {
 
 	if (isPaused != progCondPaused) && !abortCondExists {
 		if isPaused {
-			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.PausedRolloutReason, conditions.PausedRolloutMessage))
+			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
 		} else {
-			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.ResumedRolloutReason, conditions.ResumeRolloutMessage))
+			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutResumedReason, conditions.RolloutResumedMessage))
 		}
 	}
 
@@ -522,7 +524,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 		if isPaused {
 			condStatus = corev1.ConditionTrue
 		}
-		updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutPaused, condStatus, conditions.PausedRolloutReason, conditions.PausedRolloutMessage))
+		updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutPaused, condStatus, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
 	}
 
 	if len(updatedConditions) == 0 {
@@ -679,12 +681,13 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus) error {
 	ctx := context.TODO()
+	prevStatus := c.rollout.Status
 	c.pauseContext.CalculatePauseStatus(newStatus)
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	logCtx := logutil.WithVersionFields(c.log, c.rollout)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
-			Status: c.rollout.Status,
+			Status: prevStatus,
 		},
 		&v1alpha1.Rollout{
 			Status: *newStatus,
@@ -698,14 +701,33 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
+
 	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		logCtx.Warningf("Error updating rollout: %v", err)
 		return err
 	}
+
+	c.sendStateChangeEvents(&prevStatus, newStatus)
 	logCtx.Infof("Patched: %s", patch)
 	c.newRollout = newRollout
 	return nil
+}
+
+// sendStateChangeEvents emit rollout events on significant state changes
+func (c *rolloutContext) sendStateChangeEvents(prevStatus, newStatus *v1alpha1.RolloutStatus) {
+	prevPaused := len(prevStatus.PauseConditions) > 0
+	currPaused := len(newStatus.PauseConditions) > 0
+	currAborted := newStatus.AbortedAt != nil
+	if prevPaused != currPaused {
+		if currPaused {
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPausedReason}, conditions.RolloutPausedMessage+fmt.Sprintf(" (%s)", newStatus.PauseConditions[0].Reason))
+		} else if !currAborted {
+			// we check currAborted, because an abort will also clear status.pauseConditions
+			// which should not be mistaken as a RolloutResumed
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutResumedReason}, conditions.RolloutResumedMessage)
+		}
+	}
 }
 
 // used for unit testing

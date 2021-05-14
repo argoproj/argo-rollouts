@@ -1443,7 +1443,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 		StartTime: metav1.Now(),
 	}}
 
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1553,7 +1553,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1736,7 +1736,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1804,7 +1804,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1870,7 +1870,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1936,7 +1936,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	}
 	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1982,7 +1982,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -2148,7 +2148,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
 	}}
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -2203,7 +2203,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
