@@ -135,6 +135,13 @@ func newCommand() *cobra.Command {
 			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
 			// 3. We finally need an istio dynamic informer factory which does not use a tweakListFunc.
 			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, nil)
+
+			controllerNamespaceInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(defaults.Namespace()))
+			configMapInformer := controllerNamespaceInformerFactory.Core().V1().ConfigMaps()
+			secretInformer := controllerNamespaceInformerFactory.Core().V1().Secrets()
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
@@ -153,6 +160,8 @@ func newCommand() *cobra.Command {
 				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+				configMapInformer,
+				secretInformer,
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -166,6 +175,7 @@ func newCommand() *cobra.Command {
 				clusterDynamicInformerFactory.Start(stopCh)
 			}
 			kubeInformerFactory.Start(stopCh)
+			controllerNamespaceInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory

@@ -1,0 +1,127 @@
+apiVersion: v1
+data:
+  template.rollout-completed: |
+    message: Rollout {{.rollout.metadata.name}} has been completed.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} has been completed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.rollout-step-completed: |
+    message: Rollout {{.rollout.metadata.name}} step number {{ add .rollout.status.currentStepIndex 1}}/{{len .rollout.spec.strategy.canary.steps}} has been completed.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} step number {{ add .rollout.status.currentStepIndex 1}}/{{len .rollout.spec.strategy.canary.steps}} has been completed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            },
+            {
+              "title": "Step completed",
+              "value": "{{add .rollout.status.currentStepIndex 1}}/{{len .rollout.spec.strategy.canary.steps}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.rollout-updated: |
+    message: Rollout {{.rollout.metadata.name}} has been updated.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} has been updated.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.scaling-replicaset: |
+    message: Scaling Rollout {{.rollout.metadata.name}}'s replicaset to {{.rollout.spec.replicas}}.
+    email:
+      subject: Scaling Rollout {{.rollout.metadata.name}}'s replcaset to {{.rollout.spec.replicas}}.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            },
+            {
+              "title": "Desired replica",
+              "value": "{{.rollout.spec.replicas}}".
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  trigger.on-completed: |
+    - send: [rollout-completed]
+  trigger.on-scaling-replicaset: |
+    - send: [scaling-replicaset]
+  trigger.on-step-completed: |
+    - send: [rollout-step-completed]
+  trigger.on-updated: |
+    - send: [rollout-updated]
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
