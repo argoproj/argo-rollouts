@@ -9,10 +9,13 @@ const path = require('path');
 const config = {
     entry: {
         main: './src/app/index.tsx',
+        extension: './src/app/extension.tsx',
     },
     output: {
-        filename: '[name].[chunkhash].js',
+        filename: '[name].js',
         path: __dirname + '/../../dist/app',
+        libraryTarget: 'umd',
+        library: 'Extension',
     },
 
     devtool: 'source-map',

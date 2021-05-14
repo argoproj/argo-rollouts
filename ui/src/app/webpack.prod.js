@@ -20,4 +20,7 @@ module.exports = merge(common, {
             },
         ],
     },
+    externals: {
+        react: 'React',
+    },
 });

@@ -42,8 +42,7 @@ export const useWatchRollouts = (): ListState<RolloutInfo> => {
     } as ListState<RolloutInfo>;
 };
 
-export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {
-    const namespace = React.useContext(NamespaceContext);
+export const useWatchRollout = (name: string, namespace: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {
     name = name || '';
     const isEqual = React.useCallback((a, b) => {
         if (!a.objectMeta || !b.objectMeta) {

@@ -103,23 +103,11 @@ const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] => {
     return imgArray;
 };
 
-export const Rollout = () => {
-    const {name} = useParams<{name: string}>();
-
-    const [rollout, loading] = useWatchRollout(name, true);
-    const api = React.useContext(RolloutAPIContext);
-    const namespace = React.useContext(NamespaceContext);
-    const images = parseImages(rollout.replicaSets || []);
-
-    for (const img of images) {
-        for (const container of rollout.containers || []) {
-            if (img.image === container.image) {
-                img.color = ImageColor.Blue;
-            }
-        }
-    }
+export const RolloutExtension = (props: {name: string; namespace: string}) => {
+    const [rollout, loading] = useWatchRollout(props.name, props.namespace, true);
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
     const revisions = ProcessRevisions(rollout);
+    const api = React.useContext(RolloutAPIContext);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [editing, setEditing] = React.useState(false);
@@ -132,6 +120,90 @@ export const Rollout = () => {
         history.push('/rollouts');
         return true;
     });
+
+    const images = parseImages(rollout.replicaSets || []);
+
+    for (const img of images) {
+        for (const container of rollout.containers || []) {
+            if (img.image === container.image) {
+                img.color = ImageColor.Blue;
+            }
+        }
+    }
+
+    return (
+        <WaitFor loading={loading}>
+            <div className='rollout__row rollout__row--top'>
+                <ThemeDiv className='info rollout__info'>
+                    <div className='info__title'>Summary</div>
+
+                    <InfoItemRow
+                        items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
+                        label='Strategy'
+                    />
+                    <ThemeDiv className='rollout__info__section'>
+                        {rollout.strategy === Strategy.Canary && (
+                            <React.Fragment>
+                                <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
+                                <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
+                                <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
+                            </React.Fragment>
+                        )}
+                    </ThemeDiv>
+                </ThemeDiv>
+                <ThemeDiv className='info rollout__info'>
+                    <ContainersWidget
+                        images={images}
+                        containers={rollout.containers || []}
+                        setImage={(container, image, tag) => {
+                            api.rolloutServiceSetRolloutImage({}, props.namespace, props.name, container, image, tag);
+                        }}
+                        editing={editing}
+                        setEditing={setEditing}
+                    />
+                </ThemeDiv>
+            </div>
+
+            <div className='rollout__row rollout__row--bottom'>
+                {rollout.replicaSets && rollout.replicaSets.length > 0 && (
+                    <ThemeDiv className='info rollout__info rollout__revisions'>
+                        <div className='info__title'>Revisions</div>
+                        <div style={{marginTop: '1em'}}>
+                            {revisions.map((r, i) => (
+                                <RevisionWidget
+                                    key={i}
+                                    revision={r}
+                                    initCollapsed={false}
+                                    rollback={(r) => api.rolloutServiceUndoRollout({}, props.namespace, props.name, `${r}`)}
+                                    current={i === 0}
+                                />
+                            ))}
+                        </div>
+                    </ThemeDiv>
+                )}
+                {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
+                    <ThemeDiv className='info steps'>
+                        <ThemeDiv className='info__title'>Steps</ThemeDiv>
+                        <div style={{marginTop: '1em'}}>
+                            {rollout.steps.map((step, i) => (
+                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
+                            ))}
+                        </div>
+                    </ThemeDiv>
+                )}
+            </div>
+        </WaitFor>
+    );
+};
+
+export const Rollout = (props: {name?: string}) => {
+    let {name} = useParams<{name: string}>();
+    if (props.name) {
+        name = props.name;
+    }
+
+    const namespace = React.useContext(NamespaceContext);
+    const [rollout] = useWatchRollout(name, namespace, true);
 
     return (
         <div className='rollout'>
@@ -150,67 +222,7 @@ export const Rollout = () => {
             </ThemeDiv>
 
             <ThemeDiv className='rollout__body'>
-                <WaitFor loading={loading}>
-                    <div className='rollout__row rollout__row--top'>
-                        <ThemeDiv className='info rollout__info'>
-                            <div className='info__title'>Summary</div>
-
-                            <InfoItemRow
-                                items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
-                                label='Strategy'
-                            />
-                            <ThemeDiv className='rollout__info__section'>
-                                {rollout.strategy === Strategy.Canary && (
-                                    <React.Fragment>
-                                        <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
-                                        <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
-                                        <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
-                                    </React.Fragment>
-                                )}
-                            </ThemeDiv>
-                        </ThemeDiv>
-                        <ThemeDiv className='info rollout__info'>
-                            <ContainersWidget
-                                images={images}
-                                containers={rollout.containers || []}
-                                setImage={(container, image, tag) => {
-                                    api.rolloutServiceSetRolloutImage({}, namespace, name, container, image, tag);
-                                }}
-                                editing={editing}
-                                setEditing={setEditing}
-                            />
-                        </ThemeDiv>
-                    </div>
-
-                    <div className='rollout__row rollout__row--bottom'>
-                        {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                            <ThemeDiv className='info rollout__info rollout__revisions'>
-                                <div className='info__title'>Revisions</div>
-                                <div style={{marginTop: '1em'}}>
-                                    {revisions.map((r, i) => (
-                                        <RevisionWidget
-                                            key={i}
-                                            revision={r}
-                                            initCollapsed={false}
-                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespace, name, `${r}`)}
-                                            current={i === 0}
-                                        />
-                                    ))}
-                                </div>
-                            </ThemeDiv>
-                        )}
-                        {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
-                            <ThemeDiv className='info steps'>
-                                <ThemeDiv className='info__title'>Steps</ThemeDiv>
-                                <div style={{marginTop: '1em'}}>
-                                    {rollout.steps.map((step, i) => (
-                                        <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                                    ))}
-                                </div>
-                            </ThemeDiv>
-                        )}
-                    </div>
-                </WaitFor>
+                <RolloutExtension name={name} namespace={namespace} />
             </ThemeDiv>
         </div>
     );

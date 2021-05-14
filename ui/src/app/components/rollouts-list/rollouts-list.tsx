@@ -161,7 +161,8 @@ export const isInProgress = (rollout: RolloutInfo): boolean => {
 export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void; selected?: boolean}) => {
     const [watching, subscribe] = React.useState(false);
     let rollout = props.rollout;
-    useWatchRollout(props.rollout?.objectMeta?.name, watching, null, (r: RolloutInfo) => (rollout = r));
+
+    useWatchRollout(props.rollout?.objectMeta?.name, props.rollout?.objectMeta?.namespace, watching, null, (r: RolloutInfo) => (rollout = r));
     const ref = React.useRef(null);
     useClickOutside(ref, props.deselect);
 
