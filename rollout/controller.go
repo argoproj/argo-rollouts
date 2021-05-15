@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -330,26 +329,6 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-// updateInvalidRolloutRefConditions returns a copy of rollout with
-// a new condition of invalid reference (e.g., deployment does not exist)
-// If the errmsg is the same as in the last condition, it returns nil
-func (c *Controller) updateInvalidRolloutRefConditions(r *v1alpha1.Rollout, errmsg string) *v1alpha1.Rollout {
-	var lastCondition *v1alpha1.RolloutCondition
-	var cr *v1alpha1.Rollout
-
-	if len(r.Status.Conditions) > 0 {
-		lastCondition = &r.Status.Conditions[len(r.Status.Conditions)-1]
-	}
-
-	if lastCondition == nil || (strings.Compare(lastCondition.Message, errmsg) != 0 && lastCondition.Status == corev1.ConditionTrue) {
-		invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
-		cr = r.DeepCopy()
-		cr.Status.Conditions = append(cr.Status.Conditions, *invalidSpecCond)
-		cr.Status.ObservedGeneration = strconv.Itoa(int(cr.Generation))
-	}
-	return cr
-}
-
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
@@ -372,19 +351,6 @@ func (c *Controller) syncHandler(key string) error {
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
-
-	if err := c.refResolver.Resolve(r); err != nil {
-		if cr := c.updateInvalidRolloutRefConditions(r, err.Error()); cr != nil {
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(
-				context.TODO(), cr, metav1.UpdateOptions{},
-			)
-			if err != nil {
-				return err
-			}
-		}
-		return err
-	}
-
 	logCtx := logutil.WithRollout(r)
 	logCtx = logutil.WithVersionFields(logCtx, r)
 	logCtx.Info("Started syncing rollout")
@@ -408,10 +374,16 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
+	resolveErr := c.refResolver.Resolve(r)
 	roCtx, err := c.newRolloutContext(r)
 	if err != nil {
 		return err
 	}
+	if resolveErr != nil {
+		roCtx.createInvalidRolloutCondition(resolveErr, r)
+		return resolveErr
+	}
+
 	err = roCtx.reconcile()
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)

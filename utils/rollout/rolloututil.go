@@ -21,7 +21,7 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 		return ro.Status.Phase, ro.Status.Message
 	}
 	// for v0.10 and below, fall back to client-side calculation
-	return CalculateRolloutPhase(ro)
+	return CalculateRolloutPhase(ro.Spec, ro.Status)
 }
 
 // isGenerationObserved determines if the rollout spec has been observed by the controller. This
@@ -43,7 +43,11 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 // rollout spec and status. This function is intended to be used by the controller (and not
 // by clients). Clients should instead call RolloutStatusString, which takes into consideration
 // status.observedGeneration
-func CalculateRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
+func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutStatus) (v1alpha1.RolloutPhase, string) {
+	ro := v1alpha1.Rollout{
+		Spec:   spec,
+		Status: status,
+	}
 	for _, cond := range ro.Status.Conditions {
 		if cond.Type == v1alpha1.InvalidSpec {
 			return v1alpha1.RolloutPhaseDegraded, fmt.Sprintf("%s: %s", v1alpha1.InvalidSpec, cond.Message)

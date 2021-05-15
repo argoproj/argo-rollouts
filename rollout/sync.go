@@ -26,6 +26,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
@@ -418,7 +419,7 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 		// to happen, the user would have had to simultaneously change the number of replicas, and
 		// the pod template spec at the same time.
 		currentPodHash = controller.ComputeHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
-		c.log.Warnf("Assuming %s for new replicaset pod hash", currentPodHash)
+		c.log.Infof("Assuming %s for new replicaset pod hash", currentPodHash)
 	} else {
 		currentPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	}
@@ -542,6 +543,8 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		conditions.SetRolloutCondition(newStatus, *condition)
 	}
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
+	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(r.Spec, *newStatus)
+
 	logCtx := logutil.WithVersionFields(c.log, r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
@@ -558,12 +561,13 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		logCtx.Info("No status changes. Skipping patch")
 		return nil
 	}
-	_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	if err != nil {
 		logCtx.Warnf("Error patching rollout: %v", err)
 		return err
 	}
 	logCtx.Infof("Patched conditions: %s", string(patch))
+	c.newRollout = newRollout
 	return nil
 }
 
@@ -681,10 +685,13 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
 func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus) error {
 	ctx := context.TODO()
+	logCtx := logutil.WithVersionFields(c.log, c.rollout)
+
 	prevStatus := c.rollout.Status
 	c.pauseContext.CalculatePauseStatus(newStatus)
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
-	logCtx := logutil.WithVersionFields(c.log, c.rollout)
+	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
+
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: prevStatus,
