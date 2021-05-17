@@ -132,7 +132,7 @@ func TestWatchTimeoutRollout(t *testing.T) {
 	defer tf.Cleanup()
 	cmd := NewCmdStatus(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--timeout=1"})
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--timeout=1s"})
 	err := cmd.Execute()
 
 	assert.Error(t, err)
