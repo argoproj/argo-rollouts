@@ -69,7 +69,7 @@ RUN make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM scratch as kubectl-argo-rollouts
+FROM ubuntu:20.10 as kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
 
