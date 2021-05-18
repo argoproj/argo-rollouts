@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -38,6 +39,7 @@ func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, st
 	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
 	rollout.Status.CurrentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	rollout.Status.Selector = metav1.FormatLabelSelector(rollout.Spec.Selector)
+	rollout.Status.Phase, rollout.Status.Message = rolloututil.CalculateRolloutPhase(rollout.Spec, rollout.Status)
 	return rollout
 }
 
@@ -52,6 +54,7 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRollout.Spec.Template.Spec.Containers[0].Image = "foo/bar" + newRevisionStr
 	newRollout.Status.CurrentPodHash = controller.ComputeHash(&newRollout.Spec.Template, newRollout.Status.CollisionCount)
 	newRollout.Status.CurrentStepHash = conditions.ComputeStepHash(newRollout)
+	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(newRollout.Spec, newRollout.Status)
 	return newRollout
 }
 
@@ -163,13 +166,15 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 				"startTime": "%s"
 			}],
 			"conditions": %s,
-			"controllerPause": true
+			"controllerPause": true,
+			"phase": "Paused",
+			"message": "%s"
 		}
 	}`
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions)
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -278,7 +283,9 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
-			"conditions": [%s]
+			"conditions": [%s],
+			"phase": "Progressing",
+			"message": "more replicas need to be updated"
 		}
 	}`, retryCondition)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -357,7 +364,9 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	expectedPatchWithoutStableRS := `{
 		"status": {
 			"stableRS": "%s",
-			"conditions": %s
+			"conditions": %s,
+			"phase": "Healthy",
+			"message": null
 		}
 	}`
 
@@ -1373,7 +1382,12 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	expectedPatch := `{
+		"status": {
+			"message": "manually paused"
+		}
+	}`
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
@@ -1454,11 +1468,14 @@ func TestHandleCanaryAbort(t *testing.T) {
 		expectedPatch := `{
 			"status":{
 				"currentStepIndex": 0,
-				"conditions": %s
+				"conditions": %s,
+				"phase": "Degraded",
+				"message": "%s: %s"
 			}
 		}`
+		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions)), patch)
+		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 
 	t.Run("Do not reset currentStepCount if newRS is stableRS", func(t *testing.T) {
@@ -1489,10 +1506,13 @@ func TestHandleCanaryAbort(t *testing.T) {
 		patch := f.getPatchedRollout(patchIndex)
 		expectedPatch := `{
 			"status":{
-				"conditions": %s
+				"conditions": %s,
+				"phase": "Degraded",
+				"message": "%s: %s"
 			}
 		}`
+		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 1)
 		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false, "")
-		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
+		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 var (
@@ -61,7 +62,9 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 			},
 			"conditions": %s,
 			"selector": "foo=bar",
-			"stableRS": "%s"
+			"stableRS": "%s",
+			"phase": "Progressing",
+			"message": "more replicas need to be updated"
 		}
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
@@ -204,7 +207,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 					"reason": "%s",
 					"startTime": "%s"
 				}],
-				"controllerPause": true
+				"controllerPause": true,
+				"phase": "Paused",
+				"message": "BlueGreenPause"
 			}
 		}`
 		now := metav1.Now().UTC().Format(time.RFC3339)
@@ -272,6 +277,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
@@ -319,6 +325,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
@@ -359,6 +366,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
@@ -400,6 +408,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
@@ -420,7 +429,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"stableRS": "%s",
 				"pauseConditions": null,
 				"controllerPause": null,
-				"selector": "foo=bar,rollouts-pod-template-hash=%s"
+				"selector": "foo=bar,rollouts-pod-template-hash=%s",
+				"phase": "Healthy",
+				"message": null
 			}
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, rs2PodHash))
@@ -457,6 +468,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
@@ -515,7 +527,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				},
 				"stableRS": "%s",
 				"conditions": %s,
-				"selector": "%s"
+				"selector": "%s",
+				"phase": "Healthy",
+				"message": null
 			}
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector))
@@ -560,7 +574,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 					"reason":"%s",
 					"startTime": "%s"
 				}],
-				"controllerPause": true
+				"controllerPause": true,
+				"phase": "Paused",
+				"message": "BlueGreenPause"
 			}
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, v1alpha1.PauseReasonBlueGreenPause, now))
@@ -601,7 +617,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				},
 				"stableRS": "%s",
 				"conditions": %s,
-				"selector": "%s"
+				"selector": "%s",
+				"phase": "Healthy",
+				"message": null
 			}
 		}`
 
@@ -673,7 +691,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"stableRS": "%s",
 				"controllerPause":null,
 				"conditions": %s,
-				"selector": "%s"
+				"selector": "%s",
+				"phase": "Healthy",
+				"message": null
 			}
 		}`
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
@@ -720,7 +740,9 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 			},
 			"stableRS": "%s",
 			"conditions": %s,
-			"selector": "%s"
+			"selector": "%s",
+			"phase": "Healthy",
+			"message": null
 		}
 	}`
 	newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
@@ -789,6 +811,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 
 	progressingCondition, progressingConditionStr := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
+	ro.Status.Phase, ro.Status.Message = rolloututil.CalculateRolloutPhase(ro.Spec, ro.Status)
 
 	f := newFixture(t)
 	defer f.Close()
@@ -1291,9 +1314,11 @@ func TestBlueGreenAbort(t *testing.T) {
 				"activeSelector": "%s"
 			},
 			"conditions": %s,
-			"selector": "foo=bar,rollouts-pod-template-hash=%s"
+			"selector": "foo=bar,rollouts-pod-template-hash=%s",
+			"phase": "Degraded",
+			"message": "%s: %s"
 		}	
-	}`, rs1PodHash, expectedConditions, rs1PodHash)
+	}`, rs1PodHash, expectedConditions, rs1PodHash, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }

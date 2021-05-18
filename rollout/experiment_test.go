@@ -303,12 +303,14 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 			"conditions": %s,
 			"canary": {
 				"currentExperiment": null
-			}
+			},
+			"phase": "Degraded",
+			"message": "%s: %s"
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
@@ -350,12 +352,14 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 				"startTime": "%s"
 			}],
 			"conditions": %s,
-			"controllerPause": true
+			"controllerPause": true,
+			"phase": "Paused",
+			"message": "%s"
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions))
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions, v1alpha1.PauseReasonInconclusiveExperiment))
 	assert.Equal(t, expectedPatch, patch)
 }
 

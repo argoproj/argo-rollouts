@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +40,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
@@ -50,6 +50,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 var (
@@ -73,22 +74,6 @@ func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
 
 func (f *FakeWorkloadRefResolver) Init() error {
 	return nil
-}
-
-type FakeEventRecorder struct {
-	Events chan string
-}
-
-func (f *FakeEventRecorder) Event(object runtime.Object, eventtype, reason, message string) {
-	log.Infof("%s %s %s", eventtype, reason, message)
-}
-
-func (f *FakeEventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
-	log.Infof(eventtype+" "+reason+" "+messageFmt, args...)
-}
-
-func (f *FakeEventRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
-	f.Eventf(object, eventtype, reason, messageFmt, args...)
 }
 
 type fixture struct {
@@ -352,6 +337,12 @@ func generateConditionsPatchWithComplete(available bool, progressingReason strin
 	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
 }
 
+func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
+	conditions.SetRolloutCondition(&r.Status, newCondition)
+	conditionsBytes, _ := json.Marshal(r.Status.Conditions)
+	return string(conditionsBytes)
+}
+
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
 func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
@@ -374,6 +365,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
+	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
@@ -388,6 +380,7 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
+	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
 }
 
@@ -1189,6 +1182,7 @@ func TestSetReplicaToDefault(t *testing.T) {
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
 
+// TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes
 func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1197,6 +1191,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	r.Spec.Selector = &metav1.LabelSelector{}
 	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
 	conditions.SetRolloutCondition(&r.Status, *cond)
+	r.Status.Phase, r.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, r.Status)
 
 	r.Spec.Selector = nil
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -1207,13 +1202,15 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s]
+			"conditions": [%s,%s],
+			"message": "%s: %s"
 		}
 	}`
+	errmsg := "The Rollout \"foo\" is invalid: spec.selector: Required value: Rollout has missing field '.spec.selector'"
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.selector: Required value: Rollout has missing field '.spec.selector'")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -1314,6 +1311,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	r.Status.Phase, r.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, r.Status)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,

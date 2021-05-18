@@ -134,7 +134,7 @@ spec:
     canary:
       trafficRouting: null
 `).
-		Sleep(1*time.Second).
+		Sleep(2*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			destrule := t.GetDestinationRule()

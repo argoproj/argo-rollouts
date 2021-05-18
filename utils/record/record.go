@@ -83,6 +83,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			[]string{"name", "namespace", "type", "reason"},
 		),
 	).(*EventRecorderAdapter)
+	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
 	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
 		recorder.defaultEventf(object, warn, opts, messageFmt, args...)

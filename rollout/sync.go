@@ -580,6 +580,7 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
+	isAborted := c.pauseContext.IsAborted()
 
 	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutCompleted)
 	if !isPaused && conditions.RolloutComplete(c.rollout, &newStatus) {
@@ -589,6 +590,18 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		if completeCond != nil {
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 			conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+		}
+	}
+
+	if isAborted {
+		revision, _ := replicasetutil.Revision(c.rollout)
+		message := fmt.Sprintf(conditions.RolloutAbortedMessage, revision)
+		if c.pauseContext.abortMessage != "" {
+			message = fmt.Sprintf("%s: %s", message, c.pauseContext.abortMessage)
+		}
+		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
+		if conditions.SetRolloutCondition(&newStatus, *condition) {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 		}
 	}
 
@@ -602,19 +615,9 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	currentCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
 
 	isCompleteRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason && currentCond.Type != v1alpha1.RolloutProgressing
-	// Check for progress only if the latest rollout hasn't completed yet.
-	if !isCompleteRollout {
+	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
+	if !isCompleteRollout && !isAborted {
 		switch {
-		case c.pauseContext.IsAborted():
-			revision, _ := replicasetutil.Revision(c.rollout)
-			message := fmt.Sprintf(conditions.RolloutAbortedMessage, revision)
-			if c.pauseContext.abortMessage != "" {
-				message = fmt.Sprintf("%s: %s", message, c.pauseContext.abortMessage)
-			}
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
-			if conditions.SetRolloutCondition(&newStatus, *condition) {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
-			}
 		case conditions.RolloutComplete(c.rollout, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
