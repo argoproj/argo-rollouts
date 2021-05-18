@@ -151,11 +151,13 @@ func (r *Reconciler) handleCanaryMapping(ctx context.Context, baseMappingName st
 	}
 
 	if desiredWeight == 0 {
-		go func() {
+		defer func() {
+			// add buffer before scale down replica set
+			r.Log.Infof("sleep %d sec for propagation of mapping update", 5)
+			time.Sleep(5 * time.Second)
 			// The deletion of the canary mapping needs to happen moments after
 			// updating the weight to zero to prevent traffic to reach the older
 			// version at the end of the rollout
-			time.Sleep(5 * time.Second)
 			r.Log.Infof("deleting canary mapping %q", canaryMapping.GetName())
 			err := r.deleteCanaryMapping(ctx, canaryMapping, desiredWeight, r.Client)
 			if err != nil {
