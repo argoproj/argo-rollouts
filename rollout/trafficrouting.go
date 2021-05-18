@@ -100,8 +100,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
 		// when promote aborted. desired canary weight should be 0
-	} else if c.newRS.Status.AvailableReplicas == 0 {
-		// when newRS available replicas num is 0. never weight to canary
+	} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
+		// when newRS is not available or replicas num is 0. never weight to canary
 	} else if index != nil {
 		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 		if !atDesiredReplicaCount {
