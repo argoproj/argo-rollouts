@@ -2,6 +2,7 @@ package experiments
 
 import (
 	"fmt"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -38,6 +39,7 @@ type experimentContext struct {
 	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister
 	analysisRunLister             rolloutslisters.AnalysisRunLister
 	replicaSetLister              appslisters.ReplicaSetLister
+	serviceLister                 v1.ServiceLister
 	recorder                      record.EventRecorder
 	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
 
@@ -58,6 +60,7 @@ func newExperimentContext(
 	analysisTemplateLister rolloutslisters.AnalysisTemplateLister,
 	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister,
 	analysisRunLister rolloutslisters.AnalysisRunLister,
+	serviceLister     v1.ServiceLister,
 	recorder record.EventRecorder,
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
 ) *experimentContext {
@@ -71,6 +74,7 @@ func newExperimentContext(
 		analysisTemplateLister:        analysisTemplateLister,
 		clusterAnalysisTemplateLister: clusterAnalysisTemplateLister,
 		analysisRunLister:             analysisRunLister,
+		serviceLister:                 serviceLister,
 		recorder:                      recorder,
 		enqueueExperimentAfter:        enqueueExperimentAfter,
 
@@ -98,7 +102,7 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	return newStatus
 }
 
-// reconcileTemplate reconciles a template to a ReplicaSet. Creates or scales them down as necessary
+// reconcileTemplate reconciles a template to a ReplicaSet and/or Service. Creates or scales them down as necessary
 // will update status.templateStatuses with the current assessed values
 func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	logCtx := ec.log.WithField("template", template.Name)
@@ -149,6 +153,25 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+	}
+
+	// Create Service for template
+	serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
+	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	_, err := ec.getService(serviceName)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			service, err := ec.createService(serviceName, template)
+			if err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+			}
+			templateStatus.ServiceName = service.Name
+			templateStatus.PodTemplateHash = podTemplateHash
+		} else {
+			templateStatus.Status = v1alpha1.TemplateStatusError
+			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+		}
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||

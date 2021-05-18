@@ -44,6 +44,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 	analysisRunLister := rolloutsI.Argoproj().V1alpha1().AnalysisRuns().Lister()
 	analysisTemplateLister := rolloutsI.Argoproj().V1alpha1().AnalysisTemplates().Lister()
 	clusterAnalysisTemplateLister := rolloutsI.Argoproj().V1alpha1().ClusterAnalysisTemplates().Lister()
+	serviceLister := k8sI.Core().V1().Services().Lister()
 
 	return newExperimentContext(
 		ex,
@@ -54,6 +55,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		analysisTemplateLister,
 		clusterAnalysisTemplateLister,
 		analysisRunLister,
+		serviceLister,
 		record.NewFakeEventRecorder(),
 		func(obj interface{}, duration time.Duration) {},
 	)
