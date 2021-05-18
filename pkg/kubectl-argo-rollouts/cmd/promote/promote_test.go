@@ -236,7 +236,7 @@ func TestPromoteCmdSuccessDoNotGoPastLastStep(t *testing.T) {
 
 	cmd := NewCmdPromote(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"guestbook", "-c"})
+	cmd.SetArgs([]string{"guestbook"})
 
 	err := cmd.Execute()
 	assert.Nil(t, err)

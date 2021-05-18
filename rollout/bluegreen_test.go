@@ -249,7 +249,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		addedConditions := generateConditionsPatchWithPause(true, conditions.PausedRolloutReason, rs2, true, "", true)
+		addedConditions := generateConditionsPatchWithPause(true, conditions.RolloutPausedReason, rs2, true, "", true)
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditions)), patch)
 	})
 
@@ -267,7 +267,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-		progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
@@ -314,7 +314,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 			StartTime: now,
 		})
-		progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
@@ -354,7 +354,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-		progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
@@ -395,7 +395,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		before := metav1.NewTime(now.Add(-1 * time.Minute))
 		r2.Status.PauseConditions[0].StartTime = before
 		r2.Status.ControllerPause = true
-		progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
@@ -452,7 +452,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2.Status.PauseConditions[0].StartTime = before
 		r2.Status.ControllerPause = true
 		r2.Spec.Paused = true
-		progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
@@ -633,7 +633,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		r2.Status.ControllerPause = true
-		pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+		pausedCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -656,7 +656,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		f.verifyPatchedReplicaSet(patchedRSIndex, 10)
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
-		unpauseConditions := generateConditionsPatch(true, conditions.ResumedRolloutReason, rs2, true, "")
+		unpauseConditions := generateConditionsPatch(true, conditions.RolloutResumedReason, rs2, true, "")
 		expectedUnpausePatch := `{
 			"status": {
 				"conditions": %s
@@ -747,7 +747,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 0, 0, 0, 0, true, false)
 	r2.Status.Selector = ""
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
@@ -1033,7 +1033,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 
 	r2 := bumpVersion(r1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
-	progressingCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, rs2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)

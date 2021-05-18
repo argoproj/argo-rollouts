@@ -55,6 +55,7 @@ Instead of removing Deployment you can scale-down in to zero and reference from 
 1. Create a Rollout resource.
 1. Reference an existing Deployment using `workloadRef` field.
 1. Scale-down existing Deployment by changing `replicas` field of an existing Deployment to zero.
+1. To perform an update, the change should be made to the Pod template field of the Deployment.
 
 Below is an example of a Rollout resource referencing a Deployment.
 

@@ -3,8 +3,6 @@ package rollout
 import (
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
@@ -12,6 +10,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -123,7 +122,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 	err = reconciler.SetWeight(desiredWeight)
 	if err != nil {
-		c.recorder.Event(c.rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 		return err
 	}
 

@@ -36,7 +36,7 @@ func ObjectToRollout(obj interface{}) *v1alpha1.Rollout {
 		var ro v1alpha1.Rollout
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ro)
 		if err != nil {
-			logCtx := logutil.WithUnstructured(un)
+			logCtx := logutil.WithObject(un)
 			logCtx.Warnf("Failed to convert Rollout from Unstructured object: %v", err)
 			return nil
 		}

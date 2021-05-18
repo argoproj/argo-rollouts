@@ -11,47 +11,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
-var (
-	descRolloutWithStrategyLabels = append(descDefaultLabels, "strategy")
-
-	descRolloutReconcilePhaseLabels = append(descRolloutWithStrategyLabels, "phase")
-
-	descRolloutInfo = prometheus.NewDesc(
-		"rollout_info",
-		"Information about rollout.",
-		descRolloutWithStrategyLabels,
-		nil,
-	)
-
-	descRolloutInfoReplicasAvailable = prometheus.NewDesc(
-		"rollout_info_replicas_available",
-		"The number of available replicas per rollout.",
-		descRolloutWithStrategyLabels,
-		nil,
-	)
-
-	descRolloutInfoReplicasUnavailable = prometheus.NewDesc(
-		"rollout_info_replicas_unavailable",
-		"The number of unavailable replicas per rollout.",
-		descRolloutWithStrategyLabels,
-		nil,
-	)
-
-	descRolloutInfoReplicasDesired = prometheus.NewDesc(
-		"rollout_info_replicas_desired",
-		"The number of desired replicas per rollout.",
-		descRolloutWithStrategyLabels,
-		nil,
-	)
-
-	descRolloutPhaseLabels = prometheus.NewDesc(
-		"rollout_phase",
-		"Information on the state of the rollout",
-		descRolloutReconcilePhaseLabels,
-		nil,
-	)
-)
-
 // RolloutPhase the phases of a reconcile can have
 type RolloutPhase string
 
@@ -86,7 +45,7 @@ func NewRolloutCollector(rolloutLister rolloutlister.RolloutLister) prometheus.C
 
 // Describe implements the prometheus.Collector interface
 func (c *rolloutCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- descRolloutInfo
+	ch <- MetricRolloutInfo
 }
 
 // Collect implements the prometheus.Collector interface
@@ -109,7 +68,7 @@ func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 		if progressing.Reason == conditions.NewRSAvailableReason {
 			phase = RolloutCompleted
 		}
-		if progressing.Reason == conditions.PausedRolloutReason {
+		if progressing.Reason == conditions.RolloutPausedReason {
 			phase = RolloutPaused
 		}
 		if progressing.Reason == conditions.ServiceNotFoundReason || progressing.Reason == conditions.FailedRSCreateReason {
@@ -129,27 +88,52 @@ func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 	return phase
 }
 
+func getStrategyAndTrafficRouter(rollout *v1alpha1.Rollout) (string, string) {
+	strategy := "none"
+	trafficRouter := ""
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		strategy = "blueGreen"
+	} else if rollout.Spec.Strategy.Canary != nil {
+		strategy = "canary"
+		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
+				trafficRouter = "ALB"
+			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
+				trafficRouter = "Ambassador"
+			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
+				trafficRouter = "Istio"
+			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
+				trafficRouter = "Nginx"
+			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
+				trafficRouter = "SMI"
+			}
+		}
+	}
+	return strategy, trafficRouter
+}
+
 func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
-
-	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		lv = append([]string{rollout.Namespace, rollout.Name, defaults.GetStrategyType(rollout)}, lv...)
-		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
-	}
-	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
-		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
-	}
-
-	addGauge(descRolloutInfo, 1)
-
-	addGauge(descRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
-	addGauge(descRolloutInfoReplicasUnavailable, float64(rollout.Status.Replicas-rollout.Status.AvailableReplicas))
-	addGauge(descRolloutInfoReplicasDesired, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)))
-
+	strategyType, trafficRouter := getStrategyAndTrafficRouter(rollout)
 	calculatedPhase := calculatePhase(rollout)
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutCompleted), string(RolloutCompleted))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutProgressing), string(RolloutProgressing))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutPaused), string(RolloutPaused))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutTimeout), string(RolloutTimeout))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutError), string(RolloutError))
-	addGauge(descRolloutPhaseLabels, boolFloat64(calculatedPhase == RolloutAbort), string(RolloutAbort))
+
+	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
+		lv = append([]string{rollout.Namespace, rollout.Name}, lv...)
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
+	}
+	addGauge(MetricRolloutInfo, 1, strategyType, trafficRouter, string(calculatedPhase))
+	addGauge(MetricRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
+	addGauge(MetricRolloutInfoReplicasUnavailable, float64(rollout.Status.Replicas-rollout.Status.AvailableReplicas))
+	addGauge(MetricRolloutInfoReplicasDesired, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)))
+
+	// DEPRECATED
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutCompleted), strategyType, string(RolloutCompleted))
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutProgressing), strategyType, string(RolloutProgressing))
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutPaused), strategyType, string(RolloutPaused))
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutTimeout), strategyType, string(RolloutTimeout))
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutError), strategyType, string(RolloutError))
+	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutAbort), strategyType, string(RolloutAbort))
 }

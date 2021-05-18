@@ -49,63 +49,88 @@ const (
 
 	// NewReplicaSetReason is added in a rollout when it creates a new replica set.
 	NewReplicaSetReason = "NewReplicaSetCreated"
-	//NewReplicaSetMessage is added in a rollout when it creates a new replicas \set.
+	//NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
 	NewReplicaSetMessage = "Created new replica set %q"
+	// NewReplicaSetDetailedMessage is a more detailed format message
+	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d) with size %d"
+
 	// FoundNewRSReason is added in a rollout when it adopts an existing replica set.
 	FoundNewRSReason = "FoundNewReplicaSet"
 	// FoundNewRSMessage is added in a rollout when it adopts an existing replica set.
 	FoundNewRSMessage = "Found new replica set %q"
 
+	// RolloutUpdatedReason indicates the rollout spec was updated.
+	RolloutUpdatedReason = "RolloutUpdated"
+	// RolloutUpdatedMessage indicates the rollout spec was updated.
+	RolloutUpdatedMessage = "Rollout updated to revision %s"
+
+	// RolloutCompletedReason is added in a rollout when it is completed.
+	RolloutCompletedReason = "RolloutCompleted"
+	// RolloutCompletedMessage is added when the rollout is completed
+	RolloutCompletedMessage = "Rollout completed update to revision %d (%s): %s"
+
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"
 	// RolloutAbortedMessage indicates that the rollout was aborted
-	RolloutAbortedMessage = "Rollout is aborted"
+	RolloutAbortedMessage = "Rollout aborted update to revision %d"
+
 	// RolloutRetryReason indicates that the rollout is retrying after being aborted
 	RolloutRetryReason = "RolloutRetry"
 	// RolloutRetryMessage indicates that the rollout is retrying after being aborted
 	RolloutRetryMessage = "Retrying Rollout after abort"
 
+	// RolloutPausedReason is added in a rollout when it is paused. Lack of progress shouldn't be
+	// estimated once a rollout is paused.
+	RolloutPausedReason = "RolloutPaused"
+	// RolloutPausedMessage is added in a rollout when it is paused. Lack of progress shouldn't be
+	// estimated once a rollout is paused.
+	RolloutPausedMessage = "Rollout is paused"
+
+	// RolloutResumedReason is added in a rollout when it is resumed. Useful for not failing accidentally
+	// rollout that paused amidst a rollout and are bounded by a deadline.
+	RolloutResumedReason = "RolloutResumed"
+	// RolloutResumedMessage is added in a rollout when it is resumed. Useful for not failing accidentally
+	// rollout that paused amidst a rollout and are bounded by a deadline.
+	RolloutResumedMessage = "Rollout is resumed"
+
+	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
+	// rollout that paused amidst a rollout and are bounded by a deadline.
+	RolloutStepCompletedReason = "RolloutStepCompleted"
+	// ResumeRolloutMessage is added in a rollout when it is resumed. Useful for not failing accidentally
+	// rollout that paused amidst a rollout and are bounded by a deadline.
+	RolloutStepCompletedMessage = "Rollout step %d/%d completed (%s)"
+
 	// NewRSAvailableReason is added in a rollout when its newest replica set is made available
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available pods that need to run for the rollout.
 	NewRSAvailableReason = "NewReplicaSetAvailable"
+
 	// RolloutAnalysisRunFailedReason is added in a rollout when the analysisRun owned by a rollout fails or errors out
 	RolloutAnalysisRunFailedReason = "AnalysisRunFailed"
 	// RolloutAnalysisRunFailedMessage is added in a rollout when the analysisRun owned by a rollout fails or errors out
 	RolloutAnalysisRunFailedMessage = "AnalysisRun '%s' owned by the Rollout '%q' failed."
+
 	// RolloutExperimentFailedReason is added in a rollout when the analysisRun owned by a rollout fails to show any progress
 	RolloutExperimentFailedReason = "ExperimentFailed"
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
+
 	// TimedOutReason is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
 	// RolloutTimeOutMessage is is added in a rollout when the rollout fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	RolloutTimeOutMessage = "Rollout %q has timed out progressing."
+
+	ScalingReplicaSetReason  = "ScalingReplicaSet"
+	ScalingReplicaSetMessage = "Scaled %s ReplicaSet %s (revision %d) from %d to %d"
+
 	// ReplicaSetTimeOutMessage is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	ReplicaSetTimeOutMessage = "ReplicaSet %q has timed out progressing."
-
-	// RolloutCompletedReason is added in a rollout when it is completed.
-	RolloutCompletedReason = "RolloutCompleted"
-	// RolloutCompletedMessage is added when the rollout is completed
-	RolloutCompletedMessage = "Rollout %q has successfully progressed."
 	// ReplicaSetCompletedMessage is added when the rollout is completed
 	ReplicaSetCompletedMessage = "ReplicaSet %q has successfully progressed."
 
-	// PausedRolloutReason is added in a rollout when it is paused. Lack of progress shouldn't be
-	// estimated once a rollout is paused.
-	PausedRolloutReason = "RolloutPaused"
-	// PausedRolloutMessage is added in a rollout when it is paused. Lack of progress shouldn't be
-	// estimated once a rollout is paused.
-	PausedRolloutMessage = "Rollout is paused"
-	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
-	ResumedRolloutReason = "RolloutResumed"
-	// ResumeRolloutMessage is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
-	ResumeRolloutMessage = "Rollout is resumed"
 	// ServiceNotFoundReason is added in a rollout when the service defined in the spec is not found
 	ServiceNotFoundReason = "ServiceNotFound"
 	// ServiceNotFoundMessage is added in a rollout when the service defined in the spec is not found
@@ -141,10 +166,11 @@ func GetRolloutCondition(status v1alpha1.RolloutStatus, condType v1alpha1.Rollou
 
 // SetRolloutCondition updates the rollout to include the provided condition. If the condition that
 // we are about to add already exists and has the same status and reason then we are not going to update.
-func SetRolloutCondition(status *v1alpha1.RolloutStatus, condition v1alpha1.RolloutCondition) {
+// Returns true if the condition was updated
+func SetRolloutCondition(status *v1alpha1.RolloutStatus, condition v1alpha1.RolloutCondition) bool {
 	currentCond := GetRolloutCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status && currentCond.Reason == condition.Reason {
-		return
+		return false
 	}
 	// Do not update lastTransitionTime if the status of the condition doesn't change.
 	if currentCond != nil && currentCond.Status == condition.Status {
@@ -152,6 +178,7 @@ func SetRolloutCondition(status *v1alpha1.RolloutStatus, condition v1alpha1.Roll
 	}
 	newConditions := filterOutCondition(status.Conditions, condition.Type)
 	status.Conditions = append(newConditions, condition)
+	return true
 }
 
 // RemoveRolloutCondition removes the rollout condition with the provided type.

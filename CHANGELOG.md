@@ -35,6 +35,17 @@ More information:
 To avoid the Argo CD OutOfSync conditions, you can remove `spec.preserveUnknownFields` from the manifests
 entirely *after upgrading from v0.10*.
 
+Alternatively, you can instruct Argo CD to ignore differences using ignoreDifferences in the Application spec:
+
+```yaml
+spec:
+  ignoreDifferences:
+  - group: apiextensions.k8s.io
+    kind: CustomResourceDefinition
+    jsonPointers:
+    - /spec/preserveUnknownFields
+```
+
 ## Changes since v0.10
 
 ### Controller

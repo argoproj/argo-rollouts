@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -20,9 +19,7 @@ import (
 	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/analysis"
@@ -34,9 +31,8 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
-
-const controllerAgentName = "rollouts-controller"
 
 const (
 	// DefaultRolloutResyncPeriod is the default time in seconds for rollout resync period
@@ -123,20 +119,15 @@ func NewManager(
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
 
-	// Create event broadcaster
-	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
-	// logged for argo-rollouts types.
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(log.Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:               metricsAddr,
-		RolloutLister:      rolloutsInformer.Lister(),
-		AnalysisRunLister:  analysisRunInformer.Lister(),
-		ExperimentLister:   experimentsInformer.Lister(),
-		K8SRequestProvider: k8sRequestProvider,
+		Addr:                          metricsAddr,
+		RolloutLister:                 rolloutsInformer.Lister(),
+		AnalysisRunLister:             analysisRunInformer.Lister(),
+		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
+		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
+		ExperimentLister:              experimentsInformer.Lister(),
+		K8SRequestProvider:            k8sRequestProvider,
 	})
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
@@ -146,6 +137,8 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, rolloutWorkqueue, rolloutsInformer.Informer())
+
+	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal)
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
 		Namespace:                       namespace,
@@ -252,10 +245,9 @@ func NewManager(
 	return cm
 }
 
-// Run will set up the event handlers for types we are interested in, as well
-// as syncing informer caches and starting workers. It will block until stopCh
+// Run will sync informer caches and start controllers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
+// controllers to finish processing their current work items.
 func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
@@ -290,7 +282,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		err := c.metricsServer.ListenAndServe()
 		if err != nil {
 			err = errors.Wrap(err, "Starting Metric Server")
-			log.Fatal(err)
+			log.Error(err)
 		}
 	}()
 	<-stopCh

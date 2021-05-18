@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	ProviderType = "job"
+	ProviderType = "Job"
 	// JobNameKey is the measurement's metadata key holding the job name associated with the measurement
 	JobNameKey = "job-name"
 	// AnalysisRunNameAnnotationKey is the job's annotation key containing the name of the controller AnalysisRun

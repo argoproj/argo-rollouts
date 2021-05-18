@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/antonmedv/expr v1.8.9
-	github.com/argoproj/pkg v0.7.0
+	github.com/argoproj/pkg v0.9.0
 	github.com/aws/aws-sdk-go-v2/config v1.0.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.0.0
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
@@ -20,8 +20,9 @@ require (
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/newrelic/newrelic-client-go v0.49.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0
-	github.com/prometheus/common v0.18.0
+	github.com/prometheus/client_golang v1.10.0
+	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.21.0
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/soheilhy/cmux v0.1.4
@@ -46,7 +47,7 @@ require (
 	k8s.io/client-go v0.20.4
 	k8s.io/code-generator v0.20.4
 	k8s.io/component-base v0.20.4
-	k8s.io/klog v1.0.0
+	k8s.io/klog/v2 v2.5.0
 	k8s.io/kube-openapi v0.0.0-20210216185858-15cd8face8d6
 	k8s.io/kubectl v0.19.4
 	k8s.io/kubernetes v1.20.4

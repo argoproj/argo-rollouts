@@ -18,13 +18,13 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func fakeRollout(stableSvc, canarySvc, stableIng string, port int32) *v1alpha1.Rollout {
@@ -117,7 +117,7 @@ func TestType(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 	})
 	assert.Equal(t, Type, r.Type())
@@ -131,7 +131,7 @@ func TestIngressNotFound(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -150,7 +150,7 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -168,7 +168,7 @@ func TestNoChanges(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -188,7 +188,7 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -207,7 +207,7 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -226,7 +226,7 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -254,7 +254,7 @@ func TestErrorPatching(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -301,7 +301,7 @@ func TestVerifyWeight(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 			VerifyWeight:   pointer.BoolPtr(true),

@@ -34,15 +34,15 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {}
 - setCanaryScale:
     weight: 25
-- pause: {}
+- pause: {duration: 100s}
 - setWeight: 50
-- pause: {}
+- pause: {duration: 10s}
 - setCanaryScale:
     replicas: 3
 - pause: {}
 - setCanaryScale:
     matchTrafficWeight: true
-- pause: {}
+- pause: {duration: 5s}
 `
 	s.Given().
 		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").

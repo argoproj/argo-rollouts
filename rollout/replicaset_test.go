@@ -10,12 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -163,7 +163,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				reconcilerBase: reconcilerBase{
 					argoprojclientset: &fake,
 					kubeclientset:     &k8sfake,
-					recorder:          &record.FakeRecorder{},
+					recorder:          record.NewFakeEventRecorder(),
 				},
 			}
 			scaled, err := roCtx.reconcileNewReplicaSet()

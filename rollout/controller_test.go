@@ -48,6 +48,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 var (
@@ -185,8 +187,8 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
-		Message:            conditions.PausedRolloutMessage,
-		Reason:             conditions.PausedRolloutReason,
+		Message:            conditions.RolloutPausedMessage,
+		Reason:             conditions.RolloutPausedReason,
 		Status:             status,
 		Type:               v1alpha1.RolloutPaused,
 	}
@@ -239,7 +241,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
 		}
 		if reason == conditions.RolloutAbortedReason {
-			msg = conditions.RolloutAbortedMessage
+			rev, _ := replicasetutil.Revision(resourceObj)
+			msg = fmt.Sprintf(conditions.RolloutAbortedMessage, rev)
 			status = corev1.ConditionFalse
 		}
 		if reason == conditions.RolloutExperimentFailedReason {
@@ -271,12 +274,12 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		}
 	}
 
-	if reason == conditions.PausedRolloutReason {
-		msg = conditions.PausedRolloutMessage
+	if reason == conditions.RolloutPausedReason {
+		msg = conditions.RolloutPausedMessage
 		status = corev1.ConditionUnknown
 	}
-	if reason == conditions.ResumedRolloutReason {
-		msg = conditions.ResumeRolloutMessage
+	if reason == conditions.RolloutResumedReason {
+		msg = conditions.RolloutResumedMessage
 		status = corev1.ConditionUnknown
 	}
 
@@ -520,7 +523,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
-		Recorder:                        &FakeEventRecorder{},
+		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 	})
 
@@ -1619,4 +1622,27 @@ func TestWriteBackToInformer(t *testing.T) {
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+}
+
+func TestUpdateInvalidRolloutRefConditions(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	rollout := &v1alpha1.Rollout{}
+
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg")
+	assert.Equal(t, 1, len(rollout.Status.Conditions))
+
+	assert.Nil(t, c.updateInvalidRolloutRefConditions(rollout, "error ref msg"))
+
+	availableCond := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableMessage, "")
+	rollout.Status.Conditions = append(rollout.Status.Conditions, *availableCond)
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg")
+	assert.Equal(t, 3, len(rollout.Status.Conditions))
+	lastCondition := rollout.Status.Conditions[2]
+	assert.Equal(t, "error ref msg", lastCondition.Message)
+
+	rollout = c.updateInvalidRolloutRefConditions(rollout, "error ref msg due to changed deployment")
+	assert.Equal(t, 4, len(rollout.Status.Conditions))
 }

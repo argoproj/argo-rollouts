@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-rollouts-metrics
+  labels:
+    region: us-west
+spec:
+  ports:
+  - name: metrics
+    protocol: TCP
+    port: 8090
+    targetPort: 8090
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: invalid-rollout
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    canary:
+      maxUnavailable: 0
+      maxSurge: 0
+      analysis:
+        templates:
+          - templateName: integrationtests
+      steps:
+        - setWeight: 10
+        - setWeight: 20
+        - setWeight: 40
+        - setWeight: 80
+  selector:
+    matchLabels:
+      app: invalid-rollout
+  template:
+    metadata:
+      labels:
+        app: invalid-rollout
+    spec:
+      containers:
+        - name: invalid-rollout
+          image: invalid-rollout:0.0.0
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            periodSeconds: 5

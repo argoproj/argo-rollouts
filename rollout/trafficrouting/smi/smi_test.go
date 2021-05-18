@@ -19,10 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	core "k8s.io/client-go/testing"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) *v1alpha1.Rollout {
@@ -54,7 +54,7 @@ func TestType(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
 	})
 	assert.Nil(t, err)
@@ -69,7 +69,7 @@ func TestUnsupportedTrafficSplitApiVersionError(t *testing.T) {
 	_, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
 	})
 	assert.EqualError(t, err, "Unsupported TrafficSplit API version `does-not-exist`")
@@ -84,7 +84,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -118,7 +118,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -149,7 +149,7 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -183,7 +183,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -219,7 +219,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -251,7 +251,7 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -286,7 +286,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -312,7 +312,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -337,7 +337,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -359,7 +359,7 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
 	})
 	assert.Nil(t, err)
@@ -385,7 +385,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -404,7 +404,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)
@@ -423,7 +423,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
 		})
 		assert.Nil(t, err)

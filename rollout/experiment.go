@@ -8,9 +8,9 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -165,10 +165,7 @@ func (c *rolloutContext) reconcileExperiments() error {
 			if err != nil {
 				return err
 			}
-
-			msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
-			c.log.Info(msg)
-			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "ExperimentCreated"}, "Created Experiment '%s'", currentEx.Name)
 		}
 		switch currentEx.Status.Phase {
 		case v1alpha1.AnalysisPhaseInconclusive:
