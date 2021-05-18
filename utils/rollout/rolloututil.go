@@ -41,7 +41,7 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 
 // CalculateRolloutPhase calculates a rollout phase and message for the given rollout based on
 // rollout spec and status. This function is intended to be used by the controller (and not
-// by clients). Clients should instead call RolloutStatusString, which takes into consideration
+// by clients). Clients should instead call GetRolloutPhase, which takes into consideration
 // status.observedGeneration
 func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutStatus) (v1alpha1.RolloutPhase, string) {
 	ro := v1alpha1.Rollout{
@@ -62,6 +62,9 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 	}
 	for _, pauseCond := range ro.Status.PauseConditions {
 		return v1alpha1.RolloutPhasePaused, string(pauseCond.Reason)
+	}
+	if ro.Spec.RestartAt != nil && (ro.Status.RestartedAt == nil || !ro.Spec.RestartAt.Time.Equal(ro.Status.RestartedAt.Time)) {
+		return v1alpha1.RolloutPhaseProgressing, "rollout is restarting"
 	}
 	if ro.Status.UpdatedReplicas < defaults.GetReplicasOrDefault(ro.Spec.Replicas) {
 		return v1alpha1.RolloutPhaseProgressing, "more replicas need to be updated"

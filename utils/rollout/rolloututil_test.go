@@ -3,6 +3,7 @@ package rollout
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/tj/assert"
@@ -203,6 +204,21 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
 		assert.Equal(t, "more replicas need to be updated", message)
 	}
+	{
+		// Verify rollout is considered progressing if we did not finish restarting pods
+		oneMinuteAgo := metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+		ro := newCanaryRollout()
+		ro.Spec.RestartAt = &oneMinuteAgo
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.ReadyReplicas = 5
+		ro.Status.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "abc1234"
+		status, message := GetRolloutPhase(ro)
+		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
+		assert.Equal(t, "rollout is restarting", message)
+	}
 }
 
 func TestRolloutStatusHealthy(t *testing.T) {
@@ -227,6 +243,21 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
 		ro.Status.StableRS = "abc1234"
+		status, message := GetRolloutPhase(ro)
+		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status)
+		assert.Equal(t, "", message)
+	}
+	{
+		oneMinuteAgo := metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+		ro := newCanaryRollout()
+		ro.Spec.RestartAt = &oneMinuteAgo
+		ro.Status.RestartedAt = &oneMinuteAgo
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.ReadyReplicas = 5
+		ro.Status.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "abc1234"
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status)
 		assert.Equal(t, "", message)
