@@ -1178,6 +1178,12 @@ spec:
     `).
 		WaitForRolloutStatus("Healthy").
 		Then().
+		ExpectRollout("WorkloadObservedGeneration is 1", func(r *v1alpha1.Rollout) bool {
+			if r.Status.WorkloadObservedGeneration != "1" {
+				return false
+			}
+			return true
+		}).
 		// verify that service is switched after rollout is healthy
 		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, true).
 		When().
@@ -1194,6 +1200,12 @@ spec:
 		}).
 		WaitForRolloutStatus("Degraded").
 		Then().
+		ExpectRollout("WorkloadObservedGeneration is 2 after workload ref updated", func(r *v1alpha1.Rollout) bool {
+			if r.Status.WorkloadObservedGeneration != "2" {
+				return false
+			}
+			return true
+		}).
 		When().
 		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
 			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")

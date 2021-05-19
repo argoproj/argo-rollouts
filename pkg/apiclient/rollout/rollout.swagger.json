@@ -1223,6 +1223,10 @@
           "type": "string",
           "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
         },
+        "workloadObservedGeneration": {
+          "type": "string",
+          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
+        },
         "conditions": {
           "type": "array",
           "items": {

@@ -55,7 +55,8 @@ func newFakeDiscoClient() *discofake.FakeDiscovery {
 
 func newResolver(dynamicClient dynamic.Interface, discoveryClient disco.DiscoveryInterface, rolloutClient versioned.Interface) (*informerBasedTemplateResolver, context.CancelFunc) {
 	rolloutsInformer := rolloutinformers.NewRolloutInformer(rolloutClient, "", time.Minute, cache.Indexers{})
-	resolver := NewInformerBasedWorkloadRefResolver("", dynamicClient, discoveryClient, workqueue.NewDelayingQueue(), rolloutsInformer)
+	argoprojectclientset := fake.Clientset{}
+	resolver := NewInformerBasedWorkloadRefResolver("", dynamicClient, discoveryClient, &argoprojectclientset, workqueue.NewDelayingQueue(), rolloutsInformer)
 	stop := make(chan struct{})
 	go rolloutsInformer.Run(stop)
 	cache.WaitForCacheSync(stop, rolloutsInformer.HasSynced)

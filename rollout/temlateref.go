@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -59,6 +63,7 @@ type informerBasedTemplateResolver struct {
 	cancelContext          context.CancelFunc
 	rolloutWorkQueue       workqueue.Interface
 	rolloutsInformer       cache.SharedIndexInformer
+	argoprojclientset      clientset.Interface
 }
 
 // NewInformerBasedWorkloadRefResolver create new instance of workload ref resolver.
@@ -66,6 +71,7 @@ func NewInformerBasedWorkloadRefResolver(
 	namespace string,
 	dynamicClient dynamic.Interface,
 	discoClient discovery.DiscoveryInterface,
+	agrgoProjClientset clientset.Interface,
 	rolloutWorkQueue workqueue.Interface,
 	rolloutsInformer cache.SharedIndexInformer,
 ) *informerBasedTemplateResolver {
@@ -88,6 +94,7 @@ func NewInformerBasedWorkloadRefResolver(
 		cancelContext:          cancelContext,
 		informerResyncDuration: time.Minute * 5,
 		informerSyncTimeout:    time.Minute,
+		argoprojclientset:      agrgoProjClientset,
 		dynamicClient:          dynamicClient,
 		discoClient:            discoClient,
 		rolloutWorkQueue:       rolloutWorkQueue,
@@ -170,6 +177,14 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 		}
 	}
 
+	// initialize rollout workload-generation annotation
+	roMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+	generation := strconv.FormatInt(roMeta.GetGeneration(), 10)
+	annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
+
 	return nil
 }
 
@@ -225,7 +240,23 @@ func (r *informerBasedTemplateResolver) requeueReferencedRollouts(obj interface{
 	if err != nil {
 		return
 	}
+
+	generation := strconv.FormatInt(roMeta.GetGeneration(), 10)
 	for _, ro := range rollouts {
+		un, ok := ro.(*unstructured.Unstructured)
+		if ok {
+			rollout := unstructuredutil.ObjectToRollout(un)
+			updated := annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
+			rollout.Spec.Template.Spec.Containers = []corev1.Container{}
+			if updated {
+				_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(context.TODO(), rollout, v1.UpdateOptions{})
+				if err != nil {
+					log.Errorf("Cannot update the workload-ref/annotation for %s/%s", rollout.GetName(), rollout.GetNamespace())
+				}
+			}
+
+		}
+
 		if key, err := cache.MetaNamespaceKeyFunc(ro); err == nil {
 			r.rolloutWorkQueue.Add(key)
 		}
