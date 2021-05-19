@@ -27,7 +27,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -234,8 +234,8 @@ func (w *When) PatchSpec(patch string) *When {
 
 func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
-		s, _ := info.RolloutStatusString(ro)
-		return s == status
+		s, _ := rolloututil.GetRolloutPhase(ro)
+		return string(s) == status
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
@@ -259,7 +259,7 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Durati
 			//      WaitForRolloutCanaryStepIndex(N).
 			//      WaitForRolloutStatus("Paused").
 			// which would be annoying.
-			status, _ := info.RolloutStatusString(ro)
+			status, _ := rolloututil.GetRolloutPhase(ro)
 			return status == "Paused"
 		}
 		return true

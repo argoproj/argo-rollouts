@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func (c *rolloutContext) rolloutCanary() error {
@@ -308,7 +309,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	}
 
 	if c.completedCurrentCanaryStep() {
-		stepStr := v1alpha1.CanaryStepString(*currentStep)
+		stepStr := rolloututil.CanaryStepString(*currentStep)
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 

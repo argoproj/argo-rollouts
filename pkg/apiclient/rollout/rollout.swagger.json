@@ -1221,7 +1221,7 @@
         },
         "observedGeneration": {
           "type": "string",
-          "title": "The generation observed by the rollout controller by taking a hash of the spec.\n+optional"
+          "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
         },
         "conditions": {
           "type": "array",
@@ -1258,6 +1258,14 @@
         "promoteFull": {
           "type": "boolean",
           "description": "PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses."
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message provides details on why the rollout is in its current phase"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"

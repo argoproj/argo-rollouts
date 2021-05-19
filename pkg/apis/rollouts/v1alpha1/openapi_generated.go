@@ -3075,7 +3075,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					},
 					"observedGeneration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The generation observed by the rollout controller by taking a hash of the spec.",
+							Description: "The generation observed by the rollout controller from metadata.generation",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3139,6 +3139,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message provides details on why the rollout is in its current phase",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
