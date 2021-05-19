@@ -108,7 +108,10 @@ spec:
 		})
 }
 
-// TestCanaryPromoteFull verifies behavior when performing full promotion with a canary strategy
+// TestCanaryPromoteFull verifies promotion of a canary under the following scenarios:
+// 1. at a pause step with duration
+// 2. in the middle of analysis
+// 3. full promotion after abort
 func (s *FunctionalSuite) TestCanaryPromoteFull() {
 	s.Given().
 		HealthyRollout(`
@@ -117,17 +120,26 @@ kind: Rollout
 metadata:
   name: canary-promote-full
 spec:
-  replicas: 3
   strategy:
     canary:
-      maxUnavailable: 0
+      # this analysis should not run because it has a starting step of 4 which we never get to
       analysis:
         templates:
         - templateName: sleep-job
-        startingStep: 2
+        startingStep: 4
+
       steps:
+      - pause: {duration: 24h}
+      - analysis:
+          templates:
+          - templateName: sleep-job
+          args:
+          - name: duration
+            value: 24h
       - pause: {}
-      - pause: {}
+      - analysis: # we should never get to step 4
+          templates:
+          - templateName: sleep-job
   selector:
     matchLabels:
       app: canary-promote-full
@@ -146,12 +158,27 @@ spec:
 `).
 		When().
 		UpdateSpec().
+		WaitForRolloutStatus("Paused"). // At step 1 (pause: {duration: 24h})
+		PromoteRollout().
+		Sleep(2*time.Second).
+		Then().
+		ExpectRollout("status.currentStepIndex == 1", func(r *v1alpha1.Rollout) bool {
+			return *r.Status.CurrentStepIndex == 1
+		}).
+		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
+		ExpectAnalysisRunCount(1).
+		When().
+		PromoteRollout().
+		Sleep(2 * time.Second).
+		WaitForRolloutStatus("Paused"). // At step 3 (pause: {})
 		AbortRollout().
+		Then().
+		When().
 		Sleep(time.Second).
 		PromoteRolloutFull().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(0)
+		ExpectAnalysisRunCount(1) // no new analysis was created
 }
 
 // TestBlueGreenPromoteFull verifies behavior when performing full promotion with a blue-green strategy
