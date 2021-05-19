@@ -2,9 +2,10 @@ package experiments
 
 import (
 	"context"
+	"time"
+
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	listersv1 "k8s.io/client-go/listers/core/v1"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -280,9 +281,15 @@ func (ec *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	templateServices, err := ec.getServicesForExperiment(experiment)
+	if err != nil {
+		return err
+	}
+
 	exCtx := newExperimentContext(
 		experiment,
 		templateRSs,
+		templateServices,
 		ec.kubeclientset,
 		ec.argoProjClientset,
 		ec.replicaSetLister,

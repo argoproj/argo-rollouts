@@ -2,8 +2,9 @@ package experiments
 
 import (
 	"fmt"
-	v1 "k8s.io/client-go/listers/core/v1"
 	"time"
+
+	v1 "k8s.io/client-go/listers/core/v1"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,6 +34,7 @@ type experimentContext struct {
 	// parameters supplied to the context
 	ex                            *v1alpha1.Experiment
 	templateRSs                   map[string]*appsv1.ReplicaSet
+	templateServices              map[string]*corev1.Service
 	kubeclientset                 kubernetes.Interface
 	argoProjClientset             clientset.Interface
 	analysisTemplateLister        rolloutslisters.AnalysisTemplateLister
@@ -54,13 +56,14 @@ type experimentContext struct {
 func newExperimentContext(
 	experiment *v1alpha1.Experiment,
 	templateRSs map[string]*appsv1.ReplicaSet,
+	templateServices map[string]*corev1.Service,
 	kubeclientset kubernetes.Interface,
 	argoProjClientset clientset.Interface,
 	replicaSetLister appslisters.ReplicaSetLister,
 	analysisTemplateLister rolloutslisters.AnalysisTemplateLister,
 	clusterAnalysisTemplateLister rolloutslisters.ClusterAnalysisTemplateLister,
 	analysisRunLister rolloutslisters.AnalysisRunLister,
-	serviceLister     v1.ServiceLister,
+	serviceLister v1.ServiceLister,
 	recorder record.EventRecorder,
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
 ) *experimentContext {
@@ -68,6 +71,7 @@ func newExperimentContext(
 	exCtx := experimentContext{
 		ex:                            experiment,
 		templateRSs:                   templateRSs,
+		templateServices:              templateServices,
 		kubeclientset:                 kubeclientset,
 		argoProjClientset:             argoProjClientset,
 		replicaSetLister:              replicaSetLister,
@@ -156,21 +160,22 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 
 	// Create Service for template
-	serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
-	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	_, err := ec.getService(serviceName)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			service, err := ec.createService(serviceName, template)
-			if err != nil {
-				templateStatus.Status = v1alpha1.TemplateStatusError
-				templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
-			}
-			templateStatus.ServiceName = service.Name
-			templateStatus.PodTemplateHash = podTemplateHash
-		} else {
+	// Use ReplicaSet for podTemplateHash
+	svc := ec.templateServices[template.Name]
+	if svc == nil && rs != nil {
+		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
+		//podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		//_, err := ec.getService(serviceName, rs.Labels)
+		//if err != nil {
+		//	if k8serrors.IsNotFound(err) {
+		service, err := ec.createService(serviceName, template, rs.Labels)
+		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
 			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+		} else {
+			templateStatus.ServiceName = service.Name
+			templateStatus.PodTemplateHash = podTemplateHash
 		}
 	}
 

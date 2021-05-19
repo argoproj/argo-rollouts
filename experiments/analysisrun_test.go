@@ -76,6 +76,7 @@ func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
 	e := newExperiment("foo", templates, "")
+	services := newServices(templates, e)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -84,10 +85,11 @@ func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 	}
 	rs := templateToRS(e, templates[0], 0)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
 	f.expectPatchExperimentAction(e)
+	f.expectCreateServiceAction(&services[0])
 	f.run(getKey(e, t))
 }
 

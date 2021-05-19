@@ -10,17 +10,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-experiment-step
+  name: rollout-example
 spec:
   replicas: 4
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: rollout-experiment-step
+      app: rollout-example
   template:
     metadata:
       labels:
-        app: rollout-experiment-step
+        app: rollout-example
     spec:
       containers:
       - name: rollouts-demo

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
@@ -157,6 +159,30 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 		Status:             status,
 		LastTransitionTime: transitionTime,
 	}
+}
+
+func newServices(templates []v1alpha1.TemplateSpec, experiment *v1alpha1.Experiment) []corev1.Service {
+	services := make([]corev1.Service, 0)
+	for _, template := range templates {
+		serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
+		newService := corev1.Service{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: experiment.Namespace,
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: template.Selector.MatchLabels,
+				Ports: []corev1.ServicePort{{
+					Protocol:   "TCP",
+					Port:       int32(80),
+					TargetPort: intstr.FromInt(8080),
+				}},
+			},
+		}
+		services = append(services, newService)
+	}
+	return services
 }
 
 func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration v1alpha1.DurationString) *v1alpha1.Experiment {
@@ -482,13 +508,21 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "clusteranalysistemplates") ||
 			action.Matches("watch", "clusteranalysistemplates") ||
 			action.Matches("list", "analysisruns") ||
-			action.Matches("watch", "analysisruns") {
+			action.Matches("watch", "analysisruns") ||
+			action.Matches("watch", "services") ||
+			action.Matches("list", "services") {
 			continue
 		}
 		ret = append(ret, action)
 	}
 
 	return ret
+}
+
+func (f *fixture) expectCreateServiceAction(service *corev1.Service) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, service.Namespace, service))
+	return len
 }
 
 func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {

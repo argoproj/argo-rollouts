@@ -49,6 +49,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 	return newExperimentContext(
 		ex,
 		make(map[string]*appsv1.ReplicaSet),
+		make(map[string]*corev1.Service),
 		kubeclient,
 		rolloutclient,
 		rsLister,
