@@ -5,6 +5,7 @@
 ## Notable Features
 * New Argo Rollouts UI available in `kubectl argo rollouts dashboard`
 * Ability to reference existing Deployment workloads instead of inlining a PodTemplate at spec.template
+* Richer prometheus stats and Kubernetes events
 * Support for Ambassador as a canary traffic router
 * Support canarying using Istio DestinationRule subsets
 
@@ -23,17 +24,18 @@ kubectl apply -f https://github.com/argoproj/argo-rollouts/releases/download/v1.
 
 Argo Rollouts v1.0 now vends apiextensions.k8s.io/v1 CustomResourceDefinitions (previously apiextensions.k8s.io/v1beta1).
 Kubernetes v1 CRDs no longer supports the preservation of unknown fields in objects, and rejects
-attempts to set `spec.preserveUnknownFields: true`. In order to support a smooth upgrade from 
-Argo Rollouts v0.10 to v1.0, `spec.preserveUnknownFields` is explicitly set to `false` in the manifests,
-despite `false` being the default, and only option in v1 CRDs. However this causes diffing tools
-(such as Argo CD) to report the manifest as OutOfSync (since K8s drops the false field).
+attempts to set `spec.preserveUnknownFields: true` (the previous default). In order to support a
+smooth upgrade from Argo Rollouts v0.10 to v1.0, `spec.preserveUnknownFields` is explicitly set to
+`false` in the manifests, despite `false` being the default, and only option in v1 CRDs. However 
+this causes diffing tools (such as Argo CD) to report the manifest as OutOfSync (since K8s drops the
+false field).
 
 More information:
 * https://github.com/kubernetes-sigs/controller-tools/issues/476
 * https://github.com/argoproj/argo-rollouts/pull/1069
 
 To avoid the Argo CD OutOfSync conditions, you can remove `spec.preserveUnknownFields` from the manifests
-entirely *after upgrading from v0.10*.
+entirely *after upgrading to v1.0*.
 
 Alternatively, you can instruct Argo CD to ignore differences using ignoreDifferences in the Application spec:
 
@@ -45,6 +47,20 @@ spec:
     jsonPointers:
     - /spec/preserveUnknownFields
 ```
+
+### Deprcation of `kubectl argo rollouts promote --skip-current-step` flag
+
+The promote flag `--skip-current-step` which skips the current running canary step has been
+deprecated and will be removed in a future release. Its logic to skipping the current step has
+been merged with the existing command:
+
+```shell
+kubectl argo rollouts promote ROLLOUT
+```
+
+The `promote ROLLOUT` command can now be used to handle both the case where the rollout needs to be
+unpaused, as well as to skip the currently running canary step (e.g. an analysis/experirment/pause
+step).
 
 ## Changes since v0.10
 
@@ -60,7 +76,9 @@ spec:
 * feat: Allow user to handle NaN result in Analysis (#977)
 * feat: Wait for canary RS to have ready replicas before shifting labels (#1022)
 * feat: Create RolloutPaused condition (#1054)
-* feat: Add RolloutCompleted condition (#1074) 
+* feat: Add RolloutCompleted condition (#1074)
+* feat: add print version flag to rollouts-controller
+* feat: calculate rollout phase & message controller side
 * fix: Fixes the regression of dropping resources from argo-rollouts crds. Fixes #1043 (#1044)
 * fix: Set Canary Strategy default maxUnavailable to 25% (#981)
 * fix: blue-green rollouts could pause prematurely during prePromotionAnalysis (#1007)
@@ -69,6 +87,10 @@ spec:
 * fix: calculate scale down count. (#1047)
 * fix: verify analysis arguments name with those in the rollout (#1071)
 * fix: rollout status always in progressing if analysis fails (#1099)
+* fix: Add edge case handling to traffic routing (#1190)
+* fix: unhandled error patchVirtualService (#1168)
+* fix: handling error on f.close (#1167)
+* fix: rollouts in middle of restart should be considered Progressing
 
 ### Analysis
 * feat: metric fields can be parameterized by analysis arguments (#901)
@@ -77,10 +99,12 @@ spec:
 * fix: Improve validation for AnalysisTemplates referenced by RO (#1094)
 * fix: wavefront queries would return no datapoints. surface evaluate errors
 * fix: metrics which errored did not retry at error interval
+* fix: Improve and refactor validation for AnalysisTemplates
 
 ### Plugin
 * feat: Argo Rollouts api-server and UI (#1015)
 * feat: Implement rollout status command. Fixes #596 (#1001)
+* feat: lint supporting rollout in multiple doc
 * fix: get rollout always return not found except default namespace (#961)
 * fix: create command not support namespace in yaml file (#962)
 * fix: kubectl argo create panic: runtime error: invalid memory address or nil pointer dereference
@@ -90,7 +114,8 @@ spec:
 * feat: support ARM builds, remove unused components in Dockerfile (#889)
 * chore: update k8s dependencies to v1.20. improve logging (#994) 
 * fix: add informational exposed ports to deployment (#1066)
-
+* chore: Outsource reusable UI components to argo-ux npm package
+* fix: use fixed size int32
 
 # v0.10.2
 
