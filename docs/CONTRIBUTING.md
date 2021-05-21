@@ -12,6 +12,7 @@ Install:
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 Argo Rollout additionally uses the following tools
+
 * `golangci-lint` to lint the project.
 * `protoc` and `swagger-codegen` to generate proto related files
 * `yarn` to build the UI
