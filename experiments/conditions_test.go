@@ -29,9 +29,12 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 
 	rs := templateToRS(e, templates[0], 1)
 
-	f := newFixture(t, e, rs)
+	services := newServices(templates, e)
+
+	f := newFixture(t, e, rs, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -40,7 +43,7 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 	cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
 	cond[0].LastTransitionTime = prevTime.Rfc3339Copy()
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusProgressing, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
 	}
 	validatePatch(t, patch, "", NoChange, templateStatuses, cond)
 }
@@ -57,16 +60,19 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 
 	rs := templateToRS(e, templates[0], 0)
-	f := newFixture(t, e, rs)
+	services := newServices(templates, e)
+
+	f := newFixture(t, e, rs, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
 
 	patch := f.getPatchedExperiment(patchIndex)
 
-	ts := generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusFailed, now())
+	ts := generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusFailed, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name)
 	ts.LastTransitionTime = &prevTime
 	ts.Message = "Template 'bar' exceeded its progressDeadlineSeconds (30)"
 	templateStatuses := []v1alpha1.TemplateStatus{

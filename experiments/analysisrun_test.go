@@ -98,6 +98,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
 	e := newExperiment("foo", templates, "")
+	services := newServices(templates, e)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -109,10 +110,11 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
 	f.expectCreateAnalysisRunAction(ar)
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -125,6 +127,7 @@ func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	templates := generateTemplates("bar")
 	aTemplates := generateAnalysisTemplates("success-rate")
 	e := newExperiment("foo", templates, "")
+	services := newServices(templates, e)
 	e.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: "my-instance-id"}
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
@@ -137,11 +140,12 @@ func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
 	createIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
+	f.expectCreateServiceAction(&services[0])
 	f.run(getKey(e, t))
 
 	createdAr := f.getCreatedAnalysisRun(createIndex)
@@ -158,11 +162,13 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 			TemplateName: "does-not-exist",
 		},
 	}
+	services := newServices(templates, e)
 	rs := templateToRS(e, templates[0], 1)
 
-	f := newFixture(t, e, rs)
+	f := newFixture(t, e, rs, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -183,11 +189,13 @@ func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 			ClusterScope: true,
 		},
 	}
+	services := newServices(templates, e)
 	rs := templateToRS(e, templates[0], 1)
 
-	f := newFixture(t, e, rs)
+	f := newFixture(t, e, rs, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -217,11 +225,13 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
 	f.expectCreateAnalysisRunAction(ar)
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -249,10 +259,12 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("cluster-success-rate", e, &aTemplates[0].Spec)
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -280,10 +292,12 @@ func TestAnalysisRunFailToResolveArg(t *testing.T) {
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
@@ -305,14 +319,16 @@ func TestAnalysisRunCreateError(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, &aTemplates[0])
+	f := newFixture(t, e, rs, &aTemplates[0], &services[0])
 	defer f.Close()
 
 	f.client.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("intentional error")
 	})
 
+	f.expectCreateServiceAction(&services[0])
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -337,10 +353,12 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 	e.Status.AvailableAt = now()
 	rs := templateToRS(e, templates[0], 1)
 	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, &aTemplates[0], ar)
+	f := newFixture(t, e, rs, &aTemplates[0], ar, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	f.expectCreateAnalysisRunAction(ar) // fails do to AlreadyExists
 	f.expectGetAnalysisRunAction(ar)    // verifies it is semantically equal
 	patchIdx := f.expectPatchExperimentAction(e)
@@ -372,10 +390,12 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 			AnalysisRun: ar.Name,
 		},
 	}
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, ar)
+	f := newFixture(t, e, rs, ar, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
@@ -404,6 +424,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 	rs.Spec.Replicas = new(int32)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
+	services := newServices(templates, e)
 
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		{
@@ -461,7 +482,8 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 			e.Status.AnalysisRuns[0].Phase = test.first
 			ar2.Status.Phase = test.second
 			e.Status.AnalysisRuns[1].Phase = test.second
-			f := newFixture(t, e, rs, ar1, ar2)
+			f := newFixture(t, e, rs, ar1, ar2, &services[0])
+			f.expectCreateServiceAction(&services[0])
 			if test.expected != v1alpha1.AnalysisPhaseRunning {
 				patchIdx := f.expectPatchExperimentAction(e)
 				f.run(getKey(e, t))
@@ -496,9 +518,10 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
 	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
+	services := newServices(templates, e)
 
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{
@@ -550,11 +573,12 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 			e.Status.AnalysisRuns[0].Phase = test.first
 			ar2.Status.Phase = test.second
 			e.Status.AnalysisRuns[1].Phase = test.second
-			f := newFixture(t, e, rs, ar1, ar2)
+			f := newFixture(t, e, rs, ar1, ar2, &services[0])
 
 			if test.expected == v1alpha1.AnalysisPhaseFailed {
 				f.expectUpdateReplicaSetAction(rs) // scale down to 0
 			}
+			f.expectCreateServiceAction(&services[0])
 			patchIdx := f.expectPatchExperimentAction(e)
 			f.run(getKey(e, t))
 			patchedEx := f.getPatchedExperimentAsObj(patchIdx)
@@ -582,6 +606,7 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 	rs := templateToRS(e, templates[0], 0)
 	rs.Spec.Replicas = new(int32)
 	ar := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
+	services := newServices(templates, e)
 	ar.Status = v1alpha1.AnalysisRunStatus{
 		Phase: v1alpha1.AnalysisPhaseSuccessful,
 	}
@@ -593,9 +618,11 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 		},
 	}
 
-	f := newFixture(t, e, rs, ar)
+	f := newFixture(t, e, rs, ar, &services[0])
 	defer f.Close()
+
 	f.expectUpdateReplicaSetAction(rs)
+	f.expectCreateServiceAction(&services[0])
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
@@ -642,10 +669,12 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 			AnalysisRun: ar2.Name,
 		},
 	}
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, ar, ar2)
+	f := newFixture(t, e, rs, ar, ar2, &services[0])
 	defer f.Close()
 	f.expectUpdateReplicaSetAction(rs)
+	f.expectCreateServiceAction(&services[0])
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
@@ -680,9 +709,11 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 			AnalysisRun: ar.Name,
 		},
 	}
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, ar)
+	f := newFixture(t, e, rs, ar, &services[0])
 	defer f.Close()
+	f.expectCreateServiceAction(&services[0])
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
@@ -716,10 +747,12 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 			AnalysisRun: ar.Name,
 		},
 	}
+	services := newServices(templates, e)
 
-	f := newFixture(t, e, rs, ar)
+	f := newFixture(t, e, rs, ar, &services[0])
 	defer f.Close()
 
+	f.expectCreateServiceAction(&services[0])
 	arPatchIdx := f.expectPatchAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))

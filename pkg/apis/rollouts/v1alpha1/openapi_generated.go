@@ -2815,13 +2815,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
-					"weight": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Weight",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
 				},
 				Required: []string{"name", "specRef"},
 			},

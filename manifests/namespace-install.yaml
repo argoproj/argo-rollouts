@@ -10138,9 +10138,6 @@ spec:
                                         type: object
                                       specRef:
                                         type: string
-                                      weight:
-                                        format: int32
-                                        type: integer
                                     required:
                                     - name
                                     - specRef

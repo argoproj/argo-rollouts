@@ -149,7 +149,7 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 	return templates
 }
 
-func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time) v1alpha1.TemplateStatus {
+func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time, podTemplateHash string, serviceName string) v1alpha1.TemplateStatus {
 	return v1alpha1.TemplateStatus{
 		Name:               name,
 		Replicas:           replica,
@@ -158,13 +158,15 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 		AvailableReplicas:  availableReplicas,
 		Status:             status,
 		LastTransitionTime: transitionTime,
+		PodTemplateHash:    podTemplateHash,
+		ServiceName:        serviceName,
 	}
 }
 
 func newServices(templates []v1alpha1.TemplateSpec, experiment *v1alpha1.Experiment) []corev1.Service {
 	services := make([]corev1.Service, 0)
 	for _, template := range templates {
-		serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
+		serviceName := fmt.Sprintf("%s-%s", experiment.Name, template.Name)
 		newService := corev1.Service{
 			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
@@ -815,6 +817,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 func TestRemoveInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
+	services := newServices(templates, e)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:   v1alpha1.InvalidExperimentSpec,
@@ -822,11 +825,13 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		Reason: conditions.InvalidSpecReason,
 	}}
 
-	f := newFixture(t, e)
+	f := newFixture(t, e, &services[0], &services[1])
 	defer f.Close()
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	f.expectCreateServiceAction(&services[0])
+	f.expectCreateServiceAction(&services[1])
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
@@ -839,8 +844,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
-		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), firstRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), secondRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[1].Name),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 

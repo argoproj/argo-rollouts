@@ -404,8 +404,6 @@ type RolloutExperimentTemplate struct {
 	// use the same selector as the Rollout
 	// +optional
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,5,opt,name=selector"`
-	// Weight
-	Weight *int32 `json:"weight,omitempty" protobuf:"varint,6,opt,name=weight"`
 }
 
 // PodTemplateMetadata extra labels to add to the template
