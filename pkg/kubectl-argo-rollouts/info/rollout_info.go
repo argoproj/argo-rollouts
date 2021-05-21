@@ -11,9 +11,9 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func NewRolloutInfo(
@@ -70,7 +70,9 @@ func NewRolloutInfo(
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		roInfo.Strategy = "BlueGreen"
 	}
-	roInfo.Status, roInfo.Message = RolloutStatusString(ro)
+	phase, message := rolloututil.GetRolloutPhase(ro)
+	roInfo.Status = string(phase)
+	roInfo.Message = message
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []*rollout.ContainerInfo{}
 	for c := range ro.Spec.Template.Spec.Containers {
@@ -92,100 +94,6 @@ func NewRolloutInfo(
 	roInfo.Updated = ro.Status.UpdatedReplicas
 	roInfo.Available = ro.Status.AvailableReplicas
 	return &roInfo
-}
-
-func RolloutErrorConditions(ro *v1alpha1.Rollout) []string {
-	var errorConditions []string
-	for _, status := range ro.Status.Conditions {
-		if status.Type == v1alpha1.InvalidSpec {
-			errorConditions = append(errorConditions, status.Message)
-		}
-	}
-	arStatuses := []*v1alpha1.RolloutAnalysisRunStatus{
-		ro.Status.Canary.CurrentStepAnalysisRunStatus,
-		ro.Status.Canary.CurrentBackgroundAnalysisRunStatus,
-		ro.Status.BlueGreen.PrePromotionAnalysisRunStatus,
-		ro.Status.BlueGreen.PostPromotionAnalysisRunStatus,
-	}
-	if ro.Status.Abort {
-		for _, arStatus := range arStatuses {
-			if arStatus == nil {
-				continue
-			}
-			if arStatus.Status.Completed() &&
-				arStatus.Status != v1alpha1.AnalysisPhaseSuccessful &&
-				arStatus.Message != "" {
-				errorConditions = append(errorConditions, arStatus.Message)
-			}
-		}
-	}
-	return errorConditions
-}
-
-// isGenerationObserved determines if the rollout spec has been observed by the controller. This
-// only applies to v0.10 rollout which uses a numeric status.observedGeneration. For v0.9 rollouts
-// and below this function always returns true.
-func isGenerationObserved(ro *v1alpha1.Rollout) bool {
-	observedGen, err := strconv.Atoi(ro.Status.ObservedGeneration)
-	if err != nil {
-		return true
-	}
-	// It's still possible for a v0.9 rollout to have an all numeric hash, this covers that corner case
-	if int64(observedGen) > ro.Generation {
-		return true
-	}
-	return int64(observedGen) == ro.Generation
-}
-
-// RolloutStatusString returns a status and message for a rollout
-// This logic is more or less the same as the Argo CD rollouts health.lua check
-// Any changes to this function should also be changed there
-func RolloutStatusString(ro *v1alpha1.Rollout) (string, string) {
-	if !isGenerationObserved(ro) {
-		return "Progressing", "waiting for rollout spec update to be observed"
-	}
-	for _, cond := range ro.Status.Conditions {
-		if cond.Type == v1alpha1.InvalidSpec {
-			return "Degraded", fmt.Sprintf("%s: %s", v1alpha1.InvalidSpec, cond.Message)
-		}
-		switch cond.Reason {
-		case conditions.RolloutAbortedReason, conditions.TimedOutReason:
-			return "Degraded", fmt.Sprintf("%s: %s", cond.Reason, cond.Message)
-		}
-	}
-	if ro.Spec.Paused {
-		return "Paused", "manually paused"
-	}
-	for _, pauseCond := range ro.Status.PauseConditions {
-		return "Paused", string(pauseCond.Reason)
-	}
-	if ro.Status.UpdatedReplicas < defaults.GetReplicasOrDefault(ro.Spec.Replicas) {
-		return "Progressing", "more replicas need to be updated"
-	}
-	if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
-		return "Progressing", "updated replicas are still becoming available"
-	}
-	if ro.Spec.Strategy.BlueGreen != nil {
-		if ro.Status.BlueGreen.ActiveSelector == "" || ro.Status.BlueGreen.ActiveSelector != ro.Status.CurrentPodHash {
-			return "Progressing", "active service cutover pending"
-		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
-			return "Progressing", "waiting for analysis to complete"
-		}
-	} else if ro.Spec.Strategy.Canary != nil {
-		if ro.Spec.Strategy.Canary.TrafficRouting == nil {
-			if ro.Status.Replicas > ro.Status.UpdatedReplicas {
-				// This check should only be done for basic canary and not blue-green or canary with traffic routing
-				// since the latter two have the scaleDownDelay feature which leaves the old stack of replicas
-				// running for a long time
-				return "Progressing", "old replicas are pending termination"
-			}
-		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
-			return "Progressing", "waiting for all steps to complete"
-		}
-	}
-	return "Healthy", ""
 }
 
 func rolloutIcon(status string) string {

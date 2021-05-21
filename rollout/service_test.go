@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,13 +121,16 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found"
 	expectedPatch := `{
 			"status": {
-				"conditions": [%s]
+				"conditions": [%s],
+				"phase": "Degraded",
+				"message": "%s: %s"
 			}
 		}`
-	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found")
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, errmsg)
+	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 }
 
 func TestPreviewServiceNotFound(t *testing.T) {
@@ -146,11 +150,15 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	f.run(getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found"
 	expectedPatch := `{
 			"status": {
-				"conditions": [%s]
+				"conditions": [%s],
+				"phase": "Degraded",
+				"message": "%s: %s"
 			}
 		}`
-	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found")
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition)), patch)
+	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, errmsg)
+	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+
 }

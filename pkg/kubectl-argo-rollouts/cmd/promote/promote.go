@@ -151,15 +151,17 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			statusPatch = []byte(promoteFullPatch)
 		}
 	default:
+		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 		if rollout.Spec.Paused {
 			specPatch = []byte(unpausePatch)
 		}
 		if len(rollout.Status.PauseConditions) > 0 {
 			statusPatch = []byte(clearPauseConditionsPatch)
-		}
-		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
-
-		if rollout.Spec.Strategy.Canary != nil && !rollout.Status.ControllerPause {
+		} else if rollout.Spec.Strategy.Canary != nil {
+			// we only want to clear pause conditions, or increment step index (never both)
+			// this else block covers the case of promoting a rollout when it is in the middle of
+			// running analysis/experiment
+			// TODO: we currently do not handle promotion of two analysis steps in a row properly
 			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 			// the index is not set in the rollout

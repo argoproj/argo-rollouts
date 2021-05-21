@@ -14,12 +14,15 @@ func TestLintValidRollout(t *testing.T) {
 
 	cmd := NewCmdLint(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"-f", "testdata/valid.yml"})
-	err := cmd.Execute()
-	assert.NoError(t, err)
 
-	stdout := o.Out.(*bytes.Buffer).String()
-	assert.Empty(t, stdout)
+	for _, filename := range []string{"testdata/valid.yml", "testdata/valid-with-another-empty-object.yml"} {
+		cmd.SetArgs([]string{"-f", filename})
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		stdout := o.Out.(*bytes.Buffer).String()
+		assert.Empty(t, stdout)
+	}
 }
 
 func TestLintInvalidRollout(t *testing.T) {

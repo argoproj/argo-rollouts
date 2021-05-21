@@ -1,0 +1,25 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: valid-rollout
+spec:
+  revisionHistoryLimit: 1
+  replicas: 10
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - setWeight: 20
+  selector:
+    matchLabels:
+      app: valid-rollout
+  template:
+    metadata:
+      labels:
+        app: valid-rollout
+    spec:
+      containers:
+        - name: valid-rollout
+          image: valid-rollout:0.0.0
+---

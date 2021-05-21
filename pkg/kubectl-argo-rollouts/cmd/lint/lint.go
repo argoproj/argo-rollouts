@@ -116,6 +116,9 @@ func (l *LintOptions) lintResource(path string) error {
 			}
 			break
 		}
+		if value == nil {
+			continue
+		}
 		valueBytes, err := goyaml.Marshal(value)
 		if err != nil {
 			return err

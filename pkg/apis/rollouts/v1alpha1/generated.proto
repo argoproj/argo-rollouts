@@ -1052,7 +1052,7 @@ message RolloutStatus {
   // +optional
   optional int32 collisionCount = 12;
 
-  // The generation observed by the rollout controller by taking a hash of the spec.
+  // The generation observed by the rollout controller from metadata.generation
   // +optional
   optional string observedGeneration = 13;
 
@@ -1085,6 +1085,12 @@ message RolloutStatus {
 
   // PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
   optional bool promoteFull = 21;
+
+  // Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation
+  optional string phase = 22;
+
+  // Message provides details on why the rollout is in its current phase
+  optional string message = 23;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout

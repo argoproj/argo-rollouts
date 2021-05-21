@@ -3,6 +3,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 
 1. [ADP](https://www.adp.com)
 1. [Ambassador Labs](https://www.getambassador.io)
+1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [Intuit](https://www.intuit.com/)
 1. [Nozzle](https://nozzle.io)
 1. [PayPay](https://paypay.ne.jp/)
@@ -16,3 +17,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Quizlet](https://quizlet.com)
 1. [Skillz](https://www.skillz.com)
 1. [PayPal](https://www.paypal.com/)
+1. [Shipt](https://www.shipt.com/)
