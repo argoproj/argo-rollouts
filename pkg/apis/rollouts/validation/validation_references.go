@@ -138,6 +138,7 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template *v1alp
 	}
 
 	if templateType != BackgroundAnalysis {
+		templateSpec = *templateSpec.DeepCopy()
 		setArgValuePlaceHolder(templateSpec.Args)
 		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
 		if err != nil {
