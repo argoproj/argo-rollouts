@@ -1682,10 +1682,12 @@ Note that if virtualservice and destionation host reside in different namespaces
     <span class="c1"># This selector will be updated with the pod-template-hash of the stable ReplicaSet. e.g.:</span>
     <span class="c1"># rollouts-pod-template-hash: 123746c88d</span>
 </code></pre></div>
-<p>During the lifecycle of a Rollout update, Argo Rollouts will continuously:
-* modify the canary Service <code>spec.selector</code> to contain the <code>rollouts-pod-template-hash</code> label of the canary ReplicaSet
-* modify the stable Service <code>spec.selector</code> to contain the <code>rollouts-pod-template-hash</code> label of the stable ReplicaSet
-* modify the VirtualService <code>spec.http[].route[].weight</code> to match the current desired canary weight</p>
+<p>During the lifecycle of a Rollout update, Argo Rollouts will continuously:</p>
+<ul>
+<li>modify the canary Service <code>spec.selector</code> to contain the <code>rollouts-pod-template-hash</code> label of the canary ReplicaSet</li>
+<li>modify the stable Service <code>spec.selector</code> to contain the <code>rollouts-pod-template-hash</code> label of the stable ReplicaSet</li>
+<li>modify the VirtualService <code>spec.http[].route[].weight</code> to match the current desired canary weight</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. </p>
@@ -1786,10 +1788,12 @@ weights can be be 100% to stable, and 0% to canary.</p>
     <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with canary rollouts-pod-template-hash value</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
 </code></pre></div>
-<p>During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:
-* modify the VirtualService <code>spec.http[].route[].weight</code> to match the current desired canary weight
-* modify the DestinationRule <code>spec.subsets[].labels</code> to contain the <code>rollouts-pod-template-hash</code>
-  label of the canary and stable ReplicaSets</p>
+<p>During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:</p>
+<ul>
+<li>modify the VirtualService <code>spec.http[].route[].weight</code> to match the current desired canary weight</li>
+<li>modify the DestinationRule <code>spec.subsets[].labels</code> to contain the <code>rollouts-pod-template-hash</code>
+  label of the canary and stable ReplicaSets</li>
+</ul>
 <h2 id="comparison-between-approaches">Comparison Between Approaches<a class="headerlink" href="#comparison-between-approaches" title="Permanent link">&para;</a></h2>
 <p>There are some advantages and disadvantages of host-level traffic splitting vs. subset-level traffic
 splitting.</p>

@@ -666,6 +666,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#custom-annotations-prefix" class="md-nav__link">
+    Custom annotations-prefix
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#custom-kubernetesioingressclass" class="md-nav__link">
     Custom kubernetes.io/ingress.class
   </a>
@@ -1492,6 +1499,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#custom-annotations-prefix" class="md-nav__link">
+    Custom annotations-prefix
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#custom-kubernetesioingressclass" class="md-nav__link">
     Custom kubernetes.io/ingress.class
   </a>
@@ -1685,36 +1699,33 @@ To enable ALB weight verification, add <code>--alb-verify-weight</code> flag to 
       <span class="nt">containers</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
         <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">--alb-verify-weight</span><span class="p p-Indicator">]</span>
-<span class=" -Error"> </span><span class="err">```</span>
-
-<span class="l l-Scalar l-Scalar-Plain">For this feature to work, the argo-rollouts deployment requires the following AWS API permissions</span>
-<span class="l l-Scalar l-Scalar-Plain">under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html)</span><span class="p p-Indicator">:</span>
-<span class="err">*</span> <span class="err">`</span><span class="l l-Scalar l-Scalar-Plain">DescribeTargetGroups`</span>
-<span class="err">*</span> <span class="err">`</span><span class="l l-Scalar l-Scalar-Plain">DescribeLoadBalancers`</span>
-<span class="err">*</span> <span class="err">`</span><span class="l l-Scalar l-Scalar-Plain">DescribeListeners`</span>
-<span class="err">*</span> <span class="err">`</span><span class="l l-Scalar l-Scalar-Plain">DescribeRules`</span>
-<span class="err">*</span> <span class="err">`</span><span class="l l-Scalar l-Scalar-Plain">DescribeTags`</span>
-
-<span class="l l-Scalar l-Scalar-Plain">There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly</span>
-<span class="l l-Scalar l-Scalar-Plain">dependent to your cluster&#39;s AWS environment, and out-of-scope of this documentation. Some solutions</span>
-<span class="nt">include</span><span class="p">:</span>
-<span class="err">*</span> <span class="l l-Scalar l-Scalar-Plain">AWS access and secret keys</span>
-<span class="err">*</span> <span class="p p-Indicator">[</span><span class="nv">kiam</span><span class="p p-Indicator">]</span><span class="l l-Scalar l-Scalar-Plain">(https://github.com/uswitch/kiam)</span>
-<span class="err">*</span> <span class="p p-Indicator">[</span><span class="nv">kube2iam</span><span class="p p-Indicator">]</span><span class="l l-Scalar l-Scalar-Plain">(https://github.com/jtblin/kube2iam)</span>
-<span class="err">*</span> <span class="p p-Indicator">[</span><span class="nv">EKS ServiceAccount IAM Roles</span><span class="p p-Indicator">]</span><span class="l l-Scalar l-Scalar-Plain">(https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)</span>
-
-
-<span class="c1">### Custom annotations-prefix</span>
-
-<span class="l l-Scalar l-Scalar-Plain">The AWS Load Balancer Controller allows users to customize the</span>
-<span class="p p-Indicator">[</span><span class="nv">annotation prefix</span><span class="p p-Indicator">]</span><span class="l l-Scalar l-Scalar-Plain">(https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#ingress-annotations)</span>
-<span class="l l-Scalar l-Scalar-Plain">used by the Ingress controller using a flag to the controller, `--annotations-prefix` (from the</span>
-<span class="l l-Scalar l-Scalar-Plain">default of `alb.ingress.kubernetes.io`). If your AWS Load Balancer Controller is customized to use</span>
-<span class="l l-Scalar l-Scalar-Plain">a different annotation prefix, `annotationPrefix` field should be specified such that the Ingress</span>
-<span class="l l-Scalar l-Scalar-Plain">object will be annotated in a manner understood by the cluster&#39;s aws load balancer controller.</span>
-
-<span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">yaml</span>
-<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+</code></pre></div>
+<p>For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
+under the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html">Elastic Load Balancing API</a>:</p>
+<ul>
+<li><code>DescribeTargetGroups</code></li>
+<li><code>DescribeLoadBalancers</code></li>
+<li><code>DescribeListeners</code></li>
+<li><code>DescribeRules</code></li>
+<li><code>DescribeTags</code></li>
+</ul>
+<p>There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
+dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
+include:</p>
+<ul>
+<li>AWS access and secret keys</li>
+<li><a href="https://github.com/uswitch/kiam">kiam</a></li>
+<li><a href="https://github.com/jtblin/kube2iam">kube2iam</a></li>
+<li><a href="https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html">EKS ServiceAccount IAM Roles</a></li>
+</ul>
+<h3 id="custom-annotations-prefix">Custom annotations-prefix<a class="headerlink" href="#custom-annotations-prefix" title="Permanent link">&para;</a></h3>
+<p>The AWS Load Balancer Controller allows users to customize the
+<a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#ingress-annotations">annotation prefix</a>
+used by the Ingress controller using a flag to the controller, <code>--annotations-prefix</code> (from the
+default of <code>alb.ingress.kubernetes.io</code>). If your AWS Load Balancer Controller is customized to use
+a different annotation prefix, <code>annotationPrefix</code> field should be specified such that the Ingress
+object will be annotated in a manner understood by the cluster's aws load balancer controller.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">strategy</span><span class="p">:</span>

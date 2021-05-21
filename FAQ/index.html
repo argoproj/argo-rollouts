@@ -1695,9 +1695,11 @@ on its own for Progressive Delivery scenarios. More specifically, argo Rollouts 
 </code></pre></div>
 This command executes the action listed on the application listed.</p>
 <p>In the UI, a user can click the hamburger button of a resource and the available actions will appear in a couple of seconds. The user can click and confirm that action to execute it.</p>
-<p>Currently, the Rollout action has two available custom actions in Argo CD: resume and restart.
-* Resume unpauses a Rollout with a PauseCondition
-* Restart: Sets the RestartAt and causes all the pods to be restarted.</p>
+<p>Currently, the Rollout action has two available custom actions in Argo CD: resume and restart.</p>
+<ul>
+<li>Resume unpauses a Rollout with a PauseCondition</li>
+<li>Restart: Sets the RestartAt and causes all the pods to be restarted.</li>
+</ul>
 <h3 id="does-argo-rollout-require-a-service-mesh-like-istio">Does Argo Rollout require a Service Mesh like Istio?<a class="headerlink" href="#does-argo-rollout-require-a-service-mesh-like-istio" title="Permanent link">&para;</a></h3>
 <p>Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets. </p>
 <h3 id="does-argo-rollout-require-we-follow-gitops-in-my-organization">Does Argo Rollout require we follow GitOps in my organization?<a class="headerlink" href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" title="Permanent link">&para;</a></h3>
