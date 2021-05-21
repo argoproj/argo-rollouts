@@ -98,6 +98,15 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              type: string
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -2596,6 +2605,15 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              type: string
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -5021,6 +5039,15 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              type: string
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
