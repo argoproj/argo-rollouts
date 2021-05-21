@@ -160,22 +160,20 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 
 	// Create Service for template
-	// Use ReplicaSet for podTemplateHash
-	svc := ec.templateServices[template.Name]
-	if svc == nil && rs != nil {
+	// Use same Name and rollout-pod-template-hash as ReplicaSet
+	if rs != nil {
 		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		serviceName := fmt.Sprintf("experiment-%s-service", template.Name)
-		//podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		//_, err := ec.getService(serviceName, rs.Labels)
-		//if err != nil {
-		//	if k8serrors.IsNotFound(err) {
-		service, err := ec.createService(serviceName, template, rs.Labels)
-		if err != nil {
-			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
-		} else {
-			templateStatus.ServiceName = service.Name
-			templateStatus.PodTemplateHash = podTemplateHash
+		svc := ec.templateServices[template.Name]
+		if svc == nil || svc.Name != rs.Name {
+			newService, err := ec.createService(rs.Name, template, rs.Labels)
+			if err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+			} else {
+				ec.templateServices[template.Name] = newService
+				templateStatus.ServiceName = newService.Name
+				templateStatus.PodTemplateHash = podTemplateHash
+			}
 		}
 	}
 

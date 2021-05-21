@@ -83,11 +83,3 @@ func newServiceSetAnnotations(experimentName, templateName string) map[string]st
 		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,
 	}
 }
-
-//func (ec *experimentContext) getService(serviceName string) (*corev1.Service, error) {
-//	service, err := ec.serviceLister.Services(ec.ex.Namespace).Get(serviceName)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return service, nil
-//}
