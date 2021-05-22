@@ -1367,6 +1367,44 @@ func TestKeyNotInSecret(t *testing.T) {
 	assert.Equal(t, "key 'key-name' does not exist in secret 'secret-name'", err.Error())
 }
 
+func TestSecretResolution(t *testing.T) {
+	f := newFixture(t)
+	secretName, secretKey, secretData := "web-metric-secret", "apikey", "12345"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			secretKey: []byte(secretData),
+		},
+	}
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
+
+	args := []v1alpha1.Argument{{
+		Name: "secret",
+		ValueFrom: &v1alpha1.ValueFrom{
+			SecretKeyRef: &v1alpha1.SecretKeyRef{
+				Name: secretName,
+				Key:  secretKey,
+			},
+		},
+	}}
+	tasks := []metricTask{{
+		metric: v1alpha1.Metric{
+			Name:             "metric-name",
+			SuccessCondition: "{{args.secret}}",
+		},
+		incompleteMeasurement: nil,
+	}}
+	metricTaskList, secretList, _ := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+
+	assert.Equal(t, secretData, metricTaskList[0].metric.SuccessCondition)
+	assert.Contains(t, secretList, secretData)
+}
+
 // TestAssessMetricFailureInconclusiveOrError verifies that assessMetricFailureInconclusiveOrError returns the correct phases and messages
 // for Failed, Inconclusive, and Error metrics respectively
 func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
