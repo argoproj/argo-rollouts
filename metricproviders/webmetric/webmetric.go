@@ -95,7 +95,8 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 
 	err = json.Unmarshal(bodyBytes, &data)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
+		// non JSON body return as string
+		return string(bodyBytes), v1alpha1.AnalysisPhaseSuccessful, nil
 	}
 
 	fullResults, err := p.jsonParser.FindResults(data)

@@ -381,7 +381,7 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "unsupported protocol scheme",
 		},
-		// When_200Response_And_EmptyBody_Then_Error
+		// When_200Response_And_EmptyBody_Then_Succeed
 		{
 			webServerStatus:   200,
 			webServerResponse: ``,
@@ -395,11 +395,10 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedValue:        "true",
-			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "Could not parse JSON body",
+			expectedValue: "",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
-		// When_200Response_And_InvalidBody_Then_Error
+		// When_200Response_And_NonJsonBody_Then_Succeed
 		{
 			webServerStatus:   200,
 			webServerResponse: `test: notJson`,
@@ -413,9 +412,8 @@ func TestRunSuite(t *testing.T) {
 					},
 				},
 			},
-			expectedValue:        "true",
-			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "Could not parse JSON body",
+			expectedValue: "test: notJson",
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
 		// When_200Response_And_JsonPathHasNoMatch_Then_Error
 		{
@@ -434,6 +432,50 @@ func TestRunSuite(t *testing.T) {
 			expectedValue:        "true",
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "Could not find JSONPath in body",
+		},
+
+		// When_200Response_And_NilBody_Then_Succeed
+		{
+			webServerStatus: 200,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				FailureCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_200Response_And_AnyJson_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "true",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue:        "{}",
+			expectedPhase:        v1alpha1.AnalysisPhaseSuccessful,
+			expectedErrorMessage: "",
+		},
+		// When_non200Response_And_NoBody_Then_Failure
+		{
+			webServerStatus:   400,
+			webServerResponse: ``,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue:        "",
+			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage: "",
 		},
 	}
 
