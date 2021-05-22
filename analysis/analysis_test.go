@@ -1087,51 +1087,54 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
 }
 
-//func TestSecretContentReferenceValueFromError(t *testing.T) {
-//	secret := &corev1.Secret{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "web-metric-secret",
-//			Namespace: metav1.NamespaceDefault,
-//		},
-//		Data: map[string][]byte{
-//			"apikey": []byte("12345"),
-//		},
-//	}
-//	f := newFixture(t)
-//	defer f.Close()
-//	c, _, _ := f.newController(noResyncPeriodFunc)
-//	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
-//	argName := "apikey"
-//	argVal := "value"
-//	run := &v1alpha1.AnalysisRun{
-//		Spec: v1alpha1.AnalysisRunSpec{
-//			Args: []v1alpha1.Argument{{
-//				Name:  argName,
-//				Value: &argVal,
-//				ValueFrom: &v1alpha1.ValueFrom{
-//					SecretKeyRef: &v1alpha1.SecretKeyRef{
-//						Name: "web-metric-secret",
-//						Key:  "apikey",
-//					},
-//				}},
-//			},
-//			Metrics: []v1alpha1.Metric{{
-//				Name: "rate",
-//				Provider: v1alpha1.MetricProvider{
-//					Web: &v1alpha1.WebMetric{
-//						Headers: []v1alpha1.WebMetricHeader{{
-//							Key:   "apikey",
-//							Value: "{{args.apikey}}",
-//						}},
-//					},
-//				},
-//			}},
-//		},
-//	}
-//	newRun := c.reconcileAnalysisRun(run)
-//	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
-//	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argName), newRun.Status.Message)
-//}
+func TestSecretContentReferenceValueFromError(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web-metric-secret",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			"apikey": []byte("12345"),
+		},
+	}
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
+	argName := "apikey"
+	argVal := "value"
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{{
+				Name:  argName,
+				Value: &argVal,
+				ValueFrom: &v1alpha1.ValueFrom{
+					SecretKeyRef: &v1alpha1.SecretKeyRef{
+						Name: "web-metric-secret",
+						Key:  "apikey",
+					},
+				}},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name: "rate",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Headers: []v1alpha1.WebMetricHeader{{
+							Key:   "apikey",
+							Value: "{{args.apikey}}",
+						}},
+					},
+				},
+			}},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argName), newRun.Status.Message)
+}
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
 func TestSecretContentReferenceSuccess(t *testing.T) {
@@ -1148,6 +1151,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
+
 	argName := "apikey"
 	run := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{

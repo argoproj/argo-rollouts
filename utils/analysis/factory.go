@@ -3,8 +3,9 @@ package analysis
 import (
 	"encoding/json"
 	"fmt"
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 	"strconv"
+
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"

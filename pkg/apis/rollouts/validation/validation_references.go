@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
@@ -314,4 +315,3 @@ func validateAnalysisMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument
 	}
 	return metrics, nil
 }
-
