@@ -170,10 +170,9 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 }
 
 func TestValidateAnalysisTemplatesWithType(t *testing.T) {
-	rollout := getRollout()
-	templates := getAnalysisTemplatesWithType()
-
 	t.Run("failure - invalid argument", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Len(t, allErrs, 1)
@@ -182,6 +181,8 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "valid"})
 		templates.Args = []v1alpha1.AnalysisRunArgument{{Name: "valid", Value: "true"}}
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
@@ -189,6 +190,8 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	})
 
 	t.Run("failure - duplicate metrics", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
 		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
