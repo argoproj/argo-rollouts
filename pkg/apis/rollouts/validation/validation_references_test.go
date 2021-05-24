@@ -528,8 +528,18 @@ func TestValidateAnalysisMetrics(t *testing.T) {
 		FailureLimit: &failureLimitVal,
 	}}
 
-	resolvedMetrics, err := validateAnalysisMetrics(metrics, args)
-	assert.Nil(t, err)
-	assert.Equal(t, count, resolvedMetrics[0].Count.String())
-	assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
+	t.Run("Success", func(t *testing.T) {
+		resolvedMetrics, err := validateAnalysisMetrics(metrics, args)
+		assert.Nil(t, err)
+		assert.Equal(t, count, resolvedMetrics[0].Count.String())
+		assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
+	})
+
+	t.Run("Error: arg has both Value and ValueFrom", func(t *testing.T) {
+		args[2].Value = pointer.StringPtr("secret-value")
+		_, err := validateAnalysisMetrics(metrics, args)
+		assert.NotNil(t, err)
+		assert.Equal(t, "arg 'secret' has both Value and ValueFrom fields", err.Error())
+
+	})
 }
