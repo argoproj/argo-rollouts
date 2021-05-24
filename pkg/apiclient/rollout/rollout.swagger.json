@@ -1095,6 +1095,11 @@
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
           "title": "Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will\nuse the same selector as the Rollout\n+optional"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Weight sets the percentage of traffic the template's replicas should receive"
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
