@@ -139,7 +139,7 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template *v1alp
 
 	if templateType != BackgroundAnalysis {
 		setArgValuePlaceHolder(templateSpec.Args)
-		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
+		resolvedMetrics, err := validateAnalysisMetrics(templateSpec.Metrics, templateSpec.Args)
 		if err != nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s: %v", templateName, err)
 			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
@@ -292,4 +292,26 @@ func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, can
 		return nil
 	}
 	return fldPath
+}
+
+// validateAnalysisMetrics validates the metrics of an Analysis object
+func validateAnalysisMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+	for i, arg := range args {
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				return nil, fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
+			}
+			argVal := "dummy-value"
+			args[i].Value = &argVal
+		}
+	}
+
+	for i, metric := range metrics {
+		resolvedMetric, err := analysisutil.ResolveMetricArgs(metric, args)
+		if err != nil {
+			return nil, err
+		}
+		metrics[i] = *resolvedMetric
+	}
+	return metrics, nil
 }

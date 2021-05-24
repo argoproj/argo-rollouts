@@ -497,3 +497,49 @@ func toUnstructured(t *testing.T, manifest string) *k8sunstructured.Unstructured
 	}
 	return obj
 }
+
+func TestValidateAnalysisMetrics(t *testing.T) {
+	count, failureLimit := "5", "1"
+	args := []v1alpha1.Argument{
+		{
+			Name:  "count",
+			Value: &count,
+		},
+		{
+			Name:  "failure-limit",
+			Value: &failureLimit,
+		},
+		{
+			Name: "secret",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name: "web-metric-secret",
+					Key:  "apikey",
+				},
+			},
+		},
+	}
+
+	countVal := intstr.FromString("{{args.count}}")
+	failureLimitVal := intstr.FromString("{{args.failure-limit}}")
+	metrics := []v1alpha1.Metric{{
+		Name:         "metric-name",
+		Count:        &countVal,
+		FailureLimit: &failureLimitVal,
+	}}
+
+	t.Run("Success", func(t *testing.T) {
+		resolvedMetrics, err := validateAnalysisMetrics(metrics, args)
+		assert.Nil(t, err)
+		assert.Equal(t, count, resolvedMetrics[0].Count.String())
+		assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
+	})
+
+	t.Run("Error: arg has both Value and ValueFrom", func(t *testing.T) {
+		args[2].Value = pointer.StringPtr("secret-value")
+		_, err := validateAnalysisMetrics(metrics, args)
+		assert.NotNil(t, err)
+		assert.Equal(t, "arg 'secret' has both Value and ValueFrom fields", err.Error())
+
+	})
+}
