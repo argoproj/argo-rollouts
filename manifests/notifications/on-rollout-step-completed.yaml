@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
-  trigger.on-step-completed: |
+  trigger.on-rollout-step-completed: |
     - send: [rollout-step-completed]
   template.rollout-step-completed: |
     message: Rollout {{.rollout.metadata.name}} step number {{ add .rollout.status.currentStepIndex 1}}/{{len .rollout.spec.strategy.canary.steps}} has been completed.

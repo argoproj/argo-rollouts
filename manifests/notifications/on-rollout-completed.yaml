@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
-  trigger.on-completed: |
+  trigger.on-rollout-completed: |
     - send: [rollout-completed]
   template.rollout-completed: |
     message: Rollout {{.rollout.metadata.name}} has been completed.

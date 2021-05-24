@@ -36,7 +36,10 @@ kind: Rollout
 metadata:
   name: rollout-canary
   annotations:
-    notifications.argoproj.io/subscribe.on-step-completed.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-rollout-completed.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-rollout-step-completed.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-rollout-updated.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-scaling-replica-set.slack: argoproj-deployments-notifications
     notifications.argoproj.io/subscribe.on-purple.slack: argoproj-deployments-notifications
 spec:
   replicas: 5

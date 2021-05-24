@@ -5,7 +5,7 @@ resources:
 - argo-rollouts-notification-configmap.yaml
 
 patchesStrategicMerge:
-- on-completed.yaml
-- on-scaling-replicaset.yaml
-- on-step-completed.yaml
-- on-updated.yaml
+  - on-rollout-completed.yaml
+  - on-scaling-replica-set.yaml
+  - on-rollout-step-completed.yaml
+  - on-rollout-updated.yaml

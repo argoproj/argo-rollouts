@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
-	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -164,15 +163,6 @@ func NewManager(
 				return nil, err
 			}
 			return res, nil
-		}),
-		controller.WithAlterDestinations(func(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
-			// don't process built-in triggers
-			for k := range destinations {
-				if _, ok := record.BuiltInTriggers[k]; ok {
-					delete(destinations, k)
-				}
-			}
-			return destinations
 		}),
 	)
 

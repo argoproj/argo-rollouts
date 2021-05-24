@@ -8,16 +8,16 @@ theme:
   palette:
     primary: teal
 google_analytics:
-  - UA-105170809-3
-  - auto
+- UA-105170809-3
+- auto
 markdown_extensions:
-  - codehilite
-  - admonition
-  - pymdownx.superfences
-  - pymdownx.tabbed
-  - footnotes
-  - toc:
-      permalink: true
+- codehilite
+- admonition
+- pymdownx.superfences
+- pymdownx.tabbed
+- footnotes
+- toc:
+    permalink: true
 nav:
 - Overview: index.md
 - Installation: installation.md
@@ -75,6 +75,13 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md

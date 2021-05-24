@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	notificationcmd "github.com/argoproj/notifications-engine/pkg/cmd"
+
 	"github.com/spf13/cobra"
 )
 
@@ -69,7 +70,6 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(set.NewCmdSet(o))
 	cmd.AddCommand(undo.NewCmdUndo(o))
 	cmd.AddCommand(dashboard.NewCmdDashboard(o))
-	cmd.AddCommand(status.NewCmdStatus(o))
 	cmd.AddCommand(status.NewCmdStatus(o))
 	cmd.AddCommand(notificationcmd.NewToolsCommand("notifications", "kubectl argo rollouts notifications", v1alpha1.RolloutGVR, record.NewAPIFactorySettings()))
 	return cmd

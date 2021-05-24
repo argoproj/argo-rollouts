@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
-  trigger.on-scaling-replicaset: |
+  trigger.on-scaling-replica-set: |
     - send: [scaling-replicaset]
   template.scaling-replicaset: |
     message: Scaling Rollout {{.rollout.metadata.name}}'s replicaset to {{.rollout.spec.replicas}}.
@@ -22,7 +22,12 @@ data:
             },
             {
               "title": "Desired replica",
-              "value": "{{.rollout.spec.replicas}}".
+              "value": "{{.rollout.spec.replicas}}",
+              "short": true
+            },
+            {
+              "title": "Updated replicas",
+              "value": "{{.rollout.status.updatedReplicas}}",
               "short": true
             }
             {{range $index, $c := .rollout.spec.template.spec.containers}}

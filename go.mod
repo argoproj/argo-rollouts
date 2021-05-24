@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/antonmedv/expr v1.8.9
-	github.com/argoproj/notifications-engine v0.1.1-0.20210504060655-93bff0a78a1e
+	github.com/argoproj/notifications-engine v0.2.1-0.20210524200741-ce8331ab6966
 	github.com/argoproj/pkg v0.9.0
 	github.com/aws/aws-sdk-go-v2/config v1.0.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.0.0
@@ -13,6 +13,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.3
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0

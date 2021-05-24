@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
-  trigger.on-updated: |
+  trigger.on-rollout-updated: |
     - send: [rollout-updated]
   template.rollout-updated: |
     message: Rollout {{.rollout.metadata.name}} has been updated.

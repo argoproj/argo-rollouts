@@ -100,7 +100,12 @@ data:
             },
             {
               "title": "Desired replica",
-              "value": "{{.rollout.spec.replicas}}".
+              "value": "{{.rollout.spec.replicas}}",
+              "short": true
+            },
+            {
+              "title": "Updated replicas",
+              "value": "{{.rollout.status.updatedReplicas}}",
               "short": true
             }
             {{range $index, $c := .rollout.spec.template.spec.containers}}
@@ -114,14 +119,14 @@ data:
             {{end}}
             ]
           }]
-  trigger.on-completed: |
+  trigger.on-rollout-completed: |
     - send: [rollout-completed]
-  trigger.on-scaling-replicaset: |
-    - send: [scaling-replicaset]
-  trigger.on-step-completed: |
+  trigger.on-rollout-step-completed: |
     - send: [rollout-step-completed]
-  trigger.on-updated: |
+  trigger.on-rollout-updated: |
     - send: [rollout-updated]
+  trigger.on-scaling-replica-set: |
+    - send: [scaling-replicaset]
 kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
