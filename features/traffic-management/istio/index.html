@@ -1785,7 +1785,7 @@ weights can be be 100% to stable, and 0% to canary.</p>
     <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with canary rollouts-pod-template-hash value</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>   <span class="c1"># referenced in canary.trafficRouting.istio.destinationRule.stableSubsetName</span>
-    <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with canary rollouts-pod-template-hash value</span>
+    <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with stable rollouts-pod-template-hash value</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
 </code></pre></div>
 <p>During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:</p>
