@@ -1101,6 +1101,90 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+        Rollouts Notifications
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+        Rollouts Notifications Template
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+        Rollouts Notifications Template Get
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+        Rollouts Notifications Template Notify
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+        Rollouts Notifications Trigger
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+        Rollouts Notifications Trigger Get
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+        Rollouts Notifications Trigger Run
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
         Rollouts Pause
       </a>
@@ -1785,7 +1869,7 @@ weights can be be 100% to stable, and 0% to canary.</p>
     <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with canary rollouts-pod-template-hash value</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>   <span class="c1"># referenced in canary.trafficRouting.istio.destinationRule.stableSubsetName</span>
-    <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with stable rollouts-pod-template-hash value</span>
+    <span class="nt">labels</span><span class="p">:</span>        <span class="c1"># labels will be injected with canary rollouts-pod-template-hash value</span>
       <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
 </code></pre></div>
 <p>During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:</p>
