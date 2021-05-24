@@ -235,7 +235,7 @@ spec:
     labels:        # labels will be injected with canary rollouts-pod-template-hash value
       app: rollout-example
   - name: stable   # referenced in canary.trafficRouting.istio.destinationRule.stableSubsetName
-    labels:        # labels will be injected with canary rollouts-pod-template-hash value
+    labels:        # labels will be injected with stable rollouts-pod-template-hash value
       app: rollout-example
 ```
 
