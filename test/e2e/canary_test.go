@@ -473,3 +473,16 @@ spec:
 			assert.NotEmpty(s.T(), rs3.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
 		})
 }
+
+// TestCanaryScaleDownOnAbort verifies scaledownOnAbort feature for canary
+func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledownonabort.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
