@@ -425,39 +425,3 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
 }
-
-func TestResolveMetrics(t *testing.T) {
-	count, failureLimit := "5", "1"
-	args := []v1alpha1.Argument{
-		{
-			Name:  "count",
-			Value: &count,
-		},
-		{
-			Name:  "failure-limit",
-			Value: &failureLimit,
-		},
-		{
-			Name: "secret",
-			ValueFrom: &v1alpha1.ValueFrom{
-				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name: "web-metric-secret",
-					Key:  "apikey",
-				},
-			},
-		},
-	}
-
-	countVal := intstr.FromString("{{args.count}}")
-	failureLimitVal := intstr.FromString("{{args.failure-limit}}")
-	metrics := []v1alpha1.Metric{{
-		Name:         "metric-name",
-		Count:        &countVal,
-		FailureLimit: &failureLimitVal,
-	}}
-
-	resolvedMetrics, err := ResolveMetrics(metrics, args)
-	assert.Nil(t, err)
-	assert.Equal(t, count, resolvedMetrics[0].Count.String())
-	assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
-}

@@ -1087,42 +1087,6 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
 }
 
-func TestSecretContentReferenceValueFromError(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	argName := "apikey"
-	argVal := "value"
-	run := &v1alpha1.AnalysisRun{
-		Spec: v1alpha1.AnalysisRunSpec{
-			Args: []v1alpha1.Argument{{
-				Name:  argName,
-				Value: &argVal,
-				ValueFrom: &v1alpha1.ValueFrom{
-					SecretKeyRef: &v1alpha1.SecretKeyRef{
-						Name: "web-metric-secret",
-						Key:  "apikey",
-					},
-				}},
-			},
-			Metrics: []v1alpha1.Metric{{
-				Name: "rate",
-				Provider: v1alpha1.MetricProvider{
-					Web: &v1alpha1.WebMetric{
-						Headers: []v1alpha1.WebMetricHeader{{
-							Key:   "apikey",
-							Value: "{{args.apikey}}",
-						}},
-					},
-				},
-			}},
-		},
-	}
-	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
-	assert.Equal(t, fmt.Sprintf("unable to resolve metric arguments: arg '%v' has both Value and ValueFrom fields", argName), newRun.Status.Message)
-}
-
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
 func TestSecretContentReferenceSuccess(t *testing.T) {
 	f := newFixture(t)
@@ -1351,6 +1315,44 @@ func TestKeyNotInSecret(t *testing.T) {
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Equal(t, "key 'key-name' does not exist in secret 'secret-name'", err.Error())
+}
+
+func TestSecretResolution(t *testing.T) {
+	f := newFixture(t)
+	secretName, secretKey, secretData := "web-metric-secret", "apikey", "12345"
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Data: map[string][]byte{
+			secretKey: []byte(secretData),
+		},
+	}
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), secret, metav1.CreateOptions{})
+
+	args := []v1alpha1.Argument{{
+		Name: "secret",
+		ValueFrom: &v1alpha1.ValueFrom{
+			SecretKeyRef: &v1alpha1.SecretKeyRef{
+				Name: secretName,
+				Key:  secretKey,
+			},
+		},
+	}}
+	tasks := []metricTask{{
+		metric: v1alpha1.Metric{
+			Name:             "metric-name",
+			SuccessCondition: "{{args.secret}}",
+		},
+		incompleteMeasurement: nil,
+	}}
+	metricTaskList, secretList, _ := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+
+	assert.Equal(t, secretData, metricTaskList[0].metric.SuccessCondition)
+	assert.Contains(t, secretList, secretData)
 }
 
 // TestAssessMetricFailureInconclusiveOrError verifies that assessMetricFailureInconclusiveOrError returns the correct phases and messages

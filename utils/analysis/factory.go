@@ -96,7 +96,7 @@ func StepLabels(index int32, podHash, instanceID string) map[string]string {
 	return labels
 }
 
-// resolveMetricArgs resolves args for single metric in AnalysisRun
+// ResolveMetricArgs resolves args for single metric in AnalysisRun
 // Returns resolved metric
 // Uses ResolveQuotedArgs to handle escaped quotes
 func ResolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alpha1.Metric, error) {
@@ -115,27 +115,6 @@ func ResolveMetricArgs(metric v1alpha1.Metric, args []v1alpha1.Argument) (*v1alp
 		return nil, err
 	}
 	return &newMetric, nil
-}
-
-func ResolveMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
-	for i, arg := range args {
-		if arg.ValueFrom != nil {
-			if arg.Value != nil {
-				return nil, fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
-			}
-			argVal := "dummy-value"
-			args[i].Value = &argVal
-		}
-	}
-
-	for i, metric := range metrics {
-		resolvedMetric, err := ResolveMetricArgs(metric, args)
-		if err != nil {
-			return nil, err
-		}
-		metrics[i] = *resolvedMetric
-	}
-	return metrics, nil
 }
 
 // ValidateMetrics validates an analysis template spec
