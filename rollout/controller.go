@@ -636,6 +636,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
+			templates.Args = blueGreen.PrePromotionAnalysis.Args
 			analysisTemplates = append(analysisTemplates, *templates)
 		}
 
@@ -645,6 +646,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
+			templates.Args = blueGreen.PostPromotionAnalysis.Args
 			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	} else if c.rollout.Spec.Strategy.Canary != nil {
@@ -652,6 +654,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 		for i, step := range canary.Steps {
 			if step.Analysis != nil {
 				templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.InlineAnalysis, i)
+				templates.Args = step.Analysis.Args
 				if err != nil {
 					return nil, err
 				}
@@ -663,6 +666,7 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
+			templates.Args = canary.Analysis.Args
 			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	}
