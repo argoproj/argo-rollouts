@@ -3,6 +3,7 @@ package experiments
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -75,6 +76,18 @@ func (ec *experimentContext) createService(serviceName string, template v1alpha1
 		return nil, err
 	}
 	return service, nil
+}
+
+func (ec *experimentContext) deleteService(service corev1.Service) error {
+	ctx := context.TODO()
+	if service.DeletionTimestamp != nil {
+	ec.log.Infof("Trying to cleanup service '%s'", service.Name)
+	err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func newServiceSetAnnotations(experimentName, templateName string) map[string]string {

@@ -164,7 +164,15 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	if template.CreateService && rs != nil {
 		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		svc := ec.templateServices[template.Name]
-		if svc == nil || svc.Name != rs.Name {
+		if desiredReplicaCount == 0 {
+			if svc != nil {
+				err := ec.deleteService(*svc)
+				if err != nil {
+					templateStatus.Status = v1alpha1.TemplateStatusError
+					templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
+				}
+			}
+		} else if svc == nil || svc.Name != rs.Name {
 			newService, err := ec.createService(rs.Name, template, rs.Labels)
 			if err != nil {
 				templateStatus.Status = v1alpha1.TemplateStatusError
