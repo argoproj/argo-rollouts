@@ -154,8 +154,8 @@ github.com/apex/logs v1.0.0/go.mod h1:XzxuLZ5myVHDy9SAmYpamKKRNApGj54PfYLcFrXqDw
 github.com/aphistic/golf v0.0.0-20180712155816-02c07f170c5a/go.mod h1:3NqKYiepwy8kCu4PNA+aP7WUV72eXWJeP9/r3/K9aLE=
 github.com/aphistic/sweet v0.2.0/go.mod h1:fWDlIh/isSE9n6EPsRmC0det+whmX6dJid3stzu0Xys=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj/notifications-engine v0.2.1-0.20210524200741-ce8331ab6966 h1:Lcg4tVOhnXyXqE3ifd1l0SjWzbXBQCZse603x8kEo10=
-github.com/argoproj/notifications-engine v0.2.1-0.20210524200741-ce8331ab6966/go.mod h1:rKhm9LtebGKgLA/UtPtBeRUrrS/CT0U5az1jSfUiipw=
+github.com/argoproj/notifications-engine v0.2.1-0.20210525185124-762ab14c7190 h1:Yyh0X854rr/bzRrvc6GufewLI/1YaoemntXbUI4qod0=
+github.com/argoproj/notifications-engine v0.2.1-0.20210525185124-762ab14c7190/go.mod h1:rKhm9LtebGKgLA/UtPtBeRUrrS/CT0U5az1jSfUiipw=
 github.com/argoproj/pkg v0.9.0 h1:PfWWYykfcEQdN0g41XLbVh/aonTjD+dPkvDp3hwpLYM=
 github.com/argoproj/pkg v0.9.0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

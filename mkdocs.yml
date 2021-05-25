@@ -60,6 +60,20 @@ nav:
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
 - Experiments: features/experiment.md
+- Notifications:
+  - Overview: features/notifications.md
+  - Services:
+    - generated/notification-services/email.md
+    - generated/notification-services/github.md
+    - generated/notification-services/grafana.md
+    - generated/notification-services/mattermost.md
+    - generated/notification-services/opsgenie.md
+    - generated/notification-services/overview.md
+    - generated/notification-services/rocketchat.md
+    - generated/notification-services/slack.md
+    - generated/notification-services/teams.md
+    - generated/notification-services/telegram.md
+    - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:

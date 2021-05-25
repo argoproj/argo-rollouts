@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/notifications-engine/pkg/docs"
+
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -20,6 +21,25 @@ import (
 )
 
 func main() {
+	generateNotificationsDocs()
+	generatePluginsDocs()
+}
+
+func generateNotificationsDocs() {
+	os.RemoveAll("./docs/generated/notification-services")
+	os.MkdirAll("./docs/generated/notification-services/", 0755)
+	files, err := docs.CopyServicesDocs("./docs/generated/notification-services/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if files != nil {
+		if e := updateMkDocsNav("Notifications", "Services", files); e != nil {
+			log.Fatal(e)
+		}
+	}
+}
+
+func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	cmd := cmd.NewCmdArgoRollouts(o)
@@ -30,13 +50,13 @@ func main() {
 		log.Fatal(err)
 	}
 	if files != nil {
-		if e := updateMkDocsNav(files); e != nil {
+		if e := updateMkDocsNav("Kubectl Plugin", "Commands", files); e != nil {
 			log.Fatal(e)
 		}
 	}
 }
 
-func updateMkDocsNav(files []string) error {
+func updateMkDocsNav(parent string, child string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
 	data, err := ioutil.ReadFile("mkdocs.yml")
@@ -47,23 +67,22 @@ func updateMkDocsNav(files []string) error {
 	if e := yaml.Unmarshal(data, &mkdocs); e != nil {
 		return e
 	}
-	navitem, _ := findNavItem(mkdocs.Nav, "Kubectl Plugin")
+	navitem, _ := findNavItem(mkdocs.Nav, parent)
 	if navitem == nil {
-		return errors.New("Can't find 'Kubectl Plugin' nav item in mkdoc.yml")
+		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
 	}
 	navitemmap := navitem.(map[interface{}]interface{})
-	subnav := navitemmap["Kubectl Plugin"].([]interface{})
-	subnav = removeNavItem(subnav, "Commands")
+	subnav := navitemmap[parent].([]interface{})
+	subnav = removeNavItem(subnav, child)
 	commands := make(map[string]interface{})
-	commands["Commands"] = files
-	navitemmap["Kubectl Plugin"] = append(subnav, commands)
+	commands[child] = files
+	navitemmap[parent] = append(subnav, commands)
 
 	newmkdocs, err := yaml.Marshal(mkdocs)
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
-	return nil
+	return ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
 func findNavItem(nav []interface{}, key string) (interface{}, int) {

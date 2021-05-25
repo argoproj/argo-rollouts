@@ -197,9 +197,9 @@ plugin-darwin: ui/dist
 	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
-.PHONY: plugin-docs
-plugin-docs:
-	go run ./hack/gen-plugin-docs/main.go
+.PHONY: docs
+docs:
+	go run ./hack/gen-docs/main.go
 
 .PHONY: builder-image
 builder-image:
@@ -259,7 +259,7 @@ clean:
 precheckin: test lint
 
 .PHONY: release-docs
-release-docs: plugin-docs
+release-docs: docs
 	docker run --rm -it \
 		-v ~/.ssh:/root/.ssh \
 		-v ${CURRENT_DIR}:/docs \
