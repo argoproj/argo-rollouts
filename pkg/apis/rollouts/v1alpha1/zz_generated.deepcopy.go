@@ -813,6 +813,11 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ScaleDownDelaySeconds != nil {
+		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -1829,11 +1834,6 @@ func (in *TemplateSpec) DeepCopyInto(out *TemplateSpec) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.Template.DeepCopyInto(&out.Template)
-	if in.ScaleDownDelaySeconds != nil {
-		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
-		*out = new(int32)
-		**out = **in
-	}
 	return
 }
 

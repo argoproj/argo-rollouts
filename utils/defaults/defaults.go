@@ -92,6 +92,13 @@ func GetExperimentProgressDeadlineSecondsOrDefault(e *v1alpha1.Experiment) int32
 	return DefaultProgressDeadlineSeconds
 }
 
+func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {
+	if e.Spec.ScaleDownDelaySeconds != nil {
+		return *e.Spec.ScaleDownDelaySeconds
+	}
+	return DefaultScaleDownDelaySeconds
+}
+
 func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds != nil {

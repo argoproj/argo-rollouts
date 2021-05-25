@@ -7439,18 +7439,20 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
+              scaleDownDelaySeconds:
+                format: int32
+                type: integer
               templates:
                 items:
                   properties:
+                    createService:
+                      type: boolean
                     minReadySeconds:
                       format: int32
                       type: integer
                     name:
                       type: string
                     replicas:
-                      format: int32
-                      type: integer
-                    scaleDownDelaySeconds:
                       format: int32
                       type: integer
                     selector:
