@@ -207,10 +207,6 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	return nil
 }
 
-func (e *EventRecorderAdapter) GetAPIFactory() api.Factory {
-	return e.apiFactory
-}
-
 func translateReasonToTrigger(reason string) string {
 	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
 	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")

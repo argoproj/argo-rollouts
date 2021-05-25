@@ -2,6 +2,7 @@ package record
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -102,7 +103,7 @@ func TestSendNotifications(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSendNotificationsWithError(t *testing.T) {
+func TestSendNotificationsFails(t *testing.T) {
 	r := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "guestbook",
@@ -111,17 +112,29 @@ func TestSendNotificationsWithError(t *testing.T) {
 		},
 	}
 
-	mockCtrl := gomock.NewController(t)
-	mockAPI := mocks.NewMockAPI(mockCtrl)
-	mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("failed to send")).AnyTimes()
-	mockAPI.EXPECT().GetConfig().Return(api.Config{
-		Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
-	apiFactory := &mocks.FakeFactory{Api: mockAPI}
-	rec := NewFakeEventRecorder()
-	rec.EventRecorderAdapter.apiFactory = apiFactory
+	t.Run("SendError", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		mockAPI := mocks.NewMockAPI(mockCtrl)
+		mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("failed to send")).AnyTimes()
+		mockAPI.EXPECT().GetConfig().Return(api.Config{
+			Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
+		apiFactory := &mocks.FakeFactory{Api: mockAPI}
+		rec := NewFakeEventRecorder()
+		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-	assert.Error(t, err)
+		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		assert.Error(t, err)
+	})
+
+	t.Run("GetAPIError", func(t *testing.T) {
+		apiFactory := &mocks.FakeFactory{Err: errors.New("failed to get API")}
+		rec := NewFakeEventRecorder()
+		rec.EventRecorderAdapter.apiFactory = apiFactory
+
+		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		assert.Error(t, err)
+	})
+
 }
 
 func TestSendNotificationsNoTrigger(t *testing.T) {
