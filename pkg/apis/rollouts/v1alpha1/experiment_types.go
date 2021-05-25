@@ -74,6 +74,9 @@ type TemplateSpec struct {
 	// more information
 	// +optional
 	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,7,opt,name=scaleDownDelaySeconds"`
+	// CreateService determines if a service should be created for the template
+	CreateService bool `json:"createService,omitempty"`
+
 }
 
 type TemplateStatusCode string

@@ -161,7 +161,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 	// Create Service for template
 	// Use same Name and rollout-pod-template-hash as ReplicaSet
-	if rs != nil {
+	if template.CreateService && rs != nil {
 		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		svc := ec.templateServices[template.Name]
 		if svc == nil || svc.Name != rs.Name {
