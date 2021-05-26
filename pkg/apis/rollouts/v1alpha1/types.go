@@ -404,7 +404,7 @@ type RolloutExperimentTemplate struct {
 	// +optional
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,5,opt,name=selector"`
 	// Weight sets the percentage of traffic the template's replicas should receive
-	Weight *int32 `json:"weight" protobuf:"varint,6,opt,name=weight"`
+	Weight *int32 `json:"weight,omitempty" protobuf:"varint,6,opt,name=weight"`
 }
 
 // PodTemplateMetadata extra labels to add to the template

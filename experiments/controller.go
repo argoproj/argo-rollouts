@@ -298,6 +298,7 @@ func (ec *Controller) syncHandler(key string) error {
 		ec.analysisRunLister,
 		ec.serviceLister,
 		ec.recorder,
+		ec.resyncPeriod,
 		ec.enqueueExperimentAfter,
 	)
 

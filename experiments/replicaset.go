@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +30,8 @@ const (
 		"templateStatuses" : %s
 	}
 }`
+	addScaleDownAtAnnotationsPatch    = `[{ "op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`
+	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
@@ -197,6 +201,45 @@ func (ec *experimentContext) isReplicaSetSemanticallyEqual(newRS, existingRS *ap
 		existingAnnotations != nil &&
 		existingAnnotations[v1alpha1.ExperimentNameAnnotationKey] == newAnnotations[v1alpha1.ExperimentNameAnnotationKey] &&
 		existingAnnotations[v1alpha1.ExperimentTemplateNameAnnotationKey] == newAnnotations[v1alpha1.ExperimentTemplateNameAnnotationKey]
+}
+
+// addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
+// scaleDownDelaySeconds is zero, removes it if it exists
+func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
+	if rs == nil {
+		return nil
+	}
+	ctx := context.TODO()
+	scaleDownDelaySeconds := time.Duration(defaults.GetExperimentScaleDownDelaySecondsOrDefault(ec.ex))
+	if scaleDownDelaySeconds == 0 {
+		// If scaledown deadline is zero, it means we need to remove any replicasets with the delay
+		// This might happen if we switch from canary with traffic routing to basic canary
+		if replicasetutil.HasScaleDownDeadline(rs) {
+			return ec.removeScaleDownDelay(rs)
+		}
+		return nil
+	}
+	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
+	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
+	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err == nil {
+		ec.log.Infof("Set '%s' annotation on '%s' to %s (%ds)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+	}
+	return err
+}
+
+// removeScaleDownDelay removes the `scale-down-deadline` annotation from the ReplicaSet (if it exists)
+func (ec *experimentContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
+	ctx := context.TODO()
+	if !replicasetutil.HasScaleDownDeadline(rs) {
+		return nil
+	}
+	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err == nil {
+		ec.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	}
+	return err
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {

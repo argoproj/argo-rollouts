@@ -10146,7 +10146,6 @@ spec:
                                     required:
                                     - name
                                     - specRef
-                                    - weight
                                     type: object
                                   type: array
                               required:

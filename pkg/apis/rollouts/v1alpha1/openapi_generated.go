@@ -2830,7 +2830,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 						},
 					},
 				},
-				Required: []string{"name", "specRef", "weight"},
+				Required: []string{"name", "specRef"},
 			},
 		},
 		Dependencies: []string{

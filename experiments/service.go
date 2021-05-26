@@ -80,12 +80,10 @@ func (ec *experimentContext) createService(serviceName string, template v1alpha1
 
 func (ec *experimentContext) deleteService(service corev1.Service) error {
 	ctx := context.TODO()
-	if service.DeletionTimestamp != nil {
 	ec.log.Infof("Trying to cleanup service '%s'", service.Name)
 	err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
+	if err != nil && !errors.IsNotFound(err) {
+		return err
 	}
 	return nil
 }

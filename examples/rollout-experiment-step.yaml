@@ -37,6 +37,7 @@ spec:
           templates:
           - name: canary
             specRef: canary
+            weight: 5
           # This experiment performs its own analysis by referencing one or more AnalysisTemplates
           # here. The success or failure of these runs will progress or abort the rollout respectively.
           analyses:

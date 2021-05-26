@@ -44,6 +44,7 @@ type experimentContext struct {
 	serviceLister                 v1.ServiceLister
 	recorder                      record.EventRecorder
 	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
+	resyncPeriod                  time.Duration
 
 	// calculated values during reconciliation
 	log       *log.Entry
@@ -65,6 +66,7 @@ func newExperimentContext(
 	analysisRunLister rolloutslisters.AnalysisRunLister,
 	serviceLister v1.ServiceLister,
 	recorder record.EventRecorder,
+	resyncPeriod time.Duration,
 	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
 ) *experimentContext {
 
@@ -81,6 +83,7 @@ func newExperimentContext(
 		serviceLister:                 serviceLister,
 		recorder:                      recorder,
 		enqueueExperimentAfter:        enqueueExperimentAfter,
+		resyncPeriod:                   resyncPeriod,
 
 		log:           log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace),
 		newStatus:     experiment.Status.DeepCopy(),
@@ -140,9 +143,51 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			}
 		}
 	} else {
+		// TODO: Where to call addScaleDownDelay?
+		if desiredReplicaCount == 0 {
+			err := ec.addScaleDownDelay(rs)
+			if err != nil {
+				ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+			}
+		}
 		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 		if *rs.Spec.Replicas != desiredReplicaCount {
-			ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+			if desiredReplicaCount == 0 {
+				templateReplicas := defaults.GetReplicasOrDefault(template.Replicas)
+				// Add delay before scaling
+				if scaleDownAtStr, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+					scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+					if err != nil {
+						ec.log.Warnf("Unable to read scaleDownAt label on rs '%s'", rs.Name)
+					}
+					now := metav1.Now()
+					scaleDownAt := metav1.NewTime(scaleDownAtTime)
+					if scaleDownAt.After(now.Time) {
+						ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+						remainingTime := scaleDownAt.Sub(now.Time)
+						if remainingTime < ec.resyncPeriod {
+							ec.enqueueExperimentAfter(ec.ex, remainingTime)
+						}
+						desiredReplicaCount = templateReplicas
+					}
+				}
+			}
+			_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+			if err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", template.Name, err)
+			} else {
+				if template.CreateService {
+					svc := ec.templateServices[template.Name]
+					if svc != nil {
+						err := ec.deleteService(*svc)
+						if err != nil {
+							templateStatus.Status = v1alpha1.TemplateStatusError
+							templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
+						}
+					}
+				}
+			}
 			templateStatus.LastTransitionTime = &now
 		}
 	}
