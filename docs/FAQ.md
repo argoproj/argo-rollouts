@@ -24,6 +24,7 @@ This command executes the action listed on the application listed.
 In the UI, a user can click the hamburger button of a resource and the available actions will appear in a couple of seconds. The user can click and confirm that action to execute it.
 
 Currently, the Rollout action has two available custom actions in Argo CD: resume and restart.
+
 * Resume unpauses a Rollout with a PauseCondition
 * Restart: Sets the RestartAt and causes all the pods to be restarted.
 

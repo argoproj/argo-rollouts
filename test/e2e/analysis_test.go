@@ -598,3 +598,24 @@ spec:
 		Then().
 		ExpectAnalysisRunCount(1)
 }
+
+func (s *AnalysisSuite) TestAnalysisWithSecret() {
+	(s.Given().
+		RolloutObjects("@functional/rollout-secret.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForInlineAnalysisRunPhase("Successful").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2"))
+}

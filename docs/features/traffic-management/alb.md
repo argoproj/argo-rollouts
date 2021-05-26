@@ -188,10 +188,11 @@ spec:
       containers:
       - name: argo-rollouts
         args: [--alb-verify-weight]
- ```
+```
 
 For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html):
+
 * `DescribeTargetGroups`
 * `DescribeLoadBalancers`
 * `DescribeListeners`
@@ -201,6 +202,7 @@ under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadba
 There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
 dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
 include:
+
 * AWS access and secret keys
 * [kiam](https://github.com/uswitch/kiam)
 * [kube2iam](https://github.com/jtblin/kube2iam)

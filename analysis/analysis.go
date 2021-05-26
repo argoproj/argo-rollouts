@@ -41,17 +41,6 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	log := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
-	metrics, err := analysisutil.ResolveMetrics(run.Spec.Metrics, run.Spec.Args)
-	if err != nil {
-		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
-		log.Warn(message)
-		run.Status.Phase = v1alpha1.AnalysisPhaseError
-		run.Status.Message = message
-		c.recordAnalysisRunCompletionEvent(run)
-		return run
-	}
-	run.Spec.Metrics = metrics
-
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
 		err := analysisutil.ValidateMetrics(run.Spec.Metrics)
@@ -67,7 +56,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	tasks := generateMetricTasks(run)
 	log.Infof("taking %d measurements", len(tasks))
-	err = c.runMeasurements(run, tasks)
+	err := c.runMeasurements(run, tasks)
 	if err != nil {
 		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
 		log.Warn(message)

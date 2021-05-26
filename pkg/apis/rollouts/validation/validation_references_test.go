@@ -74,7 +74,7 @@ spec:
         host: canary
       weight: 0`
 
-func getAnalysisTemplateWithType() AnalysisTemplatesWithType {
+func getAnalysisTemplatesWithType() AnalysisTemplatesWithType {
 	count := intstr.FromInt(1)
 	return AnalysisTemplatesWithType{
 		AnalysisTemplates: []*v1alpha1.AnalysisTemplate{{
@@ -160,7 +160,7 @@ func getServiceWithType() ServiceWithType {
 
 func TestValidateRolloutReferencedResources(t *testing.T) {
 	refResources := ReferencedResources{
-		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplateWithType()},
+		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
 		Ingresses:                 []v1beta1.Ingress{getIngress()},
 		ServiceWithType:           []ServiceWithType{getServiceWithType()},
 		VirtualServices:           nil,
@@ -169,18 +169,49 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 	assert.Empty(t, allErrs)
 }
 
+func TestValidateAnalysisTemplatesWithType(t *testing.T) {
+	t.Run("failure - invalid argument", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
+		assert.Len(t, allErrs, 1)
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved")
+		assert.Equal(t, msg, allErrs[0].Error())
+	})
+
+	t.Run("success", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "valid"})
+		templates.Args = []v1alpha1.AnalysisRunArgument{{Name: "valid", Value: "true"}}
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("failure - duplicate metrics", func(t *testing.T) {
+		rollout := getRollout()
+		templates := getAnalysisTemplatesWithType()
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
+		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
+		assert.Empty(t, allErrs)
+	})
+
+}
+
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate analysisTemplate - success", func(t *testing.T) {
 		rollout := getRollout()
-		template := getAnalysisTemplateWithType()
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		templates := getAnalysisTemplatesWithType()
+		allErrs := ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
 	t.Run("validate inline clusterAnalysisTemplate - failure", func(t *testing.T) {
 		rollout := getRollout()
 		count := intstr.FromInt(0)
-		template := getAnalysisTemplateWithType()
+		template := getAnalysisTemplatesWithType()
 		template.ClusterAnalysisTemplates[0].Spec.Metrics[0].Count = &count
 		allErrs := ValidateAnalysisTemplateWithType(rollout, nil, template.ClusterAnalysisTemplates[0], template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
 		assert.Len(t, allErrs, 1)
@@ -191,7 +222,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	t.Run("validate inline analysisTemplate argument - success", func(t *testing.T) {
 		rollout := getRollout()
-		template := getAnalysisTemplateWithType()
+		template := getAnalysisTemplatesWithType()
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
@@ -204,7 +235,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	t.Run("validate background analysisTemplate - failure", func(t *testing.T) {
 		rollout := getRollout()
-		template := getAnalysisTemplateWithType()
+		template := getAnalysisTemplatesWithType()
 		template.TemplateType = BackgroundAnalysis
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
@@ -235,23 +266,23 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
 		rollout := getRollout()
 
-		template := getAnalysisTemplateWithType()
-		template.TemplateType = BackgroundAnalysis
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		templates := getAnalysisTemplatesWithType()
+		templates.TemplateType = BackgroundAnalysis
+		allErrs := ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 
 		// default value should be fine
 		defaultValue := "value-name"
-		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
+		templates.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
 				Value: &defaultValue,
 			},
 		}
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		allErrs = ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 
-		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
+		templates.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
 				Value: pointer.StringPtr("service-name"),
@@ -266,7 +297,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 				},
 			},
 		}
-		allErrs = ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		allErrs = ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
@@ -274,40 +305,12 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
 		rollout := getRollout()
 		count := intstr.FromInt(0)
-		template := getAnalysisTemplateWithType()
-		template.TemplateType = BackgroundAnalysis
-		template.AnalysisTemplates[0].Spec.Metrics[0].Count = &count
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
+		templates := getAnalysisTemplatesWithType()
+		templates.TemplateType = BackgroundAnalysis
+		templates.AnalysisTemplates[0].Spec.Metrics[0].Count = &count
+		allErrs := ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
-}
-
-func TestValidateAnalysisTemplateWithTypeFlattenMetricsAndResolveArgs(t *testing.T) {
-	rollout := getRollout()
-	template := getAnalysisTemplateWithType()
-
-	t.Run("failure - invalid argument", func(t *testing.T) {
-		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
-		allErrs := ValidateAnalysisTemplatesWithType(rollout, template)
-		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved")
-		assert.Equal(t, msg, allErrs[0].Error())
-	})
-
-	t.Run("success", func(t *testing.T) {
-		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
-		template.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
-		assert.Empty(t, allErrs)
-	})
-
-	t.Run("failure - duplicate metrics", func(t *testing.T) {
-		template.AnalysisTemplates[0].Spec.Args = append(template.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
-		template.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
-		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
-		assert.Empty(t, allErrs)
-	})
-
 }
 
 func TestValidateIngress(t *testing.T) {
@@ -496,4 +499,50 @@ func toUnstructured(t *testing.T, manifest string) *k8sunstructured.Unstructured
 		t.Fatal(err)
 	}
 	return obj
+}
+
+func TestValidateAnalysisMetrics(t *testing.T) {
+	count, failureLimit := "5", "1"
+	args := []v1alpha1.Argument{
+		{
+			Name:  "count",
+			Value: &count,
+		},
+		{
+			Name:  "failure-limit",
+			Value: &failureLimit,
+		},
+		{
+			Name: "secret",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name: "web-metric-secret",
+					Key:  "apikey",
+				},
+			},
+		},
+	}
+
+	countVal := intstr.FromString("{{args.count}}")
+	failureLimitVal := intstr.FromString("{{args.failure-limit}}")
+	metrics := []v1alpha1.Metric{{
+		Name:         "metric-name",
+		Count:        &countVal,
+		FailureLimit: &failureLimitVal,
+	}}
+
+	t.Run("Success", func(t *testing.T) {
+		resolvedMetrics, err := validateAnalysisMetrics(metrics, args)
+		assert.Nil(t, err)
+		assert.Equal(t, count, resolvedMetrics[0].Count.String())
+		assert.Equal(t, failureLimit, resolvedMetrics[0].FailureLimit.String())
+	})
+
+	t.Run("Error: arg has both Value and ValueFrom", func(t *testing.T) {
+		args[2].Value = pointer.StringPtr("secret-value")
+		_, err := validateAnalysisMetrics(metrics, args)
+		assert.NotNil(t, err)
+		assert.Equal(t, "arg 'secret' has both Value and ValueFrom fields", err.Error())
+
+	})
 }

@@ -3,6 +3,9 @@ package validation
 import (
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
@@ -36,6 +39,7 @@ type AnalysisTemplatesWithType struct {
 	TemplateType             AnalysisTemplateType
 	// CanaryStepIndex only used for InlineAnalysis
 	CanaryStepIndex int
+	Args            []v1alpha1.AnalysisRunArgument
 }
 
 type ServiceType string
@@ -103,14 +107,9 @@ func ValidateAnalysisTemplatesWithType(rollout *v1alpha1.Rollout, templates Anal
 		return allErrs
 	}
 
-	flattenedTemplate, err := analysisutil.FlattenTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates)
 	templateNames := GetAnalysisTemplateNames(templates)
 	value := fmt.Sprintf("templateNames: %s", templateNames)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
-		return allErrs
-	}
-	err = analysisutil.ResolveArgs(flattenedTemplate.Spec.Args)
+	_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), "", "", "")
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
 		return allErrs
@@ -139,7 +138,7 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template *v1alp
 
 	if templateType != BackgroundAnalysis {
 		setArgValuePlaceHolder(templateSpec.Args)
-		resolvedMetrics, err := analysisutil.ResolveMetrics(templateSpec.Metrics, templateSpec.Args)
+		resolvedMetrics, err := validateAnalysisMetrics(templateSpec.Metrics, templateSpec.Args)
 		if err != nil {
 			msg := fmt.Sprintf("AnalysisTemplate %s: %v", templateName, err)
 			allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
@@ -292,4 +291,44 @@ func GetAnalysisTemplateWithTypeFieldPath(templateType AnalysisTemplateType, can
 		return nil
 	}
 	return fldPath
+}
+
+func buildAnalysisArgs(args []v1alpha1.AnalysisRunArgument, r *v1alpha1.Rollout) []v1alpha1.Argument {
+	stableRSDummy := appsv1.ReplicaSet{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: "dummy-stable-hash",
+			},
+		},
+	}
+	newRSDummy := appsv1.ReplicaSet{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: "dummy-new-hash",
+			},
+		},
+	}
+	return analysisutil.BuildArgumentsForRolloutAnalysisRun(args, &stableRSDummy, &newRSDummy, r)
+}
+
+// validateAnalysisMetrics validates the metrics of an Analysis object
+func validateAnalysisMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+	for i, arg := range args {
+		if arg.ValueFrom != nil {
+			if arg.Value != nil {
+				return nil, fmt.Errorf("arg '%s' has both Value and ValueFrom fields", arg.Name)
+			}
+			argVal := "dummy-value"
+			args[i].Value = &argVal
+		}
+	}
+
+	for i, metric := range metrics {
+		resolvedMetric, err := analysisutil.ResolveMetricArgs(metric, args)
+		if err != nil {
+			return nil, err
+		}
+		metrics[i] = *resolvedMetric
+	}
+	return metrics, nil
 }
