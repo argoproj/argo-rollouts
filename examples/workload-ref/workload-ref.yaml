@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: rollouts-demo
-          image: docker.intuit.com/docker-rmt/argoproj/rollouts-demo:blue
+          image: argoproj/rollouts-demo:blue
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
