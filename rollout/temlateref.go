@@ -125,6 +125,12 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 		return nil
 	}
 
+	// When workloadRef is resolved for the first time, TemplateResolvedFromRef = false.
+	// In this case, template must not be set
+	if !rollout.Spec.TemplateResolvedFromRef && !rollout.Spec.EmptyTemplate() {
+		return fmt.Errorf("template must be empty for workload reference rollout")
+	}
+
 	gvk := schema.FromAPIVersionAndKind(rollout.Spec.WorkloadRef.APIVersion, rollout.Spec.WorkloadRef.Kind)
 
 	info, ok := infoByGroupKind[gvk.GroupKind()]

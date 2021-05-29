@@ -83,8 +83,9 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		}
 	}
 
-	// WorkloadRef and template can not be set at the same time
-	if spec.WorkloadRef != nil && !spec.EmptyTemplate() {
+	if !rollout.Spec.TemplateResolvedFromRef && (spec.WorkloadRef != nil && !spec.EmptyTemplate()) {
+		// WorkloadRef and template can not be set at the same time for lint plugin
+		// During reconciliation, TemplateResolvedFromRef is true and will not reach here
 		allErrs = append(allErrs, field.InternalError(fldPath.Child("template"),
 			fmt.Errorf("template must be empty for workload reference rollout")))
 	}
