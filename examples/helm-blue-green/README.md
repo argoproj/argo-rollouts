@@ -35,7 +35,7 @@ kubectl-argo-rollouts get rollout example-helm-guestbook
 
 ## Promoting the rollout
 
-To advanced the rollout and make the new version stable
+To advance the rollout and make the new version stable
 
 ```
 kubectl-argo-rollouts promote example-helm-guestbook
