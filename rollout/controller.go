@@ -419,7 +419,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
-	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, olderRSs)
+	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsList)
 
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
