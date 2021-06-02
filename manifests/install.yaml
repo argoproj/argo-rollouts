@@ -9753,8 +9753,6 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
-              scaleDownOnAbort:
-                type: boolean
               selector:
                 properties:
                   matchExpressions:
@@ -9782,6 +9780,9 @@ spec:
                 properties:
                   blueGreen:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       activeMetadata:
                         properties:
                           annotations:
@@ -9915,6 +9916,9 @@ spec:
                     type: object
                   canary:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       analysis:
                         properties:
                           args:

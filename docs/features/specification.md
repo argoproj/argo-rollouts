@@ -58,11 +58,6 @@ spec:
   # than or equal to this value.
   restartAt: "2020-03-30T21:19:35Z"
 
-  # Scale down the preview replicasets or canary replicasets (if
-  # canary's setCanaryScale.replicas is set) on aborted update
-  # Defaults to false
-  scaleDownOnAbort: false
-
   strategy:
 
     # Blue-green update strategy
@@ -119,6 +114,10 @@ spec:
       # Limits the number of old RS that can run at once before getting scaled
       # down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
+
+      # Adds a delay before scaling down the p preview replicaset if update is
+      # aborted. Default is 0, meaning preview replicaset  are not scaled down.
+      AbortScaleDownDelaySeconds: 30
 
       # Anti Affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified
@@ -299,6 +298,11 @@ spec:
         smi:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
+
+      # Add a delay before scaling down the canary pods when update
+      # is aborted for canary strategy using replicas of setCanaryScale.
+      # Default is 0, meaning canary pods are not scaled down.
+      AbortScaleDownDelaySeconds: 30
 
 status:
   pauseConditions:

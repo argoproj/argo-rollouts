@@ -40,12 +40,11 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
 // scaleDownDelaySeconds is zero, removes it if it exists
-func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
+func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelaySeconds time.Duration) error {
 	if rs == nil {
 		return nil
 	}
 	ctx := context.TODO()
-	scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(c.rollout))
 	if scaleDownDelaySeconds == 0 {
 		// If scaledown deadline is zero, it means we need to remove any replicasets with the delay
 		// This might happen if we switch from canary with traffic routing to basic canary
@@ -91,11 +90,11 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	return cm.ClaimReplicaSets(rsList)
 }
 
-// removeScaleDownDelays removes the scale-down-deadline annotation from the new/stable ReplicaSets,
+// removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,
 // in the event that we moved back to an older revision that is still within its scaleDownDelay.
 func (c *rolloutContext) removeScaleDownDeadlines() error {
 	var toRemove []*appsv1.ReplicaSet
-	if c.newRS != nil {
+	if c.newRS != nil && !c.isScaleDownOnabort() {
 		toRemove = append(toRemove, c.newRS)
 	}
 	if c.stableRS != nil {
@@ -121,13 +120,50 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 		return false, err
 	}
 
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.ScaleDownOnAbort {
-		c.log.Info("scale down on abort")
-		newReplicasCount = int32(0)
+	abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
+	if c.isScaleDownOnabort() {
+		c.log.Info("scale down on abort for the newRS")
+
+		// if the newRS has scale down annotation and to be scaled down now, set
+		// Update newReplicasCount = int32(0)
+		if scaleDownAtStr, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+			c.log.Infof("New rs '%s' has scaledown delay annotation: %s", c.newRS.Name, scaleDownAtStr)
+			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+			if err != nil {
+				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", c.newRS.Name)
+			} else {
+				now := metav1.Now()
+				scaleDownAt := metav1.NewTime(scaleDownAtTime)
+				if scaleDownAt.After(now.Time) {
+					c.log.Infof("RS '%s' has not reached the scaleDownTime", c.newRS.Name)
+					remainingTime := scaleDownAt.Sub(now.Time)
+					if remainingTime < c.resyncPeriod {
+						c.enqueueRolloutAfter(c.rollout, remainingTime)
+						return false, nil
+					}
+				} else {
+					c.log.Infof("RS '%s' has reached the scaleDownTime", c.newRS.Name)
+					newReplicasCount = int32(0)
+				}
+			}
+		} else {
+			err = c.addScaleDownDelay(c.newRS, abortScaleDownDelaySeconds)
+			if err != nil {
+				return false, err
+			}
+		}
 	}
 
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
 	return scaled, err
+}
+
+func (c *rolloutContext) isScaleDownOnabort() bool {
+	abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
+	if c.pauseContext != nil && c.pauseContext.IsAborted() && abortScaleDownDelaySeconds > 0 {
+		return true
+	}
+	return false
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.

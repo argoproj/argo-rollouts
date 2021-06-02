@@ -449,6 +449,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(PodTemplateMetadata)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AbortScaleDownDelaySeconds != nil {
+		in, out := &in.AbortScaleDownDelaySeconds, &out.AbortScaleDownDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -581,6 +586,11 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 	}
 	if in.ScaleDownDelayRevisionLimit != nil {
 		in, out := &in.ScaleDownDelayRevisionLimit, &out.ScaleDownDelayRevisionLimit
+		*out = new(int32)
+		**out = **in
+	}
+	if in.AbortScaleDownDelaySeconds != nil {
+		in, out := &in.AbortScaleDownDelaySeconds, &out.AbortScaleDownDelaySeconds
 		*out = new(int32)
 		**out = **in
 	}

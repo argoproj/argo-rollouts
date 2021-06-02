@@ -71,8 +71,6 @@ type RolloutSpec struct {
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,8,opt,name=progressDeadlineSeconds"`
 	// RestartAt indicates when all the pods of a Rollout should be restarted
 	RestartAt *metav1.Time `json:"restartAt,omitempty" protobuf:"bytes,9,opt,name=restartAt"`
-	// ScaleDownOnAbort scales down
-	ScaleDownOnAbort bool `json:"scaleDownOnAbort,omitempty" protobuf:"varint,11,opt,name=scaleDownOnAbort"`
 }
 
 func (s *RolloutSpec) SetResolvedSelector(selector *metav1.LabelSelector) {
@@ -204,6 +202,10 @@ type BlueGreenStrategy struct {
 	// ActiveMetadata specify labels and annotations which will be attached to the active pods for
 	// the duration which they act as a active pod, and will be removed after
 	ActiveMetadata *PodTemplateMetadata `json:"activeMetadata,omitempty" protobuf:"bytes,13,opt,name=activeMetadata"`
+	// AbortScaleDownDelaySeconds adds a delay before scaling down the preview replicaset
+	// if update is aborted. Default is 0, meaning preview replicaset is not scaled down.
+	// +optional
+	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -284,6 +286,11 @@ type CanaryStrategy struct {
 	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
 	// +optional
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty" protobuf:"varint,12,opt,name=scaleDownDelayRevisionLimit"`
+	// AbortScaleDownDelaySeconds adds a delay before scaling down the canary pods when update
+	// is aborted for canary strategy using replicas of setCanaryScale.
+	// Default is 0, meaning canary pods are not scaled down.
+	// +optional
+	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
