@@ -79,9 +79,9 @@ spec:
           requests:
             memory: 16Mi
             cpu: 5m
-  scaleDownOnAbort: true
   strategy:
     canary:
+      abortScaleDownDelaySeconds: 1
       scaleDownDelayRevisionLimit: 1
       canaryService: canary-scaledowndelay-canary
       stableService: canary-scaledowndelay-stable

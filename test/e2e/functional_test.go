@@ -948,9 +948,9 @@ metadata:
   name: bluegreen-scaledown-on-abort
 spec:
   replicas: 2
-  scaleDownOnAbort: true
   strategy:
     blueGreen:
+      abortScaleDownDelaySeconds: 1
       activeService: bluegreen-preview-replicas-active
       previewService: bluegreen-preview-replicas-preview
       previewReplicaCount: 1
@@ -983,6 +983,7 @@ spec:
 		When().
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
 		Then().
 		ExpectRevisionPodCount("2", 0)
 }

@@ -80,7 +80,6 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 		maxSurge            intstr.IntOrString
 		maxUnavailable      intstr.IntOrString
 		promoteFull         bool
-		scaleDownOnAbort    bool
 
 		stableSpecReplica      int32
 		stableAvailableReplica int32
@@ -572,29 +571,12 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 4,
 			expectedCanaryReplicaCount: 3,
 		},
-		{
-			name:                "Ignore setCanaryScale when scaleDownonAbort is true and rollout is aborted",
-			rolloutSpecReplicas: 10,
-			setWeight:           20,
-			scaleDownOnAbort:    true,
-
-			stableSpecReplica:      10,
-			stableAvailableReplica: 10,
-
-			setCanaryScale: newSetCanaryScale(intPnt(3), intPnt(25), false),
-			trafficRouting: &v1alpha1.RolloutTrafficRouting{},
-
-			expectedStableReplicaCount: 10,
-			expectedCanaryReplicaCount: 0,
-		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable", test.setCanaryScale, test.trafficRouting)
 			rollout.Status.PromoteFull = test.promoteFull
-			rollout.Spec.ScaleDownOnAbort = test.scaleDownOnAbort
-			rollout.Status.Abort = test.scaleDownOnAbort
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})

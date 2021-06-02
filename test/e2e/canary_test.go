@@ -483,6 +483,7 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		WaitForRolloutStatus("Paused").
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
 		Then().
 		ExpectRevisionPodCount("2", 0)
 }
