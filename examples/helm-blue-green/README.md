@@ -1,30 +1,44 @@
-# Blue Green
+# Argo Rollouts and Helm
 
-The blue green strategy is not supported by built-in Kubernetes Deployment but available via third-party Kubernetes controller.
-This example demonstrates how to implement blue-green deployment via [Argo Rollouts](https://github.com/argoproj/argo-rollouts):
+Argo Rollouts will respond to changes in Rollout resources
+regardless of the event source. If you package your manifest
+with the Helm package manager you can perform Progressive Delivery deployments with Helm
 
-1. Install Argo Rollouts controller: https://github.com/argoproj/argo-rollouts#installation
-2. Create a sample application and sync it.
+1. Install the Argo Rollouts controller in your cluster: https://github.com/argoproj/argo-rollouts#installation
+2. Instal the `helm` executable locally: https://helm.sh/docs/intro/install/
 
-```
-argocd app create --name blue-green --repo https://github.com/argoproj/argocd-example-apps --dest-server https://kubernetes.default.svc --dest-namespace default --path blue-green && argocd app sync blue-green
-```
+## Deploying the initial version
 
-Once the application is synced you can access it using `blue-green-helm-guestbook` service.
-
-3. Change image version parameter to trigger blue-green deployment process:
+To deploy the first version of your application:
 
 ```
-argocd app set blue-green -p image.tag=0.2 && argocd app sync blue-green
+git clone https://github.com/argoproj/argo-rollouts.git
+cd argo-rollouts/examples
+helm install example ./helm-blue-green/
 ```
 
-Now application runs `ks-guestbook-demo:0.1` and `ks-guestbook-demo:0.2` images simultaneously.
-The `ks-guestbook-demo:0.2` is still considered `blue` available only via preview service `blue-green-helm-guestbook-preview`.
+Your application will be deployed and exposed via the `example-helm-guestbook` service
 
-4. Promote `ks-guestbook-demo:0.2` to `green` by patching `Rollout` resource:
+## Perform the second deployment
+
+To deploy the updated version using a Blue/Green strategy:
 
 ```
-argocd app patch-resource blue-green --kind Rollout --resource-name blue-green-helm-guestbook --patch '{ "status": { "verifyingPreview": false } }' --patch-type 'application/merge-patch+json'
+helm upgrade example ./helm-blue-green/  --set image.tag=0.2
 ```
 
-This promotes `ks-guestbook-demo:0.2` to `green` status and `Rollout` deletes old replica which runs `ks-guestbook-demo:0.1`.
+Now, two versions will exist in your cluster (and each one has an associated service)
+
+```
+kubectl-argo-rollouts get rollout example-helm-guestbook
+```
+
+## Promoting the rollout
+
+To advanced the rollout and make the new version stable
+
+```
+kubectl-argo-rollouts promote example-helm-guestbook
+```
+
+This promotes container image `ks-guestbook-demo:0.2` to `green` status and `Rollout` deletes old replica which runs `ks-guestbook-demo:0.1`.
