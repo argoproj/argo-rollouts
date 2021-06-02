@@ -3,6 +3,7 @@ package experiments
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"sync"
 	"testing"
@@ -316,8 +317,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Experiments")
+	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Experiments")
 
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",

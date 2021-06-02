@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -58,7 +59,7 @@ type IstioController struct {
 func NewIstioController(cfg IstioControllerConfig) *IstioController {
 	c := IstioController{
 		IstioControllerConfig:    cfg,
-		destinationRuleWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DestinationRules"),
+		destinationRuleWorkqueue: workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "DestinationRules"),
 		VirtualServiceLister:     dynamiclister.New(cfg.VirtualServiceInformer.GetIndexer(), istioutil.GetIstioVirtualServiceGVR()),
 		DestinationRuleLister:    dynamiclister.New(cfg.DestinationRuleInformer.GetIndexer(), istioutil.GetIstioDestinationRuleGVR()),
 	}

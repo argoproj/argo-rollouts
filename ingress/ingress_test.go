@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"sync"
 	"testing"
 
@@ -63,8 +64,8 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 	i := informers.NewSharedInformerFactory(client, 0)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
 
-	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Ingresses")
+	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	c := NewController(ControllerConfig{
 		Client:           kubeclient,

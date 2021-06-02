@@ -2,6 +2,7 @@ package viewcontroller
 
 import (
 	"context"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"time"
 
@@ -98,7 +99,7 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
 		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
 		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
-		workqueue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		workqueue:               workqueue.NewRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter()),
 	}
 
 	controller.cacheSyncs = append(controller.cacheSyncs,

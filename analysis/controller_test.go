@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"encoding/json"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"testing"
 	"time"
@@ -87,7 +88,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
+	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",

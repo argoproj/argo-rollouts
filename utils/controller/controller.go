@@ -160,6 +160,8 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 			// Put the item back on
 			// the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
+
+			logCtx.Infof("%s syncHandler queue retries: %v : key \"%v\"", objType, workqueue.NumRequeues(key), key)
 			return err
 		}
 		// Finally, if no error occurs we Forget this item so it does not
