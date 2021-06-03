@@ -1441,14 +1441,54 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	t.Run("get referenced analyses from canary step analysis - fail", func(t *testing.T) {
+	rolloutAnalysisFail := v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			TemplateName: "does-not-exist",
+			ClusterScope: false,
+		}},
+	}
+
+	t.Run("blueGreen pre-promotion analysis - fail", func(t *testing.T) {
+		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedRolloutAnalyses()
+		assert.NotNil(t, err)
+		msg := "spec.strategy.blueGreen.prePromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
+		assert.Equal(t, msg, err.Error())
+	})
+
+	t.Run("blueGreen post-promotion analysis - fail", func(t *testing.T) {
+		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedRolloutAnalyses()
+		assert.NotNil(t, err)
+		msg := "spec.strategy.blueGreen.postPromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
+		assert.Equal(t, msg, err.Error())
+	})
+
+	t.Run("canary analysis - fail", func(t *testing.T) {
+		r := newCanaryRollout("rollout-canary", 1, nil, nil, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+			RolloutAnalysis: rolloutAnalysisFail,
+		}
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedRolloutAnalyses()
+		assert.NotNil(t, err)
+		msg := "spec.strategy.canary.analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
+		assert.Equal(t, msg, err.Error())
+	})
+
+	t.Run("canary step analysis - fail", func(t *testing.T) {
 		canarySteps := []v1alpha1.CanaryStep{{
-			Analysis:  &v1alpha1.RolloutAnalysis{
-				Templates: []v1alpha1.RolloutAnalysisTemplate{{
-					TemplateName: "does-not-exist",
-					ClusterScope: false,
-				}},
-			},
+			Analysis: &rolloutAnalysisFail,
 		}}
 		r := newCanaryRollout("rollout-canary", 1, nil, canarySteps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 		c, _, _ := f.newController(noResyncPeriodFunc)
