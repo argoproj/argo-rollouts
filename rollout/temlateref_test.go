@@ -406,3 +406,52 @@ func TestRemashalMapFails(t *testing.T) {
 	err := remarshalMap(nil, struct{}{})
 	assert.Error(t, err)
 }
+
+func TestResolve_WorkloadWithTemplate(t *testing.T) {
+	rollout := v1alpha1.Rollout{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			WorkloadRef: &v1alpha1.ObjectRef{
+				Name:       "my-deployment",
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "deploy",
+					},
+				},
+			},
+		},
+	}
+
+	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-deployment",
+			Namespace: "default",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test-label": "test-label-val"}},
+			},
+		},
+	}
+
+	discoveryClient := newFakeDiscoClient()
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, deployment)
+
+	resolver, cancel := newResolver(dynamicClient, discoveryClient, fake.NewSimpleClientset())
+	defer cancel()
+
+	err := resolver.Resolve(&rollout)
+
+	assert.Error(t, err)
+	assert.Equal(t, "template must be empty for workload reference rollout", err.Error())
+}

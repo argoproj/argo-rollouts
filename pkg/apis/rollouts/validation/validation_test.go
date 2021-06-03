@@ -312,3 +312,37 @@ func TestCanaryScaleDownDelaySeconds(t *testing.T) {
 	})
 
 }
+
+func TestWorkloadRefWithTemplate(t *testing.T) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			WorkloadRef: &v1alpha1.ObjectRef{
+				Name:       "my-deployment",
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+			},
+		},
+	}
+	t.Run("workload reference with template", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 2, len(allErrs))
+		assert.EqualError(t, allErrs[0], "spec.template: Internal error: template must be empty for workload reference rollout")
+		assert.EqualError(t, allErrs[1], "spec.template.spec.containers: Required value")
+	})
+}
