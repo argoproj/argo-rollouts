@@ -654,10 +654,10 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 		for i, step := range canary.Steps {
 			if step.Analysis != nil {
 				templates, err := c.getReferencedAnalysisTemplates(c.rollout, step.Analysis, validation.InlineAnalysis, i)
-				templates.Args = step.Analysis.Args
 				if err != nil {
 					return nil, err
 				}
+				templates.Args = step.Analysis.Args
 				analysisTemplates = append(analysisTemplates, *templates)
 			}
 		}
