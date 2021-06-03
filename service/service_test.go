@@ -1,8 +1,9 @@
 package service
 
 import (
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"testing"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"

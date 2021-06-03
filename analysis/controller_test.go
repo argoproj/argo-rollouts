@@ -2,14 +2,14 @@ package analysis
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

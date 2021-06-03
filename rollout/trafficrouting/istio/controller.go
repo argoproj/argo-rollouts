@@ -3,8 +3,9 @@ package istio
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

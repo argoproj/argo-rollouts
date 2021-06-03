@@ -1,9 +1,10 @@
 package ingress
 
 import (
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"sync"
 	"testing"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/stretchr/testify/assert"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"

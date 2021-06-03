@@ -1,8 +1,9 @@
 package queue
 
 import (
-	"k8s.io/client-go/util/workqueue"
 	"time"
+
+	"k8s.io/client-go/util/workqueue"
 )
 
 // DefaultArgoRolloutsRateLimiter is the default queue rate limiter.

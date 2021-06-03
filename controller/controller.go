@@ -2,8 +2,9 @@ package controller
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"

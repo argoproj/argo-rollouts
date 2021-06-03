@@ -2,9 +2,10 @@ package viewcontroller
 
 import (
 	"context"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"

@@ -3,7 +3,6 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"reflect"
 	"strconv"
 	"strings"
@@ -11,10 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"

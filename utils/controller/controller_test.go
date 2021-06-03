@@ -2,9 +2,10 @@ package controller
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/queue"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
