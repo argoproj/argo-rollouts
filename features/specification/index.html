@@ -1551,6 +1551,19 @@
       <span class="c1"># original pods. +optional</span>
       <span class="nt">maxSurge</span><span class="p">:</span> <span class="s">&quot;20%&quot;</span>
 
+      <span class="c1"># Adds a delay before scaling down the previous ReplicaSet when the</span>
+      <span class="c1"># canary strategy is used with traffic routing (default 30 seconds).</span>
+      <span class="c1"># A delay in scaling down the previous ReplicaSet is needed after</span>
+      <span class="c1"># switching the stable service selector to point to the new ReplicaSet,</span>
+      <span class="c1"># in order to give time for traffic providers to re-target the new pods.</span>
+      <span class="c1"># This value is ignored with basic, replica-weighted canary without</span>
+      <span class="c1"># traffic routing.</span>
+      <span class="nt">ScaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+
+      <span class="c1"># Limits the number of old RS that can run at one time before getting</span>
+      <span class="c1"># scaled down. Defaults to nil</span>
+      <span class="nt">ScaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+
       <span class="c1"># Background analysis to run during a rollout update. Skipped upon</span>
       <span class="c1"># initial deploy of a rollout. +optional</span>
       <span class="nt">analysis</span><span class="p">:</span>
