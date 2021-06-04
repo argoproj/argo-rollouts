@@ -24,3 +24,6 @@ ${kust_cmd} "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/inst
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
 ${kust_cmd} "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/dashboard-install.yaml"
+${kust_cmd} "${SRCROOT}/manifests/dashboard-install" >> "${SRCROOT}/manifests/dashboard-install.yaml"
