@@ -218,10 +218,9 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 func TestDontRequeueWithoutDuration(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
-	services := newServices(templates, ex)
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
 	}
 	exCtx := newTestContext(ex)
 	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
@@ -245,9 +244,8 @@ func TestRequeueAfterDuration(t *testing.T) {
 	ex := newExperiment("foo", templates, "")
 	ex.Spec.Duration = "30s"
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
-	services := newServices(templates, ex)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
 	}
 	exCtx := newTestContext(ex)
 	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
@@ -312,4 +310,34 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	newStatus := exCtx.reconcile()
 	assert.Equal(t, newStatus.TemplateStatuses[1].Status, v1alpha1.TemplateStatusError)
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
+}
+
+// TestServiceCreationForTemplate verifies that a service is created for a template if CreateService is true
+func TestServiceCreationForTemplate(t *testing.T) {
+	templates := generateTemplates("bar", "baz")
+	templates[0].CreateService = true
+	templates[1].CreateService = false
+	ex := newExperiment("foo", templates, "")
+
+	rs1 := templateToRS(ex, templates[0], 0)
+	rs2 := templateToRS(ex, templates[1], 0)
+
+	s1 := templateToService(ex, templates[0], *rs1)
+	// Verify service NOT created for template without weight set
+	s2 := templateToService(ex, templates[1], *rs2)
+	assert.Nil(t, s2)
+
+	f := newFixture(t, ex, rs1, rs2, s1)
+	defer f.Close()
+
+	f.expectCreateServiceAction(s1)
+	i := f.expectPatchExperimentAction(ex)
+
+	f.run(getKey(ex, t))
+
+	patch := f.getPatchedExperiment(i)
+
+	// Verify Experiment TemplateStatus contains reference to new service
+	expected := fmt.Sprintf("\"serviceName\":\"%s\"", s1.Name)
+	assert.Contains(t, patch, expected)
 }

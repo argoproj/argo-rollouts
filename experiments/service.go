@@ -51,7 +51,7 @@ func (c *Controller) getServicesForExperiment(experiment *v1alpha1.Experiment) (
 	return templateToService, nil
 }
 
-func (ec *experimentContext) createService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string) (*corev1.Service, error) {
+func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string) (*corev1.Service, error) {
 	ctx := context.TODO()
 	serviceAnnotations := newServiceSetAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
@@ -59,7 +59,9 @@ func (ec *experimentContext) createService(serviceName string, template v1alpha1
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
 			Namespace:       ec.ex.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, experimentKind)},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(ec.ex, experimentKind),
+			},
 			Annotations:     serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{

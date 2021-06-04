@@ -232,7 +232,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 				}
 			}
 		} else if svc == nil || svc.Name != rs.Name {
-			newService, err := ec.createService(rs.Name, template, rs.Labels)
+			newService, err := ec.CreateService(rs.Name, template, rs.Labels)
 			if err != nil {
 				templateStatus.Status = v1alpha1.TemplateStatusError
 				templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)

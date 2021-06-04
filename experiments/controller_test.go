@@ -3,12 +3,11 @@ package experiments
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
-
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/undefinedlabs/go-mpatch"
@@ -163,30 +162,6 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 	}
 }
 
-func newServices(templates []v1alpha1.TemplateSpec, experiment *v1alpha1.Experiment) []corev1.Service {
-	services := make([]corev1.Service, 0)
-	for _, template := range templates {
-		serviceName := fmt.Sprintf("%s-%s", experiment.Name, template.Name)
-		newService := corev1.Service{
-			TypeMeta: metav1.TypeMeta{},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      serviceName,
-				Namespace: experiment.Namespace,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: template.Selector.MatchLabels,
-				Ports: []corev1.ServicePort{{
-					Protocol:   "TCP",
-					Port:       int32(80),
-					TargetPort: intstr.FromInt(8080),
-				}},
-			},
-		}
-		services = append(services, newService)
-	}
-	return services
-}
-
 func newExperiment(name string, templates []v1alpha1.TemplateSpec, duration v1alpha1.DurationString) *v1alpha1.Experiment {
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -256,6 +231,32 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		}
 	}
 
+	return nil
+}
+
+func templateToService(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, replicaSet appsv1.ReplicaSet) *corev1.Service {
+	if template.CreateService {
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:                       replicaSet.Name,
+				Namespace:                  ex.Namespace,
+				Annotations:                map[string]string{
+					v1alpha1.ExperimentNameAnnotationKey:         ex.Name,
+					v1alpha1.ExperimentTemplateNameAnnotationKey: template.Name,
+				},
+				OwnerReferences:            []metav1.OwnerReference{*metav1.NewControllerRef(ex, experimentKind)},
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: replicaSet.Spec.Selector.MatchLabels,
+				Ports: []corev1.ServicePort{{
+					Protocol:   "TCP",
+					Port:       int32(80),
+					TargetPort: intstr.FromInt(8080),
+				}},
+			},
+		}
+		return service
+	}
 	return nil
 }
 

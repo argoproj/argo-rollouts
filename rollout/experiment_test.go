@@ -750,8 +750,8 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 	assert.Equal(t, "instance-id-test", createdEx.Labels[v1alpha1.LabelKeyControllerInstanceID])
 }
 
-// TestRolloutCreateExperimentWithService checks if the controller sets CreateService as true for an Experiment Template
-// when the 'Weight' field is set. CreateService should to be false when 'Weight' is not set
+// TestRolloutCreateExperimentWithService verifies the controller sets CreateService for Experiment Template as expected.
+// CreateService is true when Weight is set in RolloutExperimentStep for template, otherwise false.
 func TestRolloutCreateExperimentWithService(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
